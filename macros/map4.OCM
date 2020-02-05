@@ -45,9 +45,28 @@ map
 plot
 x(*,o)
 T
-title map 4 fig 1
+title map 4 fig 1a
 render
 
+
+
+@&
+
+@$ Sometimes lower O-rich side at low T is missing
+@&
+
+set c t=500 x(o)=.68
+c e
+
+map
+N
+
+
+
+plot
+
+
+title map4 fig 1b
 
 
 @&

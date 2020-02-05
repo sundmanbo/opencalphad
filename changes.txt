@@ -13,6 +13,17 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2020.02.04 OC version 5.058: Finally some improvement of mapping but
+as always some diagrams are worse.  There is many things still to fix.
+
+A stronger check of ambiguous phase names in TDB files has been
+introduced.  At present only as a warning but in a future version
+phase names that are not unique will cause errors.  Do not forget to
+change the phase name also in all parameters!  There are several
+changes related to database management that will be documented
+finally.  I working on a new database format more flexible and less
+cryptic than the TDB format.
+
 2020.01.14 OC version 5.057: I am still trying to improve mapping of
 binary and ternary diagrams with "tie-lines in the plane" as such
 diagrams are the ones most frequently calculated by students and for

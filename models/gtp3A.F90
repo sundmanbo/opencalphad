@@ -143,6 +143,8 @@
    propid(npid)%symbol='G '
    propid(npid)%note='Energy '
    propid(npid)%status=0
+! This indicates if there are unkown or undefined MPI in a TDB file
+   nundefmpi=0
 !============================================================
 ! VERY IMPORTANT: The properties defined below must not be equal to state
 ! variables, or abbreviation of state variables.
@@ -339,6 +341,7 @@
 ! VERY SPECIAL this model parameter identifier has no addition
 ! thus no check for addition in enter_parameter subroutine (gtp3B.F90)
 ! UNIQUAC interaction parameter 26
+! IF THIS IS CHANGED TO ANOTHER NUMBER CHANGES NEEDED IN GTP3B: mpiwarning
    npid=npid+1
    propid(npid)%symbol='UQT '
    propid(npid)%note='UNIQUAC residual parameter '
@@ -442,7 +445,8 @@
    if(gx%bmperr.ne.0) goto 1000
    tpname='RTLNP'
    tpfun=' 1 R*T*LN(1.0D-5*P); 20000 N '
-   call store_tpfun(tpname,tpfun,lrot,.FALSE.)
+!   call store_tpfun(tpname,tpfun,lrot,.FALSE.)
+   call store_tpfun(tpname,tpfun,lrot,-1)
    if(gx%bmperr.ne.0) goto 1000
 ! default minimum fraction
    bmpymin=ymind
@@ -1167,9 +1171,13 @@ end function find_phasetuple_by_indices
 !       write(*,*)'find_phase 2: ',name1,name2
       if(compare_abbrev(name1,name2)) then
          if(ics.le.phlista(lokph)%noofcs) then
-! possible phase, if iphfound>0 exact match is required
+! possible phase, if exact match no more checks
+            if(trim(name1).eq.trim(name2)) then
+               iphfound=lokph
+               goto 300
+            endif
             if(iphfound.ne.0) then
-               if(name1.eq.name2) then
+               if(trim(name1).eq.trim(name2)) then
                   iphfound=lokph
                   goto 300
                else
@@ -1227,6 +1235,7 @@ end function find_phasetuple_by_indices
 1000 continue
    return
 1100 continue
+! composition set index and pre/suffix does not match
    gx%bmperr=4073
    goto 1000
  END subroutine find_phase_by_name_exact

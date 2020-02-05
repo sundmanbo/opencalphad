@@ -107,24 +107,43 @@ enter param GD(part,Fe,Ni;2),,LD2; 6000 N test
 list data ,,
 
 
-@$ we have to create composition sets manually
-
-@$ this is by default FeNi3_L12
-amend phase part comp-set y ,,
->.5 <.1
-<.1 >.5
-<.1 >.5
-<.1 >.5
-
+@&
 @$ set a slightly off-ideal composition as the griminimiser prefers that ...
 set c t=300 p=1e5 n=1 x(ni)=.751
 
-c e
 
-l r 2
+@$ To avoid confusion I do no calculate with 2 composition sets
+@$ I do not want to use the gridminimizer.  If I just use "c n"
 
+c n
+
+l res 2
+
+
+@$ I get the disordered phase.  Its G=-8089 J/mol
+@$ To set the constitution to be ordered I use the calculate phase comamnd
+
+calc phase
+part
+1
+N
+.1
+.1
+.1
+.9
+
+@$ There should be low fraction Fe in 3 sublattices and high in the 4th
+@$ After this we can use the "c n" again which will start from current y
+
+c n
+
+l,,,,,
+
+@$ Now the phase is ordered with a lower G=-9858 J, 1 kJ more negative!
 
 @&
+
+@$ Set a T axis to calculate how the ordering varies wih T
 
 set ax 1 T 10 800 5
 
@@ -135,17 +154,6 @@ step
 
 @&
 
-ent sym cp=h.t;
-
-c sym cp
-
-@&
-
-@$ ===============================================================
-@$ If you get zigzag lines plotted you should plot y(part#2,*) instead!!!
-@$ ===============================================================
-@&
-
 plot
 T
 y(part,*)
@@ -154,13 +162,25 @@ render
 
 
 @&
+
+@$ Plot also the heat capacity
+
+ent sym cp=h.t;
+
+c sym cp
+
+@&
+
 plot
 T
 cp
-title step 5 fig 2
+title step 5 fig 2a
 
 
 @&
+
+@$ We may need scaling ...
+
 plot
 T
 cp
@@ -169,10 +189,12 @@ y
 N
 0
 10
-title step 5 fig 3
+title step 5 fig 2b
 render
 
+
 @&
+
 set inter
 
 

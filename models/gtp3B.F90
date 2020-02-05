@@ -23,6 +23,7 @@
    integer knr(1),jl,jjj,kkk,nsl,loksp,lokph,nycomp
    double precision stoik(1)
    character ch1*1,model*24,phname*24,const(1)*24
+   logical dummy
    if(.not.allowenter(1)) then
       gx%bmperr=4125
       goto 1000
@@ -186,7 +187,7 @@
       stoik(1)=one
       model='NON_MIXING'
       ch1='Z'
-      call enter_phase(phname,nsl,knr,const,stoik,model,ch1)
+      call enter_phase(phname,nsl,knr,const,stoik,model,ch1,dummy)
       if(gx%bmperr.ne.0) goto 1000
 ! set phase hidden as it should never be included in calculations
       lokph=0
@@ -249,10 +250,11 @@
 !   call find_species_record(symb,loksp)
    call find_species_record_noabbr(symb,loksp)
    if(gx%bmperr.eq.0) then
-! strange error reading cadarache database
-      do jl=1,noofsp
-         write(*,*)'3B entered species ',jl,splista(jl)%symbol
-      enddo
+! If we do not get error speces already entered !!
+! strange error reading cadarache database, what is this? BoS 2020-01-30
+!      do jl=1,noofsp
+!         write(*,*)'3B entered species ',jl,splista(jl)%symbol
+!      enddo
       gx%bmperr=4049; goto 1000
    endif
    mass=zero
@@ -339,7 +341,7 @@
     integer, dimension(maxconst) :: knr
 ! array with constituents in sublattices when entering a phase
     character, dimension(maxconst) :: const*24
-    logical once
+    logical once,dummy
 !
     call gparcx('Phase name: ',cline,last,1,name1,' ','?Enter phase')
 ! ionic liquid require special sorting of constituents on anion sublattice
@@ -484,7 +486,7 @@
        buperr=0
 4049   continue
     enddo sloop
-    call enter_phase(name1,nsl,knr,const,sites,model,phtype)
+    call enter_phase(name1,nsl,knr,const,sites,model,phtype,dummy)
     if(gx%bmperr.ne.0) goto 1000
 900 continue
     if(buperr.ne.0) gx%bmperr=buperr
@@ -495,7 +497,7 @@
 
 !\addtotable subroutine enter_phase
 !\begin{verbatim}
- subroutine enter_phase(name,nsl,knr,const,sites,model,phtype)
+ subroutine enter_phase(name,nsl,knr,const,sites,model,phtype,warning)
 ! creates the data structure for a new phase
 ! name: character*24, name of phase
 ! nsl: integer, number of sublattices (range 1-9)
@@ -510,6 +512,7 @@
    integer, dimension(*) :: knr
    double precision, dimension(*) :: sites
    character, dimension(*) :: const*(*)
+   logical warning
 !\end{verbatim}
    type(gtp_phase_add), pointer :: addrec
    character ch1*1
@@ -550,6 +553,20 @@
    else
       gx%bmperr=0
    endif
+! Check above confirm new phase is not abbreviation of existing phases, now
+! add check that no existing phase is an abbreviation of the new phase name
+   ambig2: do ll=1,noofph
+      nk=len_trim(phlista(ll)%name)
+      if(name(1:nk).eq.trim(phlista(ll)%name)) then
+         write(*,66)trim(phlista(ll)%name),trim(name)
+66       format(/'3B WARNING: An existing phase "',a,&
+              '" is short for new phase "',a,'"'/&
+              'Phase names should be unique')
+! This is for warning about when reading TDB files
+         warning=.TRUE.
+!         gx%bmperr=4054; goto 1000
+      endif
+   enddo ambig2
    if(nsl.lt.1 .or. nsl.gt.maxsubl) then
       gx%bmperr=4056
       goto 1000
@@ -2511,7 +2528,7 @@
 ! we found no addition for this parameter!!
       if(zz.gt.100) zz=zz/100
 ! propid is an array initiated in gtp3A.F90, zz>100 means component unique
-! VERY SPECIAL typty=26ij, zz=26 means uniquac parameter, has no addition!!
+! VERY SPECIAL typty=26ij, zz=26 means UNIQUAC parameter, has no addition!!
       mpiwarning: if(zz.ne.26) then
 ! give warning first time only!
          do i2=1,nundefmpi

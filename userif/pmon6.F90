@@ -1,7 +1,7 @@
 !
 MODULE cmon1oc
 !
-! Copyright 2012-2019, Bo Sundman, France
+! Copyright 2012-2020, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -339,7 +339,7 @@ contains
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
          ['EQUILIB_TRANSFER','QUIT            ','SYMBOL          ',&
-          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
+          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIALS    ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
           'NO_MACRO_STOP   ','                ','                ']
@@ -1180,7 +1180,9 @@ contains
              call enter_tpfun_interactivly(cline,last,funstring,jp)
 ! this stores the tpfun, lrot<0 means the symbol already exists
              lrot=-1
-             call store_tpfun(name1,funstring,lrot,.FALSE.)
+! last argument -1 means not reading from TDB file
+!             call store_tpfun(name1,funstring,lrot,.FALSE.)
+             call store_tpfun(name1,funstring,lrot,-1)
              if(gx%bmperr.ne.0) goto 990
 ! mark functions not calculated.  This should be done in all ceq ...
              ceq%eq_tpres(lrot)%tpused(1)=-one
@@ -2199,7 +2201,7 @@ contains
 ! subsubcommands to SET ADVANCED
 !    character (len=16), dimension(ncadv) :: cadv=&
 !         ['EQUILIB_TRANSFER','QUIT            ','SYMBOL          ',&
-!          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
+!          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIALS    ',&
 !          'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
 !          'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
 !          'NO_MACRO_STOP   ','                ','                ']
@@ -2338,9 +2340,11 @@ contains
 !                write(kou,3110)'Small','set'
 !             endif
 !.................................................................
-          case(6) ! MAP_SPECIAL
+          case(6) ! MAP_SPECIALS
+             ll=mapglobalcheck
+             if(ll.le.0) ll=10
              call gparidx('Global test interval during STEP/MAP?: ',&
-                  cline,last,mapglobalcheck,15,'?Set adv global onoff')
+                  cline,last,mapglobalcheck,ll,'?Set adv global onoff')
 !             if(nofixphfortip) then
 !                write(*,*)'Always using fix phase when mapping'
 !                nofixphfortip=.false.
@@ -2349,7 +2353,8 @@ contains
 !                     'without fix phase'
 !                nofixphfortip=.true.
 !             endif
-             write(*,*)'Not implemented yet'
+!             write(*,*)'Not implemented yet'
+!             write(*,*)'end of case 6'
 !.................................................................
           case(7) ! GLOBAL_MIN_ONOFF
              call gparcx('Turn global minimization off?: ',cline,last,&
@@ -3497,7 +3502,9 @@ contains
                 if(gx%bmperr.ne.0) goto 990
 ! here the function is stored
                 lrot=0
-                call store_tpfun(name1,funstring,lrot,.FALSE.)
+!                call store_tpfun(name1,funstring,lrot,.FALSE.)
+! last argument -1 means not reading from TDB file
+                call store_tpfun(name1,funstring,lrot,-1)
                 if(gx%bmperr.ne.0) goto 990
              elseif(compare_abbrev(name2,'CONSTANT ')) then
 ! Enter a numeric constant

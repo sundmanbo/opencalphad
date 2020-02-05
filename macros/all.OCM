@@ -1,5 +1,5 @@
 @$ running all test macros
-set echo
+set echo Y
 
 @$
 @$ *********************************************************

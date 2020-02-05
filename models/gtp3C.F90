@@ -1014,7 +1014,7 @@
            ' times formula unit of phase!')
    endif
    write(lut,310,advance='no')
-310  format(' Constitution: ')
+310  format('Constitution: ')
 !---------------
    nk=0
    sublatloop: do ll=1,phlista(lokph)%noofsubl
@@ -1157,8 +1157,10 @@
          write(*,*)'Error sorting fractions',buperr
          gx%bmperr=buperr; goto 1000
       endif
+!      write(*,'(a,10i3)')'3C value order',nv,ncol,nrow2
    else
 ! if alphabetical order just set isort(i)=i, same index as for vals
+!      write(*,'(a,10i3)')'3C alphabetical order',nv,ncol,nrow2
       do jl=1,nv
          isort(jl)=jl
       enddo
@@ -1201,7 +1203,7 @@
          endif
          n1=n1+1
       else
-! last row can be 1 to 3 columns
+! List in 4 columns, last row less than 4 columns
          names(1)=consts(isort(n1))
          if(nvrest.gt.1) then
             names(2)=consts(isort(n1+nrow2))
@@ -1220,6 +1222,7 @@
       endif
       if(nvrest.gt.0) goto 100
    else
+! List in 3 columns as constituent names are long
 ! All listed names have max 13 characters, longer names are truncated
       nvrest=nv
       n1=1
@@ -1228,23 +1231,27 @@
 ! 3rd column may start from an indices less
       n3r=2*nrow2
 !      if(nempty.eq.2) then
-! BoS modified 19.11.19
-      if(nempty.eq.1) then
-         n3r=n3r-1
-      endif
+! BoS modified 19.11.19 at CEA ... wrong??
+!      if(nempty.eq.1) then
+!         n3r=n3r-1
+!      endif
 200   continue
 !      write(*,'(a,4i4,2x,3i4)')'3C last species wrong: ',n1,nrow2,nempty,n3r,&
 !           isort(n1),isort(n1+nrow2),isort(n1+n3r)
       if(nvrest.ge.3) then
          names(1)=consts(isort(n1))
          names(2)=consts(isort(n1+nrow2))
+203      format(a,i3,2x,10i3)
          if(n1+2*nrow2.le.nv) then
+!            write(*,203)'Row1 ',n1,nrow2,n3r,nempty,isort(n1),isort(n1+nrow2),&
+!                 isort(n1+n3r)
             names(3)=consts(isort(n1+n3r))
             write(lut,210)names(1),vals(n1),names(2),vals(n1+nrow2),&
                  names(3),vals(n1+n3r)
 210         format(1x,a,1pe12.5,2(2x,a,1pe12.5))
             nvrest=nvrest-3
          else
+!            write(*,203)'Row2 ',n1,nrow2,n3r,nempty,isort(n1),isort(n1+nrow2)
             write(lut,210)names(1),vals(n1),names(2),vals(n1+nrow2)
             nvrest=nvrest-2
          endif
@@ -1253,9 +1260,11 @@
 ! last row can be 1 or 2 columns
          names(1)=consts(isort(n1))
          if(nvrest.gt.1) then
+!            write(*,203)'Row3 ',n1,nrow2,n3r,nempty,isort(n1),isort(n1+nrow2)
             names(2)=consts(isort(n1+nrow2))
             write(lut,210)names(1),vals(n1),names(2),vals(n1+nrow2)
          else
+!            write(*,203)'Row4 ',n1
             write(lut,210)names(1),vals(n1)
          endif
          nvrest=0

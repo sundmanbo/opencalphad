@@ -52,7 +52,7 @@
 ! save all conditions 
     call get_all_conditions(savedconditions,-1,starteq)
     if(gx%bmperr.ne.0) then
-       write(kou,*)'Cannot save current conditions'
+       write(kou,*)'Cannot save current set of conditions'
        savedconditions=' '
 !    else
 !       write(*,*)'Saved: ',trim(savedconditions)
@@ -198,7 +198,7 @@
 ! inactive are indices of axis conditions inactivated by phases set fixed
 ! inactive not used ...
     integer iadd,irem,isp,seqx,seqy,mode,halfstep,jj,ij,inactive(4),bytaxis
-    integer ceqlista,phfix,haha,lastax,mapx
+    integer ceqlista,phfix,haha,lastax,mapx,lokph,lokcs
 ! inmap=1 turns off converge control of T
     integer, parameter :: inmap=1
     character ch1*1
@@ -379,15 +379,64 @@
 !         mapline%linefixph(1)%compset,iadd,meqrec%nphase,abs(phfix)
 !884 format('SMP fix phase ',i1,':',i3,i2,', new fix phase: ',i3,&
 !            ', number of phases: ',i3,' abs(phfix): ',i3)
+!--------------------------------------------------------------------------
+! This is where most equilibrium calculations are made
+!--------------------------------------------------------------------------
+!
     call meq_sameset(irem,iadd,mapx,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
-!    write(*,*)'SMP Back from meq_sameset ',mapline%number_of_equilibria,&
-!         irem,iadd,gx%bmperr
+!
+!--------------------------------------------------------------------------
+!    write(*,331)'SMP Back from meq_sameset ',mapline%number_of_equilibria,&
+!         irem,iadd,gx%bmperr,phfix,ceq%tpval(1),ceq%phase_varres(4)%dgm
+331 format(a,5i5,2(F10.2))
 !    write(*,884)2,mapline%linefixph(1)%ixphase,&
 !         mapline%linefixph(1)%compset,iadd,meqrec%nphase,abs(phfix)
+!------------------------------------------------------------------
+! new global check for stable and metastable phases
+    phasecheck: if(gx%bmperr.eq.0 .and. iadd.eq.0 .and. irem.eq.0) then
+       if(maptop%globalcheckinterval.gt.0 .and. &
+         mod(mapline%number_of_equilibria,maptop%globalcheckinterval).eq.0) then
+! this may set error code if equilibrium should be recalculated
+! and it may change constitutions of metastable phases
+          write(*,*)'SMP check_all_phases: ',mapline%number_of_equilibria
+          jj=0
+          call check_all_phases(jj,ceq)
+          if(gx%bmperr.ne.0) then
+!             if(associated(mapline%lineceq,ceq)) then
+! This is true and dangerous but I will be careful programming ...
+!                write(*,*)'SMP ceq is same as mapline%lineceq'
+!             else
+!                write(*,*)'SMP ceq is NOT same as mapline%lineceq'
+!             endif
+!             call get_phase_compset(iph,ics,lokph,lokres)
+             if(gx%bmperr.eq.4366) then
+! terminate line and call gridminimizer
+                write(*,*)'SMP check_all_phases require gridminimizer',jj
+                gx%bmperr=0
+                call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
+                if(gx%bmperr.eq.0) goto 321
+             elseif(gx%bmperr.eq.4365) then
+                write(*,*)'SMP check_all_phases error, call map_halfstep:',jj
+                gx%bmperr=0
+! we have to convert jj=iph*10+ics to index in mapline%meqrec%phr
+! Check if constitution is the one se in check_all_phases
+!                write(*,95)(yarr(ii),ii=1,jj)
+!95              format('3Y gridy: ',10(F7.4))
+                
+                call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
+                if(gx%bmperr.eq.0) goto 321
+             endif
+! otherwise ignore any errors
+             gx%bmperr=0
+          endif
+       endif
+    endif phasecheck
+!------------------------------------------------------------------
     sameseterror: if(gx%bmperr.ne.0) then
 !       write(*,*)'Error in meq_sameset called from smp',gx%bmperr
 ! if error 4359 (slow convergence), 4204 (too many its) take smaller step ...
 ! error 4195 means negative phase amounts
+491    continue
        if(gx%bmperr.eq.4195 .or. gx%bmperr.eq.4359 &
             .or. gx%bmperr.eq.4204) then
 ! I am not sure there is really any change for the equilibrium calculated ...
@@ -406,20 +455,7 @@
           endif
        elseif(gx%bmperr.eq.4364) then
 ! Two stoichiometric phases with same composition stable, we have
-! calculated an invatiant equilibrium in a different way.
-!          write(*,884)3,mapline%linefixph(1)%ixphase,&
-!               mapline%linefixph(1)%compset,iadd,meqrec%nphase,abs(phfix)
-!          write(*,319)'SMP map_doallines: ',gx%bmperr,irem,mapx,iadd,&
-!               ceq%tpval(1)
-!319       format(a,i4,' Old fix:',i4,', entered:',i4,', new:',i4,&
-!               ', at T=',F10.2)
-!          write(*,318)'linefixph 2: ',mapline%linefixph(1)%ixphase,&
-!               mapline%linefixph(1)%compset
-!318       format(a,i4,i2)
-!          stop 'must think'
-!          write(*,883)mapline%linefixph(1)%ixphase,&
-!               mapline%linefixph(1)%compset,mapx,iadd
-!883       format('SMP fix:',i3,i2,', entered: ',i3,', new at node: ',i3)
+! to calculated an invariant equilibrium T in a different way.
 ! if tielines in plane create nodepoint otherwise I do not know what to do
           if(maptop%tieline_inplane.gt.0) then
 ! dummy values (for the moment)
@@ -469,7 +505,8 @@
 330 continue
     if(gx%bmperr.eq.0 .and. irem.eq.0 .and. iadd.eq.0) then
 ! no error and no change of phase set, just store the calculated equilibrium.
-!       write(*,*)'hms: Storing equilibrium'
+!       write(*,*)'hms: Storing equilibrium',&
+!            mapline%number_of_equilibria,maptop%globalcheckinterval
        if(mapline%number_of_equilibria.gt.10 .and. mapline%nodfixph.gt.0) then
 ! we have managed 3 steps, set phase at start node as entered (if dormant)
           if(meqrec%phr(mapline%nodfixph)%phasestatus.eq.PHDORM) then
@@ -767,9 +804,9 @@
        call map_calcnode(irem,iadd,maptop,mapline,mapline%meqrec,axarr,ceq)
 ! segmentation fault in map_calcnode 170518 !!
 !       write(*,*)'Back from map_calcnode',gx%bmperr
-       if((gx%bmperr.ne.0 .or. irem.ne.0 .or. iadd.ne.0).and. noderrmess) then
-          write(*,777)gx%bmperr,irem,iadd,ceq%tpval(1)
-777       format('SMP problem calculating node: ',3i5,F8.2)
+       if((gx%bmperr.ne.0 .or. irem.ne.0 .or. iadd.ne.0) .and. noderrmess) then
+          write(*,777)gx%bmperr,irem,iadd,noderrmess,ceq%tpval(1)
+777       format('SMP problem calculating node: ',3i5,l2,F8.2)
           noderrmess=.false.
        endif
        if(gx%bmperr.ne.0) then
@@ -2070,7 +2107,7 @@
 ! mark there is no node at the end
     nullify(mapline%end)
 1000 continue
-! This reoutine should clear any error code
+! This routine should clear any error code
     gx%bmperr=0
     return
   end subroutine map_lineend
@@ -2545,7 +2582,8 @@
                 endif
                 mapline%axvals2(jax)=xxx
 ! check which change is the largest
-                if(ocv()) write(*,99)mapline%number_of_equilibria,jax,jaxwc,&
+!                if(ocv()) write(*,99)mapline%number_of_equilibria,jax,jaxwc,&
+                write(*,99)mapline%number_of_equilibria,jax,jaxwc,&
                      nyax,mapline%axvals(jax),dax1(jax),&
                      mapline%axvals2(jax),dax2(jax)
 99              format('Slope: ',i3,2x,3i2,6(1pe12.4))
@@ -2822,7 +2860,11 @@
     save maxstep,isofix,isoent,fixbyte,ignore,ysave,approach
 !
     mapeqno=mapline%number_of_equilibria
-!    write(*,*)'In map_step: ',mapeqno,meqrec%nv
+! the dgm variables are for Al3N2 in the Al-Ni system which is not found stable
+!   write(*,'(a,i5,3i3,5(F10.2))')'In map_step2: ',mapeqno,meqrec%nv,&
+!         maptop%tieline_inplane,mapline%axandir,ceq%tpval(1),&
+!         ceq%phase_varres(3)%dgm,ceq%phase_varres(4)%dgm,&
+!         ceq%phase_varres(5)%dgm
 !    call list_conditions(kou,ceq)
     if(mapline%more.eq.0) then
 ! this means the current equilibrium is the last, line is terminated
@@ -2835,18 +2877,18 @@
     twoextensiveaxis=0
     maybecongruent=0
 ! new global check for stable and metastable phases
-    if(maptop%globalcheckinterval.gt.0 .and. &
-         mod(mapeqno,maptop%globalcheckinterval).eq.0) then
+!    if(maptop%globalcheckinterval.gt.0 .and. &
+!         mod(mapeqno,maptop%globalcheckinterval).eq.0) then
 ! this may set error code if equilibrium should be recalculated
 ! and it may change constitutions of metastable phases
-       call check_all_phases(0,ceq)
-       if(gx%bmperr.ne.0) then
+!       call check_all_phases(0,ceq)
+!       if(gx%bmperr.ne.0) then
 ! these errors mean a new stable phase detected, we should terminate line
-          if(gx%bmperr.eq.4364 .or. gx%bmperr.eq.4365) goto 1000
+!          if(gx%bmperr.eq.4364 .or. gx%bmperr.eq.4365) goto 1000
 ! otherwise ignore any errors
-          gx%bmperr=0
-       endif
-    endif
+!          gx%bmperr=0
+!       endif
+!    endif
     if(nax.eq.1) then
 !================================================================== new step
 ! this is for STEP with one axis
@@ -2954,6 +2996,7 @@
 ! for the fix phase or if it is a phase or component dependent state variable
           svrtarget=svrrec
           istv=svrrec%oldstv
+! istv>=10 means extensive condition (not potential)
           extvar: if(istv.ge.10) then
 ! in svrrec we have the axis variable for an extensive phase variable.  
 ! The value in mapline%axvals is for the entered phase, extract the value
@@ -3010,10 +3053,6 @@
                 if(jax.ne.jaxwc .and. istv.ge.10) then
                    prefixval(jax)=xxx
                    curfixval(jax)=mapline%axvals2(jax)
-!                   if(abs(prefixval(jax)-curfixval(jax)).gt.&
-!                        0.5D0*axarr(jax)%axinc) then
-!                      bigincfix=5.0D-1
-!                   endif
 ! for axis with inactive condition check if next step would pass min/max limit
 ! If so reduce the step in the active axis but do not change active axis!!
 ! xxx is last axis value, mapline%axvals2(jax) is previous
@@ -3043,7 +3082,7 @@
 ! This test is very sensitive and if maybecongruent is set nonzero
 ! it is too much to reduce the step by 1.0D-2 below.  If so the map5
 ! fails at low T and I calculate too many points.  I set the
-! reduction to 1.0D-1 which seems OK.
+! reduction to 1.0D-1 which seems OK.  istv>=10 means extensive variable
                    if(istv.ge.10 .and. &
                         abs(curval(jax)-curfixval(jax)).lt.&
                         axarr(jax)%axinc) then
@@ -3616,6 +3655,11 @@
 !       write(*,*)'Too many stable phases at nodepoint',meqrec%maxsph
 ! set back pcond as active, this saved top of miscibility gap in Cr-Mo !!!
        pcond%active=0
+!       if(same_composition(iadd,meqrec%phr,meqrec,ceq,zero)) then
+!          iadd=0; goto 201
+!       endif
+!       write(*,'(a,10i5)')'SMP node with too many stable phases: ',&
+!            iremsave,iaddsave,phfix,meqrec%nstph,maxstph
        gx%bmperr=4223; goto 1000
     else
        if(ocv()) write(*,*)'Number of stable phases at nodepoint',&
@@ -3703,6 +3747,7 @@
 !
 !   write(*,202)'Calculated node with fix phase: ',gx%bmperr,irem,iadd,ceq%tpval
 202 format(a,3i4,2(1pe12.4))
+201 continue
 !-------------------------------------------------
 ! trouble if error or another phase wants to be stable/dissapear
 ! We may have to calculate with the axis fix again, maybe even read up
@@ -3714,7 +3759,10 @@
        if(ocv()) write(*,*)'Another phase wants to disappear',irem
        gx%bmperr=4222
     elseif(iadd.gt.0) then
-       if(ocv()) write(*,*)'Another phase wants to be stable',iadd
+       if(same_composition(iadd,meqrec%phr,meqrec,ceq,zero)) then
+          iadd=0; goto 201
+       endif
+!       write(*,*)'New phase stable: ',iremsave,iaddsave,iadd,ceq%tpval(1)
        gx%bmperr=4223
     else
 ! It worked to calculate with a new fix phase releasing all axis condition!!!

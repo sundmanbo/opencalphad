@@ -647,7 +647,9 @@
 !   write(*,*)'3D epi: ',longline(1:jp)
 !   call enter_tpfun(parname,longline,lfun,.FALSE.)
 !   write(*,*)'3D funame: ',trim(funame)
-   call store_tpfun(funame,longline,lfun,.FALSE.)
+!   call store_tpfun(funame,longline,lfun,.FALSE.)
+! last argumnent -1 means not reading from TDB file
+   call store_tpfun(funame,longline,lfun,-1)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,290)'3D enter_par 7: ',lokph,nsl,nint,ideg,lfun,refx
 290 format(a,5i4,1x,a)
@@ -1011,8 +1013,8 @@
    integer nterm,kolon,iqz,krp,jp,istv,iref,iunit,jstv,jref,junit,jl,ks
    integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp,firstc,lpos
 ! a long line with conditions can create overflow and lost values ...
-   character stvexp*128,stvrest*128,textval*32,c5*5,ch1
-   character svtext*128,encoded*60,defval*18,actual_arg*24,svfuname*16
+   character stvexp*500,stvrest*500,textval*32,c5*5,ch1
+   character svtext*500,encoded*60,defval*18,actual_arg*24,svfuname*16
    integer indices(4),allterms(4,10),seqz,experimenttype
    integer ich,back,condvalsym,symsym,nextexp,colon
    double precision coeffs(10),xxx,value,ccc
@@ -1026,10 +1028,9 @@
 !   call set_cond_or_exp_old(cline,ip,new,notcond,ceq)
 !   return
 !=========================================================================
-   if(len_trim(cline).gt.120) then
-      write(*,*)' *** Attention, a very long line with conditions:'
-      write(*,*)trim(cline)
-      write(*,*)'Some conditions may be lost!'
+   if(len_trim(cline).gt.400) then
+      write(*,*)'3D *** Too long line with conditions:',len_trim(cline)
+      gx%bmperr=4399; goto 1000
    endif
 !
    nullify(temp)
@@ -1062,7 +1063,7 @@
 !   write(*,56)'3D scoe: ',nterm,ip,trim(cline)
 56 format(a,2i3,' "',a,'" ')
    if(nterm.eq.0) then
-! the whole line is read into stvexp
+! the whole line is read into stvexp, ip is increemented by 1
       call gparcdx('State variable: ',cline,ip,5,stvexp,'T','?SET condition')
    else
 ! the whole expression must have been entered on the same line

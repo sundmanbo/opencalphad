@@ -10,7 +10,7 @@ MODULE liboceqplus
   use general_thermodynamic_package
   use minpack
 !
-! Copyright 2012-2019, Bo Sundman, France
+! Copyright 2012-2020, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -1300,22 +1300,22 @@ CONTAINS
        if(iadd.gt.0) tupadd=meqrec%phr(iadd)%phtupix
        if(irem.gt.0) tuprem=meqrec%phr(irem)%phtupix
        if(.not.btest(meqrec%status,MMQUIET)) then
+          if(iadd.gt.0) then
+             phnames='+'
+             call get_phasetup_name(tupadd,phnames(2:))
+             if(irem.gt.0) then
+                kk=len_trim(phnames)+3
+                phnames(kk-1:kk-1)='-'
+                call get_phasetup_name(tuprem,phnames(kk:))
+             endif
+          else
+             phnames='-'
+             call get_phasetup_name(tuprem,phnames(2:))
+          endif
           if(formap) then
-             write(*,*)'New phase stable at first axis increment',tupadd,tuprem
+             write(*,*)'Phase change not allowed: ',trim(phnames)
              gx%bmperr=4210; goto 1000
           elseif(ceq%eqno.ne.1) then
-             if(iadd.gt.0) then
-                phnames='+'
-                call get_phasetup_name(tupadd,phnames(2:))
-                if(irem.gt.0) then
-                   kk=len_trim(phnames)+3
-                   phnames(kk-1:kk-1)='-'
-                   call get_phasetup_name(tuprem,phnames(kk:))
-                endif
-             else
-                phnames='-'
-                call get_phasetup_name(tuprem,phnames(2:))
-             endif
 !             write(*,219)meqrec%noofits,iadd,irem,' at equil: ',ceq%eqno
 !219          format('Phase change: its/add/remove: ',3i5,a,i5)
              write(*,219)ceq%eqno,meqrec%noofits,trim(phnames)
@@ -2261,7 +2261,7 @@ CONTAINS
        else
 ! phase is dormant or suspended, must not be stable!!!!
           write(*,373)phr(jj)%iph,phr(jj)%ics,kkz
-373       format('This phase must not be stable:',3i7)
+373       format('MM This phase must not be stable:',3i7)
           gx%bmperr=4194; goto 1000
        endif
 ! problem with Fe-O-U-Zr convergence, all phases disappear ??
@@ -2398,6 +2398,13 @@ CONTAINS
           endif
 !          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
           dgm=gsurf-dgm/molesofatoms
+          if(phr(jj)%phasestatus.gt.0) then
+! we should be here only for UNSTABLE phases, phr(jj)%phasestatus<=0
+! For some reason a phase has entered/fixed status (>0) THAT IS AN ERROR
+! It happened in SMP2A when mapping Al-Ni and correcting too long step in T
+             write(*,'(a,i4,i3)')'MM phase status reset:',jj,phr(jj)%phasestatus
+             phr(jj)%phasestatus=0
+          endif
           if(dgm.gt.dgmmax) then
              if(phr(jj)%phasestatus.ge.PHENTUNST .and. &
                 phr(jj)%phasestatus.le.PHENTERED) then
@@ -6177,7 +6184,10 @@ CONTAINS
 !    double precision, parameter :: xdiff=0.01D0
 ! FINETUNING: a large value of xdiff may mean you miss a miscibility gap
 ! a small value may create bad convergence
-    double precision, parameter :: xdiff=0.05D0
+! 0.05 fails to find L1_2/A1/L1_0 in Au-Cu ...
+!    double precision, parameter :: xdiff=0.05D0
+! 0.01 works better for Au-Cu ... maybe other problems ...
+    double precision, parameter :: xdiff=0.01D0
     double precision, dimension(maxel) :: xmol1,xmol2,wmass
     double precision amount,totmol,totmass,xdiffm,xdiffc
 ! CCI
@@ -6187,6 +6197,7 @@ CONTAINS
          totmol,totmass,amount,ceq)
     if(gx%bmperr.ne.0) goto 1000
     xdiffm=one
+!    write(*,*)'MM testing same composition',jj,phr(jj)%iph,phr(jj)%ics
 ! ?? strange loop limits ??
 !    do jp=jj-1,1,-1
     do jp=1,meqrec%nphase
@@ -6213,27 +6224,6 @@ CONTAINS
        endif
 110    continue
     enddo
-! check if any with higher index is same phase as jj
-!    do jp=jj+1,meqrec%nphase
-!       if(phr(jp)%iph.eq.phr(jj)%iph) then
-!          if(phr(jp)%stable.eq.1) then
-!             call calc_phase_molmass(phr(jp)%iph,phr(jp)%ics,xmol2,wmass,&
-!                  totmol,totmass,amount,ceq)
-!             if(gx%bmperr.ne.0) goto 1000
-!             write(*,118)phr(jj)%ics,dgm,(xmol1(j),j=1,noel())
-!             write(*,118)phr(jp)%ics,zero,(xmol2(j),j=1,noel())
-!             do jy=1,meqrec%nrel
-!                if(abs(xmol1(jy)-xmol2(jy)).gt.xdiff) goto 120
-!             enddo
-! we have found another stable composition set with same composition
-!             goto 300
-!          endif
-!       else
-!          exit
-!       endif
-!120    continue
-!    enddo
-! no composition set of same phase with same constitution
     same_composition=.FALSE.
     goto 1000
 !--------------------------------------------------------
@@ -9568,6 +9558,8 @@ CONTAINS
 ! calculate the zero
 !    write(*,*)'Calling hybrd1',xv(1)
     nv=1
+! testing tzero calculation with larger composition difference in the phases?
+!    tol=1.0D-2  this is max difference in G, maybe relative??
     tol=1.0D-6
     call hybrd1(tzcalc,nv,xv,fvec,tol,info,wa,lwa)
     if(info.ne.1) then
@@ -9644,8 +9636,9 @@ CONTAINS
 ! restore phase 1
     call change_phtup_status(tzph1,1,one,tzceq)
     fvec(1)=gm1-gm2
+! maybe relative? No as gm1 and gm2 are divided by RT and around 1.0
 !    write(*,'(a,4(1pe12.4))')'tzcalc: ',xv(1),gm1,gm2,fvec(1)
-    fvec(1)=cps1%gval(1,1)/cps1%abnorm(1)-cps2%gval(1,1)/cps2%abnorm(1)
+!    fvec(1)=cps1%gval(1,1)/cps1%abnorm(1)-cps2%gval(1,1)/cps2%abnorm(1)
 1000 continue
     return
 1100 continue
@@ -10114,7 +10107,7 @@ CONTAINS
     if(meqrec%nrel.ne.2) then
 ! How to check if I should use this routine? Only 2 components?
 ! If we have an activity condition one could have 3 components ....
-       write(*,*)'This routine should  be used only when tie-lines in plane'
+       write(*,*)'MM This routine should  be used only when tie-lines in plane'
        goto 1000
     endif
 !    call get_state_var_value('X(O) ',value,phases,ceq)
@@ -10235,7 +10228,8 @@ CONTAINS
 !    call list_conditions(kou,ceq)
 ! Strange here we have one degree of freedom! how can we calculate?  No check!!
 ! But we must have a condition on the amount
-! mapx set to zero inside this routine
+! mapx set to zero inside this routine.  Make sure no error code set!!
+    if(gx%bmperr.ne.0) gx%bmperr=0
     call meq_sameset(idum,jdum,mapx,meqrec,meqrec%phr,inmap,ceq)
 !    write(*,*)'MU(*) after  meq_sameset: ',ceq%cmuval(1),ceq%cmuval(2)
     if(gx%bmperr.ne.0) then
@@ -10257,6 +10251,8 @@ CONTAINS
 ! This means two stoichiometric phases stable an node point
     gx%bmperr=4364
 1000 continue
+! Make sure status of new phase found at nodepoint as set as entered
+    meqrec%phr(iadd)%phasestatus=PHENTERED
     return
   end subroutine two_stoich_same_comp
 

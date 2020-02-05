@@ -118,6 +118,7 @@
    endif
    kp=1
    pph=0
+!   write(*,*)'3Y allocating gridpoints 1',nrph
    allocate(gridpoints(nrph))
    allocate(phord(nrph))
    ggloop: do iph=1,nrph
@@ -145,6 +146,7 @@
 ! we will generate a grid for pph phases, the phase index for phase 1..pph
 ! is in iphx(1..pph)
 ! always allocate a grid for maxgrid points
+!   write(*,*)'3Y allocating gridpoints 2',nrel,maxgrid
    allocate(xarr(nrel,maxgrid))
    gmax=zero
 !   write(*,11)'3Y gp1:',pph,(iphx(iph),iph=1,pph)
@@ -500,6 +502,7 @@
 ! a default constitution and CSDEFCON set)
 ! finally store stable phase amounts and constitutions into ceq%phase_varres
    j1=1
+!   write(*,*)'3Y allocating startup 3',nvsph
    allocate(starttup(nvsph))
    call extract_massbalcond(ceq%tpval,xdum,totam,ceq)
    if(gx%bmperr.ne.0) goto 1000
@@ -846,6 +849,7 @@
 !   if(mode.gt.0) then
 !      write(*,*)'3Y looking for allocate error: ',nsl,nend,inkl(nsl)
 !   endif
+!   write(*,*)'3Y allocating endmem: ',nsl,nend,inkl(nsl)
    allocate(endm(nsl,nend))
    allocate(yfra(inkl(nsl)))
    nofy=inkl(nsl)
@@ -1053,7 +1057,7 @@
 !    0.61*Y_E + 0.39*Y_F,F=/=E
 !             + 0.25*Y_F + 0.14*Y_G,G=/=(E,F)
          if(iter.eq.2 .or. iter.eq.3) then
-! we are interating in the ternary endmember
+! we are iterating in the ternary endmember
             stop 'no ternary for nend<10'
 !            write(*,*)'3Y Ternary combinations for 2<nend<10'
             kend=kend+1
@@ -1273,6 +1277,7 @@
 ! nend is number of endmembers, endm(1..nsl,ii) are constituent index of ii
 ! yendm(1..nsl,ii) has the constituent fractions for endmember ii
 ! yfra is used to generate a constitutuon from a combination of endmembers
+!   write(*,*)'3Y allocating endmem 2',nsl,nend,ncon,nend
    allocate(endm(nsl,nend))
    allocate(yendm(ncon,nend))
    allocate(yfra(ncon))
@@ -1670,6 +1675,7 @@
 !   all gridpoints up the one specified by the value of mode (no G calculation)
 !   write(*,*)'3Y ggy: ',mode,iph,nsl,nend,inkl(nsl)
 !
+!   write(*,*)'3Y allocating yfra mm',inkl(nsl),nsl,nend
    allocate(yfra(inkl(nsl)))
 ! endm(i,j) has constituent indices in i=1..nsl for endmember j 
 ! endm(1,1) is constituent in sublattice 1 of first endmember
@@ -2035,6 +2041,7 @@
 ! endm(nsl,2) is constituent in sublattice nsl of second endmember
 ! endm(1..nsl,nend) are constituents in all sublattices of last endmember
 !   if(mode.gt.0) write(*,*)'3Y allocate endm: ',nsl,nend
+!   write(*,*)'3Y allocating endmembers 5:',nsl,nend,inkl(nsl)
    allocate(endm(nsl,nend))
 ! inkl(nsl) is the number of fraction variables in the phase
 !   allocate(yfra(inkl(nsl)))
@@ -2089,6 +2096,7 @@
 !        endm(1,nend),endm(1,3),endm(2,3),endm(1,4),endm(2,4)
 ! we must allocate and set endmember fractions both for mode 0 and >0
 !   if(mode.gt.0) write(*,*)'3Y allocate yendm: ',inkl(2),nend
+!   write(*,*)'3Y allocating endmembers 6:',inkl(2),nend
    allocate(yendm(inkl(2),nend))
    yendm=zero
 !   write(*,*)'3Y endmember fractions:',mode,je
@@ -2176,7 +2184,7 @@
 !            endmem3b: do kend=catloop,catloop+cation-1
 !               if(kend.eq.jend .or. kend.eq.iend) cycle endmem3b
                if(.not.dense .and. cation.gt.breaks(3)) then
-                  write(*,*)'skipping ternary cationloop'
+!                  write(*,*)'3Y skipping ternary cationloop'
                   cycle endmem3b
 !               elseif(mode.eq.0) then
 !                  write(*,480)'3Y cations: ',lend+1,iend,jend,kend,ngg
@@ -2330,7 +2338,8 @@
    double precision, dimension(5), parameter :: &
         yf=[0.07D0,0.28D0,0.16D0,0.45D0,0.04D0]
    integer ii,ijs,iks,il,ils,im,ims,is,nendj,nendk,nendl,nendm,ng
-! NOTHING IMPLEMENTED YET
+   character phname*32
+! NOTHING IMPLEMENTED YET oh yes it is ...
 !   write(*,*)'3Y in generate_fccord_grid ',ngg
    if(mode.lt.0) then
       write(*,*)'3Y mode <0 not allowed'
@@ -2346,7 +2355,8 @@
 ! get phase model
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1010
-! max number of gridpoints allowed, ngg returned as number of gridpoints...
+! max number of gridpoints allowed, ngg returned as number of gridpoints ???
+! maxng is zero ...
    maxng=ngg
    ngg=0
 ! incl(ii) set to number of constituents up to including sublattice ii
@@ -2365,6 +2375,14 @@
 ! nend is number of endmembers, endm(1..nsl,ii) are constituent index of ii
 ! yendm(1..nsl,ii) has the constituent fractions for endmember ii
 ! yfra is used to generate a constitutuon from a combination of endmembers
+!   write(*,*)'3Y allocating endmembers 8:',nsl,nend,ncon
+   if(nsl*nend.gt.100000) then
+      call get_phase_name(iph,1,phname)
+      write(*,*)'3Y Limiting gridpoints in ',trim(phname),nend,30000
+! I am not sure if nend is checked in the loops below, may cause segmentation
+! fault
+      nend=30000
+   endif
    allocate(endm(nsl,nend))
    allocate(yendm(ncon,nend))
    yendm=1.0D-12
@@ -2436,6 +2454,11 @@
 !                             (endm(ik,kend),ik=1,nsl),0
 16                      format(a,3i5,4i4,2i7)
                         kend=kend+1
+! this can be ver very many so maybe nend set to lower value above
+                        if(kend.eq.nend) then
+                           write(*,*)'3Y limiting grid in ',trim(phname),kend
+                           goto 1000
+                        endif
                         do iz=1,nsl
                            endm(iz,kend)=endm(iz,kend-1)
                         enddo
@@ -2449,6 +2472,11 @@
 !                  write(*,16)'3Y endm 4: ',0,ls,kend,&
 !                       (endm(ik,kend),ik=1,nsl),0
                   kend=kend+1
+! this can be ver very many so maybe nend set to lower value above
+                  if(kend.eq.nend) then
+                     write(*,*)'3Y limiting grid in ',trim(phname),kend
+                     goto 1000
+                  endif
                   do iz=1,nsl
                      endm(iz,kend)=endm(iz,kend-1)
                   enddo
@@ -2460,14 +2488,14 @@
    if(mode.eq.0 .and. test_phase_status_bit(iph,PHBORD)) then
 ! for BCC ordered phase add endmember with same constituents in first and third
 ! sublattices and loop in the others like A:B-X:A:B-X and B:C-X:B:C-X
-      write(*,*)'3Y Grid minimizer has no gridpoints for B32 ordering',kend-1
+!     write(*,*)'3Y Grid minimizer has no gridpoints for B32 ordering',kend-1
 !      stop 'too many gridpoints'
    endif
 ! kend has been incremented one too much
    nend=kend-1
 !   write(*,*)'3Y ordered endmemb: ',nend
 !   if(mode.eq.0) then
-! output adapted to 5 sublattices
+! output adapted to 5 sublattices (interstitial)
 !      if(nsl.eq.5) then
 !         write(*,17)'3Y orded:',nend,((endm(ls,mend),ls=1,nsl),mend=1,nend)
 17       format(a,i3,4(i4,4i3)/,(12x,i4,4i3,i4,4i3,i4,4i3,i4,4i3))
@@ -4459,6 +4487,7 @@
    logical igen
    real xmix(maxel)
    double precision a1,a2,gdf,gval1,gval2,gval3,gval4,gval5,gmindif
+   character phname*24
 !
 ! gmindif is the value to accept to merge two gridpoints
 ! It should be a variable that can be set by the user for finetuning
@@ -4617,9 +4646,12 @@
 !--------------------------------------------- here we merge !!
 200         continue
 ! gridpoint in ideal phase or point in between has lower G, merge
-            write(*,830)'3Y merging:  ',jp,kp,gdf,iphl(jp),&
-                 aphl(jp),aphl(kp)
-830         format('3Y GridP ',a,2i3,1pe12.4,' in phase ',i3,2(e12.4))
+            call get_phase_name(iphl(jp),1,phname)
+            if(gx%bmperr.ne.0) then
+               phname='UNKNOWN'; gx%bmperr=0
+            endif
+            write(*,830)'3Y merging:',jp,kp,gdf,aphl(jp),aphl(kp),trim(phname)
+830         format(a,2i4,3(1pe12.4),' in ',a)
 ! If merging use correct phase amounts
             npm=npm+1
             a1=aphl(jp)/(aphl(jp)+aphl(kp))
@@ -5153,28 +5185,44 @@
 ! It does not creating any new composition sets
 ! It can be usd during STEP/MAP to update compositions of metastable
 ! phases which have become stuck in a local minimium
-! I am not sure mode is needed ...
+! if error 4365 or 4364 is set mode will return index in meqrec%phr 
+! of the phase that should be stable
    implicit none
    integer mode
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    TYPE(gtp_equilibrium_data), target :: cceq
    TYPE(gtp_equilibrium_data), pointer :: pceq
-   integer iph,ics,phstat
+   integer iph,phstat,saverr
 !
-! it did not work ...suck
-   write(*,*)'3Y In check_all_phases'
+!   write(*,*)'3Y In check_all_phases'
 ! COPY the whole equilibrium record to avoid destroying anything!!
 ! otherwise I had strange problems with amounts of phases ??
    cceq=ceq
    pceq=>cceq
+! mode will be updated inside check_phase_grid to correspond to meqrec%phr index
+   mode=0
    ggloop: do iph=1,noofph
 ! include all phases with any composition set entered (but only once!)
 ! loop for composition sets inside check_phase as they all have the same grid
-      call check_phase_grid(iph,pceq,ceq)
-! if a stable phase has a new composition return error
-      if(gx%bmperr.ne.0) goto 1000
+      call check_phase_grid(iph,mode,pceq,ceq)
+      if(gx%bmperr.ne.0) then
+! if a stable phase need a new composition terminate and return error
+         if(gx%bmperr.eq.4366) then
+! grid minimizer needed to create new composition set is needed
+            write(*,*)'3Y New composition set needed: ',gx%bmperr,mode,mode
+            goto 1000
+         elseif(gx%bmperr.eq.4365) then
+! new stable phase composition inserted in unstable composition set
+! go back and take halfstep in step/map
+            write(*,*)'3Y found stable phase: ',gx%bmperr,mode,mode
+            goto 1000
+            saverr=gx%bmperr
+         endif
+         gx%bmperr=0
+      endif
    enddo ggloop
+   if(saverr.ne.0) gx%bmperr=saverr
 !
 1000 continue
    return
@@ -5184,7 +5232,7 @@
 
 !\addtotable subroutine check_phase_grid
 !\begin{verbatim}
- subroutine check_phase_grid(iph,pceq,ceq)
+ subroutine check_phase_grid(iph,jcs,pceq,ceq)
 !
 ! This function check for A SINGLE PHASE if there are any gridpoints
 ! closer (or below) to the current calculated solution if so it
@@ -5195,19 +5243,23 @@
 ! phases which have become stuck in a local minimium
 ! NOTE pceq is a pointer to a copy of the real equilibrium record
 ! ceq is a pointer to the real equilibrium record
+! jcs is returned as the composition set that should be stable (if any)
    implicit none
-   integer iph
+   integer iph,jcs
    TYPE(gtp_equilibrium_data), pointer :: ceq,pceq
 !\end{verbatim}
    real, allocatable :: xarr(:,:),garr(:)
    double precision, dimension(maxel) :: x1mol,wmass
    double precision, dimension(maxconst) :: yarr
    double precision totmol,totmass,amount,gmax,dgmax,dgtest
+   double precision, parameter :: mindg=1.0D-6
 ! max 9 composition sets
    double precision gorig,gbest,gdiff,gset(9),gplan,am,qq(5)
+! for debugg
+   double precision yold(100)
    integer, allocatable :: kphl(:),iphx(:)
    integer ii,jj,kk,nrel,lokcs,moded,ny,ics,ics2,ncs,stcs(4),nstcs,ie,ngg
-   integer phstat
+   integer phstat,lokph,lokres
    logical skip
    integer, parameter :: maxgrid=100000
 !
@@ -5232,16 +5284,14 @@
       if(gx%bmperr.ne.0) goto 1000
       call calc_phase_molmass(iph,ics,x1mol,wmass,totmol,totmass,am,ceq)
       if(gx%bmperr.ne.0) goto 1000
-      gorig=pceq%phase_varres(lokcs)%gval(1,1)
-!      write(*,15)gorig,nrel,(ceq%cmuval(ii),ii=1,nrel)
-!15    format('3Y gorig: ',1pe12.4,i3,4(1pe12.4))
-!      write(*,16)totmol,am,nrel,(x1mol(ii),ii=1,nrel)
-!16    format('3Y moles',2(1pe12.4)i2,5(0pF8.5))
+! abnorm(1) is number of atoms per formula unit
+      gorig=pceq%phase_varres(lokcs)%gval(1,1)/&
+           pceq%phase_varres(lokcs)%abnorm(1)
 ! calculate the difference with the current stable tangent plane
-! It can be zero if the phase already is stable
+! It can be zero if the composition set is stable
       gplan=zero
       do ii=1,nrel
-         gplan=gplan-x1mol(ii)*pceq%cmuval(ii)
+         gplan=gplan+x1mol(ii)*pceq%cmuval(ii)
       enddo
 ! this is the original drivining force for each composition set
       gset(ics)=gorig-gplan
@@ -5280,12 +5330,6 @@
 !      write(*,22)'3Y GRID: ',ii,gdiff,gbest,garr(ii),gplan
 22    format(a,i4,4(1pe12.4))
       if(gdiff.gt.gbest) then
-!         if(gbest.gt.zero) then
-! more than one gridpoint is below the current tangent plane! 
-! set error and request recalculate with global gridmin
-!            gx%bmperr=4365; goto 1000
-! It is as likely to have many stable gridpoints as a single one
-!         endif
          kk=ii; gbest=gdiff
       endif
    enddo
@@ -5294,63 +5338,86 @@
 30 format(a,i4,e12.4,10(F8.5))
 ! now we compare the best gridpoint with the composition sets
    loop1: do ics=1,ncs
+! jcs will be the correct phase index inside meqrec%phr array ??
+      jcs=jcs+1
       phstat=test_phase_status(iph,ics,amount,pceq)
       if(phstat.lt.PHDORM) cycle loop1
-! extract constitution for the gridpoint kk
+! extract constitution for the best gridpoint kk
       call generic_grid_generator(kk,iph,ngg,nrel,xarr,garr,&
            ny,yarr,gmax,pceq)
-      if(gbest.ge.zero) then
-! there is a gridpoint below the tangent plane, is there a stable compset?
+      if(gbest.ge.mindg) then
+! there is a gridpoint below the tangent plane
+! If there is a metastable composition set copy the gripoint constitution
+! to that and recalculate.  If no free composition set test if the grid
+! point can be merged with a stable composition set.  If not recalculate
+! with grid minimizer
          if(nstcs.gt.0) then
-! There is at least one stable composition set, if there is an unstable
-! then set the constitution of the gridpoint in that
+! There is one or more stable composition set, if there is an unstable one
+! then set the gridpoint constitution in that
             if(nstcs.eq.ncs) then
-! An advanced check ... if G curve is convex!  NOT IMPLEMENTED
-! we have to compare the stable gridpoint with those already stable            
-               loop2: do ics2=1,nstcs
-                  if(stcs(ics2).lt.0) cycle loop2
-                  call calc_phase_molmass(iph,stcs(ics2),x1mol,wmass,totmol,&
-                       totmass,am,pceq)
-                  if(gx%bmperr.ne.0) goto 1000
-! we should check if there is a maximum G between the gridpoint and the
-! stable composition set.  How??  To be done ...
-                  write(*,*)'3Y New composition set needed'
-                  gx%bmperr=4399; goto 1000
-               enddo loop2
-            else
-! insert the GRIDPOINT constitution in an UNSTABLE composition set (if any)
-               loop3: do ics2=1,ncs
-                  loop4: do jj=1,nstcs
-! check if this compset is stable
-                     if(stcs(jj).eq.ics2) cycle loop3
-                  enddo loop4
-                  write(*,90)'stable',iph,ics2,ceq%tpval(1)
-90                format('3 Y Insert ',a,' gridpoint in phase/set',i4,i2,',&
-                       at T=',F10.2)
-                  call set_constitution(iph,ics2,yarr,qq,ceq)
-                  if(gx%bmperr.ne.0) goto 1000
-                  gx%bmperr=4366; goto 1000
-               enddo loop3
+! All composition sets already stable! 
+! we have to compare if the G curve between the gridpoint and all the
+! composition sets is convex or concave.  NOT IMPLEMENTED
+!               loop2: do ics2=1,nstcs
+!                  if(stcs(ics2).lt.0) cycle loop2
+!                  call calc_phase_molmass(iph,stcs(ics2),x1mol,wmass,totmol,&
+!                       totmass,am,pceq)
+!                  if(gx%bmperr.ne.0) goto 1000
+! we should check here if there is a maximum G between the gridpoint and the
+! stable composition set.  To be done ...
+!                  write(*,*)'3Y New composition set needed'
+!                  gx%bmperr=4365; goto 1000
+!               enddo loop2
+! we arrive here if we could not merge gridpoint with a stable composition set
+! the error code demand a global grid minimization.
+               write(*,*)'3Y New composition set needed for:',iph,ncs,nstcs
+!               write(*,90)1,iph,ics,ceq%tpval(1),gbest,gset(ics)
+               call set_constitution(iph,ics,yarr,qq,ceq)
+               if(gx%bmperr.ne.0) goto 1000
+               gx%bmperr=4365; goto 1000
+            elseif(gset(ics).lt.zero) then
+! there is at least one unstable composition set, check if gset(ics)<0
+! and insert the GRIDPOINT constitution if gset(ics) negative
+! This composition set is not stable, insert stable gridpoint constitution
+               write(*,90)2,iph,ics,ceq%tpval(1),gbest,gset(ics),4365
+90             format('3Y stable gridpoint ',i1,2x,2i4,F10.2,2(1pe12.4),i5)
+! Check old constitution
+!               call get_phase_compset(iph,ics,lokph,lokres)
+!               write(*,95)'3Y oldy: ',ceq%phase_varres(lokres)%yfr
+!               write(*,95)'3Y newy: ',(yarr(ii),ii=1,ny)
+               call set_constitution(iph,ics,yarr,qq,ceq)
+               if(gx%bmperr.ne.0) goto 1000
+! this error code demand recalculation without grid minimizer
+               gx%bmperr=4365; goto 1000
             endif
-! we arrive here if we could not find an unstable composition set
-            gx%bmperr=4365; goto 1000
          else
-! there is a stable gridpoint but no stable composition sets for this phase
-! we can set this composition in a metastable set and request a new
-! equilibrium calculation
-!  NOTE we use ceq pointer to set yarr in original record
-            write(*,90)'stable',iph,ics,ceq%tpval(1)
+! There are no stable composition sets, we can set the stable gridpoint
+! constitution in this composition set and request a new equilibrium calculation
+! NOTE we use ceq pointer to set yarr in original record
+            write(*,90)3,iph,ics,ceq%tpval(1),gbest,gset(ics),4365
+! Check old constitution
+!            call get_phase_compset(iph,ics,lokph,lokres)
+!            write(*,95)'3Y oldy: ',ceq%phase_varres(lokres)%yfr
+!            write(*,95)'3Y newy: ',(yarr(ii),ii=1,ny)
+95          format(a,10(F7.4))
             call set_constitution(iph,ics,yarr,qq,ceq)
             if(gx%bmperr.ne.0) goto 1000
-            gx%bmperr=4366; goto 1000
+            gx%bmperr=4365; goto 1000
          endif
-      elseif(gbest.gt.gset(ics) .and. nstcs.eq.0) then
-! this gridpoint is closer to the tangent plane than this metastable set
-! and there are no stable sets.  If stable sets ignore gridpoint otherwise
-! insert the grid point constitution as it may become stable later
-         write(*,90)'better metastable',iph,ics,ceq%tpval(1)
-         call set_constitution(iph,ics,yarr,qq,ceq)
-         if(gx%bmperr.ne.0) goto 1000; exit loop1
+      elseif(gbest.gt.gset(ics)) then
+! SKIP THIS FOR THE MOMENT
+! The best gridpoint is not stable but it is closer to tangent plane than this
+! composition set WHICH THUS MUST BE UNSTABLE!.
+! This change can avoid a phase is stuck in a local minimum
+! BUT if another composition set is stable do not change because it the
+! gridpoint is probably close to the stable composition.
+         if(nstcs.eq.0) then
+            write(*,92)iph,ics,ceq%tpval(1),gbest,gset(ics)
+92          format('3Y better gridpoint in ',i4,i2,F10.2,2(1pe12.4))
+            call set_constitution(iph,ics,yarr,qq,ceq)
+            if(gx%bmperr.ne.0) goto 1000
+         endif
+! This do not require a new calculation
 !      else
 ! Nothing to do as the best gridpoint is further away from tangent plane
 ! than this metastable composition set

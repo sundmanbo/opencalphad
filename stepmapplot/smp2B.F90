@@ -53,7 +53,8 @@
     double precision xmax,xmin,ymax,ymin,value,anpmin,anpmax
 ! lhpos is last used position in lineheader
     integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat,anpdim,qp
-    integer nix,ixpos(50),stoichfix,invlines
+    integer nix,stoichfix,invlines
+    integer, allocatable, dimension(:) :: ixpos
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
     logical overflow,first,last,novalues,selectph,varofun,moretops
@@ -405,6 +406,9 @@
                    write(*,*)'Error return from "get_many_svar',gx%bmperr
                    goto 1000
                 endif
+! problem that part of encoded2 desctroyed in late calls, it is OK here
+!                write(*,737)len_trim(encoded2),trim(encoded2)
+!737             format('smp2b: debug encoded2 ',i5/a/)
 ! compiling without -finit-local-zero gives a segmentation fault here
 ! running the MAP11 macro
                 qp=np
@@ -415,8 +419,11 @@
 !223                format(a,i3,8F8.4)
 !                endif
                 nix=np
+! we must allocate the array to indicate which values that should e plotted
+                if(allocated(ixpos)) deallocate(ixpos)
+                allocate(ixpos(nix))
 ! This quite complicated IF is to handle the case when the wildcard is
-! is a phase or component
+! is a phase or component/constituent
 !                write(*,*)'SMP stvarix: ',trim(statevar),selectph
                 if(statevar(1:2).EQ.'MU' .or. &
                      statevar(1:2).EQ.'AC' .or. statevar(1:4).EQ.'LNAC' .or. &
@@ -428,14 +435,17 @@
 ! means component, not phase, set selectph=.FALSE.
 !                   write(*,*)'SMP Wildcard means component! ',trim(statevar),np
 ! not calling stvarix, all values should be included
+! Allocation should be number of components
                    ixpos=1
                 elseif(.not.selectph) then
 !                elseif(selectph) then
 ! this routine supress values for phases that are not relevant ...
 ! IT SHOULD NOT BE USED FOR CASES LIKE Y(GAS,*)
+!                   write(*,737)len_trim(encoded2),trim(encoded2)
+! allocation should be number of phases
                    call stvarix(statevar,phaseline(nlinesep),encoded2,nix,ixpos)
                    if(gx%bmperr.ne.0) then
-                      write(*,*)'yaxis error: "',trim(statevar),'"'
+                      write(*,*)'SMP2B yaxis error: "',trim(statevar),'"'
                       goto 1000
                    endif
 !                   write(*,9001)nix,(ixpos,jj=1,nix)
@@ -3430,21 +3440,16 @@
 !    write(*,*)'stvarix: ',trim(statevar)
 !    write(*,*)'phases:  "',trim(phaseline),'"'
 !    write(*,*)'encoded: "',trim(encoded),'"'
-!
-!    if(statevar(1:2).EQ.'MU' .or. &
-!         statevar(1:2).EQ.'AC' .or. statevar(1:4).EQ.'LNAC' .or. &
-!         statevar(1:2).EQ.'N(' .or. statevar(1:2).EQ.'B(' .or. &
-!         statevar(1:2).EQ.'X(' .or. statevar(1:2).EQ.'X%' .or. &
-!         statevar(1:2).EQ.'W(' .or. statevar(1:2).EQ.'W%') then
-! ignore the wildcard, it is not a phase
-!       write(*,*)'We should not be here! ',trim(statevar)
-!       goto 1000
-!    endif
 ! initiate ipos to zero
+!    write(*,8)1,trim(statevar),len_trim(encoded),trim(encoded)
+!8   format('smp2B: ',i1,' searching for "',a,'" in encoded with length ',i5/a/)
+!
     ixpos(1:nix)=0
     ip=index(statevar,'*')
 ! if no wildcard skip
     if(ip.le.0) goto 1000
+! debug check search string:
+!    write(*,8)2,trim(statevar),len_trim(encoded),trim(encoded)
     prefix=statevar(1:ip-1)
     suffix=statevar(ip+1:)
 !
@@ -3481,7 +3486,7 @@
 !          write(*,*)'Next encoded item: ',trim(encoded(kp:lp-1)),kp,lp-1
 !          read(*,10)cha
        enddo inside
-       write(*,*)'Cannot find: ',trim(sstring)
+       write(*,*)'SMP2B: Cannot find: ',trim(sstring)
        gx%bmperr=4399; goto 1000
     enddo outside
 !    write(*,70)nix,(ixpos(vix),vix=1,nix)

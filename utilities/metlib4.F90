@@ -14,7 +14,7 @@
 !
 MODULE METLIB
 !
-! Copyright 1980-2019, Bo Sundman and others, bo.sundman@gmail.com 
+! Copyright 1980-2020, Bo Sundman and others, bo.sundman@gmail.com 
 ! 
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -7386,7 +7386,7 @@ CONTAINS
     integer i
     equivalence (dlocal,ilocal)
     if(n.gt.256) then
-       write(*,*)'STORRN cannot handle arrays larger than ',maxr
+       write(*,*)'STORRN cannot handle arrays larger than ',maxr,n
        buperr=1010; goto 900
     endif
     do i=1,n

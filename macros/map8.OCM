@@ -110,7 +110,7 @@ list data ,,
 
 @&
 
-@$ we have to create composition sets manually
+@$ we should create composition for the ordered sets sets manually
 
 @$ this default constitution is Fe3Ni_L12
 amend phase part comp-set y , ,
@@ -141,8 +141,8 @@ amend phase part comp-set y , ,
 l sh a
 
 @&
-@$ First start point is between the A1 and L1_2 phases on Ni-rich side
-set c t=300 p=1e5 n=1 x(ni)=.9
+@$ First start point between the A1 and L1_2 phases in the middle
+set c t=450 p=1e5 n=1 x(ni)=.57
 
 c e
 
@@ -168,6 +168,9 @@ title map 8 fig 1
 
 @&
 
+
+@&
+
 @$ Add a start point between L1_0 and L1_2 on the Ni-rich side
 set c x(ni)=.57  T=400
 
@@ -188,6 +191,11 @@ title map 8 fig 2
 
 
 @&
+
+@$ Almost there !!
+
+set inter
+
 
 @$ Third start point on the Fe-rich side
 set c x(ni)=.4  T=300

@@ -2571,7 +2571,7 @@
    integer lokeq,iws(*),elope
 !\end{verbatim} %+
    type(gtp_equilibrium_data), pointer :: ceq
-   character text*512,dum16*16,line*72,ctext*72
+   character text*2048,dum16*16,line*72,ctext*72
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set), pointer :: fslink
    integer i,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp,kl
@@ -3824,7 +3824,7 @@
    integer, dimension(10) :: knr,endm
 ! lint(1,*) is sublattice, lint(2,*) is species
    double precision stoik(10),xsl,xxx
-   integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv
+   integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv,rewindx
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx
    logical onlyfun,nophase,ionliq,notent
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
@@ -3833,8 +3833,8 @@
    integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never,always
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
    character*24 disph(20)
-   integer orddistyp(maxorddis),suck
-   logical warning
+   integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason
+   logical warning,dbcheck
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
 ! to prevent any output
@@ -3842,10 +3842,15 @@
 !  mmyfr noofph
 ! if warning is true at the end pause before listing bibliography
    nsl=0
+   dbcheck=.FALSE.
    warning=.FALSE.
    silent=.FALSE.
    nphrej=0
    nytypedef=0
+   totalpar=0
+   notusedpar=0
+! this counts number of undefined/unused model-parameter-identifiers
+   nundefmpi=0
    if(btest(globaldata%status,GSSILENT)) then
       silent=.TRUE.
 !      write(*,*)'3E reading database silent'
@@ -3888,6 +3893,7 @@
 ! nophase set false after reading a PHASE keyword, 
 ! expecting next keyword to be CONSTITUENT
    nophase=.TRUE.
+   rewindx=0
 ! return here after rewind
 90  continue
    nl=0
@@ -4444,7 +4450,8 @@
 601      format('3E Add parameters from disordered part: ',a,5x,a,2x,2i3,F12.4)
       else
 !         write(*,*)'3E enter phase: ',name1
-         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
+!         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
+         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype,warning)
 !      write(*,*)'readtdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then
@@ -4490,6 +4497,7 @@
          gx%bmperr=4311; goto 1000
       endif
 !      if(dodis.eq.1) write(*,*)'Reading disordered parameters'
+      totalpar=totalpar+1
       ip=nextc
       funname=longline(ip:)
 ! problem with default low T limit, can be ,, directly after parameter )
@@ -4570,7 +4578,7 @@
          endif
 !         write(*,*)'psym2: ',typty,fractyp
       endif
-! only fractyp 1 on TDB files until I implemented disordered part
+! fractyp 1 is normal or ordered part if there is a disordered part
       fractyp=1
 !       write(*,*)'readtdb: PAR',name1,typty
 ! extract phase name and constituent array
@@ -4584,29 +4592,45 @@
          do jl=1,disparttc
             if(name2.eq.dispartph(jl)) goto 710
          enddo
+!         notusedpar=notusedpar+1
 ! not disordered phase, skip this parameter
-         goto 100
+!         goto 100
+         reason=1
+         goto 888
 !-----------------------
+! This parameter was added to notusedpar at first run, correct that now
 710      continue
+         notusedpar=notusedpar-1
 !         write(*,*)'Entering disordered parameter to: ',thisdis,jl
          thisdis=jl
+         if(dbcheck) write(*,887)notusedpar,longline(ip:ip+55)
+887      format('3E restored: ',i5,': ',a)
 !         write(*,*)'Entering disordered parameter to: ',ordpartph(thisdis)
 !         write(*,*)'3E ',longline(1:len_trim(longline))
          name2=ordpartph(jl)
          fractyp=2
       endif dispar
+!---------------------- check phase is entered,
+! the database may contain many phases that are not selected
+!      if(name2(1:2).eq.'ZR') write(*,*)'3E parameter for phase: ',trim(name2)
       call find_phase_by_name_exact(name2,jph,kkk)
 !      write(*,*)'readtdb 19: ',jph,gx%bmperr,name2
       if(gx%bmperr.ne.0) then
-!         write(*,*)'Skipping parameter due to phase: ',name2
-         gx%bmperr=0; goto 100
+! Why is ZRTE not accepted?? ... exact match with first phase was not OK! suck
+         if(gx%bmperr.eq.4121) &
+              write(*,*)'3E WARNING parameter with ambiguous phase name',&
+              ' ignored: ',trim(name2)
+! this parameter is not entered as phase not entered
+!         notusedpar=notusedpar+1
+!         gx%bmperr=0; goto 100
+         gx%bmperr=0; reason=2; goto 888
 !         goto 1000
       endif
 ! extract constituent array, remove final ) and decode
 ! constituent names can be very long ....
       lokph=phases(jph)
       if(btest(phlista(lokph)%status1,PHIONLIQ)) then
-! check if ionic liquid for handling neutrals ...
+! check if ionic liquid for handling neutrals ... with or without *:
          ionliq=.TRUE.
       else
          ionliq=.FALSE.
@@ -4627,7 +4651,10 @@
             write(*,*)'3E longline: ',trim(longline)
          endif
          warning=.TRUE.
-         goto 100
+!         notusedpar=notusedpar+1
+!         goto 100
+         reason=3
+         goto 888
       else
          name4(lp1:)=' '
       endif
@@ -4667,11 +4694,11 @@
             gx%bmperr=0
          else
             if(ocv()) write(*,*)'Skipping parameter: ',name4(1:len_trim(name4))
-            gx%bmperr=0; goto 100
-!         write(*,*)'readtdb error: ',gx%bmperr,name4
-!         goto 1000
-      endif
+!            notusedpar=notusedpar+1
+!            gx%bmperr=0; goto 100
+            gx%bmperr=0; reason=4; goto 888
          endif
+      endif
 !      if(nint.gt.1) then
 ! lint(1,1) is species of first, lint(1,2) in second interaction
 !          write(*,305)'readtdb 305: ',endm(1),nint,lint(2,1),lint(2,2)
@@ -4756,7 +4783,8 @@
       endif
 !      write(*,*)'3E Entering function 2: ',funname,trim(longline)
       lrot=0
-      call store_tpfun(funname,longline,lrot,.TRUE.)
+!      call store_tpfun(funname,longline,lrot,.TRUE.)
+      call store_tpfun(funname,longline,lrot,rewindx)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
 17 format('readtdb 17: ',4i3,5x,10i3)
 !         write(*,404)'readtdb entpar: ',refx,fractyp,nint,ideg
@@ -4793,6 +4821,24 @@
          endif
       endif
       if(gx%bmperr.ne.0 .and. .not.silent) write(*,*)'3E error 1: ',gx%bmperr
+      goto 100
+!------------------------------------------------------------------
+! this is end of PARAMETER keyword
+888   continue
+! TAFID with 9000 parameters have about 100 unused when all selected
+! reason 1= parameter not part of disordered fraction set after rewind
+! reason 2= phase not entered
+! reason 3= constituent array error
+! reason 4= constituent array not selected
+      if(reason.ne.1) then
+         notusedpar=notusedpar+1
+         if(dbcheck) write(*,889)reason,notusedpar,longline(ip:ip+55)
+889      format('3E unused: ',i2,i5,': ',a)
+!      else
+! parameters in disordered part read after rewinding
+!         notusedpar=notusedpar-1
+      endif
+      goto 100
 !------------------------------------------------------------------
 !   elseif(line(2:17).eq.'TYPE_DEFINITION ') then
    case(7) !TYPE_DEFINITION 
@@ -5119,7 +5165,8 @@
 ! entering a function may add new unentered functions ... last argument TRUE
 !            write(*,*)'3E Entering function 3: ',name1,len_trim(longline)
 !            lrot=0
-            call store_tpfun(name1,longline,lrot,.TRUE.)
+!            call store_tpfun(name1,longline,lrot,.TRUE.)
+            call store_tpfun(name1,longline,lrot,rewindx)
             if(gx%bmperr.ne.0) then
 ! one may have error here
                if(.not.silent) write(kou,*)'Failed entering function: ',name1
@@ -5127,9 +5174,18 @@
             endif
             if(ocv()) write(*,*)'Entered function: ',name1
             nofunent=nofunent+1
+         else
+!            write(*,*)'3E referenced: ',trim(name1),nr,&
+!                 tpfuns(nr)%rewind,rewindx
+            if(tpfuns(nr)%rewind.eq.rewindx) then
+! Function entered and referenced, check if duplicate!
+               write(*,828)trim(name1),nl,rewindx
+828            format('3E WARNING duplicate function ',a,' at line: ',2i5)
+               warning=.TRUE.
+            endif
          endif
       else
-! reset error code
+! igore the function as it is not referenced.  Reset error code
          gx%bmperr=0
       endif
    else
@@ -5156,7 +5212,8 @@
       if(.not.silent) then
          do jss=1,nundefmpi
             write(*,1008)undefmpi(jss)
-1008        format('3E Unknown or unused model parameter identifier ',a)
+1008        format('3E *** WARNING unused model parameter identifier ',a,&
+                 ' in some phases')
          enddo
          write(kou,1003)
 1003     format(/'There were warnings, check them carefully'/&
@@ -5207,6 +5264,8 @@
 ! nonzero multiuse will prompt a warning in the monitor
    firsteq%multiuse=0
    if(gx%bmperr.eq.0 .and. warning) firsteq%multiuse=-1
+   write(*,1111)totalpar,totalpar-notusedpar
+1111  format(/'Out of ',i5,' model parameters ',i5,' have been selected')
    return
 !------------------------------------------------------
 1010 continue
@@ -5215,7 +5274,8 @@
 !-----------------------------------------------------
 ! end of file found, act differently if reading functions
 2000 continue
-   rewind: if(dodis.eq.0 .and. disparttc.gt.0) then
+   rewindx=rewindx+1
+   rewindfile: if(dodis.eq.0 .and. disparttc.gt.0) then
 ! rewind to read disordred parts
       if(.not.silent) &
            write(kou,*)'3E Rewinding to read disordered part of phases'
@@ -5254,7 +5314,7 @@
       endif
 ! check if any function not entered
       onlyfun=.FALSE.
-   endif rewind
+   endif rewindfile
    goto 1000
 ! end of file while looking for ! terminating a keyword
 2200 continue
@@ -5365,7 +5425,7 @@
    integer nofunent,disparttc,dodis,jl,nd1,thisdis
    integer excessmodel,modelcode,noofadds,noofdet,permut
    character*24 dispartph(5),ordpartph(5)
-   integer add(10),allel,cbug
+   integer add(10),allel,cbug,rewindx
    character modelname*72
    integer, parameter :: nadditions=6
    character*128, dimension(10) :: detail
@@ -6001,7 +6061,8 @@
          if(modelname(1:5).eq.'I2SL ') phtype='Y'
 !
 !         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
-         call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype)
+!         call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype)
+         call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype,warning)
 !      write(*,*)'readpdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then
@@ -6337,7 +6398,8 @@
       endif
 !      write(*,*)'3E Entering function 2: ',funname,len_trim(longline)
 !      lrot=0
-      call store_tpfun(funname,longline,lrot,.TRUE.)
+!      call store_tpfun(funname,longline,lrot,.TRUE.)
+      call store_tpfun(funname,longline,lrot,rewindx)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
 17 format('readpdb 17: ',4i3,5x,10i3)
 !         write(*,404)'readpdb entpar: ',refx,fractyp,nint,ideg
@@ -6602,7 +6664,8 @@
 ! entering a function may add new unentered functions ... last argument TRUE
 !            write(*,*)'3E Entering function 3: ',name1,len_trim(longline)
 !            lrot=0
-         call store_tpfun(name1,longline(ip:),lrot,.TRUE.)
+!         call store_tpfun(name1,longline(ip:),lrot,.TRUE.)
+         call store_tpfun(name1,longline(ip:),lrot,rewindx)
          if(gx%bmperr.ne.0) then
 ! one may have error here
             if(.not.silent) write(kou,*)'Failed entering function: ',name1
@@ -6610,7 +6673,10 @@
          endif
 !         write(*,*)'Entered missing function: ',name1
          nofunent=nofunent+1
-      endif
+!      elseif
+! this is the PDB reader
+! function and its expression entered, check if at the same rewind!
+       endif
    else
 ! reset error code
       gx%bmperr=0
@@ -6700,6 +6766,7 @@
 !      nl=0
 !      goto 100
 !   elseif(.not.onlyfun) then
+   rewindx=rewindx+1
    rewind: if(.not.onlyfun) then
 ! rewind to read referenced functions
 !      dodis=2

@@ -29,7 +29,7 @@ new Y
 @$ using partitioning and permutation of parameters
 @$ =================================================================== 
 
-set echo
+set echo Y
 
 r t ./alni-4slx
 
@@ -57,63 +57,8 @@ title map 13 fig 1
 
 @&
 @$ =================================================================== 
-@$ only the FCC/FCC_L12 ... mapping is not very stable, sorry
-@$ Add a start point between L1_2 and B2
+@$ This time the whole diagram ... wow
 
-
-set c t=1000 x(al)=.3
-
-c e
-
-l,,,,,
-
-@&
-
-map
-n
-
-
-@&
-@$ and another on the Al-rich side ...
-
-set c t=1600 x(al)=.6
-
-c e
-
-l,,,,,
-
-@&
-
-map
-n
-
-
-plot
-
-
-title map 13 fig 2
-
-
-@$ the melting of B2 is still missing
-@$ In fact it has been calculated and we can use amend line to plot it
-@&
-
-amend line
-Y
-Y
-Y
-Y
-
-
-@$ With the amend line one can restore or remove calculated lines
-@&
-
-plot
-
-
-@$ Sorry for his bad mapping, that is next to fix
-
-set inter
 
 
 @&
@@ -121,9 +66,7 @@ set inter
 plot
 
 
-
-
-title map 13 fig 3
+title map 13 fig 2
 text
 0.2
 1900 
@@ -140,18 +83,20 @@ text n 0.45 1500 .8 0 y
 
 
 
+@&
+@$ Wait patiently
+@&
+
 @$ =================================================================== 
-@$ Now we got the whole diagram!  Be happy!
-@$ We can plot it in a strange wa y ...
+@$ We can plot it in a strange way ...
 
 plot
 
 SM(*)
 extra tie 3
+title map 13 fig 3
+pos bottom left,,,
 
-
-@$ There is a wrong monovariant equilibrium at the Ni-rich side of
-@$ A1/L1_2/liquid equilibrium
 
 set inter
 

@@ -28,7 +28,132 @@ set echo
 r t BEF
 
 
-@$ First at 2500 K
+@$ First at 500 K,
+@$ We have to start inside the small sigma miscibility gap
+
+set c t=500 p=1e5 n=1 x(re)=.37 x(ni)=.29
+
+
+c e
+
+l,,,,,
+
+
+@$ We have two sigma phases stable
+@&
+@$ Set axis
+
+set ax 1 x(re) 0 1 ,,
+set ax 2 x(ni) 0 1 ,,
+
+@&
+
+
+map
+
+
+@&
+
+plot
+
+
+
+@$ Some parts are missing, add another startpoint
+
+set c x(ni)=.2
+
+c e
+
+
+map
+N
+
+
+@&
+
+plot
+
+
+
+@$ Now it looks OK, plot it nicer
+@&
+
+
+plot
+
+
+extra ?
+@$ This gives the browser window and we must select from the extra menu
+extra ??
+gibbs
+y
+extra tie 3
+extra lower Mo
+title Map 15 fig 1: BEF model Mo-Ni-Re isotherm 500 K
+
+
+
+@$ Usually some parts are missing or have spurious tei-line
+@$ Mapping is still to be improved with experience
+
+@&
+
+
+@$-------------------------------------------------
+@$ Then at 1500 K
+
+set c t=1500 x(re)=.2 x(ni)=.2
+
+c e
+
+l,,,,,
+
+@&
+
+map
+
+
+plot
+
+
+title Map 15 fig 2a: BEF model Mo-Ni-Re isotherm 1500 K
+extra gib y
+extra tie 10
+@$ set a light gray monovariant
+extra color
+f0f0f0
+ffff00
+
+
+
+@&
+
+@$ Sometimes a part on the Re rich side missing, add a new start point
+
+set c x(ni)=.1 x(re)=.8
+
+c e
+
+map
+n
+
+
+plot
+
+
+@$ some extra options
+extra gibbs y
+extra tie 10
+extra color
+f0f0f0
+ffff00
+title Map 15 fig 2b: BEF model Mo-Ni-Re isotherm 1500 K
+
+@&
+
+
+@$-------------------------------------------------------
+@$ Finally at 2500 K
 
 set c t=2500 p=1e5 n=1 x(re)=.6 x(ni)=.3
 
@@ -49,13 +174,9 @@ map
 plot
 
 
-extra ?
-@& this gives the menu of extra things
-extra ??
-@$ This gives the browser window and we must select from the extra menu
-gib y
+extra gib y
 extra tie 3
-title Map 15 fig 1: BEF model Mo-Ni-Re isotherm 2500 K
+title Map 15 fig 3: BEF model Mo-Ni-Re isotherm 2500 K
 @$ restore default colors if we run several macros ...
 extra color
 7CFF40
@@ -64,128 +185,7 @@ extra color
 extra lower Mo
 
 
-@$-------------------------------------------------
-@$ Then at 1500 K
-
-set c t=1500 x(re)=.2 x(ni)=.2
-
-c e
-
-l,,,,,
-
-@&
-
-map
-
-
-plot
-
-
-title Map 15 fig 2: BEF model Mo-Ni-Re isotherm 1500 K
-extra gib y
-extra tie 10
-@$ set a light gray monovariant
-extra color
-f0f0f0
-ffff00
-
-@&
-
-@$ Sometimes a part on the Re rich side missing, add a new start point
-
-set c x(ni)=.1 x(re)=.8
-
-c e
-
-map
-n
-
-
-plot
-
-
-title Map 15 fig 2: BEF model Mo-Ni-Re isotherm 1500 K
-extra gib y
-extra tie 10
-@$ set a light gray monovariant
-extra color
-f0f0f0
-ffff00
-
-@&
-
-@$---------------------------------------------------
-@$ create a new composition set, maybe not necessary but there are
-@$ 3 separate sigma phases in this section
-@$ amend ph sigma comp Y , , ,,,,,,,,,,,,,,,,,,,,,,,,,
-
-
-@$ this is sigma + chi !!!
-@$ set c t=500 p=1e5 n=1 x(re)=.6 x(ni)=.08
-
-@$ We have to start inside the small sigma miscibility gap
-set c t=500 p=1e5 n=1 x(re)=.37 x(ni)=.29
-
-c e
-
-l,,,,,
-
-@$ We have two sigma phases in equilibrium!
-@&
-@$ We need smaller steps during mapping
-
-set ax 1 x(re) 0 1
-.01
-
-set ax 2 x(ni) 0 1
-.01
-
-@&
-
-map
-
-
-@&
-
-plot
-
-
-extra gibbs
-y
-extra tie 3
-title Map 15 fig 3: BEF model Mo-Ni-Re isotherm 500 K
-@$ light green monovariant
-extra color
-f0fff0
-7cff40
-
-@&
-
-@$ Sometimes this map fails to find the "third" sigma but try again!
-@$ Note OC does not (yet) restore initial conditions ...
-
-set c x(re)=.37 x(ni)=.29
-
-c e
-
-map
-
-
-plot
-
-
-extra gibbs y
-extra tie 3
-title Map 15 fig 4: BEF model Mo-Ni-Re isotherm 500 K
-extra color
-50aa50
-
-extra lower Mo 
-
-
-@$ The diagram is hopefully better now but maping will always be fragile
-@$ You can use amend lines to remove a whole line or
-@$ edit the ocgnu.plt file to remove parts of a line
-
 set inter
+
+
 

@@ -2544,8 +2544,9 @@
             if(iliq3cat) then
 ! with ionic liquid and 3 cations iteraction there are 2nd derivatives
 ! with respect to Va and the cation (but no T or P derivative)!
-               d2vals(ixsym(ivax,gz%iq(jint)))=&
-                    d2vals(ixsym(ivax,gz%iq(jint)))+fvv(0)*valtp(1)
+! gz%iq(1) is
+               d2vals(ixsym(ivax,gz%iq(jint+1)))=&
+                    d2vals(ixsym(ivax,gz%iq(jint+1)))+fvv(0)*valtp(1)
             endif
             fvs=fvv(2)
             fvv(2)=fvv(1)

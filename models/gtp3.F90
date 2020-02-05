@@ -5,7 +5,7 @@
 !
 MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
-! Copyright 2011-2019, Bo Sundman, France
+! Copyright 2011-2020, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -390,7 +390,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'This type of condition is not allowed                           ',&
        'Error setting up system matrix, too many equations              ',&
 ! 4210
-       'Phase change not allowed due to step/map constraints            ',&
+       'Phase change not allowed                                        ',&
        'Attempt to delete composition sets when many equilibria         ',&
        'Too many equation in equilibrium matrix                         ',&
        'Derivatives with respect to T and P only are allowed            ',&
@@ -822,7 +822,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! record very big and created problems storing equilibria at STEP/MAP!!!
   integer, parameter :: maxel=100,maxsp=1000,maxph=400,maxsubl=10,maxconst=1000
 ! maximum number of constituents in non-ideal phase
-  integer, parameter :: maxcons2=100
+  integer, parameter :: maxcons2=300
 ! maximum number of elements in a species
   integer, parameter :: maxspel=10
 ! maximum number of references
@@ -944,12 +944,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! each range can have its own function, status indicate if T and P or T and V
 ! nextorsymbol is initiated to next index, then possible symbol link!
 ! forcenewcalc force new calculation when optimizing variable changed
+! rewind is used to check for duplicates reading from TDB file
+! not saved on unformatted files
 ! If bit TPIMPORT set the function must be a constant
 !    and nextorsymbol is index of symbol
 ! If bit TPEXPORT set then the value of the function (not the derivatives)
 !    and nextorsymbol is index of symbol
 !     integer noofranges,nextfree,status,forcenewcalc
-     integer noofranges,nextorsymbol,status,forcenewcalc
+     integer noofranges,nextorsymbol,status,forcenewcalc,rewind
      double precision, dimension(:), pointer :: limits
      TYPE(tpfun_expression), dimension(:), pointer :: funlinks
      double precision hightlimit

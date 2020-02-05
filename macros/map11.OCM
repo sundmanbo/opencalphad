@@ -59,14 +59,33 @@ map
 plot
 X(*,CR)
 T
-title map 11 fig 1
+title map 11 fig 1a
 RENDER
 
 @$
-@$ This diagram will in some cases have a metastable
+@$ This diagram will sometimes have a metastable
 @$ extrapolation of the sigma+bcc lines because the
 @$ two bcc phases merges at hight T and the 3-phase line
 @$ is not found when lowering the T.  
+@$ And/or it may have an invariant indicated at the congruent transition!
+@&
+
+@$ It may help to add a check on the stability ...
+
+set adv map
+10
+
+map
+
+
+
+plot
+
+
+title map 11 fig 1b
+
+
+
 @$ More work is needed to fine-tune mapping!!
 @&
 @$=================================================================

@@ -73,9 +73,11 @@ contains
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine lmdif1(fcn,m,n,x,fvec,tol,info,nfev,iwa,wa,lwa,fjac,err0)
-!  subroutine lmdif1(m,n,x,fvec,tol,info,nfev,iwa,wa,lwa,fjac,err0)
-! call modified by Bo Sundman 2017
-!  subroutine lmdif1(fcn,m,n,x,fvec,tol,info,iwa,wa,lwa)
+! call modified by Bo Sundman 2017, modified again 2018 to include fcn
+! nfev is number of calls to fcn
+!  subroutine lmdif1(    m,n,x,fvec,tol,info,nfev,iwa,wa,lwa,fjac,err0)
+! original:
+!  subroutine lmdif1(fcn,m,n,x,fvec,tol,info,     iwa,wa,lwa)
     implicit none
     integer m,n,info,lwa
     integer iwa(n)
@@ -105,7 +107,8 @@ contains
 !         program, and should be written as follows.
 !
 !         subroutine fcn(m,n,x,fvec,iflag)
-!         integer m,n,iflag
+! modified to include iterations: subroutine fcn(m,n,x,fvec,iflag,nfev)
+!         integer m,n,iflag,nfev
 !         double precision x(n),fvec(m)
 !         ----------
 !         calculate the functions at x and
@@ -263,7 +266,8 @@ contains
 !         program, and should be written as follows.
 !
 !         subroutine fcn(m,n,x,fvec,iflag)
-!         integer m,n,iflag
+! modified to include iterations: subroutine fcn(m,n,x,fvec,iflag,niter)
+!         integer m,n,iflag,niter
 !         double precision x(n),fvec(m)
 !         ----------
 !         calculate the functions at x and
@@ -320,7 +324,9 @@ contains
 !     **********
     integer i,j
     double precision eps,epsmch,h,temp,zero
-    integer, parameter :: niter=0
+!    integer, parameter :: niter=0
+! added as argumnet added to fcn and it may be incremented in fcn ...
+    integer :: niter=0
 !    double precision dpmpar
 !    data zero /0.0d0/
 !
@@ -402,7 +408,8 @@ contains
 !         program, and should be written as follows.
 !
 !         subroutine fcn(m,n,x,fvec,iflag)
-!         integer m,n,iflag
+! modified to iiterations: subroutine fcn(m,n,x,fvec,iflag,niter)
+!         integer m,n,iflag,niter
 !         double precision x(n),fvec(m)
 !         ----------
 !         calculate the functions at x and

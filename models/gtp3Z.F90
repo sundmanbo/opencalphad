@@ -1981,6 +1981,7 @@
    call capson(name)
    tpfuns(lrot)%symbol=name
    tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPNOTENT)
+   tpfuns(lrot)%rewind=0
 1000 continue
    return
  end subroutine store_tpfun_dummy
@@ -1989,7 +1990,7 @@
 
 !\addtotable subroutine store_tpfun
 !\begin{verbatim}
- subroutine store_tpfun(symbol,text,lrot,fromtdb)
+ subroutine store_tpfun(symbol,text,lrot,rewind)
 ! creates a data structure for a TP function called symbol with several ranges
 ! text is whole expression
 ! lrot is returned as index.  If fromtdb is FALSE and lrot<0 it is a new
@@ -1997,9 +1998,9 @@
 ! if fromtdb is TRUE references to unknown functions are allowed
 ! default low temperature limit is 298.16; high 6000
    implicit none
-   integer lrot
+   integer lrot,rewind
    character*(*) text,symbol
-   logical fromtdb
+!   logical fromtdb
 !\end{verbatim}
 ! max number of ranges, max number of coefficents in each range
    integer, parameter :: mrange=20,mc=15
@@ -2013,25 +2014,30 @@
    TYPE(tpfun_expression) :: links(mrange)
 !   TYPE(tpfun_expression), pointer :: ltpexpr
    character ch1*1,lsym*(lenfnsym)
-   logical already
+   logical already,fromtdb
 ! check if function already entered, there are freetpfun-1 of them
 ! ignore functions that start with a "_" as they are parameters
 !   lrot=0
-! special when read unformatted or direct files, lrot<0 and this
+! special when read unformatted or direct files, lrot<0 and this ??
 ! must be the location for storing the function ...
+   fromtdb=.TRUE.
+   if(rewind.lt.0) fromtdb=.FALSE.
    already=.FALSE.
    if(symbol(1:1).ne.'_') then
       lsym=symbol
       call capson(lsym)
+!      write(*,*)'3Z store_tpfun: ',trim(lsym),lrot,rewind
       do jss=1,freetpfun-1
 !         write(*,17)jss,lsym,tpfuns(jss)%symbol
 !17       format('enter_tpfun: ',i5,' >,',a,'=',a,'?')
          if(lsym.eq.tpfuns(jss)%symbol) then
             if(btest(tpfuns(jss)%status,TPNOTENT)) then
 ! function name already entered, now enter expression, this is from TDB files
-               lrot=jss; already=.TRUE.; goto 18
+               lrot=jss; already=.TRUE.
+! mark the expression was entered at current rewind
+               tpfuns(jss)%rewind=rewind; goto 18
             else
-!               write(*,*)'amend tpfun: ',fromtdb,lrot
+!               write(*,*)'amend tpfun? ',trim(lsym),fromtdb,lrot
                if(.NOT.fromtdb .and. lrot.lt.0) then
 ! this is an AMEND TPFUN, delete old expression to be able to store a new
                   lrot=jss; already=.TRUE.
@@ -2044,6 +2050,7 @@
 ! we should clear the stored values! But those are stored separatly in all ceq
                   nrange=0; goto 18
                else
+                  write(*,*)'3Z A never never error again! ',trim(symbol)
                   gx%bmperr=4026; goto 1000
                endif
             endif

@@ -1,6 +1,12 @@
 
 $ Database file written 2012- 2-11
 $ From database: SSOL2                   
+ DATABASE_INFO about the steel1 database
+ It is an extract from the SGTE SSOL2 database from 2001 for 6 elements.
+ Most binary and ternary systems have been assessed and bibliographic
+ references are provided.  Most assessments has been made at MSE, KTH, Sweden.
+ for the developent of steels.!
+$ 
  ELEMENT /-   ELECTRON_GAS              0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT VA   VACUUM                    0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT C    GRAPHITE                  1.2011E+01  1.0540E+03  5.7400E+00!
@@ -451,10 +457,10 @@ $ From database: SSOL2
   REF90 !
 
 
- PHASE CRSI  %  2 1   1 !
-    CONSTITUENT CRSI  :CR : SI :  !
+ PHASE CR1SI1  %  2 1   1 !
+    CONSTITUENT CR1SI1  :CR : SI :  !
 
-   PARAMETER G(CRSI,CR:SI;0)  2.98150E+02  -79041.68+311.75228*T
+   PARAMETER G(CR1SI1,CR:SI;0)  2.98150E+02  -79041.68+311.75228*T
   -51.62865*T*LN(T)-.00447355*T**2+391330*T**(-1);   6.00000E+03   N REF90 !
 
 
