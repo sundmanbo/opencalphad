@@ -72,20 +72,16 @@ RENDER
 
 @$ It may help to add a check on the stability ...
 
-set adv map
-10
-
-map
-
-
-
-plot
-
-
-title map 11 fig 1b
-
-
-
+@$ set adv map
+@$ 10
+@$
+@$ map
+@$ 
+@$ plot
+@$
+@$
+@$ title map 11 fig 1b
+@$
 @$ More work is needed to fine-tune mapping!!
 @&
 @$=================================================================

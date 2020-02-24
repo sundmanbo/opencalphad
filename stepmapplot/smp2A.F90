@@ -383,6 +383,7 @@
 ! This is where most equilibrium calculations are made
 !--------------------------------------------------------------------------
 !
+!    write(*,*)'smp2A calling meq_sameset from map_doallines'
     call meq_sameset(irem,iadd,mapx,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
 !
 !--------------------------------------------------------------------------
@@ -398,7 +399,8 @@
          mod(mapline%number_of_equilibria,maptop%globalcheckinterval).eq.0) then
 ! this may set error code if equilibrium should be recalculated
 ! and it may change constitutions of metastable phases
-          write(*,*)'SMP check_all_phases: ',mapline%number_of_equilibria
+          write(*,'(a,i5)')'SMP check_all_phases at equilibrium: ',&
+               mapline%number_of_equilibria
           jj=0
           call check_all_phases(jj,ceq)
           if(gx%bmperr.ne.0) then
@@ -505,6 +507,7 @@
 330 continue
     if(gx%bmperr.eq.0 .and. irem.eq.0 .and. iadd.eq.0) then
 ! no error and no change of phase set, just store the calculated equilibrium.
+! and calculate another point along the line
 !       write(*,*)'hms: Storing equilibrium',&
 !            mapline%number_of_equilibria,maptop%globalcheckinterval
        if(mapline%number_of_equilibria.gt.10 .and. mapline%nodfixph.gt.0) then
@@ -642,7 +645,7 @@
     endif
 !------------------------------------------------------------
 379 continue
-    if(irem.gt.0 .and. iadd.gt.0) then
+    phasechange: if(irem.gt.0 .and. iadd.gt.0) then
 ! We can also have a stoichiometic phase with ALLOTROPIC transformation
 ! which will change form one to another at a fix T
        if(allotropes(irem,iadd,meqrec%noofits,ceq)) then
@@ -688,7 +691,7 @@
           call map_lineend(mapline,axvalok,ceq)
        endif
 !-----------------------------------------------------
-! a new phase stable or a stable wants to disappear
+! phasechange: a new phase stable or a stable wants to disappear
     elseif(irem.gt.0 .or. iadd.gt.0) then
 !       write(*,*)'New phase 2: ',iadd,irem,mapline%nodfixph,&
 !            mapline%number_of_equilibria
@@ -803,17 +806,17 @@
 ! HERE WE CREATE A NODE WITH NEW EXIT LINES
        call map_calcnode(irem,iadd,maptop,mapline,mapline%meqrec,axarr,ceq)
 ! segmentation fault in map_calcnode 170518 !!
-!       write(*,*)'Back from map_calcnode',gx%bmperr
+!       write(*,*)'Back from map_calcnode',gx%bmperr,irem,iadd
        if((gx%bmperr.ne.0 .or. irem.ne.0 .or. iadd.ne.0) .and. noderrmess) then
           write(*,777)gx%bmperr,irem,iadd,noderrmess,ceq%tpval(1)
 777       format('SMP problem calculating node: ',3i5,l2,F8.2)
           noderrmess=.false.
        endif
-       if(gx%bmperr.ne.0) then
+       noderror: if(gx%bmperr.ne.0) then
 ! if error one can try to calculate using a shorter step or other things ...
 !          write(*,*)'Error return from map_calcnode: ',gx%bmperr
           if(gx%bmperr.eq.4353) then
-! this means node point not global, line leading to this is set inactive
+! this means node point not global, the line leading to this is set inactive
 ! and we should not generate any startpoint.             
              write(*,*)'Setting line inactive',mapline%lineid
              mapline%status=ibset(mapline%status,EXCLUDEDLINE)
@@ -860,14 +863,14 @@
              if(gx%bmperr.eq.0) gx%bmperr=4399
              call map_lineend(mapline,axvalok,ceq)
           endif
-       endif
+       endif noderror
+! we come here if a new node has been calculated and stored
        axvalok=zero
-    endif
-! we have finished a line
+    endif phasechange
+! we have finished a line and look for another at label 300
 805 continue
-! terminate line at new node 
     write(kou,808)mapline%number_of_equilibria,ceq%tpval(1)
-808 format('Finished line with ',i5,' equilibria at T=',0pF8.2,' ')
+808 format('Finishing line with ',i5,' equilibria at T=',0pF8.2,' ')
     mapline%problems=0
     mapline%lasterr=0
     goto 300
@@ -1549,6 +1552,7 @@
 ! calculate the equilibrium with the new set of conditions
           if(ocv()) write(*,*)'Calling meq_sameset inside  map_replaceaxis'
           irem=0; iadd=0;
+!          write(*,*)'smp2A calling meq_sameset from map_replaceaxis'
           call meq_sameset(irem,iadd,mapx,meqrec,meqrec%phr,inmap,ceq)
           if(gx%bmperr.ne.0) then
              write(*,*)'Error calling meq_sameset in startpoint: ',gx%bmperr
@@ -1714,6 +1718,7 @@
        call condition_value(0,pcond,curval,ceq)
        if(gx%bmperr.ne.0) goto 1000
        irem=0; iadd=0; meqrec%noofits=0
+!       write(*,*)'SMP2A calling meq_sameset from map_startline 1'
        call meq_sameset(irem,iadd,mapx,meqrec,meqrec%phr,inmap,ceq)
 !       if(ocv()) write(*,110)'Search for phase change: ',&
 !       write(*,110)'Search for phase change: ',&
@@ -1811,6 +1816,7 @@
     endif
 ! calling meq_sameset with iadd=-1 turn on verbose
     irem=0; iadd=0
+!    write(*,*)'SMP2A calling meq_sameset from map_startline 2'
     call meq_sameset(irem,iadd,mapx,meqrec,meqrec%phr,inmap,ceq)
 !    if(ocv()) write(*,110)'meq_sameset calculated: ',&
     if(gx%bmperr.gt.0) then
@@ -2031,7 +2037,7 @@
           meqrec%phr(jj)%curd%phstate=PHENTSTAB
 ! check if phase is inside miscibility gap
           if(testforspinodal) then
-             lokcs=meqrec%phr(jj)%curd%phtupx
+             lokcs=phasetuple(meqrec%phr(jj)%curd%phtupx)%compset
              call calc_qf(lokcs,value,mapline%lineceq)
              write(*,'(a,i3,F8.2,4(1pe12.4))')'SMP qf: ',lokcs,&
                   mapline%lineceq%tpval(1),value
@@ -2209,6 +2215,7 @@
 !       iadd=-1
 !    endif
     if(ocv()) write(*,*)'Map_changeaxis call meq_sameset, T=',ceq%tpval(1)
+!    write(*,*)'SMP2A calling meq_sameset from map_changeaxis'
     call meq_sameset(irem,iadd,mapx,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
     if(gx%bmperr.ne.0) then
        write(*,*)'Error from meq_sameset when trying to change axis',gx%bmperr
@@ -2861,6 +2868,7 @@
 !
     mapeqno=mapline%number_of_equilibria
 ! the dgm variables are for Al3N2 in the Al-Ni system which is not found stable
+!   write(*,'(a,i4,F8.2)')'In map_step2: ',mapeqno,ceq%tpval(1)
 !   write(*,'(a,i5,3i3,5(F10.2))')'In map_step2: ',mapeqno,meqrec%nv,&
 !         maptop%tieline_inplane,mapline%axandir,ceq%tpval(1),&
 !         ceq%phase_varres(3)%dgm,ceq%phase_varres(4)%dgm,&
@@ -2938,7 +2946,7 @@
        goto 1000
 !       if(gx%bmperr.ne.0) goto 1000
     endif
-!=============================================================== new step
+!=============================================================== new map
 ! This is for MAP with 2 or more axis, both tie-line in plane and not
     if(mod(mapeqno,3).eq.0) then
 ! at regulaar intervals check that phases with 2 or more composition sets have
@@ -2980,6 +2988,7 @@
           curval(jax)=axval(jax)
 ! CHECK CHANGE OF AXIS AND FIX PHASE HERE FOR ENTERED PHASE 1 of 3
           if(ocv()) write(*,94)'New and old axis values: ',mapeqno,jax,jaxwc,&
+!          write(*,94)'New and old axis values: ',mapeqno,jax,jaxwc,&
                curval(jax),preval(jax),curval(jax)-preval(jax),&
                (curval(jax)-preval(jax))/axarr(jax)%axinc
 94           format(a,i2,2x,2i2,2F10.4,2(1pe12.4))
@@ -3045,10 +3054,11 @@
                 endif
                 dax2(jax)=(xxx-mapline%axvals2(jax))/axarr(jax)%axinc
 ! CHECK CHANGE OF AXIS AND FIX PHASE HERE FOR FIX PHASE 2/3
-                if(ocv()) write(*,94)'Fix phase values:        ',&
-                     mapeqno,jax,jaxwc,&
-                     xxx,mapline%axvals2(jax),xxx-mapline%axvals2(jax),&
-                     (xxx-mapline%axvals2(jax))/axarr(jax)%axinc
+!                if(ocv()) write(*,94)'Fix phase values:        ',&
+!                write(*,94)'Fix phase values:   ',&
+!                     mapeqno,jax,jaxwc,&
+!                     xxx,mapline%axvals2(jax),xxx-mapline%axvals2(jax),&
+!                     (xxx-mapline%axvals2(jax))/axarr(jax)%axinc
                 mapline%axvals2(jax)=xxx
                 if(jax.ne.jaxwc .and. istv.ge.10) then
                    prefixval(jax)=xxx
@@ -3094,9 +3104,11 @@
                 mapline%axvals2(jax)=xxx
 ! check which change is the largest
 !             if(ocv()) write(*,99)'Slope: ',mapeqno,jax,jaxwc,&
-!                  mapline%axvals(jax),dax1(jax),&
-!                  mapline%axvals2(jax),dax2(jax),&
-!             write(*,99)'Slope: ',mapeqno,jax,jaxwc,nyax,&
+!                write(*,97)'Slope: ',mapeqno,jax,jaxwc,&
+!                     mapline%axvals(jax),dax1(jax),&
+!                     mapline%axvals2(jax),dax2(jax)
+!97              format(a,11x,i4,2i2,2(F10.4),2x,2(F10.4))
+!                write(*,99)'Slope: ',mapeqno,jax,jaxwc,nyax,&
 !                  entph_dxy(1,jax),entph_dxy(2,jax),&
 !                  fixph_dxy(1,jax),fixph_dxy(2,jax)
 99              format(a,i3,3i2,4(F10.4),2x,2(F10.4))
@@ -3575,7 +3587,7 @@
 !\end{verbatim}
     type(gtp_condition), pointer :: lastcond,pcond
     integer iremsave,iaddsave,iph,ics,jj,jph,kph,phfix,seqx,jax,haha
-    integer what,type,cmix(10),maxstph,noplot,mode,addtupleindex,mapx
+    integer what,type,cmix(10),maxstph,noplot,mode,addtupleindex,mapx,sameadd
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision value,axval,axvalsave,tx,nodefixpham
     type(gtp_state_variable), pointer :: svrrec
@@ -3583,6 +3595,7 @@
     double precision, allocatable, dimension(:) :: yfra
     type(gtp_equilibrium_data), target :: tceq
     type(gtp_equilibrium_data), pointer :: pceq
+    character phname*32
 ! turns off converge control for T
     integer, parameter :: inmap=1
 !
@@ -3738,11 +3751,13 @@
 !---------------------------------------------------
 ! call meq_sameset with new set of phases and axis condition removed
 ! If there is a phase change (iadd or irem nonzeri) or error it exits 
+    sameadd=0
 200 continue
     iadd=0; irem=0
-!    write(*,*)'In map_calcnode calling sameset for new node: ',&
-!         meqrec%nstph,meqrec%nfixph
+!    write(*,'(a,3i5)')'In map_calcnode calling sameset for new node: ',&
+!         meqrec%nstph,phfix
 !
+!    write(*,*)'SMP2A Calling meq_sameset from map_calcnode'
     call meq_sameset(irem,iadd,mapx,meqrec,meqrec%phr,inmap,ceq)
 !
 !   write(*,202)'Calculated node with fix phase: ',gx%bmperr,irem,iadd,ceq%tpval
@@ -3755,14 +3770,17 @@
     if(gx%bmperr.ne.0) then
        if(ocv()) write(*,*)'Error trying to calculate a node point',gx%bmperr
        if(gx%bmperr.eq.4187) goto 1000
-   elseif(irem.gt.0) then
+    elseif(irem.gt.0) then
        if(ocv()) write(*,*)'Another phase wants to disappear',irem
        gx%bmperr=4222
     elseif(iadd.gt.0) then
+! another phase wants to be stable
+!      write(*,*)'SMPNODE: Another phase wants to be stable ',iadd,sameadd,phfix
        if(same_composition(iadd,meqrec%phr,meqrec,ceq,zero)) then
           iadd=0; goto 201
        endif
-!       write(*,*)'New phase stable: ',iremsave,iaddsave,iadd,ceq%tpval(1)
+!       write(*,'(a,3i5,F10.2)')'Error: new phase stable: ',&
+!            iremsave,iaddsave,iadd,ceq%tpval(1)
        gx%bmperr=4223
     else
 ! It worked to calculate with a new fix phase releasing all axis condition!!!
@@ -3839,33 +3857,31 @@
     meqrec%fixph(2,meqrec%nfixph)=meqrec%phr(abs(phfix))%ics
     meqrec%nfixph=meqrec%nfixph-1
     mapline%lasterr=gx%bmperr
-!    write(*,*)'lasterr: ',mapline%lasterr,gx%bmperr
+!    write(*,*)'SMP lasterr: ',mapline%lasterr,&
+!         gx%bmperr,phfix,meqrec%phr(phfix)%phasestatus
+! I had forgotten this!!
+    meqrec%phr(abs(phfix))%phasestatus=0
+! exit as no node found
     goto 1000
 !------------------------------------------------------
 ! When we are there we have successfully calculated an equilibrium with a
-! new phase set create a node with this equilibrium and necessary line records
+! new phase set create a node with this equilibrium and a new line records
 500 continue
 !    write(*,*)'Successful calculation of a node point',phfix
 ! phfix is set negative if phase should be removed
 ! NOTE the phase set fix in the node may not be the same which
 ! wanted to disappear/appear when calling the map_calcnode!!
 ! If iremsave=phfix the fix phase is one to be removed.
+!    write(*,*)'SM2A node with new fix phase: ',phfix,iremsave,iaddsave
+! I do not understand the next IF statement/BoS 200222
     if(iremsave.eq.-phfix) then
+!       write(*,*)'In SMP2A with strange assignment ...',iremsave,-phfix
        phfix=-abs(phfix)
     endif
 ! if the user wants to have global minimization during mapping this is
 ! time to test if the current equilibrium is the global one.  We can use
 ! a temporary ceq record and chech the set of phases and chemical potentials
 !
-    haha=0
-    if(maptop%tieline_inplane.lt.0) then
-! test if invariant ...
-       if(inveq(haha,ceq)) then
-          write(*,*)'Invariant equilibrium ignored',haha
-! haha is set to number of stable phases at invariant.
-! the number of lines ending at this is 2*haha
-       endif
-    endif
 ! NOTE that after a global equilibrium new composition set can have been
 ! created ... that should not be allowed unless they are really stable ...
 ! and one may have the same phases but different composition sets ... it
@@ -3897,28 +3913,11 @@
 ! Save this as the last equilibrium of the line
     if(maptop%tieline_inplane.gt.0) then
 ! remove phfix as fix, otherwise graphics will be strange!
-!       write(*,517)'In map_calcnode, mapline%meqrec%nstph 1: ',phfix,&
-!            mapline%meqrec%nstph,&
-!            (mapline%meqrec%phr(mapline%meqrec%stphl(jj))%iph,&
-!            mapline%meqrec%phr(mapline%meqrec%stphl(jj))%ics,&
-!            jj=1,mapline%meqrec%nstph)
 517    format(a,2i3,5x,5(2i3))
-! remove phfix
-!       do jj=1,mapline%meqrec%nstph-1
-!       do jj=1,mapline%meqrec%nstph
-!          if(mapline%meqrec%stphl(jj).ge.phfix) then
-! ?? what is done here
-!             mapline%meqrec%stphl(jj)=mapline%meqrec%stphl(jj+1)
-! this is necessary not to have data from this phase interfering with the line
-!             write(*,519)mapline%meqrec%phr(jj)%iph,&
-!                  mapline%meqrec%phr(jj)%ics,phentunst
-!519          format('Removing ',2i3,' as stable as last line node',i3)
-!             mapline%meqrec%phr(jj)%curd%phstate=PHENTUNST
-!          endif
-!       enddo
-!????????????????????????????????????????
-! remove phfix
-!       mapline%meqrec%phr(phfix)%curd%phstate=PHENTUNST
+! remove phfix as fix
+       if(phfix.lt.0) then
+          write(*,*)'SM2A negative phfix used as index?',phfix
+       endif
        mapline%meqrec%phr(phfix)%curd%phstate=PHENTERED
 ! this is necessary not to have data from this phase interfering with the line
        if(ocv()) write(*,519)phfix,mapline%meqrec%phr(phfix)%iph,&
@@ -3926,11 +3925,6 @@
 519    format('Removing ',i3,2x,2i3,' as stable as last line equil',i3)
 !?????????????????????????????????????????
        mapline%meqrec%nstph=mapline%meqrec%nstph-1
-!       write(*,517)'In map_calcnode, mapline%meqrec%nstph 2: ',phfix,&
-!            mapline%meqrec%nstph,&
-!            (mapline%meqrec%phr(mapline%meqrec%stphl(jj))%iph,&
-!            mapline%meqrec%phr(mapline%meqrec%stphl(jj))%ics,&
-!            jj=1,mapline%meqrec%nstph)
     endif
 !    write(*,*)'Storing last point on line',phfix,maptop%tieline_inplane
     call map_store(mapline,axarr,maptop%number_ofaxis,maptop%saveceq)
@@ -3984,13 +3978,42 @@
        axval=mapline%evenvalue
     endif
 !
-! Finally create the new node and with new lines
-!    write(*,*)'calling map_newnode: ',mapline%meqrec%nfixph,meqrec%nfixph
+! Finally create the new node and with new exit lines
+    haha=0
+    if(maptop%tieline_inplane.lt.0) then
+! test if invariant ...
+       if(inveq(haha,ceq)) then
+! haha is set to number of stable phases at invariant.
+! the number of lines ending at an invariant isopleth is 2*haha
+! current number of stable phases is meqrec%nstph. 
+! sign(1,phfix) is 1 if phfix>0; -1 if phfix<0
+          write(*,21)meqrec%nstph,haha,phfix,meqrec%nstph-haha+sign(1,phfix)
+21        format('SMP2A stable phases mm: ',3i5,i10)
+       endif
+    endif
+    write(*,*)' Test for invariant equilibrium: ',haha
+    call get_phase_name(meqrec%phr(abs(phfix))%iph,meqrec%phr(abs(phfix))%ics,&
+         phname)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP2A illegal phase name: ',phfix
+       goto 1000
+    endif
+    if(phfix.gt.0) then
+       write(*,501)trim(phname)
+501    format('Creating node where a new phase ',a,' becomes stable')
+    else
+       write(*,502)trim(phname)
+502    format('Creating node where a stable phase ',a,' disappear')
+    endif
+!    write(*,*)'calling map_newnode: ',mapline%meqrec%nfixph,meqrec%nfixph,haha
+!    if(haha.gt.1) &
+!         write(*,*)'SMP2A invariant!! we should greate several exits ',haha
+! inside map_newnode the approriate number of exits will be generated
     call map_newnode(mapline,meqrec,maptop,axval,jax,axarr,phfix,haha,ceq)
     if(gx%bmperr.ne.0) then
        if(ocv()) write(*,*)'Error return from map_newnode: ',gx%bmperr
     endif
-!    write(*,*)'Back from map_newnode'
+!    write(*,*)'Back from map_newnode',phfix
 ! all done??
 1000 continue
     return
@@ -4014,7 +4037,7 @@
 ! lastax is index of last active axis
 ! axarr are axis records
 ! phfix is phase which is set fix at node point
-! haha is nonzero if the calculated equilibrium is invariant
+! haha is larger than 1 if the calculated equilibrium is invariant
 ! ceq is equilibrium record
     implicit none
     type(map_node), pointer :: maptop
@@ -4043,7 +4066,7 @@
     lfix=0
 ! the phase kept fix with zero amount at the node is phfix  It can be
 ! negative at STEP if it is a phase that will dissapear.
-!    write(*,*)'SMP Found a node point with phase change',phfix,ceq%tpval(1)
+!   write(*,*)'In map_newnode with phase change',phfix,mapnode%seqx,ceq%tpval(1)
     if(ocv()) write(*,87)'We are in map_newnode with a fix phase: ',&
          phfix,ceq%tpval(1)
 87  format(a,i4,2x,1pe12.4)
@@ -4117,19 +4140,6 @@
        mapnode=>mapnode%next
 ! the next links should form a circular list ...
        if(.not.associated(mapnode,maptop)) goto 100
-!---------------------------------------------------
-!    if(maptop%number_ofaxis.gt.1) then
-!       if(ocv()) write(*,*)' *** map_newnode not finished handling mapping ...'
-!    endif
-!---------------------------------------------------
-! We have to create a new mapnode, add as next to maptop
-! as I have understood it it does not work to write ... but maybe ...
-!    allocate(newnode)
-!    newnode%next=>maptop%next
-!    maptop%next=>newnode
-!    newnode%previous=>maptop
-!    newnode%next%previous=>newnode
-! so I have written it as ...
 120 continue
     mapnode=>maptop%next
     seqx=mapnode%seqx+1
@@ -4213,6 +4223,11 @@
        newnode%stable_phases(jj)%ixphase=meqrec1%iphl(jj)
        newnode%stable_phases(jj)%compset=meqrec1%icsl(jj)
     enddo
+!
+! >>>>>>>>>>>>>>>>>>> add code here to generate 2*haha-1 exuts    
+!    if(haha.gt.0) write(*,*)'SMP2A found invariant with exits: !!',2*haha-1
+! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!
 ! Thats all in the newnode ... except the lineheads ....
 ! Hm, when taking the different exits we must know phase sets and axis
 ! directions, with some efforts one could check which axis variable will
@@ -4246,19 +4261,21 @@
           newnode%nodeceq%phase_varres(lokcs)%amfu=zero
        endif
     elseif(maptop%tieline_inplane.gt.0) then
-! mapping with tie-lines in plane. Always 3 lines ... 2 new exits ??
-! depends on number of axis, for 2 axis OK, for 3 axis (one pot) 4 lines meet
+! mapping with tie-lines in plane. Always 3 lines meet ... 2 new exits ??
+! the number of exits depends on number of axis,
+! for 2 axis 3 lines meet, for 3 axis (one of which is a potential) 4 lines
        newnode%lines=2
     elseif(haha.gt.0) then
-! for mapping without tie-lines in plane haha is nonzero if we are at
-! an invariant equlibrium with haha stable phases.
-!       write(*,*)'For the moment ignore this'
+! for mapping without tie-lines in plane and haha is nonzero then we are at
+! an invariant equlibrium with haha stable phases and 2*haha-1 exiting lines
 !       newnode%lines=2*jj-1
+       newnode%lines=2*haha-1
+       write(*,*)'SMP2A invariant node, for the moment ignore this',haha
        newnode%lines=3
     else
 ! mapping without tie-lines in plane
 ! at other node points 4 lines meets, 3 exits
-!       write(*,*)'Invariant equilibrium found, exit lines: ',newnode%lines
+       write(*,*)'Unknown type of node create exit lines: ',newnode%lines
        newnode%lines=3
     endif
 ! set link to end node in mapline
@@ -4309,6 +4326,7 @@
     endif
 !
 !
+!    write(*,*)'SMP2A creating lineheads: ',haha,newnode%lines
     allocate(newnode%linehead(newnode%lines))
 !    write(*,*)'SMP: generate exit lines: ',newnode%lines
     do jp=1,newnode%lines
@@ -4335,10 +4353,11 @@
     enddo
 !------------------------------ end code copied
 !
+!   write(*,*)'*** Trying to create node with # exit lines: ',haha,newnode%lines
     select case(newnode%lines)
 !==========================================================================
     case default
-       write(*,*)'*** Trying to create node with lines: ',newnode%lines
+       write(*,*)'SMP2A node error: exit lines= ',newnode%lines
        gx%bmperr=4237; goto 1000
 !==========================================================================
     case(1)! step node with just one exit
@@ -5132,8 +5151,9 @@
        phaseset=' '
        call get_phasetup_name_old(mapfix%fixph(1),phaseset)
        if(gx%bmperr.ne.0) goto 1000
-       ip=len_trim(phaseset)+4
-       phaseset(ip-1:ip-2)='+'
+       ip=len_trim(phaseset)
+       phaseset(ip+1:ip+10)=', stable: '
+       ip=len_trim(phaseset)+2
        if(mapnode%linehead(nyline)%nstabph.le.0) then
           write(*,*)'No stable phases for a line'
           write(*,*)'Error 14:  ',nyline,mapnode%linehead(nyline)%nstabph,&
@@ -5158,7 +5178,7 @@
           ip=len_trim(phaseset)+2
        enddo
        write(kou,520)mapline%lineid,mapline%lineceq%tpval(1),phaseset(1:ip)
-520    format(/'Line ',i3,' T=',F8.2,' with: ',a)
+520    format(/'Line ',i3,' T=',F8.2,' fix: ',a)
 !-------------------------------------------------------------
     elseif(maptop%tieline_inplane.gt.0) then
 ! TIE-LINES IN PLANE, NOTE: meqrec not allocated!!
@@ -5229,6 +5249,7 @@
              write(*,*)'SMP Failed calculate equilibrium try to adjust amounts'
              gx%bmperr=0
              iadd1=0; irem1=0
+!             write(*,*)'SMP2A calling meq_sameset from map_findline 1'
              call meq_sameset(irem1,iadd1,mapx,mapline%meqrec,&
                   mapline%meqrec%phr,inmap,mapline%lineceq)
              write(*,*)'Check with meq_sameset: ',gx%bmperr,irem1,iadd1
@@ -5282,6 +5303,7 @@
           endif
 ! Then call meq_sameset ignoring any new phases that tries to be stable
           iadd=0; irem=0
+!          write(*,*)'SMP2A Calling meq_sameset from map_findline 2'
           call meq_sameset(irem,iadd,mapx,mapline%meqrec,&
                mapline%meqrec%phr,inmap,mapline%lineceq)
           if(gx%bmperr.ne.0) then
@@ -5644,6 +5666,7 @@
              write(*,*)'SMP Failed calculate equilibrium try to adjust amounts'
              gx%bmperr=0
              iadd1=0; irem1=0
+!             write(*,*)'SMP2A Calling meq_sameset from map_findline_old 1'
              call meq_sameset(irem1,iadd1,mapx,mapline%meqrec,&
                   mapline%meqrec%phr,inmap,mapline%lineceq)
              write(*,*)'Check with meq_sameset: ',gx%bmperr,irem1,iadd1
@@ -5697,6 +5720,7 @@
           endif
 ! Then call meq_sameset ignoring any new phases that tries to be stable
           iadd=0; irem=0
+!          write(*,*)'SMP2A Calling meq_sameset from map_findline_old 2'
           call meq_sameset(irem,iadd,mapx,mapline%meqrec,&
                mapline%meqrec%phr,inmap,mapline%lineceq)
           if(gx%bmperr.ne.0) then
@@ -5970,13 +5994,15 @@
     integer phases
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    integer nrel,ii,nostph,tpvar,degf
+    integer nrel,ii,nostph,tpvar,degf,www
     type(gtp_condition), pointer :: pcond,lastcond
     type(gtp_state_variable), pointer :: stvr
 ! How to know if the ceq is invariant? Gibbs phase rule, Degrees of freedom
-! f = n + 2 - p
-! where n is number of components, 2 if T and P variable, 1 if T or P variable,
-! 0 if both T and P fixed, p is number of stable phases.
+! f = n + z - w - p
+! where n is number of components, z=2 if T and P variable, 
+!                      z=1 if T or P variable, z=0 if both T and P fixed,
+!                      w is number of other potential conditions (MU, AC)
+!                      p is number of stable phases.
 !    write(*,*)'in inveq'
     nrel=noel()
 ! sum up nubler of stable phases and check if T and P are fixed
@@ -5991,6 +6017,7 @@
     lastcond=>ceq%lastcondition
     pcond=>lastcond
     tpvar=2
+    www=0
 100 continue
        if(pcond%active.eq.0) then
 ! condtion is active
@@ -5999,24 +6026,26 @@
           if(stvr%statevarid.eq.1 .or. stvr%statevarid.eq.2) then
 ! Hm, ceq is not the equilibrium record for the node point ...
              tpvar=tpvar-1
+          elseif(stvr%statevarid.lt.10) then
+             www=www+1
           endif
        endif
        pcond=>pcond%next
        if(.not.associated(pcond,lastcond)) goto 100
 !
-    degf=nrel+tpvar-nostph
-!    write(*,*)'in inveq 2',degf,nrel,tpvar,nostph
+    degf=nrel+tpvar-www-nostph
+!    write(*,*)'in inveq 2',nrel,tpvar,www,nostph,deqf
     if(degf.eq.0) then
-! number of exit phases is equal to the number of stable phases ???
+! We have an invariant equilibrium, return the number of stable phases
        phases=nostph
        inveq=.true.
 !       write(*,200)'We have an invariant equilibrium!',nrel,tpvar,nostph,phases
-200    format(a,5i7)
+!200    format(a,5i7)
     else
 !       write(*,210)degef,nrel,tpvar,phases
-210     format('Not inveq, elements, stable phases: ',4i4)
-!       if not invariant there are 3 exits (2 lines crossing)
-        phases=degf
+!210     format('Not inveq, elements, stable phases: ',4i4)
+!       if not invariant isoplet node there are 3 exits (2 lines crossing)
+       phases=nostph
        inveq=.false.
     endif
 1000 continue
@@ -6129,17 +6158,20 @@
 10  format(a)
 ! for debugging:
 !    call list_map_equilibrium(maptop,mapline,axarr,xxx,typ)
-    if(mapline%problems.gt.5) then
+!    if(mapline%problems.gt.5) then
+    if(mapline%problems.gt.2) then
        if(mapline%nodfixph.gt.0) then
 !          call list_conditions(kou,mapline%lineceq)
 !          if(gx%bmperr.ne.0) then
 !             write(*,*)'Error listing conditions'
 !             gx%bmperr=0
 !          endif
-          write(*,11)mapline%lineid,trim(mapline%lineceq%eqname),&
-               mapline%meqrec%phr(mapline%nodfixph)%iph,&
-               mapline%meqrec%phr(mapline%nodfixph)%ics
-11        format('I give up on this line',i3,2x,a,' with fix phase ',2i4)
+          write(*,11)mapline%lineid,trim(mapline%lineceq%eqname)
+11        format('Giving up on this line',i3,': ',a)
+!          write(*,11)mapline%lineid,trim(mapline%lineceq%eqname),&
+!               mapline%meqrec%phr(mapline%nodfixph)%iph,&
+!               mapline%meqrec%phr(mapline%nodfixph)%ics
+!11        format('I give up on this line',i3,2x,a,' with fix phase ',2i4)
 !       else
 !          write(*,11)mapline%nodfixph,mapline%lineceq%eqname,0,0
        endif
@@ -6522,6 +6554,7 @@
 380          continue
              iadd=0
              irem=0
+!             write(*,*)'SMP2A calling meq_sameset from step_separate'
              call meq_sameset(irem,iadd,mapx,mapline%meqrec,&
                   mapline%meqrec%phr,inmap,ceq)
              if(gx%bmperr.ne.0) then
@@ -6782,27 +6815,29 @@
     graphopt%scalefact=one
     graphopt%dfltmax=one
     graphopt%appendfile=' '
+! do not reset font!
+!    graphopt%font='Arial'
 ! This is confused ... GRWIN=0 if WIndows, GRWIN=1 if not windows ... SUCK
 !    if(btest(graphopt%status,GRWIN)) savebit=1
 ! if the bit GRKEEP is set it should remain set
-    savebit=0
-    if(btest(graphopt%status,GRKEEP)) savebit=1
-    graphopt%status=0
-    if(savebit.ne.0) graphopt%status=ibset(graphopt%status,GRKEEP)
+!    savebit=0
+!    if(btest(graphopt%status,GRKEEP)) savebit=1
+!    if(savebit.ne.0) graphopt%status=ibset(graphopt%status,GRKEEP)
 ! remove all texts ... loosing some memory ...
     nullify(graphopt%firsttextlabel)
-    graphopt%labelkey='top right font "arial,12" '
+    graphopt%labelkey='top right font "'//trim(graphopt%font)//',12" '
     nullify(graphopt%firsttextlabel)
     nullify(textlabel)
     plotfile='ocgnu'
-! by default spawn plots
+! reset status but by default spawn plots
+    graphopt%status=0
     graphopt%status=ibset(graphopt%status,GRKEEP)
 ! lowerleftcorner
     graphopt%lowerleftcorner=' '
 ! default plot terminal
     graphopt%gnutermsel=1
-! plot lines
-    graphopt%linestyle=0
+! plot linetype default 1
+    graphopt%linetype=1
 ! axis tics size etc
     graphopt%textonaxis=0
 ! do not reset plotend if set

@@ -55,6 +55,7 @@ map
 
 @&
 
+@$ This is the normal x-T phase diagram plot
 plot
 x(*,cu)
 T
@@ -63,6 +64,8 @@ render
 
 
 @&
+
+@$ Zoom of the Ag rich side
 plot
 x(*,cu)
 T
@@ -75,6 +78,7 @@ title map 1 fig 2
 
 
 @&
+@$ Changing the axis
 plot
 T
 x(*,cu)
@@ -82,10 +86,18 @@ title map 1 fig 3
 render
 
 @&
+@$ We can plot with activity instead of phase composition !
 plot
 ac(cu)
 T
 title map 1 fig 4
 render
+
+@&
+@$ Another funny way to plot the phase diagram calculation !!
+plot x(*,cu)
+gm(*)
+extra tie 3
+
 
 set inter

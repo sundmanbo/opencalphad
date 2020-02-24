@@ -13,7 +13,7 @@
 
 \bigskip
 
-Christophe Sigli
+Christophe Sigli and Bo Sundman \today
 
 \end{center}
 
@@ -23,45 +23,27 @@ Christophe Sigli
 
 \bigskip
 
-{\small
-\begin{verbatim}
-C:\Users\...\TQ4lib\Cpp\Scheil>linkmake
+\begin{itemize}
+\item First run makeocasi in the installation directory to generate the
+  files libocasi.a and liboceqplus.mod
 
-C:\Users\...\TQ4lib\Cpp\Scheil>REM You must first install OC to generate the
- libraries
+\item Then come back to this directory
 
-C:\Users\...\TQ4lib\Cpp\Scheil>REM liboceq.a, liboceqplus.mod
+\item Make linkscheil executable by: {\bf copy linkscheil linkscheil.cmd}
 
-C:\Users\...\TQ4lib\Cpp\Scheil>REM You must compile the parallel version,
- linkpara or Makefile-parallel
+\item Execute linkscheil.cmd by: {\bf linkscheil}
 
-C:\Users\...\TQ4lib\Cpp\Scheil>REM These are copied there (assumed to be three
- levels above)
+\item This copies libocasi.a and some more files to this directory and
+  compiles liboctq.F90 and liboctqisoc.F90 here and compiles them.
+  At the end the command file links the program:
 
-C:\Users\...\TQ4lib\Cpp\Scheil>copy ..\..\..\liboceq.a .
-        1 fil(er) kopierad(e).
+  g++ -o scheil -fopenmp -lstdc++ Example\_OCASI.cpp liboctqisoc.o
+  liboctq.o libocasi.a\\ -lgfortran -lm
 
-C:\Users\...\TQ4lib\Cpp\Scheil>copy ..\..\..\liboceqplus.mod .
-        1 fil(er) kopierad(e).
+\item Run the sample case by {\bf scheil input.txt}
+\end{itemize}
 
-C:\Users\...\TQ4lib\Cpp\Scheil>REM Then the libraries for TQ are copied here from
- one level above
-
-C:\Users\...\TQ4lib\Cpp\Scheil>copy ..\liboctq.F90 .
-        1 fil(er) kopierad(e).
-
-C:\Users\...\TQ4lib\Cpp\Scheil>REM Compile this library together with the isoc
- library and the program
-
-C:\Users\...\TQ4lib\Cpp\Scheil>gfortran -c liboctq.F90
-
-C:\Users\...\TQ4lib\Cpp\Scheil>gfortran -c liboctqisoc.F90
-
-
-C:\Users\...\TQ4lib\Cpp\Scheil>g++ -o scheil -fopenmp -lstdc++ Example_OCASI.cpp
- liboctqisoc.o liboctq.o liboceq.a -lgfortran -lm
-
-\end{verbatim}}
+On the next pages the output generated is shown.
 
 \newpage
 

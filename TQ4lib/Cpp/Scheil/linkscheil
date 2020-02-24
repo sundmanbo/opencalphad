@@ -3,17 +3,16 @@ REM liboceq.a, liboceqplus.mod
 REM You must compile the parallel version, linkpara or Makefile-parallel
 
 REM These are copied there (assumed to be three levels above)
-copy ..\..\..\liboceq.a .
+copy ..\..\..\libocasi.a .
 copy ..\..\..\liboceqplus.mod .
 
 REM Then the libraries for TQ are copied here from one level above
 copy ..\liboctq.F90 .
-copy ..\ftinyopen-dummy.F90 .
+copy ..\liboctqisoc.F90 .
 
 REM Compile this library together with the isoc library and the program
-gfortran -c ftinyopen-dummy.F90
 gfortran -c liboctq.F90
 gfortran -c liboctqisoc.F90
 
-g++ -o scheil -fopenmp -lstdc++ Example_OCASI.cpp liboctqisoc.o liboctq.o liboceq.a ftinyopen-dummy.o -lgfortran -lm
+g++ -o scheil -fopenmp -lstdc++ Example_OCASI.cpp liboctqisoc.o liboctq.o libocasi.a -lgfortran -lm
 

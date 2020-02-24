@@ -142,7 +142,7 @@ l sh a
 
 @&
 @$ First start point between the A1 and L1_2 phases in the middle
-set c t=450 p=1e5 n=1 x(ni)=.57
+set c t=500 p=1e5 n=1 x(ni)=.57
 
 c e
 
@@ -151,7 +151,7 @@ l r 2
 
 @&
 
-set ax 1 x(ni) 0 1 0.01
+set ax 1 x(ni) 0 1 0.025
 
 set ax 2 t 10 1000 10
 
@@ -159,7 +159,7 @@ set ax 2 t 10 1000 10
 map
 
 
-
+@&
 
 plot
 

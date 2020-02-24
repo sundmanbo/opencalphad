@@ -117,7 +117,7 @@ show gamma1 gamma2
 set ax 1 x(b)
 0
 1
-.005
+.01
 
 @$ use "step separate" as we have two liquids
 step sep

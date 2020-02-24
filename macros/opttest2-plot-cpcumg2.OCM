@@ -13,6 +13,8 @@ set condition t=1100 p=1e5 n(cu)=1 n(mg)=2
 
 set axis 1 t 10 1500 10
 
+@$ The phase is stoichiometric do not use grid minimizer
+
 c n
 
 step sep

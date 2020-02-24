@@ -90,7 +90,7 @@ contains
 ! axis variables and limits
 ! default values used for axis variables
     double precision dinc,dmin,dmax
-! plot ranges, texts and defaults for graphics
+! graphics record for plot ranges, texts and defaults
     type(graphics_options) :: graphopt
     integer grunit
 ! path to start directory stored inside metlib!!
@@ -179,7 +179,7 @@ contains
 !    character, dimension(maxconst) :: const*24
 ! for macro and logfile and repeating questions
     logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
-    logical listzero
+    logical listzero,maptopbug
 ! unit for logfile input, 0 means no logfile
     integer logfil
 ! remember default for calculate phase
@@ -407,10 +407,10 @@ contains
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','                ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
          'TEXT_LABEL      ','                ','EXTRA           ']
-! subsubcommands to PLOT
+! subsubcommands to PLOT EXTRA
     character (len=16), dimension(nplt2) :: cplot2=&
         ['COLOR           ','LOGSCALE        ','RATIOS_XY       ',&
-         'LINE_WITH_SYMBLS','MANIPULATE_LINES','PAUSE_OPTION    ',&
+         'LINE_TYPE       ','MANIPULATE_LINES','PAUSE_OPTION    ',&
          'LOWER_LEFT_TEXT ','TIE_LINES       ','GIBBS_TRIANGLE  ',&
          'QUIT            ','SPAWN           ','NO_HEADING      ',&
          'AXIS_FACTOR     ','                ','                ',&
@@ -463,31 +463,41 @@ contains
 !
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! Default gnuterminals, edit these as they may not be same on your systems
-! Screen
     graphopt%gnutermid=' '
-    i1=1
-    graphopt%gnutermid(i1)='SCREEN '
+! Screen is terminal 1
+    graphopt%gnutermid(1)='SCREEN '
+! default font, not reinitiated if set explicitly
+    graphopt%font='Arial '
 ! MAX 80 characters to set terminal .... HERE FONT AND SIZE IS SET
+! test compilation ...
+!
 #ifdef aqplt
 ! Aqua plot screen on some Mac systems
-    graphopt%gnuterminal(i1)='aqua size 600,500 font "arial,16"'
-!    graphopt%gnuterminal(i1)='aqua size 900,600 font "arial,20"'
+    graphopt%gnuterminal(1)='aqua size 600,500 font "'//&
+         trim(graphopt%font)//',16"'
 ! it should be #elif not #elseif .... suck
 #elif qtplt
 ! Qt plot screen on some LINUX systems
-    graphopt%gnuterminal(i1)='qt size 600,500 font "arial,16"'
-!    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,16"'
+    graphopt%gnuterminal(1)='qt size 600,500 font "'//&
+         trim(graphopt%font)//',16"'
+!    graphopt%gnuterminal(1)='qt size 600,500 font "arial,16"'
 #elif x11
 ! x11 plot screen on other LINUX systems    
-    graphopt%gnuterminal(i1)='x11 size 940,700 font "arial,16"'
+    graphopt%gnuterminal(1)='x11 size 840,700 font "'//&
+         trim(graphopt%font)//',16"'
+!    graphopt%gnuterminal(1)='x11 size 840,700 font "arial,16"'
 #else
 ! wxt default plot screen (used on most Window systems)
-    graphopt%gnuterminal(i1)='wxt size 940,700 font "arial,16"'
+!    graphopt%gnuterminal(1)='wxt size 940,700 font "'//&
+    graphopt%gnuterminal(1)='wxt size 840,700 font "'//&
+         trim(graphopt%font)//',16"'
+!    write(*,*)'pmon: "',trim(graphopt%gnuterminal(1)),'"'
+!    graphopt%gnuterminal(1)='wxt size 840,700 font "arial,16"'
 ! This uses 'start /B ' in front of plot command to spawn plot windows
 !    graphopt%status=ibset(graphopt%status,GRKEEP)
-!    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,16"'
+!    graphopt%gnuterminal(1)='wxt size 900,600 font "arial,16"'
 #endif
-    graphopt%filext(i1)='  '
+    graphopt%filext(1)='  '
 ! NOTE THAT THE SCREEN PLOT WINDOW ALLOWS YOU TO SELECT FILE OUTPUT
 ! Postscript
     i1=2
@@ -502,15 +512,15 @@ contains
 !    graphopt%gnuterminal(i1)='pdfcairo '
 !----------#else
 ! NOTE size is in inch
-!   graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.7'
-    graphopt%gnuterminal(i1)='pdf color solid size 6,5 enhanced font "arial,16"'
+!   graphopt%gnuterminal(i1)='pdf color solid size 6,5 enhanced font "arial,16"'
+    graphopt%gnuterminal(i1)='pdf color solid size 6,5 enhanced font "'//&
+         trim(graphopt%font)//',16"'
 !----------#endif
     graphopt%filext(i1)='pdf  '
 ! Graphics Interchange Format (GIF)
     i1=4
     graphopt%gnutermid(i1)='GIF  '
     graphopt%gnuterminal(i1)='gif enhanced fontscale 0.7'
-!    graphopt%gnuterminal(i1)='gif enhanced '
     graphopt%filext(i1)='gif  '
     graphopt%gnutermax=i1
 ! Portable graphics format (PNG)
@@ -695,7 +705,7 @@ contains
 !    call gparc(ocprompt,aline,last,5,cline,' ',q2help)
     call gparcx(ocprompt,aline,last,5,cline,' ','?TOPHLP')
     j4=0
-!    write(*,*)'Back from gparcx 1: "',trim(cline),'"',j4
+!    write(*,*)'Back from gparcx 1: "',trim(cline),'"',j4,last
     if(len_trim(cline).gt.80) then
        write(kou,101)
 101    format(' *** Warning: long input lines may be truncated',&
@@ -754,7 +764,7 @@ contains
           endif
        endif
     endif
-! save command for help path
+! save command for help path MAYBE NOT NEEDED ANY LONGER ??
     if(helprec%level.lt.maxhelplevel) then
        helprec%level=helprec%level+1
        helprec%cpath(helprec%level)=cbas(kom)
@@ -2705,10 +2715,10 @@ contains
                    write(kou,*)'Extra gridpoints for this phase.'
                    call set_phase_status_bit(lokph,PHXGRID)
                 endif
-             case(11) ! PHPALM bit for permuted interaction parameters
+             case(11) ! PHEECLIQ bit for EEC phase
 !                call set_phase_status_bit(lokph,PHFHV)
-                write(*,*)'Bit for permuted interaction parameters'
-                call set_phase_status_bit(lokph,PHPALM)
+                write(*,*)'Bit for set for EEC liquid'
+                call set_phase_status_bit(lokph,PHEECLIQ)
                 call clear_phase_status_bit(lokph,PHID)
              end SELECT phasebit
 !............................................................
@@ -2722,10 +2732,21 @@ contains
        case(11) ! set LOG_FILE
 ! tinyfiles_dialog has difficult returning a non-existant file name
 ! the argument "-8" means a log file for output
+          maptopbug=.true.
+          if(associated(maptop)) then
+!             write(*,*)'PMON maptop bug 1A?',associated(maptop)
+             maptopbug=.false.
+          endif
           call gparfilex('Log file name: ',cline,last,1,model,'oclog',-8,&
                '?Set logfile')
           name1=model(1:5)
           call capson(name1)
+          if(maptopbug .and. associated(maptop)) then
+! for unkown reason maptop has become associated here but was not 8 lines above!
+!             write(*,*)'PMON maptop bug 1B?',associated(maptop)
+             nullify(maptop)
+             write(*,*)'PMON clear link to maptop'
+          endif
           if(name1(1:5).eq.'NONE ') then
 ! close log file
              call openlogfile(' ',' ',-1)
@@ -2734,13 +2755,15 @@ contains
           else
              if(len_trim(model).eq.0) then
                 model='OCLOG.LOG'
-             elseif(index(model,'.LOG').eq.0) then
-                model=trim(model)//'./OCLOG.LOG'
-! it seems tinyfile_dialogs sometimes return the directory, add a file name
-                write(*,*)'Setting logfile to: "',trim(model),'"'
+             elseif(index(model,'.LOG ').eq.0) then
+!                model=trim(model)//'./OCLOG.LOG'
+                model=trim(model)//'.LOG'
              endif
+!             write(*,*)'PMON maptop bug 1D?',associated(maptop)
+             write(*,*)'Setting logfile to: "',trim(model),'"'
              call gparcx('Title: ',cline,last,5,line,' ','?Set logfile')
              call openlogfile(model,line,39)
+!             write(*,*)'PMON maptop bug 1D?',associated(maptop)
              if(buperr.ne.0) then
                 write(kou,*)'Error opening logfile: ',buperr
                 logfil=0
@@ -2749,6 +2772,7 @@ contains
                 logfil=39
              endif
           endif
+!          write(*,*)'PMON maptop bug 2?',associated(maptop)
 !-------------------------------------------------------------
        case(12) ! set weight
           if(.not.allocated(firstash%eqlista)) then
@@ -4813,7 +4837,6 @@ contains
 ! optres(1:8) is year+month+day, name1(1:4) is hour and minutes
        model=' '//optres(1:4)//'.'//optres(5:6)//'.'//optres(7:8)//&
             ' '//name1(1:2)//'h'//name1(3:4)//' '
-!       write(*,*)'comment text: ',trim(model)
        save: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
@@ -4855,6 +4878,9 @@ contains
           continue
 !-----------------------------------------------------------
        case(4) ! save DIRECT
+          write(*,*)'Not implemented'
+          goto 100
+! probably never to be implemented, save UNFORMATTED can include STEP/MAP
           if(ocdfile(1:1).ne.' ') then
              text=ocdfile
             call gparcdx('File name: ',cline,last,1,ocdfile,text,'?SAVE DIRECT')
@@ -5705,6 +5731,8 @@ contains
        write(kou,20014)
 20014   format('The map command is fragile, please send problematic diagrams',&
             ' to the',/'OC development team'/)
+! when setting logfile the maptop became associated !! 
+!       write(*,*)'PMON maptop bug 3?',associated(maptop)
        if(associated(maptop)) then
           write(kou,833)
           call gparcdx('Reinitiate?',cline,last,1,ch1,'Y','?MAP old data')
@@ -5903,6 +5931,8 @@ contains
 !       else
 !          write(*,*)'There is no maptopsave'
        endif
+! restore default graphopt%linetype
+!       graphopt%linetype=1
 !-----------------------------------------------------------
 ! PLOT subcommands, default is PLOT, NONE does not work ...
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
@@ -6075,9 +6105,34 @@ contains
 ! PLOT unused select FONT
        case(3)
           call gparcdx('Font (check what your GNUPLOT has): ',&
-               cline,last,1,name1,'Arial','?PLOT font')
+               cline,last,1,name1,graphopt%font,'?PLOT font')
+!               cline,last,1,name1,'Arial','?PLOT font')
           graphopt%font=name1
-          write(*,*)'This command not implemeneted yet'
+! font size ignored but it is better to have the question now ...
+          call gparidx('Font size: ',cline,last,iz,16,'?PLOT font')
+          write(*,*)'Size is ignored at present ...'
+!          write(*,*)'Font is now: ',graphopt%font
+! we have to change "font" in all terminals and key
+          allgnu: do i1=1,graphopt%gnutermax
+             iz=index(graphopt%gnuterminal(i1),'"')
+             if(iz.le.0) cycle allgnu
+             i2=index(graphopt%gnuterminal(i1)(iz:),',')
+             name1=graphopt%gnuterminal(i1)(iz+i2-1:)
+             graphopt%gnuterminal(i1)(iz+1:)=graphopt%font
+             i2=len_trim(graphopt%gnuterminal(i1))
+             graphopt%gnuterminal(i1)(i2+1:)=name1
+!             write(*,'(a,i2,2x,a)')'pmon: ',i1,trim(graphopt%gnuterminal(i1))
+          enddo allgnu
+          iz=index(graphopt%labelkey,'"')
+          if(iz.gt.0) then
+             i2=index(graphopt%labelkey(iz:),',')
+             name1=graphopt%labelkey(iz+i2-1:)
+             graphopt%labelkey(iz+1:)=graphopt%font
+             i2=len_trim(graphopt%labelkey)
+             graphopt%labelkey(i2+1:)=name1
+!             write(*,*)'pmon key: ',trim(graphopt%labelkey)
+          endif
+          goto 21100
 !-----------------------------------------------------------
 ! PLOT AXIS_LABELS
        case(4)
@@ -6139,15 +6194,24 @@ contains
 ! default extension: 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, 8=LOG
 ! negative is for write, 0 read without filter, -100 write without filter
 ! DO NOT USE tinyfiledialog here ...
+          write(*,*)'To use file the browser give just a <'
           call gparcdx('Plot file',cline,last,1,plotfile,'ocgnu','?PLOT file')
+          if(plotfile(1:1).eq.'<') then
+! use the file browser
+             call gparfilex('File name: ',cline,last,1,plotfile,' ',-5,&
+                  '?Plot file')
+          endif
           once=.false.
           if(plotfile(1:2).eq.'./') then
 ! save in macro directory if iumaclevl>0, else in current working directory
              if(iumaclevl.gt.0) then
-                plotfile=trim(macropath(iumaclevl))//plotfile
+! we are executing a macro, skip the ./
+                plotfile=trim(macropath(iumaclevl))//plotfile(3:)
              else
-                plotfile=trim(workingdir)//plotfile
+! running interactivly prefix with working directory (default?)
+                plotfile=trim(workingdir)//plotfile(2:)
              endif
+             write(*,*)'PMON working directory: ',trim(workingdir)
              write(*,*)'Saving on file: ',trim(plotfile)
              once=.true.
           endif
@@ -6187,17 +6251,23 @@ contains
        case(10)
 ! just return to command level
 !-----------------------------------------------------------
-! PLOT position of line labels (keys)
+! PLOT position of line labels (position_of_keys)
        case(11)
           write(kou,21200)
 21200     format('Key to lines can be positioned: '/&
                'top/bottom left/center/right inside/outside on/off')
           call gparcdx('Position?',cline,last,5,line,'top right','?PLOT keys')
-          graphopt%labelkey=line
-          call gparcdx('Font,size: ',cline,last,5,line,'arial,12',&
-               '?PLOT keys')
-          graphopt%labelkey=trim(graphopt%labelkey)//' font "'//trim(line)//'"'
-!          write(*,*)'pmon: ',trim(graphopt%labelkey)
+!          iz=min(index(line,',')-1,len_trim(line))
+          graphopt%labelkey=trim(line)
+!          call gparcdx('Font,size: ',cline,last,5,line,'arial,12',&
+!               '?PLOT keys')
+          call gparidx('Size: ',cline,last,iz,12,'?PLOT keys')
+!          graphopt%labelkey=trim(graphopt%labelkey)//' font "'//trim(line)//'"'
+          graphopt%labelkey=trim(graphopt%labelkey)//' font "'&
+               //trim(graphopt%font)//','
+          ll=len_trim(graphopt%labelkey)+1
+          write(graphopt%labelkey(ll:),'(i2,a)')iz,'"'
+          write(*,*)'GNUPLOT will use: set key ',trim(graphopt%labelkey)
           goto 21100
 !-----------------------------------------------------------
 ! PLOT APPEND a gnuplot file
@@ -6343,7 +6413,7 @@ contains
           cline=' '
           last=len(cline)
           goto 21100
-!-----------------------------------------------------------
+!---------------------------------------------------------
 ! PLOT unused
        case(14)
 !---------------------------------------------------------
@@ -6352,7 +6422,7 @@ contains
 ! subsubcommands to PLOT
 !    character (len=16), dimension(nplt2) :: cplot2=&
 !        ['COLOR           ','LOGSCALE        ','RATIOS_XY       ',&
-!         'LINE_WITH_SYMBLS','MANIPULATE_LINES','PAUSE_OPTION    ',&
+!         'LINE_TYPE       ','MANIPULATE_LINES','PAUSE_OPTION    ',&
 !         'LOWER_LEFT_TEXT ','TIE_LINES       ','GIBBS_TRIANGLE  ',&
 !         'QUIT            ','SPAWN           ','NO_HEADING      ',&
 !         'AXIS_FACTOR     ','                ','                ',&
@@ -6368,11 +6438,8 @@ contains
              last=len(cline)
              goto 21100
 !...............................
-! PLOT EXTRA FONT_AND_COLOR ... and some more things ...
+! PLOT EXTRA COLOR ... and some more things ...
           case(1)
-! Font is not a separate (but unimplemented) command
-!             call gparcdx('Font ',cline,last,1,name1,'default','?PLOT font')
-!             write(*,*)'Sorry this option not yet implemeted'
 ! monovariant and tielinecolor declared in smp2.F90
              call gparcdx('Monovariant color ',cline,last,1,&
                   name1,monovariant,'?PLOT font')
@@ -6446,15 +6513,20 @@ contains
              graphopt%ysize=xxx
              goto 21100
 !...............................................
-! PLOT EXTRA LINE_WITH_SYMBOLS
+! PLOT EXTRA LINE_TYPE
           case(4)
-             call gparcdx('Plot a symbol at each calculated point?',&
-                  cline,last,1,ch1,'Y','?PLOT line symbols')
-             if(ch1.eq.'Y' .or. ch1.eq.'y') then
-                graphopt%linestyle=1
+             write(*,'(a/a/a)')'Default 1 restore normal line types:',&
+                  '0 means dashed lines,',&
+                  '>1 means symbol at each calculated point'
+             call gparidx('Line type?',cline,last,iz,1,'?PLOT line symbols')
+             if(iz.eq.0) then
+                graphopt%linetype=0
+             elseif(iz.gt.1) then
+                graphopt%linetype=iz
              else
-                graphopt%linestyle=0
+                graphopt%linetype=1
              endif
+             write(*,*)'Only partially implemented'
              goto 21100
 !...............................................
 ! PLOT EXTRA MANIPULATE LINE COLORS
@@ -6497,7 +6569,7 @@ contains
              graphopt%lowerleftcorner=text
              goto 21100
 !...............................................
-! PLOT EXTRA Tie-line increment
+! PLOT EXTRA Tie-line plot increment
           case(8)
              call gparidx('Tie-line plot increment?',cline,last,kl,3,&
                   '?PLOT tieline')
@@ -6554,28 +6626,29 @@ contains
                 call gparrdx('Factor?',cline,last,xxx,1.0D-3,'?PLOT misc')
                 if(ch1.eq.'X') graphopt%scalefact(1)=abs(xxx)
                 if(ch1.eq.'Y') graphopt%scalefact(2)=abs(xxx)
+!                write(*,*)'PMON: ',graphopt%scalefact(1),graphopt%scalefact(2)
              else
                 write(*,*)'No such axis'
              endif
              goto 21100
 !...............................................
-! PLOT EXTRA
+! PLOT EXTRA unused
           case(14)
              goto 21100
 !...............................................
-! PLOT EXTRA
+! PLOT EXTRA unused
           case(15)
              goto 21100
 !...............................................
-! PLOT EXTRA
+! PLOT EXTRA unused
           case(16)
              goto 21100
 !...............................................
-! PLOT EXTRA
+! PLOT EXTRA unused
           case(17)
              goto 21100
 !...............................................
-! PLOT EXTRA
+! PLOT EXTRA unused
           case(18)
              goto 21100
 !-----------------------------------------------------------
@@ -7200,8 +7273,8 @@ contains
 !          write(*,*)'Option not implemented: ',option(1:len_trim(option))
 ! next argument after = must be a file name
 ! 6 means extension DAT
- !         jj=next+1
- !         if(eolch(option,jj)) then
+!          jj=next+1
+!          if(eolch(option,jj)) then
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
           call gparfilex('Output file',option,next,1,string,'  ',-7,&

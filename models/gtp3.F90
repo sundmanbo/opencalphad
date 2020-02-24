@@ -679,21 +679,22 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NOCS not allowed to create composition sets for this phase
 ! HELM parameters are for a Helmholz energy model (not implemented),
 ! PHNODGDY2 phase has model with no analytical 2nd derivatives
-! ELMA phase has elastic model A (not implemented)
-! PHSUBO ordering model with ordered part subtracted (is it used??)
-! FHV phase has Flory-Huggins model for polymers DELETED replaced by
-! PALM phase has interaction records numbered by PALMTREE
+! not implemented ELMA phase has elastic model A (not implemented)
+! EECLIQ this is the condensed phase that should have highest entropy
+! PHSUBO special use testing models DO NOT USE
+! EECLIQ this is the condensed phase that should have highest entropy
+! PALM interaction records numbered by PALMTREE NEEDED FOR PERMUTATIONS !!!
 ! MULTI may be used with care
 ! BMAV Xion magnetic model with average Bohr magneton number
 ! UNIQUAC The UNIQUAC fluid model
   integer, parameter :: &
-       PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
-       PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
-       PHMFS=8,     PHGAS=9,    PHLIQ=10,  PHIONLIQ=11, &  ! 
-       PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
-       PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
-       PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
-       PHPALM=24,    PHMULTI=25, PHBMAV=26,  PHUNIQUAC=27   !                  !
+       PHHID=0,     PHIMHID=1,    PHID=2,      PHNOCV=3, &     ! 1 2 4 8 : 0/F
+       PHHASP=4,    PHFORD=5,     PHBORD=6,    PHSORD=7, &     ! 
+       PHMFS=8,     PHGAS=9,      PHLIQ=10,    PHIONLIQ=11, &  ! 
+       PHAQ1=12,    PHDILCE=13,   PHQCE=14,    PHCVMCE=15,&    ! 
+       PHEXCB=16,   PHXGRID=17,   PHFACTCE=18, PHNOCS=19,&   !
+       PHHELM=20,   PHNODGDY2=21, PHEECLIQ=22, PHSUBO=23,&   ! 
+       PHPALM=24,   PHMULTI=25,   PHBMAV=26,   PHUNIQUAC=27   !                  !
 ! 
 !----------------------------------------------------------------
 !-Bits in PHASE_VARRES (constituent fraction) record STATUS2

@@ -2919,7 +2919,7 @@
 88       format(' TYPE_DEFINITION ',a,' GES A_P_D ',a,' MAGNETIC ',i3,F8.4,'!')
       else
          write(unit,100)lokadd%aff
-100      format(2x,'+ Magnetic model by Inden, anti-ferromagntic factor:',i3,/&
+100      format(2x,'+ Magnetic model by Inden, anti-ferromagnetic factor:',i3,/&
               4x,'Magnetic function below the ordering temperature TC',&
               ' with TAO=T/TC:')
          tps(1)='TAO'

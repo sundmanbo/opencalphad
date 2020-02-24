@@ -1282,7 +1282,7 @@
 !\begin{verbatim}
  subroutine list_many_formats(cline,last,ftyp,unit1)
 ! lists all data in different formats: SCREEN/TDB/MACRO/LaTeX/ODB
-!                                         1    2    3     4    5
+!                               ftyp:     1    2    3     4    5
 ! unfinished
    implicit none
    character cline*(*)
@@ -1292,17 +1292,26 @@
    character text*64, text2*2000,fil*64
    character date*8,CHTD*1
 ! if not screen then ask for file name
-! for screen outpot of file use /option= ...
+! for screen output of file use /option= ...
    if(ftyp.ne.1) then
-      call gparcdx('Output file: ',cline,last,1,fil,'database','?Output format')
+!     call gparcdx('Output file: ',cline,last,1,fil,'database','?Output format')
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
+      call gparfilex('Output file: ',cline,last,1,fil,' ',&
+           -ftyp,'?Output format')
       ipos=len_trim(fil)
+      if(ipos.le.0) then
+         write(*,*)'No file name, using "database"'
+         fil='database'
+         ipos=8
+      endif
 ! it is impossible to have a blank name here, check if there is an extension
       iph=index(fil,'.')
       if(iph.gt.0) then
-! do not allow empty extensions
-         if(fil(iph+1:iph+1).ne.' ') ipos=0
+! There must be a letter after the period
+         if(iph.eq.ipos) iph=0
       endif
-      if(ipos.gt.0) then
+      if(iph.eq.0) then
          if(ftyp.eq.2) then
 ! TDB file a la TC
             fil(ipos+1:)='.TDB'
@@ -1427,6 +1436,7 @@
    close(31)
    gx%bmperr=4190
 1000 continue
+   if(ftyp.ne.1 .and. gx%bmperr.eq.0) write(*,*)'Output saved on ',trim(fil)
 !   unit=kousave
    return
  end subroutine list_many_formats
@@ -1629,15 +1639,28 @@
    nsl=phlista(lokph)%noofsubl
    special=' '
 ! indicate some status bit specially
+! these 4 bits are mutually exclusive
    if(btest(phlista(lokph)%status1,PHFORD)) special(1:1)='F'
    if(btest(phlista(lokph)%status1,PHBORD)) special(1:1)='B'
    if(btest(phlista(lokph)%status1,PHSORD)) special(1:1)='S'
    if(btest(phlista(lokph)%status1,PHIONLIQ)) special(1:1)='I'
-   if(btest(phlista(lokph)%status1,PHMFS)) special(2:2)='D'
+   kkk=2
+   if(btest(phlista(lokph)%status1,PHMFS)) then
+! this indicates if there is a disordered fraction set
+      special(kkk:kkk)='D'; kkk=kkk+1
+   endif
+   lokcs=phlista(lokph)%linktocs(ics)
+!   write(*,*)'3C order: ',btest(firsteq%phase_varres(lokcs)%status2,CSORDER),&
+!        btest(phlista(lokph)%status1,PHSUBO),kkk
+   if(btest(firsteq%phase_varres(lokcs)%status2,CSORDER)) then
+! this indicates if ordered part should be subtracted as ordered
+! for some historical illogical reason PHSUBO is not used but CSORDER
+      special(kkk:kkk)='S'; kkk=kkk+1
+   endif
 ! This subroutine is independent of current equilibrium, use firsteq
 !   write(lut,10)phname,phlista(lokph)%status1,special,&
 !        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
-  lokcs=phlista(lokph)%linktocs(ics)
+!  lokcs=phlista(lokph)%linktocs(ics)
    write(lut,10)phname,phlista(lokph)%status1,special,&
         nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
 10  format(/'Phase: ',A,', Status: ',Z8,2x,a/'  Subl:',I3,10(1x,F7.3))
@@ -2141,7 +2164,8 @@
       special(isp:isp)=CHTD
       if(.not.btest(globaldata%status,GSSILENT)) then
          write(kou,53)
-53       format(' *** Warning: disordered fraction sets need manual editing!')
+53       format('Disordered fraction sets need manual editing',&
+              ' to be used by Thermo-Calc')
       endif
       write(lut,55)CHTD,phname(1:len_trim(phname)),phname(1:len_trim(phname))
 55    format('$ *** Warning: disordered fraction sets need manual editing!'/&

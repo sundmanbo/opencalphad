@@ -1,0 +1,273 @@
+@$
+@$ calculate A2/B2 line in ALFe
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ ==============================================================
+@$
+
+new Y
+
+set echo Y
+
+
+r t ./alfe-4slbf
+ 
+@&
+
+@$ Calculate an equilibrium in the B2
+set c t=1200 p=1e5 n=1 x(al)=.3
+
+c e
+
+l , 2
+
+@&
+
+@$ Change to condition in difference of y
+set c y(bcc,fe#3)-y(bcc,fe#2)
+
+l c
+
+set c x(al)=none
+
+c e
+
+l,,,,
+
+@$ We can use "c e" as the gridminimizer cannot be used
+@$ with these conditions
+@$
+@$ The phase has B2 ordering as two sublattices have equal and high Fe content
+@$ and the other equal but lower Fe content.
+@$
+@$ Here the difference in Fe content is high
+@$ We can to calculate a line when this difference is small
+@$ First ensure we can set the difference as condition
+@&
+
+@$ Change the value of the difference in y
+@$ Note the previous difference is kept and must be removed explicitly
+@$ That is easy using the notation specifying the condition number
+set c y(bcc,fe#3)-y(bcc,fe#2)=.5
+l c
+set c 4:=none
+
+@$ We can use c e as gridmin is not possible with these conditions
+c e
+
+l,,,,
+
+@$ The overall composition has changed as we are closer to the A2/B2 line
+@$ Decrease the difference again
+@&
+
+set c y(bcc,fe#3)-y(bcc,fe#2)=.01
+set c 4:=none
+
+l c
+
+@&
+@$ We are now sufficiently close to the A2/B2 transition line
+
+c e
+
+l,,,
+
+@&
+
+@$ Set a T axis
+set ax 1 T 300 2000 5
+
+
+step
+
+
+@$ plot the a2/b2 transition line
+plot
+x(al)
+T
+title map 17 fig 1a
+
+
+@&
+@$ Sometimes the lie stops at 1200 because the line up to the liquid
+@$ is considered wrong.  Make sure it is included
+
+amend line
+y
+y
+
+@$ plot as dashed line on a file to be appended
+plot
+x(al)
+T
+extra line
+0
+title map 17 fig 1b
+@$ The final Y means overwrite any previous file
+output alfe-a2b2
+Y
+
+@&
+@$ set inter
+@$ ==============================================
+@$ Now the Al-Fe phase diagram
+
+new Y
+
+
+
+r t ./alfe-4slbf
+ 
+@&
+@$ Start with the High Al side
+
+set c t=1000 p=1e5 n=1 x(al)=.52
+c e
+
+l
+RESULTS
+2
+
+@&
+@$ Axis for thd diagram
+set ax 1 x(al) 0 1 .01
+set ax 2 t 300 2000 25
+
+map
+
+@&
+
+pl
+X(*,AL)
+T
+title map 17 fig 2a
+
+
+@$ Mapping stops at B2/A2 transition in equilibrium with liquid
+@$ That is an error which has to be fixed.  
+@&
+
+set c t=1900 p=1e5 n=1 x(al)=.3
+c e
+l,,,
+
+@&
+
+map
+n
+
+
+pl
+X(*,AL)
+T
+title map 17 fig 2b
+
+
+@$ The line liquid/BCC is still not complete,
+@$ The part connectiong to the high Al curve was automatically
+@$ excluded by OC as mapping stopped when the B2 became stable
+@$ BUT we can restore that part!
+
+
+amend line
+Y
+Y
+Y
+
+
+
+
+@&
+plot
+
+
+title map 17 fig 2c
+
+
+@$ Note there are two  curves for liq/bcc around 50% Al.
+@$ These can be removed by editing the ocgnu.plt file
+
+@$ Now just the BCC/D03/B2 region missing
+@&
+
+set c t=600 x(al)=.25
+
+c e
+
+l,,,
+
+@$ Note that one composition set hase equal fractions in all 4
+@$ sublattices whereas the other has high and equal fraction of Fe
+@$ in 2 sublattices, less high fraction of Fe in the third and
+@$ high fraction of Al in the fourth.  This is D0_3 ordering.
+@$
+@$ The grid minimizer in OC must know that the BCC has B permutation to find
+@$ this ordering miscibility gap.  With that information it generates
+@$ gridpoints taking the ordering into account.
+@&
+
+map
+n
+
+
+@&
+
+pl
+X(*,AL)
+T
+title map 17 fig 2d
+
+
+
+@$ Now append the already calculated and plotted a2/b2 curve
+@&
+
+plot
+
+
+append alfe-a2b2
+title map 17 fig 3
+
+
+@$ Surprise, all curves are dashed!
+@$ You have to edit the ocgnu.plt file to have dashed line
+@$ only for the A2/B2 line.  
+@$
+@$ Developing OC is a hobby for me,
+@$ I have no ambition to solve all your problems calculating phase diagrams ...
+
+
+@&
+
+@$ Calculating and adding the para/ferro magnetic transion
+@$ along the Curie T curve is a task you can do yourself!
+@$ If you want you can calculate and add the B2/D0_3 transition curve also.
+
+
+
+set inter
+

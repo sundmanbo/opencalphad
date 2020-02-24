@@ -116,7 +116,7 @@ render
 
 
 @&
-@$ move the line identification outside the plot
+@$ move the line identification (keys) outside the plot
 plot
 
 
@@ -126,6 +126,10 @@ position outside right
 text
 1200 0.6 2 0 High Speed Steel
 title step 1 fig 2
+@$ Change the font!
+font
+garamond
+16
 render
 
 
@@ -135,6 +139,10 @@ plot
 T
 w(*,cr)
 title step 1 fig 3
+@$ restore font to default
+font
+arial
+16
 render
 
 @&

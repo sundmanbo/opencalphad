@@ -1315,11 +1315,15 @@ CONTAINS
           if(formap) then
              write(*,*)'Phase change not allowed: ',trim(phnames)
              gx%bmperr=4210; goto 1000
+#ifdef silent
+#else
           elseif(ceq%eqno.ne.1) then
 !             write(*,219)meqrec%noofits,iadd,irem,' at equil: ',ceq%eqno
 !219          format('Phase change: its/add/remove: ',3i5,a,i5)
-             write(*,219)ceq%eqno,meqrec%noofits,trim(phnames)
-219          format('Phase change, equil: ',i3,' iteration: ',i5,', phase: ',a)
+             if(.not.btest(meqrec%status,MMQUIET)) &
+                  write(*,219)ceq%eqno,meqrec%noofits,trim(phnames)
+219          format('Phase change (equil: ',i3,') iteration: ',i5,', phase: ',a)
+#endif
           else
              if(iadd.gt.0) then
                 phnames='+'
@@ -1333,10 +1337,12 @@ CONTAINS
                 phnames='-'
                 call get_phasetup_name(tuprem,phnames(2:))
              endif
-!             write(*,281)meqrec%noofits,iadd,irem,trim(phnames)
-!281          format('Phase change: its/add/remove: ',3i5,2x,a)
-             write(*,281)meqrec%noofits,trim(phnames)
+#ifdef silent
+#else             
+             if(.not.btest(meqrec%status,MMQUIET)) &
+                  write(*,281)meqrec%noofits,trim(phnames)
 281          format('Phase change iteration: ',i5,2x,a)
+#endif
           endif
        endif
 !       if(formap) then
@@ -1672,7 +1678,7 @@ CONTAINS
 
 !\addtotable subroutine meq_sameset
 !\begin{verbatim}
-  subroutine meq_sameset(irem,iadd,mapx,meqrec,phr,inmap,ceq)
+  recursive subroutine meq_sameset(irem,iadd,mapx,meqrec,phr,inmap,ceq)
 ! iterate until phase set change, converged or error (incl too many its)
 ! iadd = -1 indicates called from calculating a sequence of equilibria
 ! mapx is used when calling meq_sameset from step/map
@@ -2724,7 +2730,7 @@ CONTAINS
     endif
 !-------------------------------------------------------
     if(converged.eq.3) then
-! force some iterations with large fraction variations in unstable phases
+! force one extra iterations with large fraction variations in unstable phases
 !       write(*,267)'End of iteration: ',meqrec%noofits,converged,&
 !            increase,yss,yst
        level3=level3+1
@@ -2801,12 +2807,18 @@ CONTAINS
 !       write(*,778)'Test converged: ',meqrec%noofits,converged
 !778    format(a,2i4)
 !    endif
-    if(vbug) write(*,*)'Convergence criteria: ',converged
+!------------------------------------------------------------
+! This output gives a good indication for convergence problem
+    if(vbug) write(*,*)'Convergence criteria: ',converged,level3
 ! converged=1 or 2 means constituent fraction in metastable phase not converged
-!    write(*,*)'Convergence criteria: ',converged
     if(converged.gt.3) goto 100
 ! converged 3 means large change conts. fraction of unstable phase change a lot
-    if(converged.eq.3 .and. level3.lt.4) goto 100
+! level3 is nuber of previous iteration with converged=3
+! with allcost I had the correct equilibrium but occational converged=4
+! probably because a metastable liquid with almost identical composition
+! as the stable interfeared. Accept converged=3 twice in a row as correct!!
+!    if(converged.eq.3 .and. level3.lt.4) goto 100
+    if(converged.eq.3 .and. level3.lt.2) goto 100
 ! converged 4 means a constituent fraction of a stable phase change a lot
 ! converged=5 means a condition not fullfilled
 ! converged=6 means charge balance not converged or large phase fraction change
@@ -2816,6 +2828,8 @@ CONTAINS
     if(meqrec%noofits.lt.4) goto 100
     if(increase.ne.0) then
 ! continue if corrections in constituent fractions in stable phases increases
+! This is needed to change fractions in a gas from 1E-20 to some significant
+! value
        goto 100
     endif
 !------------------------
@@ -2912,6 +2926,7 @@ CONTAINS
     if(vbug) write(*,*)'Final return from meq_sameset'
 !    if(gx%bmperr.ne.0) write(*,*)'Error return from meq_sameset',gx%bmperr
 !    if(irem*iadd.gt.0) write(*,*)'Leaving meq_sameset: ',irem,iadd
+!    write(*,*)'Exit meq_sameset'
     return
 ! too many iterations
 1200 continue
@@ -9842,7 +9857,7 @@ CONTAINS
        endif
     enddo
     if(mode.eq.1 .and. phmax.gt.0) then
-       write(*,*)'MM entering phase with largest driving force ',phmax,dgmax
+!       write(*,*)'MM entering phase with largest driving force ',phmax,dgmax
        lokcs=phasetuple(phmax)%lokvares
        ceq%phase_varres(lokcs)%phstate=PHENTERED             
        phcsstat(phmax)=PHENTERED
@@ -10080,7 +10095,7 @@ CONTAINS
 
 !\addtotable subroutine two_stoich_same_comp
 !\begin{verbatim}
-  subroutine two_stoich_same_comp(irem,iadd,mapx,meqrec,inmap,ceq)
+  recursive subroutine two_stoich_same_comp(irem,iadd,mapx,meqrec,inmap,ceq)
 ! we have found two  phases stable with same composition
 ! ONLY USED WHEN MAPPING with tie-lines in plane
 ! ceq is equilibrium record
@@ -10104,6 +10119,7 @@ CONTAINS
 !    logical isotherm
     integer idum,jdum,savefix(2),saveent
 !    
+    write(*,*)'In two_stoich_same_comp'
     if(meqrec%nrel.ne.2) then
 ! How to check if I should use this routine? Only 2 components?
 ! If we have an activity condition one could have 3 components ....
@@ -10230,6 +10246,8 @@ CONTAINS
 ! But we must have a condition on the amount
 ! mapx set to zero inside this routine.  Make sure no error code set!!
     if(gx%bmperr.ne.0) gx%bmperr=0
+    write(*,*)'MM calling meq_sameset from two_stoich_same_comp'
+    write(*,*)'This is a recurve call as we call two_stoich from meq_sameset!!'
     call meq_sameset(idum,jdum,mapx,meqrec,meqrec%phr,inmap,ceq)
 !    write(*,*)'MU(*) after  meq_sameset: ',ceq%cmuval(1),ceq%cmuval(2)
     if(gx%bmperr.ne.0) then

@@ -158,7 +158,7 @@
          call palmtree(lokph)
          if(gx%bmperr.ne.0) goto 1000
 ! this must be zeroed if a new interaction parameter is added
-         phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHPALM)
+!         phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHPALM)
       endif
    endif
 !   if(ocv()) write(*,*)'3X in gcalc_internal: ',lokph

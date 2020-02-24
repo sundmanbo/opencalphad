@@ -1,0 +1,73 @@
+\documentclass[12pt]{article}
+\textwidth 165mm
+\textheight 210mm
+\oddsidemargin  1mm
+\evensidemargin  1mm
+\topmargin 1mm
+\usepackage[latin1]{inputenc}
+
+\begin{document}
+
+\begin{center} 
+
+{\Large \bf The Open Calphad Application Software Interface (OCASI)
+
+Based on the TQ standard for interfacing thermodynamic software}
+
+\bigskip
+
+Bo Sundman \today
+
+\end{center}
+
+There is a Fortran version and a tentative iso-C version for C++.  
+In the future it may be possible to merge these.
+
+If you are not familiar with compiling and linking software and do not
+understand the intructions here please ask someone close to you for
+help.  The instructions here are very brief but I am too busy to
+answer questions about handling such things and I know nothing about
+C++
+
+To link any of the examples you must first compile and link the OC
+main program.  When this works you must compile a special library
+excluding the file browser ``tinyfiledialogs'' and this is done (on
+Windiws) by the command file {\bf makeocasilib}.  You must first add
+the extension ``.cmd'' to this file and then execute it as a
+command/batch file.  This generates the library files:
+
+{\bf libocasi.a} and {\bf liboceqplus.mod}
+
+Both of these files are needed to compile and link the applications.
+
+The initial iso-C version of the library was provided by Teslos in
+2014 and it has been extended by Matthias Stratmann at RUB, Germany
+and Christophe Sigli at Constellium, France to handle more calls to
+different subroutines.  As things are still under development there
+may be slightly different versions on various subdirectories.
+
+Files on this directory:
+
+\begin{itemize}
+\item readme.pdf is this file.  There are specific readme files on the
+  subdirectories.
+
+\item readme.tex is LaTeX source for this file.
+
+\item Subdirectories:
+  \begin{itemize}
+  \item F90 has the source code for the TQ library, liboctq.F90 that
+    was updated 1019.10.31 (Halloween) and two subqdirectories with
+    examples.  The crfe/ was also updated in October, 2019, the feni/
+    I hope to update soon.
+
+  \item Cpp has one C++ example provided by Matthias Stratmann at RUB,
+    Germany and one from Cristophe Sigli, Consillium, France.  There
+    is a separate version of the Fortran TQ library and an isoC
+    interface.  I tested the Scheil program in February 2020 and it works
+    but it generates some error messages I do not understand and as I
+    do not know C++ I cannit fix that.  I would be greateful for any help.
+  \end{itemize}
+\end{itemize}
+
+\end{document}

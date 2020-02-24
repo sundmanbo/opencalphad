@@ -265,13 +265,13 @@ MODULE ocsmp
 ! these define realative plot size for X and Y, normally 1.0 or less
      double precision :: xsize=1.0D0,ysize=1.0D0
 ! labeldefaults(i) for axis i 0 means default text, 1 text in plotlabels
-! linetype 0 is color full line, >100 is symbols
 ! tielines>0 means plot a tieline every tielines calculated equilibrium
-     integer :: labeldefaults(3),linetype,linett=1,tielines=0
+     integer :: labeldefaults(3),linett=1,tielines=0
 ! plotlabel(1) is heading, 2 is x-axis text, 3 is y-axis text 
      character*64, dimension(3) :: plotlabels
-! linestyle is 0 for lines, 1 for linespoints (pointinterval=0)
-     integer linestyle
+! linetype is 0 for dashed lines, 1 for full lines >1 not yet defined
+!     integer linestyle
+     integer linetype
 ! if true plot a triangular diagram (isothermal section)
      logical gibbstriangle
 ! the set key command in GNUPLOT specifies where the line id is written

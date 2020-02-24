@@ -13,6 +13,39 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2020.02.24 OC version 5.059: The next relase 6 will soon be submitted,
+also on the opencalphad.org web page.  I have spent more than 2 years
+improving version 5.  But as usual the documentation lags behind.
+
+I am working on implementing all lines exiting from invariants when
+mapping isopleths, at present only three of them are created but there
+should be 2*(number of stable phases)-1.  But that will not be
+available in this version.
+
+LOG files are useful to keep a record how to make a complicated
+calculation and also to report errors or problems using OC to the
+support team.  There has been troubles opening these bu that should
+now be fixed.
+
+It is now possible to select the font used for plotting.  However,
+only fonts supported by your GNUPLOT installation will work, other
+fonts will be replaced by a default.  I have also added a possibility
+to draw dashed lines with the plot subcommand EXTRA LINE, see the new
+macro map17.
+
+As always, editing the ocgnu.plt file after plotting (do not forget to
+rename it as it is overwritten each time you plot!) is necessary for
+plots to be published.  GNUPLOT has a lot of facilities that OC cannot
+provide when used interactivly.
+
+There are some updates in the TQlib/Cpp directory for those interested
+in using OC as a library in an application software.  I have tried to
+update the Cpp/Scheil example.  For Windows a new command file,
+"makeocasi" has been added to create a library "libocasi.a" (excluding
+the "tinyfilesialogs").  This must be run before trying to link the
+Scheil program.  Probably a similar change is needed for Linux but I
+cannot test that.
+
 2020.02.04 OC version 5.058: Finally some improvement of mapping but
 as always some diagrams are worse.  There is many things still to fix.
 
@@ -22,7 +55,7 @@ phase names that are not unique will cause errors.  Do not forget to
 change the phase name also in all parameters!  There are several
 changes related to database management that will be documented
 finally.  I working on a new database format more flexible and less
-cryptic than the TDB format.
+cryptic than the current TDB format.
 
 2020.01.14 OC version 5.057: I am still trying to improve mapping of
 binary and ternary diagrams with "tie-lines in the plane" as such

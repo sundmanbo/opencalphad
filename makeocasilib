@@ -1,0 +1,45 @@
+REM This file must be given the extension .cmd to be run on WIndows
+REM It compiles the necessary libraries for OC application software
+
+del *.o
+del *.mod
+del libocasi.a
+
+REM some utilites and the command line interface
+copy utilities\metlib4.F90 .
+REM compiling without using tinyfiledialogs.c for file browsing
+gfortran -c -fopenmp metlib4.F90
+del metlib4.F90
+
+REM some routines from LAPACK and BLAS
+copy numlib\oclablas.F90 .
+gfortran -c -fopenmp oclablas.F90
+del oclablas.F90
+
+REM some more numerical routines
+copy numlib\ocnum.F90 .
+gfortran -c -fopenmp ocnum.F90
+del ocnum.F90
+
+REM the MINPACK package for least square fitting and solving nonlinear eqs.
+copy numlib\minpack1.F90
+gfortran -c -fopenmp minpack1.F90
+del minpack1.F90
+
+REM the model routines
+copy models\gtp3*.F90 .
+gfortran -c -fopenmp gtp3.F90
+del gtp3*.F90
+
+REM the equilibrium calculation routines
+copy minimizer\matsmin.F90 .
+gfortran -c -fopenmp -Dsilent matsmin.F90
+del matsmin.F90
+
+REM generating the library needed also for TQ appications
+ar sq libocasi.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
+
+REM =================================================================
+REM libocasi.a and liboceqplus.mod are used when linking applications.
+REM =================================================================
+

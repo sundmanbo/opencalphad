@@ -75,13 +75,13 @@ cp
 text 1000 1 1 0
 This tail of Cp is due to SRO
 text N
-400 3 1 55
+410 3 1 60
 This Cp comes from disappearing LRO
 text N
-100 13 1 0
+100 13.8 1 0
 SRO from reciprocal parameter
 text N
-100 12.2 1 0
+100 13 1 0
 L(B2,A,B:A,B)=1200*UAB/(T+200)
 title Step 9 fig 1
 render

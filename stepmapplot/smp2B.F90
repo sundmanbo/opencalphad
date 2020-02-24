@@ -41,7 +41,8 @@
     double precision, dimension(:), allocatable :: xax,yyy
 ! Too big??
 !    integer, parameter :: maxval=10000
-    integer, parameter :: maxval=2000
+! plotting isothermal section Cr-Fe-Mo required more than 2000
+    integer, parameter :: maxval=4000
     integer, dimension(:), allocatable :: nonzero,linzero,linesep
 !    integer, dimension(:), allocatable :: linesep
 ! encoded2 stores returned text from get_many ... 2048 is too short ...
@@ -976,10 +977,10 @@
 ! internal
     integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk,nofapl
     integer, parameter :: mofapl=100
-    integer appfiletyp
+    integer appfiletyp,lz
     character pfc*64,pfh*64,backslash*2,appline*128
     character applines(mofapl)*128,gnuplotline*80,labelkey*64,rotate*16
-    character labelfont*16,linespoints*12,tablename*16,year*16,hour*16
+    character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
 ! write the gnuplot command file with data appended
 !
 !    write(*,10)'in ocplot2B: ',np,anpax,nrv,pform(1:1),trim(title),&
@@ -1033,17 +1034,18 @@
     call date_and_time(year,hour)
 !    write(*,*)'"',year,'"  "',hour,'"'
     tablename='OCT'//year(3:8)//hour(1:6)
-! OC logo oclogo added by Catalina Pineda
 !    write(*,*)'Plot heading 2? ',btest(graphopt%status,GRNOTITLE)
     if(btest(graphopt%status,GRNOTITLE)) then
-       write(21,858)trim(title),trim(conditions)
+       write(21,858)trim(title),trim(conditions),trim(graphopt%font)
     else
-       write(21,859)trim(title),trim(conditions)
+       write(21,859)trim(title),trim(conditions),trim(graphopt%font)
     endif
+    lz=graphopt%linetype
     write(21,860)graphopt%xsize,graphopt%ysize,&
-         trim(pltax(1)),trim(pltax(2)),trim(labelkey)
-858 format('#set title "',a,' \n #',a,'" font "arial,10" ')
-859 format('set title "',a,' \n ',a,'" font "arial,10" ')
+         trim(pltax(1)),trim(pltax(2)),trim(labelkey),&
+         lz,lz,lz,lz,lz,lz,lz,lz,lz,lz
+858 format('#set title "',a,' \n #',a,'" font "',a,',10" ')
+859 format('set title "',a,' \n ',a,'" font "',a,',10" ')
 860 format('set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
@@ -1052,16 +1054,16 @@
 ! Help with stackoverflow to fix nice logo independent of plot size!
          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
          'set key ',a/&
-         'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
-         'set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6'/&
-         'set style line 3 lt 2 lc rgb "#00C000" lw 2 pt 3'/&
-         'set style line 4 lt 2 lc rgb "#FF0000" lw 2 pt 2'/&
-         'set style line 5 lt 2 lc rgb "#0080FF" lw 2 pt 4'/&
-         'set style line 6 lt 2 lc rgb "#C8C800" lw 2 pt 5'/&
-         'set style line 7 lt 2 lc rgb "#C0C0C0" lw 2 pt 7'/&
-         'set style line 8 lt 2 lc rgb "#00FFFF" lw 2 pt 8'/&
-         'set style line 9 lt 2 lc rgb "#804080" lw 2 pt 9'/&
-         'set style line 10 lt 2 lc rgb "#7CFF40" lw 2 pt 1')
+         'set style line 1 lt ',i2,' lc rgb "#000000" lw 2 pt 10'/&
+         'set style line 2 lt ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
+         'set style line 3 lt ',i2,' lc rgb "#00C000" lw 2 pt 3'/&
+         'set style line 4 lt ',i2,' lc rgb "#FF0000" lw 2 pt 2'/&
+         'set style line 5 lt ',i2,' lc rgb "#0080FF" lw 2 pt 4'/&
+         'set style line 6 lt ',i2,' lc rgb "#C8C800" lw 2 pt 5'/&
+         'set style line 7 lt ',i2,' lc rgb "#C0C0C0" lw 2 pt 7'/&
+         'set style line 8 lt ',i2,' lc rgb "#00FFFF" lw 2 pt 8'/&
+         'set style line 9 lt ',i2,' lc rgb "#804080" lw 2 pt 9'/&
+         'set style line 10 lt ',i2,' lc rgb "#7CFF40" lw 2 pt 1')
 ! add some useful things for maniplulation of graph
     write(21,8000)
 8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
@@ -1106,8 +1108,13 @@
        labelfont=' '
 !       write(*,*)'textfontscale: ',textlabel%textfontscale
        if(textlabel%textfontscale.ne.one) then
-          write(labelfont,178)int(10*textlabel%textfontscale)
-178       format(' font "Sans,',i2,'" ')
+!          write(labelfont,178)int(10*textlabel%textfontscale)
+!178       format(' font "Sans,',i2,'" ')
+!          write(*,1178)trim(graphopt%font),int(10*textlabel%textfontscale)
+!1178       format(' SMP2B font "',a,',',i2,'" ')
+          write(labelfont,178)trim(graphopt%font),&
+               int(10*textlabel%textfontscale)
+178       format(' font "',a,',',i2,'" ')
        endif
 !       if(textlabel%angle.eq.0) then
        write(21,1505)trim(textlabel%textline),textlabel%xpos,textlabel%ypos,&
@@ -1325,8 +1332,8 @@
 ! try to avoid overlapping keys ...
 ! The "restore" for x/yrange means the scaling from the "plot for"
 ! will be used also for the appended data
-       write(21,3912)
-3912   format('set key bottom right font "arial,12"'/&
+       write(21,3912)trim(graphopt%font)
+3912   format('set key bottom right font "',a,',12"'/&
             'set xrange restore'/'set yrange restore')
        if(appfiletyp.eq.2) then
 ! just one line with plot for ... 
@@ -1831,17 +1838,17 @@
     character labelkey*64,applines(mofapl)*128,appline*128,pfc*80,pfh*80
     integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
     integer done(maxcolor),foundinv,fcolor,k3
-    character color(maxcolor)*24,rotate*16,labelfont*16,linespoints*12
+    character color(maxcolor)*24,rotate*16,labelfont*32,linespoints*12
     integer naptitle,apptitles(maxcolor)
 ! we plot monovariant twice, once with border once with filledcurves!!
 !    integer noofmono,jjj,monovariant2(100)
     integer, parameter :: monovariantborder=11
-    integer xtieline,xmonovariant
+    integer xtieline,xmonovariant,lz
 ! now a global variable
 !    character monovariant*6
 ! Gibbs triangle variables
     logical plotgt,appgt
-    double precision sqrt3,xxx,yyy,xmax,ltic
+    double precision sqrt3,xxx,yyy,xmax,ltic,xf,yf
 !  
     write(*,*)'Using the rudimentary graphics in ocplot3B!',graphopt%linett
 ! light green            'fc "#B0FFB0" notitle ',a)
@@ -1970,14 +1977,14 @@
 !
 !    write(*,*)'Plot heading 3? ',btest(graphopt%status,GRNOTITLE)
     if(btest(graphopt%status,GRNOTITLE)) then
-       write(21,128)trim(title),trim(conditions)
+       write(21,128)trim(title),trim(conditions),trim(graphopt%font)
     else
-       write(21,129)trim(title),trim(conditions)
+       write(21,129)trim(title),trim(conditions),trim(graphopt%font)
     endif
     write(21,130)graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(labelkey)
-128 format('#set title "',a,' \n #',a,'" font "arial,10"')
-129 format('set title "',a,' \n ',a,'" font "arial,10"')
+128 format('#set title "',a,' \n #',a,'" font "',a,',10"')
+129 format('set title "',a,' \n ',a,'" font "',a,',10"')
 130 format('set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/&
@@ -2004,22 +2011,20 @@
 !            'set label "O" at graph -0.090, -0.100 font "Garamond Bold,20"'/&
 !            'set label "C" at graph -0.080, -0.100 font "Garamond Bold,20"')
     endif
-    write(21,133)
+    lz=graphopt%linetype
+    write(21,133)lz,lz,lz,lz,lz,lz,lz,lz,lz,lz
 133 format('# if the value after solid is 0 the monovariants are transparent'/&
          'set style fill transparent solid 1'/&
-         'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
-         'set style line 2 lt 2 lc rgb "#00C000" lw 2 pt 2'/&
-         'set style line 3 lt 2 lc rgb "#4169E1" lw 2 pt 7'/&
-         'set style line 4 lt 2 lc rgb "#FF0000" lw 2 pt 3'/&
-!         'set style line 5 lt 2 lc rgb "#8F8F8F" lw 2 pt 4'/&
-!        'set style line 5 lt 2 lc rgb "#FF4500" lw 2 pt 4'/&
-          'set style line 5 lt 2 lc rgb "#00FFFF" lw 2 pt 10'/&
-         'set style line 6 lt 2 lc rgb "#0080FF" lw 2 pt 5'/&
-         'set style line 7 lt 2 lc rgb "#804080" lw 2 pt 6'/&
-!         'set style line 7 lt 2 lc rgb "#FF4500" lw 2 pt 6'/&
-         'set style line 8 lt 2 lc rgb "#00C000" lw 2 pt 8'/&
-         'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2 pt 1'/&
-        'set style line 10 lt 2 lc rgb "#DAA520" lw 2 pt 4')
+         'set style line 1 lt ',i2,' lc rgb "#000000" lw 2 pt 10'/&
+         'set style line 2 lt ',i2,' lc rgb "#00C000" lw 2 pt 2'/&
+         'set style line 3 lt ',i2,' lc rgb "#4169E1" lw 2 pt 7'/&
+         'set style line 4 lt ',i2,' lc rgb "#FF0000" lw 2 pt 3'/&
+         'set style line 5 lt ',i2,' lc rgb "#00FFFF" lw 2 pt 10'/&
+         'set style line 6 lt ',i2,' lc rgb "#0080FF" lw 2 pt 5'/&
+         'set style line 7 lt ',i2,' lc rgb "#804080" lw 2 pt 6'/&
+         'set style line 8 lt ',i2,' lc rgb "#00C000" lw 2 pt 8'/&
+         'set style line 9 lt ',i2,' lc rgb "#C0C0C0" lw 2 pt 1'/&
+        'set style line 10 lt ',i2,' lc rgb "#DAA520" lw 2 pt 4')
 ! add some useful things for manual maniplulation of graph
     write(21,8000)
 8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
@@ -2095,8 +2100,11 @@
        labelfont=' '
 !       write(*,*)'textfontscale: ',textlabel%textfontscale
        if(textlabel%textfontscale.ne.one) then
-          write(labelfont,178)int(10*textlabel%textfontscale)
-178       format(' font "Sans,',i2,'" ')
+!          write(labelfont,178)int(10*textlabel%textfontscale)
+!178       format(' font "Sans,',i2,'" ')
+          write(labelfont,178)trim(graphopt%font),&
+               int(10*textlabel%textfontscale)
+178       format(' font "',a,',',i2,'" ')
        endif
 !       if(textlabel%angle.eq.0) then
 !       write(21,1505)trim(textlabel%textline),textlabel%xpos,textlabel%ypos,&
@@ -2171,7 +2179,7 @@
             appline(1:11).eq.'set origin ' .or.&
             appline(1: 9).eq.'set size ' .or.&
             appline(1: 8).eq.'set key ') then
-!          write(*,*)'ignoring append line ',trim(appline)
+!          write(*,*)'ignoring append file line ',trim(appline)
           goto 200
        endif
 !------------------------------------------------------------------
@@ -2402,9 +2410,11 @@
        write(*,*)'Ignoring manipulation of line colors'
     endif
 ! if graphopt%linestyle=0 use lines, otherwise linespoints
-    if(graphopt%linestyle.eq.0) then
-       linespoints='lines'
-    else
+! this never worked ...
+!    if(graphopt%linestyle.eq.0) then
+    linespoints='lines'
+    if(graphopt%linetype.gt.1) then
+! this should add a symbol at each calculated line but it does not work (yet)
        linespoints='linespoints'
     endif
     done=0
@@ -2444,6 +2454,9 @@
 308             format('plot "-" using 1:2 with ',a,' ls ',i2,' notitle ',a)
              else
 ! normal line with label
+! SUDDENLY lcolor(ii) is not set null !!
+!                write(*,*)'SMP2B ocplot3B 1: ',ii,'"',linespoints,'"'
+!                write(*,*)'SMP2B ocplot3B 2: ',lcolor(ii),color(lcolor(ii))
                 write(21,309)trim(linespoints),lcolor(ii),&
                      trim(color(lcolor(ii))),backslash
              endif
@@ -2575,6 +2588,11 @@
        enddo
     endif
 !    goto 500
+! we have to include the scaling factors graphopt%scalefact(1,2)
+    xf=one; yf=one
+    if(graphopt%scalefact(1).ne.one) xf=graphopt%scalefact(1)
+    if(graphopt%scalefact(2).ne.one) yf=graphopt%scalefact(2)
+!    write(*,*)'SMP2B x/y factors: ',xf,yf
 ! loop for all line coordinates
 !    sumpp=0
     do kk=1,2
@@ -2590,10 +2608,10 @@
 !             write(*,*)'Assumed to be an monovariant!',foundinv,kk
              write(21,600)jj,lcolor(jj)
 600          format('# Line ',2i5,' representing a monovariant')
-             write(21,549)xval(1,sumpp),yval(1,sumpp)
-             write(21,549)xval(2,sumpp),yval(2,sumpp)
-             write(21,549)zval(1,foundinv),zval(2,foundinv)
-             write(21,549)xval(1,sumpp),yval(1,sumpp)
+             write(21,549)xf*xval(1,sumpp),yf*yval(1,sumpp)
+             write(21,549)xf*xval(2,sumpp),yf*yval(2,sumpp)
+             write(21,549)xf*zval(1,foundinv),yf*zval(2,foundinv)
+             write(21,549)xf*xval(1,sumpp),yf*yval(1,sumpp)
 ! we are at the end of a line, write a blank line
              write(21,548)jj,trim(phaseline(jj))
 !             write(21,548)jj
@@ -2609,7 +2627,7 @@
              endif
              do while(sumpp.lt.lineends(jj))
                 sumpp=sumpp+1
-                write(21,549)xval(kk,sumpp),yval(kk,sumpp)
+                write(21,549)xf*xval(kk,sumpp),yf*yval(kk,sumpp)
 !549             format(2e15.6,4i7)
 549             format(2(1pe16.6),4i7)
 ! plotkod -101 means tieline
@@ -3047,49 +3065,55 @@
           cycle
        endif
        ll=mapnode%linehead(kl)%first
+!       write(*,*)'SMP2B allcrach 1: ',ll
 ! BOS 191224 add phase names
-       lineeq=>mapnode%linehead(kl)%meqrec
-       phases=' '
-       jk=1
-       do jj=1,lineeq%nstph
-          phtupix=lineeq%phr(lineeq%stphl(jj))%phtupix
-          if(jk.lt.72) then
-             call get_phasetup_name(phtupix,phases(jk:))
-             jk=len_trim(phases)+2
-          else
-             phases(jk:)=' ... more'
-          endif
-       enddo
-       write(*,*)'Phases: ',trim(phases)
+       if(ll.gt.0) then
+! only if there is an link to a linehead
+          lineeq=>mapnode%linehead(kl)%meqrec
+          phases=' '
+          jk=1
+          do jj=1,lineeq%nstph
+!             write(*,*)'SMP2B allcrach 2: ',jj,lineeq%stphl(jj),&
+!                  lineeq%phr(lineeq%stphl(jj))%phtupix
+             phtupix=lineeq%phr(lineeq%stphl(jj))%phtupix
+             if(jk.lt.72) then
+                call get_phasetup_name(phtupix,phases(jk:))
+                jk=len_trim(phases)+2
+             else
+                phases(jk:)=' ... more'
+             endif
+          enddo
+          write(*,*)'Phases: ',trim(phases)
 ! BOS 191224 end add phase names
 !       write(*,*)'list first equilibrium ',ll
 !       write(*,*)'axis: ',mapnode%number_ofaxis
-       if(.not.allocated(results%savedceq)) then
-          write(*,*)'Cannot find link to saved equilibria! '
-       else
-          once=.true.
-          write(kou,140)
-140       format('Saved ceq     link       T            X')
-          ceqloop: do while(ll.gt.0)
-             thisceq=>results%savedceq(ll)
-             do jax=1,nax
-                call locate_condition(axarr(jax)%seqz,pcond,thisceq)
-                if(gx%bmperr.ne.0) goto 300
-                svrrec=>pcond%statvar(1)
-                call state_variable_val(svrrec,axxx(jax),thisceq)
-                if(gx%bmperr.ne.0)then
-                   if(once) then
-                   write(*,*)' *** Error ',gx%bmperr,&
-                        ' reset, data may be missing'
-                      once=.false.
+          if(.not.allocated(results%savedceq)) then
+             write(*,*)'Cannot find link to saved equilibria! '
+          else
+             once=.true.
+             write(kou,140)
+140          format('Saved ceq     link       T            X')
+             ceqloop: do while(ll.gt.0)
+                thisceq=>results%savedceq(ll)
+                do jax=1,nax
+                   call locate_condition(axarr(jax)%seqz,pcond,thisceq)
+                   if(gx%bmperr.ne.0) goto 300
+                   svrrec=>pcond%statvar(1)
+                   call state_variable_val(svrrec,axxx(jax),thisceq)
+                   if(gx%bmperr.ne.0)then
+                      if(once) then
+                         write(*,*)' *** Error ',gx%bmperr,&
+                              ' reset, data may be missing'
+                         once=.false.
+                      endif
+                      gx%bmperr=0
                    endif
-                   gx%bmperr=0
-                endif
-             enddo
-             write(kou,150)ll,thisceq%nexteq,thisceq%tpval(1),axxx
-150          format(2i9,f9.2,5(1pe13.5))
-             ll=thisceq%nexteq
-          enddo ceqloop
+                enddo
+                write(kou,150)ll,thisceq%nexteq,thisceq%tpval(1),axxx
+150             format(2i9,f9.2,5(1pe13.5))
+                ll=thisceq%nexteq
+             enddo ceqloop
+          endif
        endif
 300    continue
        if(gx%bmperr.ne.0) then
@@ -3162,7 +3186,7 @@
 99  continue
     last=len(cline)
     call gparcdx('Only excluded? ',cline,last,1,ch1,'Y','?PLOT options')
-    if(ch1.eq.'Y') then
+    if(ch1.eq.'Y' .or. ch1.eq.'y') then
        all=.FALSE.
     else
        all=.TRUE.

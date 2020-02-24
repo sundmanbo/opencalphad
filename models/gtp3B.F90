@@ -2278,9 +2278,7 @@
          endif
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-! when allocating a new interaction record we should clear PHPALM
-! so palmtree creates a new numbering when we have permutations
-! Do this always even if we have no permutations ...
+! phpalm needed to handle FCC and BCC permutations
          phlista(lokph)%status1=ibclr(phlista(lokph)%status1,PHPALM)
          endmemrec%intpointer=>newintrec
          intrec=>newintrec
@@ -2376,9 +2374,7 @@
          endif
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-! when allocating a new interaction record we should clear PHPALM
-! so palmtree creates a new numbering when we have permutations
-! Do this always even if we have no permutations ...
+! PHPALM needed to handle FCC and BCC parameter permutations
          phlista(lokph)%status1=ibclr(phlista(lokph)%status1,PHPALM)
          if(newint.eq.1) then
 !           write(*,*)'3B Linking as higher',mint,highint,associated(linktohigh)

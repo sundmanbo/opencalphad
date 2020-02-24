@@ -68,7 +68,7 @@ plot
 
 title map 13 fig 2
 text
-0.2
+0.3
 1900 
 .8
 0
@@ -84,8 +84,6 @@ text n 0.45 1500 .8 0 y
 
 
 @&
-@$ Wait patiently
-@&
 
 @$ =================================================================== 
 @$ We can plot it in a strange way ...
@@ -95,7 +93,8 @@ plot
 SM(*)
 extra tie 3
 title map 13 fig 3
-pos bottom left,,,
+pos bottom left
+
 
 
 set inter

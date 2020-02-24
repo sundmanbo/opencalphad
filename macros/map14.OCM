@@ -50,6 +50,21 @@ map
 @$ this diagram has no potential axis, that requires some special care
 @$ There is a small fcc/bcc region is missing
 
+set c x(mo)=.001 x(cr)=.12
+
+c e
+
+
+l,,,,,
+
+
+@&
+
+map
+n
+
+
+
 @&
 @$ The graphics for this kind of diagram is not fully developed 
 
