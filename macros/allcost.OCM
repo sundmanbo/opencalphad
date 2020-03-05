@@ -81,11 +81,25 @@ set c t=1000
 
 c e
 
+@$ Sometimes it does not converge here because competing liquids ... try again
+@&
+
+c e
+
+
+debug symbol g -5.2815596E+04
+
+@$ Numerical problems can always occur.
+@$ If you have a presistant problem please provide database and macro file
+@$ to the OC team
 @&
 
 l,,,,,
 
+
+
 @$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
+
 @&
 
 l sh p

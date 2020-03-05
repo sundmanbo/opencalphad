@@ -7010,6 +7010,8 @@
 ! this is for mixture phases that have names with are not unique first 4 chars
    character phcharged(50)*24
    integer phchargedx(50),nnn,noelel,donotincrement
+! this is to check we have correct number of endmembers
+   integer end1mem,end2mem
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
    type(gtp_endmember), pointer :: endmember,nextcation,samecation
    double precision, allocatable, dimension(:) :: constcomp,constcompiliq
@@ -7289,7 +7291,7 @@
 ! allocate an array for constituent stoichiometry
 !   if(noofel+nelectrons.gt.50) &
    if(noelel.gt.50) &
-        write(*,*)'Allocating constituent array: ',noelel
+        write(*,*)'Allocating large constituent array: ',noelel
    allocate(constcomp(noelel))
 !----------------------------- system component mass, electrons 0.00054858???
    ip=1
@@ -7378,15 +7380,16 @@
       endif
       nsubl=1
       ionliq=.false.
-! phase model
+! phase model ane expected endmembers
+! we calculate the number of endmembers, end1mem is needed for DAT file
+! end2mem is actual.  Error is not the same
+      end1mem=0
       if(btest(phlista(lokph)%status1,PHIONLIQ)) then
          model='SUBI'
          nsubl=2
          ionliq=.true.
 ! there can just be one ionic liquid ... ??
-!         if(.not.allocated(constcompiliq)) then
-            allocate(constcompiliq(noelel))
-!         endif
+         allocate(constcompiliq(noelel))
       elseif(btest(phlista(lokph)%status1,PHID)) then
          model='IDMX'         
       else
@@ -7400,18 +7403,15 @@
 !            write(*,141)trim(phlista(lokph)%name),nsubl
 141         format('Phase ',a,' has FCC permutated parameters, ignore ordered',&
                  i3)
-!         cycle phases1
          elseif(btest(phlista(lokph)%status1,PHBORD)) then
             nsubl=size(varres%sites)
 !            write(*,142)trim(phlista(lokph)%name),nsubl
 142         format('Phase ',a,' has BCC permutated parameters, ignore ordered',&
                  i3)
-!         cycle phases1
          elseif(btest(phlista(lokph)%status1,PHMFS)) then
             nsubl=size(varres%sites)
 !            write(*,143)trim(phlista(lokph)%name),nsubl
 143         format('Phase ',a,' has disorded fraction sets, ignore ordered',i3)
-!         cycle phases1
          endif
          if(nsubl.gt.1) then
             model='SUBL'
@@ -7491,7 +7491,7 @@
          endif
 202      format(F8.6,2x,F10.6)
       endif
-!-------------------- we must repeat this endmember loop for interactions
+!-------------------- we must repeat the endmember loop below for interactions
 205   continue
       missend(1)=1
       do ip=2,nsubl
@@ -7512,6 +7512,8 @@
 !      write(*,*)'3C first the endmembers',nsubl
 ! endmember parameters, when they are done loop for excess parameters
       excessparam=.FALSE.
+!===========================================================================
+!================================== big loop for endmembers and interactions
 ! when all endmembers written then set excesspara=.true. and jump back here
 207   continue
       if(ionliq) then
@@ -7524,6 +7526,7 @@
                     endmember%fraclinks(2,1).ne.missend(2)) then
                   write(*,*)'3C first endmember missing for liquid: ',&
                        missend(1),missend(2)
+                  stop 'Check if inonic liquid has all endmember parameters'
                endif
             endif
          endif
@@ -7540,8 +7543,8 @@
       lokcs=phlista(lokph)%linktocs(1)
       varres=>ceq%phase_varres(lokcs)
 !--------------------------------------------------------------------
-! here starts the loop for all endmembers.  Done also for excess parameters
-! i1 is the index of this phase of this phase in the SOLGASMIX order
+! here starts the loop for all parameters
+! i1 is the index of this phase in the SOLGASMIX order
       allend: do while(associated(endmember))
 ! we have to generate two lines by extracting the endmember and constituents
 ! we may have to do this loop several times for the same phase to list
@@ -7730,6 +7733,7 @@
                   write(*,47)'3C **** liquid missing endmember: ',&
                        missend(1),missend(2)
 47                format(a,2i5,5x,2i5)
+                  stop 'Missing endmember in ionic liquid'
                   warnings=warnings+1
 ! avoid having several errors due to a missing cation:anion pair
                   missend(1)=cation

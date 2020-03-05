@@ -198,7 +198,7 @@
 ! inactive are indices of axis conditions inactivated by phases set fixed
 ! inactive not used ...
     integer iadd,irem,isp,seqx,seqy,mode,halfstep,jj,ij,inactive(4),bytaxis
-    integer ceqlista,phfix,haha,lastax,mapx,lokph,lokcs
+    integer ceqlista,phfix,haha,lastax,mapx,lokph,lokcs,bypass
 ! inmap=1 turns off converge control of T
     integer, parameter :: inmap=1
     character ch1*1
@@ -337,7 +337,7 @@
           goto 305
        endif
 306    continue
-       write(*,*)'Generating mapline%meqrec failed: ',gx%bmperr
+!       write(*,*)'SMP2 Generating mapline%meqrec failed 2: ',gx%bmperr
        call map_lineend(mapline,axarr(abs(mapline%axandir))%lastaxval,ceq)
 ! look for a new line to follow
        goto 300
@@ -349,6 +349,7 @@
 ! limit the maximum change in T and P, should be small during step/map
     meqrec%tpmaxdelta(1)=2.0D1
     meqrec%tpmaxdelta(2)=1.0D1
+    bypass=0
 !--------------------------------
 ! return to label 310 after each new equilibrium calculated along the same line
 ! Follow the equilibria along a line.  For each equilibria calculated
@@ -393,6 +394,8 @@
 !    write(*,884)2,mapline%linefixph(1)%ixphase,&
 !         mapline%linefixph(1)%compset,iadd,meqrec%nphase,abs(phfix)
 !------------------------------------------------------------------
+! we come back here if iadd was 0 but removed as 
+3000 continue
 ! new global check for stable and metastable phases
     phasecheck: if(gx%bmperr.eq.0 .and. iadd.eq.0 .and. irem.eq.0) then
        if(maptop%globalcheckinterval.gt.0 .and. &
@@ -498,8 +501,9 @@
     if(ocv())write(*,323)'Calc line: ',gx%bmperr,irem,iadd,mapline%axandir,&
          mapline%meqrec%noofits,mapline%meqrec%nstph,ceq%tpval(1)
 323 format(a,i5,2i3,2i4,i3,f10.2)
-! check if it is a closing miscibility gap or loss of ordering
     if(iadd.gt.0) then
+! check if it is a closing miscibility gap or loss of ordering
+! remove iadd if it is a phase with same composition as an already stable one
        if(same_composition(iadd,mapline%meqrec%phr,mapline%meqrec,ceq,dgm)) &
             iadd=0
     endif
@@ -691,9 +695,9 @@
           call map_lineend(mapline,axvalok,ceq)
        endif
 !-----------------------------------------------------
-! phasechange: a new phase stable or a stable wants to disappear
+! phasechange elseif: a new phase stable or a stable wants to disappear
     elseif(irem.gt.0 .or. iadd.gt.0) then
-!       write(*,*)'New phase 2: ',iadd,irem,mapline%nodfixph,&
+!       write(*,*)'SMP2A new phase 2: ',iadd,irem,mapline%nodfixph,&
 !            mapline%number_of_equilibria
        if(mapline%number_of_equilibria.lt.2 .and.&
             ((irem.gt.0 .and. irem.eq.mapline%nodfixph) .or. &
@@ -777,7 +781,10 @@
              call map_lineend(mapline,axvalok,ceq)
           else
 ! there is a persistent error, take another line, set error code
-             if(gx%bmperr.eq.0) gx%bmperr=4399
+             if(gx%bmperr.eq.0) then
+                write(*,*)'SMP2A persistent error?'
+                gx%bmperr=4399
+             endif
              call map_lineend(mapline,axvalok,ceq)
           endif
        endif
@@ -856,16 +863,27 @@
                   nax,axarr,axvalok,ceq)
              if(gx%bmperr.eq.0) goto 320
              call map_lineend(mapline,axvalok,ceq)
+!          elseif(bypass.eq.0) then
+! Problem with 18 component system a phase pops up and down
+! Cleanup needed ...
+!             bypass=1
+!             write(*,*)'SMP2A problem calculate node, try bypass'
+!             goto 310
           else
 !             write(*,*)' *** Repeated errors calling map_calcnode,',&
-!                  ' terminate line',gx%bmperr,halfstep
+!                  ' terminate line',gx%bmperr
 ! terminate line and follow another line, error reset inside map_lineend
-             if(gx%bmperr.eq.0) gx%bmperr=4399
+             if(gx%bmperr.eq.0) gx%bmperr=4369
              call map_lineend(mapline,axvalok,ceq)
           endif
        endif noderror
 ! we come here if a new node has been calculated and stored
        axvalok=zero
+    else
+! phasechance: els: Here neither iadd or irem>0, we should never be here
+! and nno error ... we should go back to label 3000
+       write(*,*)'SMPA no phase change?',gx%bmperr,iadd,irem
+       stop 'Report this error to the OC development team!'
     endif phasechange
 ! we have finished a line and look for another at label 300
 805 continue
@@ -1137,18 +1155,22 @@
              kp=tmpline(1)%nfixphases
              mapnode%linehead(jp)%nfixphases=kp
              allocate(mapnode%linehead(jp)%linefixph(kp))
+             allocate(mapnode%linehead(jp)%linefix_phr(kp))
 !             write(*,454)jp,axactive,mapnode%linehead(jp)%axandir,kp
 454          format('Axis direction etc: ',i2,2i4,2x,i3)
              do zz=1,kp
                 mapnode%linehead(jp)%linefixph(zz)=tmpline(1)%linefixph(zz)
+                mapnode%linehead(jp)%linefix_phr(zz)=tmpline(1)%linefix_phr(zz)
              enddo
 ! we can have many stable phases
              mapnode%linehead(jp)%nstabph=tmpline(1)%nstabph
              allocate(mapnode%linehead(jp)%stableph(tmpline(1)%nstabph))
              allocate(mapnode%linehead(jp)%stablepham(tmpline(1)%nstabph))
+             allocate(mapnode%linehead(jp)%stable_phr(tmpline(1)%nstabph))
              do kp=1,mapnode%linehead(jp)%nstabph
                 mapnode%linehead(jp)%stableph(kp)=tmpline(1)%stableph(kp)
                 mapnode%linehead(jp)%stablepham(kp)=tmpline(1)%stablepham(kp)
+                mapnode%linehead(jp)%stable_phr(kp)=tmpline(1)%stable_phr(kp)
              enddo
 !             write(*,*)'allocated size of stableph 1: ',jp,&
 !                  size(mapnode%linehead(jp)%stableph)
@@ -1157,7 +1179,6 @@
                   axactive,mapnode%linehead(jp)%linefixph(1)%ixphase,&
                   mapnode%linehead(jp)%linefixph(1)%compset,&
                   mapnode%linehead(jp)%nstabph,&
-!                  (mapnode%linehead(jp)%stableph(kp)%phaseix,&
                   (mapnode%linehead(jp)%stableph(kp)%ixphase,&
                   mapnode%linehead(jp)%stableph(kp)%compset,&
                   kp=1,mapnode%linehead(jp)%nstabph)
@@ -1170,13 +1191,17 @@
 !             write(*,*)'tip: Number of fixed phases: ',jp,kp
              mapnode%linehead(jp)%nfixphases=kp
              allocate(mapnode%linehead(jp)%linefixph(kp))
+             allocate(mapnode%linehead(jp)%linefix_phr(kp))
              do zz=1,kp
                 mapnode%linehead(jp)%linefixph(zz)=tmpline(1)%linefixph(zz)
+                mapnode%linehead(jp)%linefix_phr(zz)=tmpline(1)%linefix_phr(zz)
              enddo
 ! there is just one stable phase
              allocate(mapnode%linehead(jp)%stableph(1))
+             allocate(mapnode%linehead(jp)%stable_phr(1))
              mapnode%linehead(jp)%nstabph=1
              mapnode%linehead(jp)%stableph=tmpline(1)%stableph
+             mapnode%linehead(jp)%stable_phr=tmpline(1)%stable_phr
 ! WOW I forgot to allocate stablepham
              if(allocated(tmpline(1)%stableph)) then
                 kp=size(tmpline(1)%stableph)
@@ -1190,7 +1215,6 @@
                   axactive,mapnode%linehead(jp)%linefixph(1)%ixphase,&
                   mapnode%linehead(jp)%linefixph(1)%compset,&
                   mapnode%linehead(jp)%nstabph,&
-!                  mapnode%linehead(jp)%stableph(1)%phaseix,&
                   mapnode%linehead(jp)%stableph(1)%ixphase,&
                   mapnode%linehead(jp)%stableph(1)%compset
 25           format(a,i3,5x,2i3,5x,i3,2x,2i3)
@@ -1200,16 +1224,15 @@
              if(ocv()) write(*,*)'For STEP no need of fixed phases.'
              mapnode%linehead(jp)%nfixphases=0
              allocate(mapnode%linehead(jp)%stableph(meqrec%nstph))
+             allocate(mapnode%linehead(jp)%stable_phr(meqrec%nstph))
+! UNFINISHED check why no allocation of stablepham ??
              mapnode%linehead(jp)%nstabph=meqrec%nstph
              do kp=1,mapnode%linehead(jp)%nstabph
                 zz=meqrec%stphl(kp)
-!                mapnode%linehead(jp)%stableph(kp)%phaseix=meqrec%phr(zz)%iph
                 mapnode%linehead(jp)%stableph(kp)%ixphase=meqrec%phr(zz)%iph
                 mapnode%linehead(jp)%stableph(kp)%compset=meqrec%phr(zz)%ics
+                mapnode%linehead(jp)%stable_phr(kp)=zz
              enddo
-!             mapnode%linehead(jp)%nstabph
-!             mapnode%linehead(jp)%stableph(1)%phase
-!             mapnode%linehead(jp)%stableph(1)%compset
           endif
 !-------------------------
           nullify(mapnode%linehead(jp)%end)
@@ -1301,6 +1324,7 @@
     integer iph,jph,naxvar,iax,tip,jj,jax,irem,iadd,kj,nrel,sj,kax
     integer ics,lokph,lokcs,kph,kcs,forbiddenix,sph,mapx
     double precision aval,avalm,xxx,yyy,savamfu(3)
+! dummy phase tuple, maybe use nullify instead?
     type(gtp_phasetuple) :: zerotup
     type(gtp_condition), pointer :: pcond
     integer, dimension(:), allocatable :: axis_withnocond
@@ -1353,12 +1377,14 @@
 ! zero the number of fix phases and allocate data for the lines needed
     tmpline%nfixphases=0
     allocate(tmpline(1)%linefixph(naxvar-1))
+    allocate(tmpline(1)%linefix_phr(naxvar-1))
 !========================================================== tie-lines in plane
     tieline_in_plane: if(tip.eq.1) then
 ! We have tie-lines in the plane, only one stable phase in addition to fix
 !       write(*,*)'map_replaceaxis: allocate: tmpline(1)%stableph(1)'
        allocate(tmpline(1)%stableph(1))
        allocate(tmpline(1)%stablepham(1))
+       allocate(tmpline(1)%stable_phr(1))
        allocate(axis_withnocond(nax))
        axis_withnocond=0
        stablephases: if(meqrec%nstph.gt.1) then
@@ -1386,8 +1412,10 @@
                 write(*,*)'tmpline 1: ',jph,kj
                 if(jph.gt.1) then
                    allocate(tmpline(jph)%linefixph(1))
+                   allocate(tmpline(jph)%linefix_phr(1))
                    allocate(tmpline(jph)%stableph(1))
                    allocate(tmpline(jph)%stablepham(1))
+                   allocate(tmpline(jph)%stable_phr(1))
                 endif
 ! do we need to set values in meqrec??
 !                meqrec%fixph(1,1)=meqrec%phr(kj)%iph
@@ -1399,10 +1427,11 @@
                 write(*,*)'tmpline 2C: ',allocated(meqrec%phr)
                 write(*,*)'tmpline 2B: ',meqrec%phr(kj)%iph
                 write(*,*)'tmpline 2C: ',allocated(tmpline(jph)%linefixph)
+                tmpline(jph)%linefix_phr(1)=kj
                 tmpline(jph)%linefixph(1)%ixphase=meqrec%phr(kj)%iph
-                write(*,*)'tmpline 3: ',jph,kj
+                write(*,*)'SMP2A tmpline 3: ',jph,kj
                 tmpline(jph)%linefixph(1)%compset=meqrec%phr(kj)%ics
-                write(*,*)'tmpline 4: ',jph,kj
+                write(*,*)'SMP2A tmpline 4: ',jph,kj
                 tmpline(jph)%nstabph=1
                 kph=jph+1
                 if(kph.gt.3) kph=1
@@ -1413,6 +1442,7 @@
                 tmpline(jph)%stableph(1)%ixphase=meqrec%phr(sph)%iph
                 tmpline(jph)%stableph(1)%compset=meqrec%phr(sph)%ics
                 tmpline(jph)%stablepham(1)=one
+                tmpline(jph)%stable_phr(1)=sph
 ! lines:  (fix,stable,forbidden) :  (1,2,3);   (2,3,1);   (3,1,2)
 ! we must mark the third phase as forbidden !!!
                 jj=meqrec%stphl(forbiddenix)
@@ -1572,8 +1602,10 @@
 ! for the moment just assume 2nd axis is the remaining condition!!
              tmpline(1)%nfixphases=1
              tmpline(1)%linefixph=zerotup
+! kj and kph set in loop above ... hope they have not changed
              tmpline(1)%linefixph%ixphase=kph
              tmpline(1)%linefixph%compset=kcs
+             tmpline(1)%linefix_phr=kj
              tmpline(1)%nstabph=0
 ! Note meqrec%phr is a TYPE meq_phase with an link curd to phase_varres
 ! meqrec%phr is a more complex TYPE
@@ -1584,6 +1616,7 @@
                 tmpline(1)%stableph(1)=zerotup
                 tmpline(1)%stableph(1)%ixphase=meqrec%phr(jj)%iph
                 tmpline(1)%stableph(1)%compset=meqrec%phr(jj)%ics
+                tmpline(1)%stable_phr(1)=jj
                 tmpline(1)%nstabph=tmpline(1)%nstabph+1
 !                tmpline(1)%nstabph=1
 ! why exit?? Maybe because there can only be a single phase!!
@@ -1609,7 +1642,6 @@
 ! ============================================= no tie-lines in plane
     else !tie-lines NOT in the plane
 ! I am not sure what stableph and axis_withnocond are used for ...
-!       allocate(tmpline(1)%stableph(1)) this is allocated in map_startline
        allocate(axis_withnocond(nax))
        axis_withnocond=0
        call map_startline(meqrec,axactive,ieq,nax,axarr,tmpline,ceq)
@@ -1840,17 +1872,18 @@
 !    tmpline(1)%linefixph%phaseix=meqrec%phr(kph)%iph
     tmpline(1)%linefixph%ixphase=meqrec%phr(kph)%iph
     tmpline(1)%linefixph%compset=meqrec%phr(kph)%ics
+    tmpline(1)%linefix_phr=kph
 ! allocate space for all stable phases minus one as fix, may already be alloc
-!    allocate(tmpline(1)%stableph(meqrec%nstph-1))
-!    allocate(tmpline(1)%stablepham(meqrec%nstph-1))
 ! The number of stable phases can vary for different MAP commands
     if(allocated(tmpline(1)%stableph)) then
        deallocate(tmpline(1)%stableph)
        deallocate(tmpline(1)%stablepham)
+       deallocate(tmpline(1)%stable_phr)
     endif
 !    write(*,*)'map_startline: allocate 2: ',nstabphdim
     allocate(tmpline(1)%stableph(nstabphdim))
     allocate(tmpline(1)%stablepham(nstabphdim))
+    allocate(tmpline(1)%stable_phr(nstabphdim))
     ll=0
     tmpline(1)%nstabph=0
     do jph=1,meqrec%nstph
@@ -1864,10 +1897,10 @@
 66     format(a,10i4)
        ll=ll+1
 !       write(*,*)'Store stable phase: ',jj,ll
-!       tmpline(1)%stableph(ll)%phaseix=meqrec%phr(jj)%iph
        tmpline(1)%stableph(ll)%ixphase=meqrec%phr(jj)%iph
        tmpline(1)%stableph(ll)%compset=meqrec%phr(jj)%ics
        tmpline(1)%stablepham(ll)=meqrec%phr(jj)%curd%amfu
+       tmpline(1)%stable_phr(ll)=jj
        tmpline(1)%nstabph=tmpline(1)%nstabph+1
 ! why exit?
 !       exit
@@ -1875,7 +1908,6 @@
 !    if(ocv()) write(*,300)axactive,kph,tmpline(1)%linefixph%phaseix,&
     if(ocv()) write(*,300)axactive,kph,tmpline(1)%linefixph%ixphase,&
          tmpline(1)%linefixph%compset,tmpline(1)%nstabph,&
-!         (tmpline(1)%stableph(jj)%phaseix,tmpline(1)%stableph(jj)%compset,&
          (tmpline(1)%stableph(jj)%ixphase,tmpline(1)%stableph(jj)%compset,&
          jj=1,tmpline(1)%nstabph)
 300 format('exit map_startline: ',i2,i3,2x,2i3,2x,i2,10(2x,i3,i2))
@@ -2521,7 +2553,6 @@
 ! NOTE: If we change fix/entered phase we must change axvals/axvals2
 !                i1=svr2%argtyp; i2=svr2%phase; i3=svr2%compset
                 svrtarget%argtyp=3
-!                svrtarget%phase=mapline%linefixph(1)%phaseix
                 svrtarget%phase=mapline%linefixph(1)%ixphase
                 svrtarget%compset=mapline%linefixph(1)%compset
              endif
@@ -3516,11 +3547,11 @@
     double precision xxx
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-! REMEMBER: %stableph(..) and %linefixph are arrays of phase tuple !!!
+! REMEMBER: %stableph(..) and %linefixph are arrays of phase tuples !!!
 ! 5 integers: lokph,compset,ixphase,lokvares,nextcs, only ixphase/compset set
 ! we need meqrec!!!
     type(gtp_phasetuple) :: phtup1
-    integer lokcs
+    integer lokcs,phrix
     double precision x1,x2
 ! just as check
     x1=mapline%stablepham(1)
@@ -3531,7 +3562,9 @@
 ! we must change in meqrec also!! This is for tie-lines in plane,
 ! one fix phase, one stable phase
     phtup1=mapline%linefixph(1)
+    phrix=mapline%linefix_phr(1)
     mapline%linefixph(1)=mapline%stableph(1)
+    mapline%linefix_phr(1)=mapline%stable_phr(1)
     if(meqrec%nfixph.ne.1) then
        write(*,*)'MAP wants to change ONE fix phase: ',meqrec%nfixph
        gx%bmperr=4399; goto 1000
@@ -3543,6 +3576,8 @@
     meqrec%icsl(1)=mapline%linefixph(1)%compset
 !------------- now the stable phase
     mapline%stableph(1)=phtup1
+    mapline%stable_phr(1)=phrix
+!    write(*,*)'SMP2A phrix switching fix/stable phase: ',phrix
 ! nstabph is part of mapfix record ... saved in meqrec%nv
 ! we are not changing the number of fix or stable phases ...
     if(meqrec%nv.ne.2) then
@@ -3991,7 +4026,7 @@
 21        format('SMP2A stable phases mm: ',3i5,i10)
        endif
     endif
-    write(*,*)' Test for invariant equilibrium: ',haha
+!    write(*,*)'SMP2A Test for invariant equilibrium: ',haha
     call get_phase_name(meqrec%phr(abs(phfix))%iph,meqrec%phr(abs(phfix))%ics,&
          phname)
     if(gx%bmperr.ne.0) then
@@ -4055,13 +4090,14 @@
     type(gtp_state_variable), pointer :: svrrec,svr2
     type(gtp_state_variable), target :: svrtarget
     integer remph,addph,nel,iph,ics,jj,seqx,nrel,jphr,stabph,kph,kcs,kk,lfix
-    integer zph,stepax,kpos,seqy,jp,nopotax,lokcs,lokph
+    integer zph,stepax,kpos,seqy,jp,nopotax,lokcs,lokph,haha2,linefphr
 ! there should be 8 significant digits, first step factor
     double precision, parameter :: vz=1.0D-9,axinc1=1.0D-3
-    character eqname*24
+    character eqname*24,phases*60
     double precision stepaxval,middle,testv,xxx
-! mark that line ended with two stoichometric phases
-    integer twostoichset
+! mark that line ended with two stoichometric phases and data for isopleth inv
+    integer twostoichset,errall,jfix,jstab,jlast,kstab,zp,phrix
+    integer, allocatable, dimension(:,:) :: invph
 !
     lfix=0
 ! the phase kept fix with zero amount at the node is phfix  It can be
@@ -4076,7 +4112,7 @@
     twostoichset=0
     if(btest(mapline%status,TWOSTOICH)) then
        twostoichset=1
-       write(*,*)'SMP line ended with two stochiometric phases stable'
+       write(*,'(a)')'SMP line ended with two stochiometric allotropes stable'
     endif
     mapnode=>maptop
     nrel=meqrec1%nrel
@@ -4104,7 +4140,6 @@
           goto 800
        endif
 ! T, P and all chemical potentials the same, one should maybe check phases??
-!       iph=mapline%linefixph(1)%phaseix
        iph=mapline%linefixph(1)%ixphase
        ics=mapline%linefixph(1)%compset
        if(ocv()) write(*,107)'Node exist: ',&
@@ -4118,7 +4153,6 @@
 !               nodexit%linefixph(1)%phaseix,nodexit%linefixph(1)%compset
 108       format(a,i4,i7,i5,i2)
           if(nodexit%done.le.0) cycle
-!          if(nodexit%linefixph(1)%phaseix.eq.iph .and. &
           if(nodexit%linefixph(1)%ixphase.eq.iph .and. &
                nodexit%linefixph(1)%compset.eq.ics) then
 !             write(*,*)'Number of stable phases: ',&
@@ -4269,9 +4303,14 @@
 ! for mapping without tie-lines in plane and haha is nonzero then we are at
 ! an invariant equlibrium with haha stable phases and 2*haha-1 exiting lines
 !       newnode%lines=2*jj-1
-       newnode%lines=2*haha-1
-       write(*,*)'SMP2A invariant node, for the moment ignore this',haha
-       newnode%lines=3
+       if(inveq(haha2,ceq)) then
+          newnode%lines=2*haha-1
+          write(*,*)'SMP2A *** invariant node with exits: ',newnode%lines
+          write(*,*)'SMP2A Currently this is ignored'
+          newnode%lines=3
+       else
+          newnode%lines=3
+       endif
     else
 ! mapping without tie-lines in plane
 ! at other node points 4 lines meets, 3 exits
@@ -4281,8 +4320,8 @@
 ! set link to end node in mapline
     mapline%end=>newnode
 !=============================================================================
-! we have created sufficient linehead records, now initiate their content
-! different depening on STEP (case 1), MAP with tie-lines in plane (case 2)
+! we must create sufficient linehead records and initiate their content
+! differently depening on STEP (case 1), MAP with tie-lines in plane (case 2)
 ! and MAP without tie-lines in plane (case 3).  In the latter case special
 ! care must be taken for invariant nodes. (for case 2 all nodes are invariants)
 ! check if we have a potential axis and select that as axandir
@@ -4327,8 +4366,12 @@
 !
 !
 !    write(*,*)'SMP2A creating lineheads: ',haha,newnode%lines
-    allocate(newnode%linehead(newnode%lines))
-!    write(*,*)'SMP: generate exit lines: ',newnode%lines
+    if(newnode%lines.gt.3) write(*,*)'SMP: generate exit lines: ',newnode%lines
+    allocate(newnode%linehead(newnode%lines),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'SMP2A Allocation error 1: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     do jp=1,newnode%lines
 !--------------------- code moved from map_findline
 ! COPY of the equilibrium record from newnode to newnode%linehead(jp)%lineceq
@@ -4354,7 +4397,11 @@
 !------------------------------ end code copied
 !
 !   write(*,*)'*** Trying to create node with # exit lines: ',haha,newnode%lines
-    select case(newnode%lines)
+! STEP has just 1 exit; 
+! MAP tie-line in plane 2; isopleth non-invariant 3; isopleth invariant >3
+    kpos=min(newnode%lines,4)
+!    select case(newnode%lines)
+    select case(kpos)
 !==========================================================================
     case default
        write(*,*)'SMP2A node error: exit lines= ',newnode%lines
@@ -4423,13 +4470,14 @@
        newnode%linehead(1)%nfixphases=0
 ! try to get a nice output of stable phases below
        allocate(newnode%linehead(1)%stableph(meqrec1%nstph))
+       allocate(newnode%linehead(1)%stable_phr(meqrec1%nstph))
        newnode%linehead(1)%nstabph=0
        do iph=1,meqrec1%nstph
           newnode%linehead(1)%nstabph=newnode%linehead(1)%nstabph+1
           jj=meqrec1%stphl(iph)
-!          newnode%linehead(1)%stableph(iph)%phaseix=meqrec1%phr(jj)%iph
           newnode%linehead(1)%stableph(iph)%ixphase=meqrec1%phr(jj)%iph
           newnode%linehead(1)%stableph(iph)%compset=meqrec1%phr(jj)%ics
+          newnode%linehead(1)%stable_phr(iph)=jj
        enddo
 ! end attempt
        newnode%linehead(1)%firstinc=1.0D-2*axarr(1)%axinc*mapline%axandir
@@ -4475,9 +4523,11 @@
           newnode%linehead(jj)%nfixphases=1
 ! this dimensioning is OK for two axis, if 3 it should be 2 etc.
           allocate(newnode%linehead(jj)%linefixph(1))
+          allocate(newnode%linehead(jj)%linefix_phr(1))
 ! with tie-lines in the plane there is always just one stable phase
           allocate(newnode%linehead(jj)%stableph(1))
           allocate(newnode%linehead(jj)%stablepham(1))
+          allocate(newnode%linehead(jj)%stable_phr(1))
 ! a small first step in same axis as used to find the node 
 ! We may have to change direction, in particular if the nodephase reappears
 !          newnode%linehead(jj)%firstinc=1.0D-2*axinc*mapline%axandir
@@ -4503,7 +4553,7 @@
        if(allocated(mapline%linefixph)) then
           if(size(mapline%linefixph).gt.1) then
 ! If there are 3 axis this would be OK
-             write(*,*)'Problem, too many fix phases ...'
+             write(*,*)'SMP2B too many fix phases ...',size(mapline%linefixph)
              gx%bmperr=4240; goto 290
           endif
        endif
@@ -4542,11 +4592,7 @@
        if(zph.eq.0) then
           write(*,203)' *** warning: cannot find the fix phase: ',zph,&
                mapline%linefixph(1)%ixphase,mapline%linefixph(1)%compset
-!               mapline%linefixph(1)%phaseix,mapline%linefixph(1)%compset
 203       format(a,10i4)
-!       else
-!          write(*,203)' Found the fix phase: ',zph,&
-!               mapline%linefixph(1)%phase,mapline%linefixph(1)%compset
        endif
 ! For isothermal sections with no potential axis we must change the axis
 ! condition when following a new line
@@ -4567,26 +4613,34 @@
 ! for alcrni           
        iph=mapline%linefixph(1)%ixphase
        ics=mapline%linefixph(1)%compset
+       linefphr=mapline%linefix_phr(1)
+       phrix=mapline%linefix_phr(1)
        newnode%linehead(1)%linefixph%ixphase=meqrec1%phr(phfix)%iph
        newnode%linehead(1)%linefixph%compset=meqrec1%phr(phfix)%ics
+       newnode%linehead(1)%linefix_phr=phfix
        newnode%linehead(1)%nstabph=1
 ! the previously fix phase is set as entered with stablepham as initial amount
        newnode%linehead(1)%stableph(1)%ixphase=iph
        newnode%linehead(1)%stableph(1)%compset=ics
+       newnode%linehead(1)%stable_phr(1)=phrix
        newnode%linehead(1)%stablepham(1)=one
 ! store the phase number that must not become stable in nodfixph
        newnode%linehead(1)%nodfixph=jphr
+!       newnode%linehead(1)%nodfixtup=meqrec1%phr(jphr)%phtupix
+!       write(*,*)'SM2A nodfix:',phasetuple(meqrec1%phr(jphr)%phtupix)%ixphase,&
+!            meqrec1%phr(jphr)%ics
 !-----------
-!       newnode%linehead(2)%linefixph%phaseix=meqrec1%phr(jphr)%iph
        newnode%linehead(2)%linefixph%ixphase=meqrec1%phr(jphr)%iph
        newnode%linehead(2)%linefixph%compset=meqrec1%phr(jphr)%ics
+       newnode%linehead(2)%linefix_phr=jphr
        newnode%linehead(2)%nstabph=1
-!       newnode%linehead(2)%stableph(1)%phaseix=meqrec1%phr(phfix)%iph
        newnode%linehead(2)%stableph(1)%ixphase=meqrec1%phr(phfix)%iph
        newnode%linehead(2)%stableph(1)%compset=meqrec1%phr(phfix)%ics
+       newnode%linehead(2)%stable_phr(1)=phfix
        newnode%linehead(2)%stablepham(1)=one
 ! store the phase number that must not become stable in nodfixph
        newnode%linehead(2)%nodfixph=zph
+!       newnode%linehead(1)%nodfixtup=meqrec1%phr(zph)%phtupix
        if(nopotax.eq.0) then
 ! If we have no potential axis we MUST change the axis condition
 ! to represent the axis composition of the new stable phase
@@ -4711,6 +4765,7 @@
           newnode%linehead(jj)%nfixphases=1
 ! this dimensioning is OK for two axis, if 3 axis it should be 2 etc.
           allocate(newnode%linehead(jj)%linefixph(1))
+          allocate(newnode%linehead(jj)%linefix_phr(1))
 ! There will be different number of stable phases in the lines 
 ! if new phase appear, 2 lines with jphr+1, one with jphr
 ! if old phase dissapear, 2 lines with jphr-1, one with jphr
@@ -4723,15 +4778,18 @@
 !             write(*,*)'Allocating stableph: ',jj,jphr
              allocate(newnode%linehead(jj)%stableph(jphr))
              allocate(newnode%linehead(jj)%stablepham(jphr))
+             allocate(newnode%linehead(jj)%stable_phr(jphr))
           else
              if(phfix.lt.0) then
 !                write(*,*)'Allocating stableph: ',jj,jphr-1
                 allocate(newnode%linehead(jj)%stableph(jphr-1))
                 allocate(newnode%linehead(jj)%stablepham(jphr-1))
+                allocate(newnode%linehead(jj)%stable_phr(jphr-1))
              else
 !                write(*,*)'Allocating stableph: ',jj,jphr+1
                 allocate(newnode%linehead(jj)%stableph(jphr+1))
                 allocate(newnode%linehead(jj)%stablepham(jphr+1))
+                allocate(newnode%linehead(jj)%stable_phr(jphr+1))
              endif
           endif
 ! a small first step in same axis as used to find the node 
@@ -4749,7 +4807,7 @@
        if(allocated(mapline%linefixph)) then
           if(size(mapline%linefixph).gt.1) then
 ! error if 2 axis but would be OK if 3 axis
-             write(*,*)'Problem, too many fix phases ...'
+             write(*,*)'Problem, many fix phases!',size(mapline%linefixph)
              gx%bmperr=4240; goto 390
           endif
        endif
@@ -4792,9 +4850,9 @@
 ! exit 1                 LFIX   f-1 (-PHFIX)              PHFIX
 ! exit 2                 PHFIX  f-1 (-PHFIX not LFIX)     LFIX
 ! exit 3                 PHFIX  f   (-PHFIX and add LFIX) LFIX
-!       iph=mapline%linefixph(1)%phaseix
        iph=mapline%linefixph(1)%ixphase
        ics=mapline%linefixph(1)%compset
+       linefphr=mapline%linefix_phr(1)
 ! for use below I need to know the position of iph+ics in meqrec1%phr ...
        flfix: do jj=1,meqrec1%nstph
           if(meqrec1%phr(jj)%iph.eq.iph .and. meqrec1%phr(jj)%ics.eq.ics) then
@@ -4804,124 +4862,114 @@
        kph=mapline%meqrec%phr(abs(phfix))%iph
        kcs=mapline%meqrec%phr(abs(phfix))%ics
 ! exit 1 has same linefix as incomming line ------------------------
-!       newnode%linehead(1)%linefixph%phaseix=iph
        newnode%linehead(1)%linefixph%ixphase=iph
        newnode%linehead(1)%linefixph%compset=ics
+       newnode%linehead(1)%linefix_phr=linefphr
        if(phfix.gt.0) then
 !          write(*,*)'allocated size of stableph 2: ',size(mapline%stableph)
           do jj=1,stabph
-!             newnode%linehead(1)%stableph(jj)%phaseix=&
-!                  mapline%stableph(jj)%phaseix
              newnode%linehead(1)%stableph(jj)%ixphase=&
                   mapline%stableph(jj)%ixphase
              newnode%linehead(1)%stableph(jj)%compset=&
                   mapline%stableph(jj)%compset
              newnode%linehead(1)%stablepham(jj)=mapline%stablepham(jj)
+             newnode%linehead(1)%stable_phr(jj)=mapline%stable_phr(jj)
           enddo
 ! add phfix as stable phase
           jj=stabph+1
-!          newnode%linehead(1)%stableph(jj)%phaseix=kph
           newnode%linehead(1)%stableph(jj)%ixphase=kph
           newnode%linehead(1)%stableph(jj)%compset=kcs
           newnode%linehead(1)%stablepham(jj)=zero
-!          newnode%linehead(1)%nodfixph=meqrec1%phr(abs(phfix))%iph
+          newnode%linehead(1)%stable_phr(jj)=abs(phfix)
+! UNFINISHED check why stable_phr and nodefxph same??
           newnode%linehead(1)%nodfixph=abs(phfix)
+!          newnode%linehead(1)%nodfixtup=meqrec1%phr(abs(phfix))%phtupix
           newnode%linehead(1)%nstabph=jj
        else
+! phfix is negative, a phase disappear
           kk=0
           do jj=1,stabph-1
 ! remove -phfix as stable phase
-!             if(mapline%stableph(jj)%phaseix.eq.kph .and.&
              if(mapline%stableph(jj)%ixphase.eq.kph .and.&
                   mapline%stableph(jj)%compset.eq.kcs) then
                 kk=jj+1
              else
                 kk=kk+1
              endif
-!             newnode%linehead(1)%stableph(jj)%phaseix=&
-!                  mapline%stableph(kk)%phaseix
              newnode%linehead(1)%stableph(jj)%ixphase=&
                   mapline%stableph(kk)%ixphase
              newnode%linehead(1)%stableph(jj)%compset=&
                   mapline%stableph(kk)%compset
              newnode%linehead(1)%stablepham(jj)=mapline%stablepham(kk)
+             newnode%linehead(1)%stable_phr(jj)=mapline%stable_phr(kk)
           enddo
-!          newnode%linehead(1)%nodfixph=meqrec1%phr(abs(phfix))%iph
           newnode%linehead(1)%nodfixph=abs(phfix)
           newnode%linehead(1)%nstabph=stabph-1
        endif
 !
 ! exit 2 has PHFIX as linefix ----------------------------------
-!       newnode%linehead(2)%linefixph%phaseix=kph
        newnode%linehead(2)%linefixph%ixphase=kph
        newnode%linehead(2)%linefixph%compset=kcs
+       newnode%linehead(2)%linefix_phr=abs(phfix)
        if(phfix.gt.0) then
           do jj=1,stabph
-!             newnode%linehead(2)%stableph(jj)%phaseix=&
-!                  mapline%stableph(jj)%phaseix
              newnode%linehead(2)%stableph(jj)%ixphase=&
                   mapline%stableph(jj)%ixphase
              newnode%linehead(2)%stableph(jj)%compset=&
                   mapline%stableph(jj)%compset
              newnode%linehead(2)%stablepham(jj)=mapline%stablepham(jj)
+             newnode%linehead(2)%stable_phr(jj)=mapline%stable_phr(jj)
           enddo
 ! add LFIX as stable phase
           jj=stabph+1
-!          newnode%linehead(2)%stableph(jj)%phaseix=iph
           newnode%linehead(2)%stableph(jj)%ixphase=iph
           newnode%linehead(2)%stableph(jj)%compset=ics
           newnode%linehead(2)%stablepham(jj)=zero
-!          newnode%linehead(2)%nodfixph=meqrec1%phr(lfix)%iph
+          newnode%linehead(2)%stable_phr(jj)=lfix
           newnode%linehead(2)%nodfixph=lfix
           newnode%linehead(2)%nstabph=jj
        else
           kk=0
           do jj=1,stabph-1
 ! remove -phfix as stable phase
-!             if(mapline%stableph(jj)%phaseix.eq.kph .and.&
              if(mapline%stableph(jj)%ixphase.eq.kph .and.&
                   mapline%stableph(jj)%compset.eq.kcs) then
                 kk=jj+1
              else
                 kk=kk+1
              endif
-!             newnode%linehead(2)%stableph(jj)%phaseix=&
-!                  mapline%stableph(kk)%phaseix
              newnode%linehead(2)%stableph(jj)%ixphase=&
                   mapline%stableph(kk)%ixphase
              newnode%linehead(2)%stableph(jj)%compset=&
                   mapline%stableph(kk)%compset
-             newnode%linehead(2)%stablepham(jj)=mapline%stablepham(kk)
+             newnode%linehead(2)%stable_phr(jj)=mapline%stable_phr(kk)
           enddo
-!          newnode%linehead(2)%nodfixph=meqrec1%phr(lfix)%iph
           newnode%linehead(2)%nodfixph=lfix
+!          newnode%linehead(1)%nodfixtup=meqrec1%phr(lfix)%phtupix
           newnode%linehead(2)%nstabph=stabph-1
        endif
 !
 ! exit 3 has PHFIX as linefix ----------------------------------
-!       newnode%linehead(3)%linefixph%phaseix=kph
        newnode%linehead(3)%linefixph%ixphase=kph
        newnode%linehead(3)%linefixph%compset=kcs
+       newnode%linehead(3)%linefix_phr=abs(phfix)
        do jj=1,stabph
-!          if(mapline%stableph(jj)%phaseix.eq.kph .and. &
           if(mapline%stableph(jj)%ixphase.eq.kph .and. &
                mapline%stableph(jj)%compset.eq.kcs) then
 ! exchange PHFIX for LFIX as stable phase
-!             newnode%linehead(3)%stableph(jj)%phaseix=iph
              newnode%linehead(3)%stableph(jj)%ixphase=iph
              newnode%linehead(3)%stableph(jj)%compset=ics
              newnode%linehead(3)%stablepham(jj)=zero
+             newnode%linehead(3)%stable_phr(jj)=abs(phfix)
           else
-!             newnode%linehead(3)%stableph(jj)%phaseix=&
-!                  mapline%stableph(jj)%phaseix
              newnode%linehead(3)%stableph(jj)%ixphase=&
                   mapline%stableph(jj)%ixphase
              newnode%linehead(3)%stableph(jj)%compset=&
                   mapline%stableph(jj)%compset
              newnode%linehead(3)%stablepham(jj)=mapline%stablepham(jj)
+             newnode%linehead(3)%stable_phr(jj)=mapline%stable_phr(jj)
           endif
        enddo
-!       newnode%linehead(3)%nodfixph=meqrec1%phr(lfix)%iph
        newnode%linehead(3)%nodfixph=lfix
        newnode%linehead(3)%nstabph=stabph
 !
@@ -4933,7 +4981,6 @@
                   newnode%linehead(jj)%linefixph%compset,&
                   newnode%linehead(jj)%nodfixph,&
                   newnode%linehead(jj)%nstabph,&
-!                  (newnode%linehead(jj)%stableph(kk)%phaseix,&
                   (newnode%linehead(jj)%stableph(kk)%ixphase,&
                   newnode%linehead(jj)%stableph(kk)%compset,&
                   kk=1,newnode%linehead(jj)%nstabph)
@@ -4944,7 +4991,10 @@
 ! the fix and stable phases must be copied to meqrec1 when line is started
 !       write(*,*)'Created node with 2 exits: ',newnode%seqx,ceq%tpval(1)
 390    continue
-! invariants for isopleths, number of stable phases equal to components+1
+!---------------------------------------------------------------
+! invariant isopleth, more then 3 exits
+    case(4) ! invariants for isopleths,
+! number of stable phases equal to components+1
 ! number of adjacent regions with "components" stable phases is "components+1"
 ! number of exit lines are 2*(components+1)
 ! each line has a fix phase and one of the phases stable at the invariant
@@ -4955,11 +5005,150 @@
 ! - loop for the next two phases to set one phase not stable
 ! the remaining phases are set entered (amount?) generate a line startpoint
 ! take care of remobing line into the invariant
-
+!
 ! How to know if the node is invariant? Gibbs phase rule, Degrees of freedom
 ! f = n + 2 - p
 ! where n is number of components, 2 if T and P variable, 1 if T or P variable,
 ! 0 if both T and P fixed, p is number of stable phases.
+       write(*,*)'SMP2A Generating exits from isopleth invariant',newnode%lines
+! Two crossing lines, one in and 3 exits
+! THERE IS NO CASE WHEN FINDING AN INVARIANT
+! this is probably redundant, fixph already reset
+! phfix is the new stable phase! Must be positive
+! mapline is the just finished line
+       if(meqrec1%nfixph.gt.0) then
+          write(*,*)'Invariant isopleth:',meqrec1%nfixph,phfix,mapline%nstabph
+          meqrec1%fixph(1,meqrec1%nfixph)=0
+          meqrec1%fixph(2,meqrec1%nfixph)=0
+          meqrec1%phr(abs(phfix))%phasestatus=PHENTUNST
+          meqrec1%nfixph=meqrec1%nfixph-1
+       endif
+! determine LFIX, the phase which was fix along incomming line
+       iph=mapline%linefixph(1)%ixphase
+       ics=mapline%linefixph(1)%compset
+! for use below I need to know the position of iph+ics in meqrec1%phr ...
+       lfix=mapline%linefix_phr(1)
+       flfix2: do jj=1,meqrec1%nstph
+! this loop is only for stable phase, does that include fix?
+          if(meqrec1%phr(jj)%iph.eq.iph .and. meqrec1%phr(jj)%ics.eq.ics) then
+             lfix=jj
+             meqrec1%phr(lfix)%phasestatus=PHENTUNST
+             exit flfix2
+          endif
+       enddo flfix2
+       write(*,*)'SMP2A found lfix?',lfix
+       if(lfix.eq.0) stop 'ERROR'
+! this is total number of phases at each the invariant
+! 1 fix and stabph-2 should be stable at each exit
+       stabph=mapline%nstabph
+       if(stabph.eq.0) then
+          write(*,*)'Problems, no entered phase!'
+          gx%bmperr=4242; goto 490
+       endif
+! Collect all stable phases to be used as different exits.
+! invph(1,jj) is iph,, invph(2,jj) is ics; invph(3,jj) is index in meqrec1%phr
+       allocate(invph(3,stabph+2))
+       do jj=1,stabph
+! stableph is a phase_tuple
+          invph(1,jj)=mapline%stableph(jj)%ixphase
+          invph(2,jj)=mapline%stableph(jj)%compset
+! NOW ADDED stable_phr to find the index in phr !!
+          invph(3,jj)=mapline%stable_phr(jj)
+       enddo
+! at the end of loop jj=stabph+1; store phfix, the new fix phase, 
+       invph(1,jj)=meqrec1%phr(phfix)%iph
+       invph(2,jj)=meqrec1%phr(phfix)%ics
+       invph(3,jj)=phfix
+! this is phase fix at incomming line
+       invph(1,jj+1)=iph
+       invph(2,jj+1)=ics
+       invph(3,jj+1)=lfix
+       jlast=stabph+2
+! MORE WORK: STABLE PHASES HAS TO BE IN PHR ORDER!! SORT invph
+       do jj=1,jlast
+          phases=' '
+          call get_phase_name(invph(1,jj),invph(2,jj),phases)
+          write(*,420)'SMP2A invariant phase: ',jj,invph(1,jj),invph(2,jj),&
+               invph(3,jj),trim(phases)
+       enddo
+420    format(a,4i5,2x,a)
+! NOTE lfix should only be used once as fixed phase
+! all the others should be fixed one two exits
+!-------------- 
+! We have the generate newnode%lines exits!!
+       jphr=mapline%nstabph
+       jfix=1
+       jstab=2
+       invexit: do jj=1,newnode%lines
+! initiate data in map_line record
+          write(*,410)'SMP2A exit: ',jj,jphr
+410       format(a,10i4)
+          newnode%linehead(jj)%number_of_equilibria=0
+          newnode%linehead(jj)%first=0
+          newnode%linehead(jj)%last=0
+          newnode%linehead(jj)%axchange=-1
+          newnode%linehead(jj)%done=1
+          newnode%linehead(jj)%status=0
+          newnode%linehead(jj)%more=1
+          newnode%linehead(jj)%termerr=0
+          newnode%linehead(jj)%axfact=1.0D-2
+          newnode%linehead(jj)%axandir=stepax
+! this dimensioning is OK for two axis, if 3 axis it should be 2 etc.
+          newnode%linehead(jj)%nfixphases=1
+          allocate(newnode%linehead(jj)%linefixph(1))
+          allocate(newnode%linehead(jj)%linefix_phr(1))
+! There will be the same number of stable phases in all lines 
+          allocate(newnode%linehead(jj)%stableph(jphr))
+          allocate(newnode%linehead(jj)%stablepham(jphr))
+          allocate(newnode%linehead(jj)%stable_phr(jphr))
+! a small first step in same axis as used to find the node 
+! We may have to change direction, in particular if the nodephase reappears
+! evenvalue important only for STEP with one axis
+          newnode%linehead(jj)%firstinc=axinc1*axarr(abs(stepax))%axinc
+          newnode%linehead(jj)%evenvalue=zero
+! links to node records at start and end of line
+          newnode%linehead(jj)%start=>newnode
+          nullify(newnode%linehead(jj)%end)
+!
+! ---------------------------------------------------------------------
+! something like this has to be added to define the stable and fix phase
+! different for each line
+          phases=' '
+          newnode%linehead(jj)%linefixph%ixphase=invph(1,jfix)
+          newnode%linehead(jj)%linefixph%compset=invph(2,jfix)
+          newnode%linehead(jj)%linefix_phr=invph(3,jfix)
+          call get_phase_name(invph(1,jfix),invph(2,jfix),phases)
+          zp=len_trim(phases)+2
+          newnode%linehead(jj)%nstabph=stabph
+          do kk=1,stabph
+             kstab=jstab
+             if(kstab+kk.eq.jfix) kstab=kstab+1
+             if(kstab+kk.gt.jlast) kstab=0
+             write(*,*)'smp2a stable:',kstab,kk,kstab+kk
+             newnode%linehead(jj)%stableph(kk)%ixphase=invph(1,kstab+kk)
+             newnode%linehead(jj)%stableph(kk)%compset=invph(2,kstab+kk)
+! The amount of the stable phase is impossible to estimate 
+             newnode%linehead(jj)%stablepham(kk)=1.0D-2
+             newnode%linehead(jj)%stable_phr(kk)=invph(3,kstab+kk)
+          call get_phase_name(invph(1,kstab+kk),invph(2,kstab+kk),phases(zp:))
+             zp=len_trim(phases)+2
+          enddo
+! again, 
+          newnode%linehead(jj)%nodfixph=invph(3,kstab+stabph+1)
+!          newnode%linehead(1)%nodfixtup=&
+!               meqrec1%phr(invph(1,kstab+stabph+1))%phtupix
+          call get_phase_name(invph(1,kstab+kk),invph(2,kstab+kk),phases(zp:))
+          write(*,430)jj,phases
+430       format('SMP2A: ',i3,2x,a)
+          if(mod(kk,2).eq.1) jfix=jfix+1
+          jstab=jstab+1
+! ---------------------------------------------------------------------
+!
+!
+       enddo invexit
+! unfinished
+490    continue
+       stop ' *** Unfinished invariant isopleth node exits *** '
     end select
 !=========================================================================
     goto 1000
@@ -5138,7 +5327,7 @@
           deallocate(mapfix)
        endif
        allocate(mapfix)
-! with only 2 axis we have just 1 fix phase for mapping
+! with only 2 axis we have just 1 fix phase for mapping, fixph is a tuple
        allocate(mapfix%fixph(1))
        mapfix%nfixph=1
        mapfix%fixph=mapline%linefixph(1)
@@ -5146,6 +5335,7 @@
        ip=mapline%nstabph
        allocate(mapfix%stableph(ip))
        allocate(mapfix%stablepham(ip))
+       allocate(mapfix%stable_phr(ip))
 !       write(*,*)'Findline: Tie-lines not in plane: ',nyline,ip
 ! create a heading text for the line
        phaseset=' '
@@ -5167,6 +5357,7 @@
        do jp=1,mapfix%nstabph
 ! this is stored only for "real" nodes
           mapfix%stableph(jp)=mapnode%linehead(nyline)%stableph(jp)
+          mapfix%stable_phr(jp)=mapnode%linehead(nyline)%stable_phr(jp)
           call get_phasetup_name_old(mapfix%stableph(jp),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! this values hould perhaps be in linehead??
@@ -5207,6 +5398,7 @@
        allocate(mapfix%fixph(1))
        allocate(mapfix%stableph(1))
        allocate(mapfix%stablepham(1))
+       allocate(mapfix%stable_phr(1))
        mapfix%nfixph=1
 !.........................................................
 ! trying to impove mapping with two extensive axis variables
@@ -5231,6 +5423,7 @@
           mapfix%fixph=mapline%linefixph(1)
           mapfix%stablepham(1)=one
           mapfix%stableph(1)=mapnode%linehead(nyline)%stableph(1)
+          mapfix%stable_phr(1)=mapnode%linehead(nyline)%stable_phr(1)
 !          ceq2=>mapline%lineceq
           meqrec=>mapline%meqrec
           mapfix%nstabph=1
@@ -5323,8 +5516,9 @@
 !..................................
        else
 !-----------------------------------------------------------------------
-! OLD code below
+! with a potential axis ?
 ! we should check that the not-fixed phase can vary composition ...
+!          write(*,*)'SMP2A using code with nofecond.ne.17 !!'
           ip=mapnode%linehead(nyline)%stableph(1)%ixphase
 ! fixedcomposition is a logical funtion in gtp3F.F90
           if(fixedcomposition(ip)) then
@@ -5352,8 +5546,10 @@
           mapfix%nstabph=1
           if(hullerombuller) then
              mapfix%stableph(1)=mapline%linefixph(1)
+             mapfix%stable_phr(1)=mapline%linefix_phr(1)
           else
              mapfix%stableph(1)=mapnode%linehead(nyline)%stableph(1)
+             mapfix%stable_phr(1)=mapnode%linehead(nyline)%stable_phr(1)
           endif
           call get_phasetup_name_old(mapfix%stableph(1),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
@@ -5564,6 +5760,7 @@
        ip=mapline%nstabph
        allocate(mapfix%stableph(ip))
        allocate(mapfix%stablepham(ip))
+       allocate(mapfix%stable_phr(ip))
 !       write(*,*)'Findline: Tie-lines not in plane: ',nyline,ip
 ! create a heading text for the line
        phaseset=' '
@@ -5584,10 +5781,10 @@
        do jp=1,mapfix%nstabph
 ! this is stored only for "real" nodes
           mapfix%stableph(jp)=mapnode%linehead(nyline)%stableph(jp)
+          mapfix%stable_phr(jp)=mapnode%linehead(nyline)%stable_phr(jp)
           call get_phasetup_name_old(mapfix%stableph(jp),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! this values hould perhaps be in linehead??
-!          mapfix%stablepham(jp)=mapnode%linehead(nyline)%stablepham(jp)
           mapfix%stablepham(jp)=one
 !          call get_phase_compset(mapfix%stableph(1)%phase,&
 !               mapfix%stableph(1)%compset,lokph,lokcs)
@@ -5624,6 +5821,7 @@
        allocate(mapfix%fixph(1))
        allocate(mapfix%stableph(1))
        allocate(mapfix%stablepham(1))
+       allocate(mapfix%stable_phr(1))
        mapfix%nfixph=1
 !.........................................................
 ! trying to impove mapping with two extensive axis variables
@@ -5648,6 +5846,7 @@
           mapfix%fixph=mapline%linefixph(1)
           mapfix%stablepham(1)=one
           mapfix%stableph(1)=mapnode%linehead(nyline)%stableph(1)
+          mapfix%stable_phr(1)=mapnode%linehead(nyline)%stable_phr(1)
 !          ceq2=>mapline%lineceq
           meqrec=>mapline%meqrec
           mapfix%nstabph=1
@@ -5740,8 +5939,9 @@
 !..................................
        else
 !-----------------------------------------------------------------------
-! OLD code below
+! with potential axis ?
 ! we should check that the not-fixed phase can vary composition ...
+!          write(*,*)'SMP2A using old code 2 for nofecond.ne.17'
           ip=mapnode%linehead(nyline)%stableph(1)%ixphase
 ! fixedcomposition is a logical funtion in gtp3F.F90
           if(fixedcomposition(ip)) then
@@ -5769,8 +5969,10 @@
           mapfix%nstabph=1
           if(hullerombuller) then
              mapfix%stableph(1)=mapline%linefixph(1)
+             mapfix%stable_phr(1)=mapline%linefix_phr(1)
           else
              mapfix%stableph(1)=mapnode%linehead(nyline)%stableph(1)
+             mapfix%stable_phr(1)=mapnode%linehead(nyline)%stable_phr(1)
           endif
           call get_phasetup_name_old(mapfix%stableph(1),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
@@ -6027,15 +6229,18 @@
 ! Hm, ceq is not the equilibrium record for the node point ...
              tpvar=tpvar-1
           elseif(stvr%statevarid.lt.10) then
+! potential/activity condition for a component
              www=www+1
           endif
        endif
        pcond=>pcond%next
        if(.not.associated(pcond,lastcond)) goto 100
 !
-    degf=nrel+tpvar-www-nostph
-!    write(*,*)'in inveq 2',nrel,tpvar,www,nostph,deqf
-    if(degf.eq.0) then
+! Hm again, ignore tpvar?
+!    degf=nrel+tpvar-www-nostph
+    degf=nrel-www-nostph
+!    write(*,*)'in inveq 2',nrel,tpvar,www,nostph,degf
+    if(degf.lt.0) then
 ! We have an invariant equilibrium, return the number of stable phases
        phases=nostph
        inveq=.true.
@@ -6167,7 +6372,7 @@
 !             gx%bmperr=0
 !          endif
           write(*,11)mapline%lineid,trim(mapline%lineceq%eqname)
-11        format('Giving up on this line',i3,': ',a)
+11        format('SMP2A giving up on this line',i3,': ',a)
 !          write(*,11)mapline%lineid,trim(mapline%lineceq%eqname),&
 !               mapline%meqrec%phr(mapline%nodfixph)%iph,&
 !               mapline%meqrec%phr(mapline%nodfixph)%ics
@@ -6240,6 +6445,82 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine map_halfstep_bad
+!\begin{verbatim}
+  subroutine map_halfstep_bad(halfstep,type,axvalok,mapline,axarr,ceq)
+! THIS MADE MANY MAP macro FAIL: 3,6,7,8,12,13 and finally crash ...
+! Used when an error calculating a normal step or a node point
+! take back the last sucessfully calculated axis value and take smaller step
+! possibly one should also restore the ceq record.
+! halfstep number of times halfstep has been called for this problem
+! axvalok last cucessfully calculated value of active axis
+! mapline line record
+! axarr array with axis records
+! ceq equilibrium record
+    implicit none
+    integer halfstep,type
+    double precision axvalok
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    TYPE(map_line), pointer :: mapline
+    type(map_axis), dimension(*) :: axarr
+!\end{verbatim}
+    type(gtp_condition), pointer :: pcond
+    double precision value
+    double precision :: sfact=1.0D-2
+    integer jax
+!    write(*,*)'In map_halfstep'
+    if(halfstep.eq.1) then
+       sfact=0.5D0
+    else
+       sfact=sfact*sfact
+    endif
+    halfstep=halfstep+1
+    if(type.eq.1 .and. (axvalok.eq.zero .or. halfstep.ge.3)) then
+!       write(*,*)'Two phases competing to appear/disappear',axvalok,halfstep
+       gx%bmperr=4246
+    else
+! Previous axis value should be axvalok, find current
+       jax=abs(mapline%axandir)
+       call locate_condition(axarr(jax)%seqz,pcond,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+! first argument 1 means to get the value
+       call condition_value(1,pcond,value,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+!       write(*,*)'Current active axis value: ',value
+! at first call remember the original axis value
+       if(halfstep.eq.1) then
+          if(ocv()) write(*,67)'First call to map_half, value:',value,axvalok
+67        format(a,2(1pe14.6))
+          mapline%evenvalue=value
+       elseif(halfstep.gt.3) then
+!          write(*,*)'SMP2A Tried halfstep 3 times, giving up'
+          gx%bmperr=4368
+       endif
+       if(mapline%axfact.le.1.0D-6) then
+! error initiallizing axfact ???
+          write(*,*)'Too small value of mapline%axfact: ',mapline%axfact
+          mapline%axfact=1.0D-3
+       endif
+! take a small step
+       if(mapline%axandir.gt.0) then
+          value=axvalok+sfact*mapline%axfact*axarr(jax)%axinc
+       else
+          value=axvalok-sfact*mapline%axfact*axarr(jax)%axinc
+       endif
+       write(*,97)'Halfstep axis value: ',mapline%axandir,value,axvalok,&
+            mapline%axfact,axarr(jax)%axinc
+97     format(a,i2,5(1pe14.6))
+! first argument 0 means to set the value
+       call condition_value(0,pcond,value,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       if(ocv()) write(*,*)'Taking a small step, new axis value: ',jax,value
+    endif
+1000 continue
+    return
+  end subroutine map_halfstep_bad
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine map_halfstep
 !\begin{verbatim}
   subroutine map_halfstep(halfstep,type,axvalok,mapline,axarr,ceq)
@@ -6282,7 +6563,8 @@
 67        format(a,2(1pe14.6))
           mapline%evenvalue=value
        elseif(halfstep.gt.3) then
-          gx%bmperr=4399
+!          write(*,*)'SMP2A Tried halfstep 3 times, giving up'
+          gx%bmperr=4368
        endif
        if(mapline%axfact.le.1.0D-6) then
 ! error initiallizing axfact ???
@@ -6295,7 +6577,7 @@
        else
           value=axvalok-1.0D-1*mapline%axfact*axarr(jax)%axinc
        endif
-!       write(*,97)'Setting axis value: ',mapline%axandir,value,axvalok,&
+!       write(*,97)'Halfstep axis value: ',mapline%axandir,value,axvalok,&
 !            mapline%axfact,axarr(jax)%axinc
 97     format(a,i2,5(1pe14.6))
 ! first argument 0 means to set the value
@@ -6546,7 +6828,7 @@
                 endif
              endif
 ! reset error code and take another line
-             write(*,*)'Generating mapline%meqrec failed: ',gx%bmperr
+!             write(*,*)'SMP2 Generating mapline%meqrec failed 1: ',gx%bmperr
              gx%bmperr=0; goto 333
           else
 ! calculation OK, do it again (why?) without creating meqrec, save and
@@ -6558,7 +6840,7 @@
              call meq_sameset(irem,iadd,mapx,mapline%meqrec,&
                   mapline%meqrec%phr,inmap,ceq)
              if(gx%bmperr.ne.0) then
-!                write(*,*)'Error calling meq_sameset',gx%bmperr
+!                write(*,*)'SMP2A Error calling meq_sameset',gx%bmperr
                 goto 333
              elseif(iadd.ne.0 .or. irem.ne.0) then
                 write(*,*)'Change of phases not allowed! ',iadd,irem

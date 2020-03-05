@@ -76,6 +76,7 @@
 ! 6
    case(twostatemodel1) ! Two state model
       addrec%propval=zero
+!      write(*,*)'3H selecting calc_twostate_model1: ',mc
       call calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
 ! 7
    case(volmod1) ! Simple volume model depending on V0, VA and VB
@@ -1843,7 +1844,7 @@
    endif
 !   write(*,16)'3H 2nd Einstein: ',kvot,deltacp,d2geindt2
 16 format(a,6(1pe12.4))
-! cehck if addition is per mole 
+! check if addition is per mole 
    if(btest(addrec%status,ADDPERMOL)) then
       addpermole=.TRUE.; msize=phres%abnorm(1)
 !      write(*,'(a,i4,l2,1pe12.4)')'3H msize 2ndein: ',lokph,addpermole,msize
@@ -1923,6 +1924,7 @@
 !\begin{verbatim}
  subroutine calc_twostate_model_john(moded,phres,addrec,lokph,mc,ceq)
 ! subroutine calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
+! CURRENTLY NOT USED
 ! This routine works OK but I am testing a modification
 ! moded is 0, 1 or 2 if no, first or 2nd order derivatives should be calculated
 ! addrec is addition record
@@ -1954,6 +1956,8 @@
    double precision g2ein,dg2eindt,d2g2eindt2,theta2,dcpl
    double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
    double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgfdt,d2g2dt2
+   double precision expmg2p1,msize
+   logical addpermole
 ! This is Johns original model
 ! number of properties calculatied
    noprop=phres%listprop(1)-1
@@ -1962,6 +1966,13 @@
    ith=0
    jth=0
    kth=0
+! check if addition is per mole 
+   if(btest(addrec%status,ADDPERMOL)) then
+      addpermole=.TRUE.; msize=phres%abnorm(1)
+!      write(*,'(a,i4,l2,1pe12.4)')'3H msize john: ',lokph,addpermole,msize
+   else
+      addpermole=.FALSE.; msize=one
+   endif
    findix: do jj=2,noprop
       if(phres%listprop(jj).eq.addrec%need_property(1)) then
 ! current values of G2 is stored in phres%gval(1,ig2)
@@ -1985,7 +1996,7 @@
    if(ith.eq.0) then
       write(*,*)'Cannot find value for amorphous THET'
       gein=zero; dgeindt=zero; d2geindt2=zero; goto 300
-!      gx%bmperr=4399; goto 1000
+!      gx%bmperr=4367; goto 1000
    endif
 !----------------------------------
 ! for the moment the composition dependence is ignored
@@ -1995,7 +2006,7 @@
 ! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
 ! NOTE ALL VALUES CALCULATED AS FOR G/RT
 ! kvot=theta/T
-! NOTE the stored value is ln(theta! !!!
+! NOTE the stored value is ln(theta)! !!!
    kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
 !   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
 !        phres%gval(3,1),phres%gval(4,1),kvot
@@ -2042,10 +2053,17 @@
       d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
    endif
 ! return the values in phres%gval(*,1)
-   phres%gval(1,1)=phres%gval(1,1)+gein
-   phres%gval(2,1)=phres%gval(2,1)+dgeindt
+   phres%gval(1,1)=phres%gval(1,1)+msize*gein
+   phres%gval(2,1)=phres%gval(2,1)+msize*dgeindt
 !   phres%gval(3,1)=phres%gval(3,1)
-   phres%gval(4,1)=phres%gval(4,1)+d2geindt2
+   phres%gval(4,1)=phres%gval(4,1)+msize*d2geindt2
+!
+! ?????????????????????????????
+!
+! NO DERIVATIVES WITH RESPECT TO FRACTIONS ??????????????????
+!
+! ?????????????????????????????
+!
 !   phres%gval(5,1)=phres%gval(5,1)
 !   phres%gval(6,1)=phres%gval(6,1)
 !   addrec%propval(1)=gein
@@ -2055,7 +2073,7 @@
 70 format(a,F7.2,5(1pe12.4))
 71 format(a,i3,1x,F7.2,5(1pe12.4))
 !  thet cannot depend on T
-! Missing implem of derivatives wrt comp.dep of thet.
+! Missing implementation of derivatives wrt comp.dep of thet.
    tv=ceq%tpval(1)
 !-------------------------- two state part DIVIDED BY RT
 ! hump was an attempt to reduce the hump due to state change entropy
@@ -2066,9 +2084,9 @@
 300 continue
    if(ig2.eq.0) then
       write(*,*)'Cannot find value for G2 two-state parameter'
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4367; goto 1000
    endif
-! NOTE g2val and derivatives not divided by RT !!
+! NOTE g2val and derivatives in phres%gval(..) are not divided by RT !!
    g2val=phres%gval(1,ig2); dg2dt=phres%gval(2,ig2)
    dg2=zero; d2g2dt2=zero
    if(g2val.eq.zero .and. dg2dt.eq.zero) then
@@ -2089,10 +2107,11 @@
 !      expg2=one/expmg2
 !   else
       expmg2=exp(-g2val/(rt))
+      expmg2p1=expmg2+one
       expg2=one/expmg2
 !   endif
 !   dg2=log(one+expmg2)
-   dg2=log(one+expmg2)
+   dg2=log(expmg2p1)
 !   write(*,19)'3H G2: ',g2val/rt,expmg2,dg2,dg2*rt
 ! NOTE values added to gval(*,1) must be divided by RT
 ! G = G - RT*ln(1+exp(-g2/RT))
@@ -2132,16 +2151,19 @@
 ! G.T.P is zero
 ! G.P.P is zero
 800 continue
-   phres%gval(1,1)=phres%gval(1,1)-dg2
-   phres%gval(2,1)=phres%gval(2,1)-dgfdt
-   phres%gval(4,1)=phres%gval(4,1)+d2g2dt2
+   phres%gval(1,1)=phres%gval(1,1)-msize*dg2
+   phres%gval(2,1)=phres%gval(2,1)-msize*dgfdt
+   phres%gval(4,1)=phres%gval(4,1)+msize*d2g2dt2
+!
+!
 !   write(*,19)'3H 2st:',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
 ! save local values divided by RT?
+! CURRENTLY NOT USED
 900 continue
    addrec%propval=zero
-   addrec%propval(1)=gein-dg2
-   addrec%propval(2)=dgeindt-dgfdt
-   addrec%propval(4)=d2geindt2-d2g2dt2
+   addrec%propval(1)=msize*(gein-dg2)
+   addrec%propval(2)=msize*(dgeindt-dgfdt)
+   addrec%propval(4)=msize*(d2geindt2-d2g2dt2)
 1000 continue
    return
  end subroutine calc_twostate_model_john
@@ -2182,15 +2204,25 @@
    double precision gein,dgeindt,d2geindt2
    double precision xi,hump
    double precision, parameter :: humpfact=5.0D0
+   logical addpermole
 !   double precision g2ein,dg2eindt,d2g2eindt2,theta2,dcpl
    double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
    double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgfdt,d2g2dt2
+   double precision expmg2p1,fact,g2sum,msize
+   double precision, allocatable :: mux(:)
 ! number of properties calculatied
    noprop=phres%listprop(1)-1
 ! locate the THET and G2 property record 
    ig2=0
    ith=0
    jth=0
+! check if addition is per mole 
+   if(btest(addrec%status,ADDPERMOL)) then
+      addpermole=.TRUE.; msize=phres%abnorm(1)
+!      write(*,'(a,i4,l2,1pe12.4)')'3H msize 2-state: ',lokph,addpermole,msize
+   else
+      addpermole=.FALSE.; msize=one
+   endif
    findix: do jj=2,noprop
       if(phres%listprop(jj).eq.addrec%need_property(1)) then
 ! current values of G2 is stored in phres%gval(1,ig2)
@@ -2198,18 +2230,18 @@
       elseif(phres%listprop(jj).eq.addrec%need_property(2)) then
 ! current value of THET are stored in phres%gval(1,ith)
          ith=jj
-      elseif(phres%listprop(jj).eq.22) then
+!      elseif(phres%listprop(jj).eq.22) then
 ! current value of DCP2 are stored in phres%gval(1,ith)
-         jth=jj
+!         jth=jj
       endif
    enddo findix
    if(ith.eq.0) then
       write(*,*)'Cannot find value for amorphous THET'
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4367; goto 1000
    endif
    if(ig2.eq.0) then
       write(*,*)'Cannot find value for G2 two-state parameter'
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4367; goto 1000
    endif
 !----------------------------------
 ! for the moment the composition dependence is ignored
@@ -2266,88 +2298,63 @@
       d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
    endif
 ! return the values in phres%gval(*,1)
-   phres%gval(1,1)=phres%gval(1,1)+gein
-   phres%gval(2,1)=phres%gval(2,1)+dgeindt
+   phres%gval(1,1)=phres%gval(1,1)+msize*gein
+   phres%gval(2,1)=phres%gval(2,1)+msize*dgeindt
 !   phres%gval(3,1)=phres%gval(3,1)
-   phres%gval(4,1)=phres%gval(4,1)+d2geindt2
+   phres%gval(4,1)=phres%gval(4,1)+msize*d2geindt2
 !   phres%gval(5,1)=phres%gval(5,1)
 !   phres%gval(6,1)=phres%gval(6,1)
 !   write(*,71)'3H Cp E3: ',extreme,ceq%tpval(1),gein,dgeindt,d2geindt2
 70 format(a,F7.2,5(1pe12.4))
 71 format(a,i3,1x,F7.2,5(1pe12.4))
 !  thet cannot depend on T
+! any composition dependence of the eistein contribution?
+   
+
 !----------------------------------------------------------------
 !-------------------------- two state part DIVIDE BY RT
-! NOTE g2val and derivatives not divided by RT !!
+! NOTE the values in phres%gval(1,ig2), phres%dgval(1,jj,ig2)
+!        are not divided by T.
+!
    rt=ceq%rtn
    tv=ceq%tpval(1)
    rg=globaldata%rgas
    g2val=phres%gval(1,ig2); dg2dt=phres%gval(2,ig2)
-   dg2=zero; d2g2dt2=zero
-   expmg2=zero
+   dg2=zero; d2g2dt2=zero; expmg2=zero
 !   write(*,*)'3H gval1: ',g2val
    if(g2val.eq.zero .and. dg2dt.eq.zero) then
-!      write(*,*)'3H: G2 parameter zero, ignoring bump',g2val
+      write(*,*)'3H: G2 parameter zero, ignoring 2-state model'
       goto 900
    endif
    d2g2dt2=phres%gval(4,ig2)
-! hump is an attempt to reduce the hump due to state change entropy
-! This is testing a modification to prevent a hump
-! If G^d is positive we are in LT range and hump=0
-! If G^d is negative we are in HT rannge and 
-! by scaling G^d to vary between 0 and 1 when G^d is negative (xi>0.5)
-   xi=zero
-   hump=one
-   if(jth.gt.0) then
-      hump=phres%gval(1,jth)
-! there should be a chack if -200 < -g2val/rt or -g2val/rt > 200
-      xi=exp(-g2val/rt)/(one+exp(-g2val/rt))
-      write(*,19)'3H gval6: ',tv,g2val/rt,hump,xi
-      if(-g2val/rt.gt.200) then
-! Fraction liquid is very large 
-         xi=one
-         hump=one
-!      elseif(-g2val/rt.lt.-200) then
-! Fraction liquid is very small and can be ignored         
-!         hump=zero
-      else
-! This is the intermediate range when hump*xi should approach unity
-         if(-g2val/rt.lt.zero) then
-            hump=0.5*humpfact*hump*xi
-         else
-            hump=0.5*humpfact*hump*(one-xi)+(2*xi-one)
-         endif
-      endif
-   else
-! This is classical Schottky model
-      hump=one
-   endif
-!   write(*,19)'3H gval7: ',tv,g2val/rt,hump,xi,g2val*hump/rt
-   g2val=hump*g2val
-   dg2dt=hump*dg2dt
-   d2g2dt2=hump*d2g2dt2
-19 format(a,6(1pe11.3))
+   goto 600
+!------------------------------------------
+600 continue
 ! if g2val is positive we are in the amorphous region
 ! if g2val is negative we are in the liquid region
 ! The if statements here ensure expmg2 is between 1e-60 and 1e+60
+!   write(*,'(a,6(1pe12.4))')'3H g2val: ',g2val,dg2dt,-g2val/rt
    if(-g2val/rt.gt.2.0D2) then
-! exp(200) >> 1, thus d2g=ln(1+exp(g2val))=g2val
-! and the derivatives are those above
-      dg2=g2val
-      dgfdt=dg2dt
-      d2g2dt2=d2g2dt2
+! LIQUID REGION exp(200) >> 1, thus d2g=ln(1+exp(g2val))=g2val
+! and the derivatives are those above. DIVIDED BY RT?
+      dg2=g2val/rt
+      dgfdt=dg2dt/rt
+      d2g2dt2=d2g2dt2/rt
       goto 700
    elseif(-g2val/rt.lt.-2.0D2) then
-! exp(-200)=0; ln(1)=0 and everything is zero
+! AMORPHOUS REGION: exp(-200)=0; ln(1)=0 and everything is zero
       dg2=zero
       dg2dt=zero
       d2g2dt2=zero
       goto 800
    else
-! intermediate T range, we have to calculate
+! intermediate T range, we have to calculate, exp( -200 to +200) is OK
       expmg2=exp(-g2val/rt)
       expg2=one/expmg2
-      dg2=log(one+expmg2)
+      expmg2p1=expmg2+one
+      dg2=log(expmg2p1)
+!      write(*,'(a,4(1pe12.4))')'3H intermed: ',phres%gval(1,ig2),&
+!           g2val/rt,expmg2p1,dg2
    endif
 !   write(*,19)'3H gval8: ',g2val/rt,expmg2,dg2
 !   write(*,19)'3H dg2: ',tv,g2val,expmg2,dg2
@@ -2371,10 +2378,93 @@
         ((g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt)*expg2/&
         (rt*(one+expg2)**2))/rt
 700 continue
-   phres%gval(1,1)=phres%gval(1,1)-dg2
-   phres%gval(2,1)=phres%gval(2,1)-dgfdt
-   phres%gval(4,1)=phres%gval(4,1)+d2g2dt2
+! This should be OK/ 2020.02.27
+   phres%gval(1,1)=phres%gval(1,1)-msize*dg2
+   phres%gval(2,1)=phres%gval(2,1)-msize*dgfdt
+   phres%gval(4,1)=phres%gval(4,1)+msize*d2g2dt2
 ! values of T, \xi, g, s and cp   
+!
+! ADDING DERIVATIVES WITH RESPECT TO FRACTIONS !!!!!!!!!!!
+!
+!---------------------------------------------
+! Searching for bug when entering G2 as a comp.dependent parameter rather
+! than as a part of the pure element data. Liquid with: T=1950; x(v)=.5
+! 1. OC exactly same as TC when G2 is part of pure elements:
+!    G=-127282 J; a(ti)=2.9601E-4; a(v)=5.1269E-4 (SER refstate)
+! 2. When modeling G2 as a separate parameter we get:
+!    TC: G=-127223 J; ac(ti)=2.9714E-4; ac(v)=5.1446E-4;  <<<<<<<<<<<<
+!    OC: G=-127223 J; ac(ti)=3.3896E-4; ac(v)=4.5099E-4 (divided by RT)
+! 3. The chemical potential wrong and give strange (wrong) phase diagram
+!    OC: divide by T: G=-127223 J; ac(ti)=2.9714E-4; ac(v)=5.1446E-4 WoW
+!  but the phase diagram still wrong, not same composition at BCC/LIQ minimum!!
+!    BCC is identical in TC and OC, no problem with Einstein
+! 4. Calculating liquid at T=1920; x(v)=.1 gives different results:
+!    TC: G=-122239 J; ac(ti)=5.4656E-4; ac(v)=1.2773E-4
+!    OC: G=-122239 J; ac(ti)=5.2677E-4; ac(v)=1.7801E-4
+!    T=1900, x(v)=.1 (for BCC!!)
+!    TC: G=-120324 J; ac(ti)=5.6252E-4; ac(v)=1.4795E-4 BCC! DGM(liq)=-4.49E-3
+!    OC: G=-120324 J; ac(ti)=5.6252E-4; ac(v)=1.4795E-4 BCC! DGM(liq)=-1.02E-2
+!    T=1910, x(v)=.1 (TC gives 2-phase equil, BCC+LIQ, OC just BCC)
+! 5. After some more changes (introducing msize mm) which should NOT change
+!    the result, it is bad again ... SUCK
+!    OC: divide by T: G=-127223 J; ac(ti)=2.5623E-4; ac(v)=5.9662E-4
+! does some variable have random a value??  BCC stable at this calc
+!    OC: divide by RT: G=-127223 J; ac(ti)=3.3896E-4; ac(v)=4.5099E-4 (as above)
+!    mulip with 0.5/T: G=-127223 J; ac(ti)=3.0040E-4; ac(v)=5.0889E-4
+!    muli with 0.52/T: G=-127223 J; ac(ti)=2.9849E-4; ac(v)=5.1214E-4
+!    muli with 0.53/T: G=-127223 J; ac(ti)=2.9754E-4; ac(v)=5.1377E-4
+! this also gave reasonable phase diagram!!
+!    mul with 0.533/T: G=-127223 J; ac(ti)=2.9726E-4; ac(v)=5.1426E-4
+!    mu with 0.5335/T: G=-127223 J; ac(ti)=2.9721E-4; ac(v)=5.1434E-4
+!    mu with 0.5338/T: G=-127223 J; ac(ti)=2.9818E-4; ac(v)=5.1439E-4
+!    mul with 0.534/T: G=-127223 J; ac(ti)=2.9717E-4; ac(v)=5.1442E-4
+!    mu with 0.5342/T: G=-127223 J; ac(ti)=2.9715E-4; ac(v)=5.1446E-4
+! phase diagram correct with multiplied factor with 0.534... Wow, why?
+!    correct:          G=-127223 J; ac(ti)=2.9714E-4; ac(v)=5.1446E-4
+!    muli with 0.54/T: G=-127223 J; ac(ti)=2.9660E-4; ac(v)=5.1541E-4
+!---------------------------------------------
+! COMPLETELY NONSCIENTIFIC ... ENGINEERING 
+!---------------------------------------------
+!   write(*,*)'3H calculating twostatemodel, missing dg/dy ...'
+! the factor /rt because phres%dgval(1,jj,ig2) is not divided by RT
+!   fact=expmg2/(expmg2+one)/rt
+! no RT?? No, activites zero
+!   fact=expmg2/(expmg2+one)
+!>>>>>>>>>>>>>> this factor 0.5336 gives correct chemical potentials
+   fact=0.5342D0*msize*expmg2/(expmg2+one)/tv
+!>>>>>>>>>>>>>> but I do not understad why
+!   fact=msize*expmg2/(expmg2+one)/rt
+! sign?? - no good; 
+!   fact=10*expmg2/(expmg2+one)/rt
+!!   fact=10*expmg2/(expmg2+one)/rt
+!   fact=1.2E0*expmg2/(expmg2+one)/tv
+!   write(*,'(a,6(1pe12.4))')'3H missing dg2/dy: ',expmg2,tv,msize,fact
+! temporary debug ...; calculate contribution to chemical potential
+!   allocate(mux(mc))
+!   mux=zero
+   g2sum=dg2
+   do jj=1,mc
+! check than x1*mu1+x2*mu2=g
+!      g2sum=g2sum-phres%yfr(jj)*fact*phres%dgval(1,jj,ig2)
+! in dgval(i,j,k) index i=1 means d/y; 2 means d2/dydT, 3 means d2/dydP
+!                 index j is constituent; index k is property, k=1 is G
+!      write(*,710)ig2,jj,phres%dgval(1,jj,1),phres%dgval(1,jj,ig2)/rt,&
+!           fact*phres%dgval(1,jj,ig2),&
+!           phres%dgval(1,jj,1)+fact*phres%dgval(1,jj,ig2),phres%yfr(jj)
+!           phres%dgval(2,jj,1),phres%dgval(2,jj,ig2)/rt,&
+!           phres%dgval(2,jj,1)+fact*phres%dgval(2,jj,ig2)
+710   format('3H G2: ',2i2,6(1pe11.3))
+      phres%dgval(1,jj,1)=phres%dgval(1,jj,1)+fact*phres%dgval(1,jj,ig2)
+      phres%dgval(2,jj,1)=phres%dgval(2,jj,1)+fact*phres%dgval(2,jj,ig2)
+   enddo
+!   do jj=1,mc
+!      mux(jj)=g2sum+fact*phres%dgval(1,jj,ig2)
+!   enddo! These should be the same!
+!   g2sum=zero
+!   do jj=1,mc
+!      g2sum=g2sum+phres%yfr(jj)*mux(jj)
+!   enddo
+!   write(*,*)'3H same?: ',dg2,g2sum
 800 continue
 !   write(*,19)'3H G9: ',tv,hump,dg2*rt,-dgfdt*rt,-d2g2dt2*rt*tv
 !   phres%gval(4,1)=phres%gval(4,1)-d2g2dt2
@@ -2395,9 +2485,9 @@
 ! save local values divided by RT?
 900 continue
    addrec%propval=zero
-   addrec%propval(1)=gein-dg2
-   addrec%propval(2)=dgeindt-dgfdt
-   addrec%propval(4)=d2geindt2-d2g2dt2
+   addrec%propval(1)=msize*(gein-dg2)
+   addrec%propval(2)=msize*(dgeindt-dgfdt)
+   addrec%propval(4)=msize*(d2geindt2-d2g2dt2)
 1000 continue
    return
  end subroutine calc_twostate_model1
@@ -2969,7 +3059,7 @@
    case(einsteincp) ! Einstein Cp model
       write(unit,400)chc
 400   format(a,'+ Einstein Cp model: 1.5R*THET(x) +',&
-           ' 3RT*ln(exp(ln(THET(x))/T)-1)')
+           ' 3RT*ln(exp(exp(ln(THET(x)))/T)-1)')
 !---------------------------------------------
    case(elasticmodel1) ! Elastic model 1
       write(unit,500)

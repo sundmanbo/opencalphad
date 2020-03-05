@@ -564,12 +564,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Two phases with same composition stable at nodepoint            ',&
        'Gridtest indicate global minimization needed                    ',&
        'Gridtest request recalculation without gridminimizer            ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
+       'Missing property for calculating addition                       ',&
+       'Tried halfstep 3 times, giving up on this line                  ',&
+       'Repeated error calling map_calcnode, line terminated            ',&
 ! 4370
-       '                                                                ',&
-       '                                                                ',&
+       'Error allocating data, no free memory                           ',&
+       'Nonlinear equation solver HYBRD1 error                          ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&

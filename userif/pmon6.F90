@@ -301,8 +301,8 @@ contains
          'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
          'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
          'COMPONENTS      ','GENERAL         ','ASSESSMENT_RESLT',&
-         'OPTIMIZING_COEFS','EQUILIBRIUM     ','                ',&
-         'LINE            ','                ','                ']
+         'OPTIMIZING_COEFS','EQUILIBRIUM     ','REDUNDANT_SETS  ',&
+         'LINES           ','                ','                ']
 !-------------------
 ! subsubcommands to AMEND PHASE
     character (len=16), dimension(ncamph) :: camph=&
@@ -800,9 +800,9 @@ contains
 !       ['SYMBOL          ','ELEMENT         ','SPECIES         ',&
 !        'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
 !        'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
-!        'COMPONENTS      ','GENERAL         ','                ',&
-!        'OPTIMIZING_COEFS','EQUILIBRIUM     ','                ',&
-!        'LINE            ','                ','                ']
+!        'COMPONENTS      ','GENERAL         ','ASSESSMENT_RESLT',&
+!        'OPTIMIZING_COEFS','EQUILIBRIUM     ','REDUNDANT_SETS  ',&
+!        'LINES            ','                ','                ']
 ! disable continue optimization
 !       iexit=0
 !       iexit(2)=1
@@ -1425,14 +1425,17 @@ contains
        case(14) ! AMEND EQUILIBRIUM intended to add to experimental list
           write(*,*)'Not implemented yet'
 !-------------------------
-       case(15) ! Nothing defined
-          write(*,*)'Not implemented yet'
+       case(15) ! AMEND REDUDANT composition sets
+          write(*,*)'This will set all unstable additional composition sets',&
+               ' as suspended'
+          ll=0
+          call suspend_unstable_sets(ll,ceq)
 !-------------------------
        case(16) ! AMEND LINEs of calculated equilibria
 ! possible amendment of all stored equilibria as ACTIVE or INACTIVE
           call amend_stored_equilibria(axarr,maptop)
 !-------------------------
-       case(17) ! Nothing defined
+       case(17) ! not used
           write(*,*)'Not implemented yet'
 !-------------------------
        case(18) ! Nothing defined
@@ -1479,7 +1482,7 @@ contains
                 if(gx%bmperr.gt.0) goto 990
                 if(once) then
                    once=.FALSE.
-                   write(lut,2011)100000,ceq%tpval
+                   write(lut,2011)1,ceq%tpval
                 endif
                 write(lut,2012)j4,val
                 if(iel.gt.1) goto 2009
@@ -3016,14 +3019,6 @@ contains
                    allocate(axarr(iax)%axcond(1))
                 endif
                 axarr(iax)%axcond(1)=pcond%statvar(1)
-! These are now redundant ...
-!                jp=size(pcond%condcoeff)
-!                write(*,*)'axis indices size: ',jp
-!                allocate(axarr(iax)%indices(4,jp))
-!                axarr(iax)%indices=pcond%indices
-!                allocate(axarr(iax)%coeffs(jp))
-!                axarr(iax)%coeffs=pcond%condcoeff
-!
                 axarr(iax)%seqz=pcond%seqz
 !                write(*,*)'Condition sequential index: ',axarr(iax)%seqz
                 axarr(iax)%more=0
@@ -3056,8 +3051,10 @@ contains
           axarr(iax)%axmax=xxx
 !          axval(2,iax)=xxx
 ! default step 1/100 of difference ?? several diagram failed ...
-! default step 1/40 of difference
+! default step 1/40 of difference, same as TC ...
           dinc=0.025*(axarr(iax)%axmax-axarr(iax)%axmin)
+! default step 1/50 of difference, somethimes better, sometimes worse ...
+!          dinc=0.02*(axarr(iax)%axmax-axarr(iax)%axmin)
           call gparrdx('Increment:',cline,last,xxx,dinc,'?Set axis')
           if(buperr.ne.0) goto 100
           axarr(iax)%axinc=xxx
@@ -3608,26 +3605,19 @@ contains
 !---------------------------------------------------------------
        case(5) ! enter parameter only if there are phases
           if(btest(globaldata%status,GSNOPHASE)) then
-             write(kou,*)'You must enter some phase before'
+             write(kou,*)'You must enter a phase before'
              goto 100
           endif
 ! the last 0 means enter
           call enter_parameter_interactivly(cline,last,0)
 ! Strange things may happen when entering parameters interactively 
-! This was due to an error in tpfun package ... not yet fixed ...
-! Recalculate all TP functions!!  TWICE!!
+! This was due to an error in tpfun package ... not yet fixed ... ??
           call change_optcoeff(-1,zero)
           do j4=1,notpf()
              call eval_tpfun(j4,ceq%tpval,val,ceq%eq_tpres)
              if(gx%bmperr.gt.0) goto 990
           enddo
           call change_optcoeff(-1,zero)
-!          write(*,*)'pmon: A second time',notpf()
-!          do j4=1,notpf()
-!             call eval_tpfun(j4,ceq%tpval,val,ceq%eq_tpres)
-!             if(gx%bmperr.gt.0) goto 990
-!          enddo
-!          call force_recalculate_tpfuns
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(6) ! enter bibliography
@@ -5180,7 +5170,7 @@ contains
             'The full license text is provided with the software'/&
             'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2011-2019, Bo Sundman, Gif sur Yvette, France.'/&
+            'Copyright 2011-2020, Bo Sundman, Gif sur Yvette, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version ',a,' was compiled ',a/)
 !=================================================================

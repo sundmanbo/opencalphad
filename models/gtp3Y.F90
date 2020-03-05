@@ -67,7 +67,7 @@
 ! sort phases depending on number of gridpoints
    integer, dimension(:), allocatable :: gridpoints,phord,starttup
 ! pph is set to number of phases participating, some may be suspended
-   integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj,zz
+   integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj,zz,errall
 !
 !   write(*,*)'3Y in global_gridmin'
 !   nystph=0
@@ -119,8 +119,12 @@
    kp=1
    pph=0
 !   write(*,*)'3Y allocating gridpoints 1',nrph
-   allocate(gridpoints(nrph))
-   allocate(phord(nrph))
+   allocate(gridpoints(nrph),stat=errall)
+   allocate(phord(nrph),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    ggloop: do iph=1,nrph
 ! include all phases with any composition set entered (but only once!)
       do ics=1,noofcs(iph)
@@ -147,7 +151,11 @@
 ! is in iphx(1..pph)
 ! always allocate a grid for maxgrid points
 !   write(*,*)'3Y allocating gridpoints 2',nrel,maxgrid
-   allocate(xarr(nrel,maxgrid))
+   allocate(xarr(nrel,maxgrid),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    gmax=zero
 !   write(*,11)'3Y gp1:',pph,(iphx(iph),iph=1,pph)
 ! just to be sure
@@ -503,7 +511,11 @@
 ! finally store stable phase amounts and constitutions into ceq%phase_varres
    j1=1
 !   write(*,*)'3Y allocating startup 3',nvsph
-   allocate(starttup(nvsph))
+   allocate(starttup(nvsph),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 2: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    call extract_massbalcond(ceq%tpval,xdum,totam,ceq)
    if(gx%bmperr.ne.0) goto 1000
    sum=zero
@@ -684,7 +696,7 @@
 ! added: not here ... just for the dense grid
 !   double precision, dimension(2), parameter :: yqrt=[0.35D0,0.19D0]
 ! for output of gridpoints
-   integer jbas,sumngg,loksp,wrongngg
+   integer jbas,sumngg,loksp,wrongngg,errall
    logical trace,isendmem
    save sumngg,wrongngg
 !
@@ -850,8 +862,12 @@
 !      write(*,*)'3Y looking for allocate error: ',nsl,nend,inkl(nsl)
 !   endif
 !   write(*,*)'3Y allocating endmem: ',nsl,nend,inkl(nsl)
-   allocate(endm(nsl,nend))
-   allocate(yfra(inkl(nsl)))
+   allocate(endm(nsl,nend),stat=errall)
+   allocate(yfra(inkl(nsl)),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    nofy=inkl(nsl)
 ! generate endmembers, endm(ll,ie) is set to consituent index in sublattice ll
    je=1
@@ -1182,7 +1198,7 @@
 ! local loop variables etc
    integer ii,ij,ik,il,im,in,is,ie,iz,incl(0:maxsubl),maxng,ng,ncon
    integer nend,nendj,nendk,nendl,nendm
-   integer ijs,iks,ils,ims,lokph
+   integer ijs,iks,ils,ims,lokph,errall
 ! these are for call of get_phase_data
    integer nsl,nkl(maxsubl),knr(maxconst)
    double precision ydum(maxconst),sites(maxsubl),qq(5)
@@ -1278,9 +1294,13 @@
 ! yendm(1..nsl,ii) has the constituent fractions for endmember ii
 ! yfra is used to generate a constitutuon from a combination of endmembers
 !   write(*,*)'3Y allocating endmem 2',nsl,nend,ncon,nend
-   allocate(endm(nsl,nend))
-   allocate(yendm(ncon,nend))
+   allocate(endm(nsl,nend),stat=errall)
+   allocate(yendm(ncon,nend),stat=errall)
    allocate(yfra(ncon))
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    yendm=1.0D-12
 ! set endm(1..nsl,1) to first constituent index for each sublattice
    do ij=1,nsl
@@ -1552,7 +1572,7 @@
                       [0.01D0,0.02D0,0.16D0,0.05D0,0.10D0,0.12D0]
 !                      [0.01D0,0.02D0,0.07D0,0.05D0,0.10D0,0.23D0]
 ! for output of gridpoints
-   integer jbas,sumngg,loksp,l0,l1,ncon,jj,anion,isp
+   integer jbas,sumngg,loksp,l0,l1,ncon,jj,anion,isp,errall
    logical trace,isendmem
    double precision ysum
    save sumngg
@@ -1676,16 +1696,20 @@
 !   write(*,*)'3Y ggy: ',mode,iph,nsl,nend,inkl(nsl)
 !
 !   write(*,*)'3Y allocating yfra mm',inkl(nsl),nsl,nend
-   allocate(yfra(inkl(nsl)))
+   allocate(yfra(inkl(nsl)),stat=errall)
 ! endm(i,j) has constituent indices in i=1..nsl for endmember j 
 ! endm(1,1) is constituent in sublattice 1 of first endmember
 ! endm(2,1) is constituent in sublattice 2 of first endmember
 ! endm(nsl,2) is constituent in sublattice nsl of second endmember
 ! endm(1..nsl,nend) are constituents in all sublattices of last endmember
-   allocate(endm(nsl,nend))
+   allocate(endm(nsl,nend),stat=errall)
 ! inkl(nsl) is the number of fraction variables in the phase
 !   allocate(yfra(inkl(nsl)))
-   allocate(xbrr(noofel))
+   allocate(xbrr(noofel),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
 !   nofy=inkl(nsl)
 ! generate endmembers, endm(ll,ie) is set to consituent index in sublattice ll
    je=1
@@ -1924,7 +1948,7 @@
    double precision, dimension(1:3), parameter:: yfc=&
         [0.42D0,0.33D0,0.25D0]
 ! for output of gridpoints
-   integer l1,ncon,jj,cation,anion,isp,iva,catloop,neutral1
+   integer l1,ncon,jj,cation,anion,isp,iva,catloop,neutral1,errall
    logical trace,dense
    character ch1*1
 !
@@ -2042,7 +2066,11 @@
 ! endm(1..nsl,nend) are constituents in all sublattices of last endmember
 !   if(mode.gt.0) write(*,*)'3Y allocate endm: ',nsl,nend
 !   write(*,*)'3Y allocating endmembers 5:',nsl,nend,inkl(nsl)
-   allocate(endm(nsl,nend))
+   allocate(endm(nsl,nend),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
 ! inkl(nsl) is the number of fraction variables in the phase
 !   allocate(yfra(inkl(nsl)))
 !   nofy=inkl(nsl)
@@ -2097,7 +2125,11 @@
 ! we must allocate and set endmember fractions both for mode 0 and >0
 !   if(mode.gt.0) write(*,*)'3Y allocate yendm: ',inkl(2),nend
 !   write(*,*)'3Y allocating endmembers 6:',inkl(2),nend
-   allocate(yendm(inkl(2),nend))
+   allocate(yendm(inkl(2),nend),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    yendm=zero
 !   write(*,*)'3Y endmember fractions:',mode,je
    do je=1,nend
@@ -2117,6 +2149,7 @@
    enddo
 !   if(mode.gt.0) write(*,*)'3Y allocate yfra: ',nsl,inkl(nsl)
 !   allocate(yfra(inkl(nsl)))
+! this is a small allocation, max 1000 double
    allocate(yfra(ncon))
 !---------------------------------------------
 ! now generate combinations of endmember fractions
@@ -2337,7 +2370,7 @@
 !   logical dense,gles,defgrid
    double precision, dimension(5), parameter :: &
         yf=[0.07D0,0.28D0,0.16D0,0.45D0,0.04D0]
-   integer ii,ijs,iks,il,ils,im,ims,is,nendj,nendk,nendl,nendm,ng
+   integer ii,ijs,iks,il,ils,im,ims,is,nendj,nendk,nendl,nendm,ng,errall
    character phname*32
 ! NOTHING IMPLEMENTED YET oh yes it is ...
 !   write(*,*)'3Y in generate_fccord_grid ',ngg
@@ -2383,11 +2416,15 @@
 ! fault
       nend=30000
    endif
-   allocate(endm(nsl,nend))
-   allocate(yendm(ncon,nend))
+   allocate(endm(nsl,nend),stat=errall)
+   allocate(yendm(ncon,nend),stat=errall)
+   allocate(yfra(ncon),stat=errall)
+   allocate(ysave(ncon),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    yendm=1.0D-12
-   allocate(yfra(ncon))
-   allocate(ysave(ncon))
    do ij=1,ncon
       ysave(ij)=ydum(ij)
    enddo
@@ -2683,7 +2720,7 @@
    double precision, dimension(:), allocatable :: y1,y2,y3,y4,y5
    real xdum(nrel),gdum
    integer, parameter :: ncf5=5,ncf3=3,alloneut=300000
-   integer ncf,maxngg,ncon,maxgp1
+   integer ncf,maxngg,ncon,maxgp1,errall
    integer, parameter :: maxgp2=10000,maxgp3=20000
 ! These are used to combine endmembers
    double precision, dimension(7), parameter :: nfact=&
@@ -2781,8 +2818,12 @@
 !   write(*,10)'3Y nend: ',iph,nend,0.0D0,(nkl(ll),ll=1,nsl)
 10 format(a,2i4,5x,1pe12.4,10i3)
 ! allocate a record for each endmembers
-   allocate(endmem(nend))
-   allocate(endmem(1)%constit(nsl))
+   allocate(endmem(nend),stat=errall)
+   allocate(endmem(1)%constit(nsl),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    charge=zero
    do ll=1,nsl
       endmem(1)%constit(ll)=inkl(ll-1)+1
@@ -2804,6 +2845,7 @@
    endif
 !   write(*,10)'3Y endmem: ',1,0,charge,endmem(1)%constit
    emloop: do i2=2,nend
+! a small allocation
       allocate(endmem(i2)%constit(nsl))
       endmem(i2)%constit=endmem(i2-1)%constit
       sloop: do ll=1,nsl
@@ -2906,7 +2948,11 @@
 !      np=savengg(iph)
 !   write(*,*)'3Y allocate neutral: ',mode,alloneut
 ! guess a safe value ...
-   allocate(neutral(alloneut,0:3))
+   allocate(neutral(alloneut,0:3),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    neutral=0
    np=0
    if(endout) write(*,*)'3Y starting generating grid in ionic solid phase',nend
@@ -3116,10 +3162,14 @@
 !      write(*,29)'3Y we are here?',iph,mode,np,nsl,inkl(nsl)
 !29    format(a,10i5)
    ncc=inkl(nsl)
-   allocate(y1(ncc))
-   allocate(y2(ncc))
-   allocate(y3(ncc))
-   allocate(y4(ncc))
+   allocate(y1(ncc),stat=errall)
+   allocate(y2(ncc),stat=errall)
+   allocate(y3(ncc),stat=errall)
+   allocate(y4(ncc),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
 !   write(*,*)'3Y Charged grid: ',mode,nend,ncon,ncc
 !   write(*,*)'3Y allocated neutral: ',mode,alloneut,np
 ! loopf keeps track if several gridpoints belong together
@@ -4971,7 +5021,7 @@
    double precision totmol,totmass,amount,gmax,dgmax,dgtest
    integer, allocatable :: kphl(:),iphx(:)
    integer gmode,iph,ngg,nrel,ny,ifri,firstpoint,sumng,nrph,ii,jj,nz,lokcs
-   integer ics,pph,nyfas,gpz,iphz,nggz
+   integer ics,pph,nyfas,gpz,iphz,nggz,errall
    integer, parameter :: maxgrid=400000
 !
 !   write(*,*)'3Y In global_equil_check1',mode
@@ -4991,8 +5041,12 @@
    cceq=ceq
    pceq=>cceq
    nrph=noofph
-   allocate(kphl(0:nrph+1))
-   allocate(iphx(nrph+1))
+   allocate(kphl(0:nrph+1),stat=errall)
+   allocate(iphx(nrph+1),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
 !
    sumng=0
    ifri=0
@@ -5019,8 +5073,12 @@
    nrel=noofel
 !   write(*,11)'3Y gpa:',pph,(iphx(iph),iph=1,pph)
 ! allocate arrays, added 1 to avoid a segmenentation fault ....
-   allocate(xarr(nrel,maxgrid))
-   allocate(garr(maxgrid))
+   allocate(xarr(nrel,maxgrid),stat=errall)
+   allocate(garr(maxgrid),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
 ! calculate the composition and G for the gridpoints
    ii=1
    loop2: do ifri=1,pph
@@ -5137,6 +5195,7 @@
          if(ny.gt.0) then
 !            write(*,83)'3Y gpy: ',ny,(yarr(ngg),ngg=1,ny)
 83          format(a,i7,9F7.4,(8x,14F5.2))
+! a small allocate
             allocate(yfr(ny))
             do ngg=1,ny
                yfr(ngg)=yarr(ngg)
@@ -5259,7 +5318,7 @@
    double precision yold(100)
    integer, allocatable :: kphl(:),iphx(:)
    integer ii,jj,kk,nrel,lokcs,moded,ny,ics,ics2,ncs,stcs(4),nstcs,ie,ngg
-   integer phstat,lokph,lokres
+   integer phstat,lokph,lokres,errall
    logical skip
    integer, parameter :: maxgrid=100000
 !
@@ -5267,8 +5326,12 @@
    nrel=noofel
    moded=0
 ! allocate arrays
-   allocate(xarr(nrel,maxgrid))
-   allocate(garr(maxgrid))
+   allocate(xarr(nrel,maxgrid),stat=errall)
+   allocate(garr(maxgrid),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
    gset=-one
    skip=.TRUE.
 ! loop for all composition sets
@@ -5748,12 +5811,16 @@
 !   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 !
-   integer iz,jz,kz,lz,lokph,aha
+   integer iz,jz,kz,lz,lokph,aha,errall
    double precision, dimension(:), allocatable :: dum
 ! I assume the values are NP(*), maybe there are other cases ...
 ! Karl had overflow error in dum ... no problem to make it a little larger
 ! but then I cannot set xx=dum below ...
-   allocate(dum(n*m+10))
+   allocate(dum(n*m+10),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
 !   write(*,*)'3F corrected sortinphtup',n,m
 !   write(*,10)'3F in: ',(xx(iz),iz=1,n*m)
 10 format(a,10(f7.4))
@@ -6785,16 +6852,20 @@
    double precision amfu(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
-   integer iph,lokph,lokcs,iel
+   integer iph,lokph,lokcs,iel,errall
    integer, allocatable, dimension(:) :: selected
    double precision, allocatable, dimension(:,:) :: maxel
    double precision, allocatable, dimension(:) :: wmass
    double precision totmol,totmass,am
 !
    write(*,*)'In emergency startpoint: ',mode,noofel,noofph
-   allocate(selected(noofel))
-   allocate(maxel(noofel,noofph))
-   allocate(wmass(noofel))
+   allocate(selected(noofel),stat=errall)
+   allocate(maxel(noofel,noofph),stat=errall)
+   allocate(wmass(noofel),stat=errall)
+   if(errall.ne.0) then
+      write(*,*)'3Y allocation error 1: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
 !   phl=0
 !   amfu=zero
    maxel=zero

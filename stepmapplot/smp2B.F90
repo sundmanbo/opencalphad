@@ -977,7 +977,8 @@
 ! internal
     integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk,nofapl
     integer, parameter :: mofapl=100
-    integer appfiletyp,lz
+! ltf1 is a LineTypeoFfset for current plot when appending a plot, 0 default
+    integer appfiletyp,lz,ltf1
     character pfc*64,pfh*64,backslash*2,appline*128
     character applines(mofapl)*128,gnuplotline*80,labelkey*64,rotate*16
     character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
@@ -987,6 +988,8 @@
 !         nlinesep,(linesep(kk),kk=1,nlinesep)
 10  format(a,3i5,' "',a,'" '/a/i3,2x,15i4)
 !    write(*,*)'In ocplot2B filename: ',trim(filename)
+    ltf1=0
+    if(graphopt%appendfile(1:1).ne.' ') ltf1=10
     if(index(filename,'.plt ').le.0) then 
        kk=len_trim(filename)
        pfc=filename(1:kk)//'.'//'plt '
@@ -1043,7 +1046,8 @@
     lz=graphopt%linetype
     write(21,860)graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(pltax(2)),trim(labelkey),&
-         lz,lz,lz,lz,lz,lz,lz,lz,lz,lz
+         ltf1+1,lz,ltf1+2,lz,ltf1+3,lz,ltf1+4,lz,ltf1+5,lz,&
+         ltf1+6,lz,ltf1+7,lz,ltf1+8,lz,ltf1+9,lz,ltf1+10,lz
 858 format('#set title "',a,' \n #',a,'" font "',a,',10" ')
 859 format('set title "',a,' \n ',a,'" font "',a,',10" ')
 860 format('set origin 0.0, 0.0 '/&
@@ -1054,16 +1058,16 @@
 ! Help with stackoverflow to fix nice logo independent of plot size!
          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
          'set key ',a/&
-         'set style line 1 lt ',i2,' lc rgb "#000000" lw 2 pt 10'/&
-         'set style line 2 lt ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
-         'set style line 3 lt ',i2,' lc rgb "#00C000" lw 2 pt 3'/&
-         'set style line 4 lt ',i2,' lc rgb "#FF0000" lw 2 pt 2'/&
-         'set style line 5 lt ',i2,' lc rgb "#0080FF" lw 2 pt 4'/&
-         'set style line 6 lt ',i2,' lc rgb "#C8C800" lw 2 pt 5'/&
-         'set style line 7 lt ',i2,' lc rgb "#C0C0C0" lw 2 pt 7'/&
-         'set style line 8 lt ',i2,' lc rgb "#00FFFF" lw 2 pt 8'/&
-         'set style line 9 lt ',i2,' lc rgb "#804080" lw 2 pt 9'/&
-         'set style line 10 lt ',i2,' lc rgb "#7CFF40" lw 2 pt 1')
+         'set style line ',i2,' lt ',i2,' lc rgb "#000000" lw 2 pt 10'/&
+         'set style line ',i2,' lt ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
+         'set style line ',i2,' lt ',i2,' lc rgb "#00C000" lw 2 pt 3'/&
+         'set style line ',i2,' lt ',i2,' lc rgb "#FF0000" lw 2 pt 2'/&
+         'set style line ',i2,' lt ',i2,' lc rgb "#0080FF" lw 2 pt 4'/&
+         'set style line ',i2,' lt ',i2,' lc rgb "#C8C800" lw 2 pt 5'/&
+         'set style line ',i2,' lt ',i2,' lc rgb "#C0C0C0" lw 2 pt 7'/&
+         'set style line ',i2,' lt ',i2,' lc rgb "#00FFFF" lw 2 pt 8'/&
+         'set style line ',i2,' lt ',i2,' lc rgb "#804080" lw 2 pt 9'/&
+         'set style line ',i2,' lt ',i2,' lc rgb "#7CFF40" lw 2 pt 1')
 ! add some useful things for maniplulation of graph
     write(21,8000)
 8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
@@ -1317,15 +1321,17 @@
 3828   format('set multiplot'/&
             'set xrange [] writeback'/'set yrange [] writeback')
     endif
+! If no file appended the line types are (i-2)
+! if a file appended then line types are (i-2+ltf1(=10))
 ! if anpax is axis with single value (1=x, 2=y)
     if(anpax.eq.1) then
-       write(21,3900)np+2,trim(tablename)
+       write(21,3900)np+2,trim(tablename),ltf1
 3900   format('plot for [i=3:',i2,'] $',a,' using i:2',&
-            ' with lines ls (i-2) title columnheader(i)') 
+            ' with lines ls (i-2+',i2,') title columnheader(i)') 
     else
-       write(21,3910)np+2,trim(tablename)
+       write(21,3910)np+2,trim(tablename),ltf1
 3910   format('plot for [i=3:',i2,'] $',a,' using 2:i',&
-            ' with lines ls (i-2) title columnheader(i)') 
+            ' with lines ls (i-2+',i2,') title columnheader(i)') 
     endif
 ! plot command from appfil
     if(appfil.gt.0) then
@@ -1832,7 +1838,7 @@
     double precision xval(nx1,*),yval(ny1,*),zval(nz1,*)
 !\end{verbatim}
     integer, parameter :: maxcolor=200,mofapl=100
-    integer ii,jj,kk,jph,offset,n1,nofapl
+    integer ii,jj,kk,jph,offset,n1,nofapl,ltf2
     type(graphics_textlabel), pointer :: textlabel
     character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64,backslash*2
     character labelkey*64,applines(mofapl)*128,appline*128,pfc*80,pfh*80
@@ -1859,6 +1865,7 @@
 !    monovariant='00FFFF'
 !    write(*,*)'Filename: ',trim(ocgnu)
 !
+    ltf2=0
     call date_and_time(date)
     mdate=" "//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//" "
     deftitle='OpenCalphad '//version//': '//mdate//': with GNUPLOT'
@@ -2915,15 +2922,57 @@
        endif
     enddo
 ! if line too long (>200) divide in middle
-    jj=len_trim(text)/2
-    if(jj.gt.100) then
-       write(*,*)'Dividing condition twxt in the middle',jj
+    jj=len_trim(text)
+    if(jj.gt.250) then
+! text 1:ip
+       ip=jj/3
+       call find_space_in_text(text,ip,10)
+       text(ip+4:)=text(ip:)
+       text(ip:ip+3)=' \n '
+! maybe some character get lost ... no one will notice
+! text ip+4:2*ip+8
+       jp=2*ip+4
+       call find_space_in_text(text,jp,10)
+       text(jp+4:)=text(jp:)
+       text(jp:jp+3)=' \n '
+!       write(*,*)'Dividing condition text 3 parts',ip,jp,jj
+    elseif(jj.gt.100) then
+!       write(*,*)'Dividing condition text in the middle',jj
+       jj=jj/2
+       call find_space_in_text(text,jj,10)
        text(jj+4:)=text(jj:)
        text(jj:jj+3)=' \n '
     endif
 1000 continue
     return
   end subroutine get_plot_conditions
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine find_space_in_text
+!\begin{verbatim}
+  subroutine find_space_in_text(text,jp,maxc)
+! moves jp max +/-maxc charactres to find a space (? or , or : or )
+! If none found do not change jp
+    implicit none
+    character text*(*)
+    integer jp,maxc
+!\end{verbatim}
+    integer ap
+    ap=jp
+    add: do ap=jp,jp+maxc
+       if(text(ap:ap).eq.' ') goto 900
+    enddo add
+    sub: do ap=jp-1,jp-maxc,-1
+       if(text(ap:ap).eq.' ') goto 900
+    enddo sub
+! no space found
+    ap=jp
+900 continue
+!    write(*,*)'SMP2B: ',text(jp-maxc:jp+maxc),jp,ap
+    jp=ap
+    return
+  end subroutine find_space_in_text
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

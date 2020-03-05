@@ -13,19 +13,45 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2020.02.24 OC version 5.059: The next relase 6 will soon be submitted,
-also on the opencalphad.org web page.  I have spent more than 2 years
-improving version 5.  But as usual the documentation lags behind.
+2020.03.05 OC version 5.060: I am working on STEP/MAP and have made
+several canges in the datastaructure and I want to save an
+intermediary version not to blow up the whole thing.  The invariants
+for isopleths are just around the corner and the rest seems stable.
+
+Some problems with the two-state liquid model has been fixed.  All the
+"additions" to the Gibbs energy are based on some physical model and
+the equation used is normally for one mole of atoms.  But the Gibbs
+energy expression, to which they are added, is for one mole of
+formally units.  Many phases have a variable number of atoms/formula
+units (for example vacancies or constituents with several atoms) and
+thus the addition has to be multiplied with the actual number of atoms
+in the phase.  This is implemented in OC and there is a question for
+the "AMEND PHASE <name> ADDITION" command.  The derivative of the
+addition with respect to the composition for the 2-state model has
+also been corrected.
+
+In the previous version of OC I added a macro, map17, where the first
+calculated diagram is plotted with a dashed line (representing a
+second order transition).  Then the full phase diagram is calculated
+(in several steps) but when the first diagram is appended to this all
+lines became dashed.  Now I have modified the "line types" (GNUPLOT
+language) so an appended OC diagram will not have the same "line
+types" as used for the currently calculated diagram.
+
+2020.02.24 OC version 5.059: The next relase 6 of OC will soon be
+reday, also on the http://opencalphad.org web page.  I have spent more
+than 2 years gradually improving version 5.  But as usual the
+documentation lags behind.
 
 I am working on implementing all lines exiting from invariants when
-mapping isopleths, at present only three of them are created but there
-should be 2*(number of stable phases)-1.  But that will not be
-available in this version.
+mapping isopleths, at present only three of them are created (two of
+which are wrong) but there should be 2*(number of stable phases)-1.  I
+hope to finish that in the release of version 6.
 
 LOG files are useful to keep a record how to make a complicated
 calculation and also to report errors or problems using OC to the
-support team.  There has been troubles opening these bu that should
-now be fixed.
+support team.  There has been troubles opening a LOG file but that
+should now be fixed.
 
 It is now possible to select the font used for plotting.  However,
 only fonts supported by your GNUPLOT installation will work, other
@@ -42,9 +68,9 @@ There are some updates in the TQlib/Cpp directory for those interested
 in using OC as a library in an application software.  I have tried to
 update the Cpp/Scheil example.  For Windows a new command file,
 "makeocasi" has been added to create a library "libocasi.a" (excluding
-the "tinyfilesialogs").  This must be run before trying to link the
-Scheil program.  Probably a similar change is needed for Linux but I
-cannot test that.
+the "tinyfilesialogs").  This library must be created before trying to
+link the Scheil program.  Probably a similar change is needed for
+Linux but I cannot test that.
 
 2020.02.04 OC version 5.058: Finally some improvement of mapping but
 as always some diagrams are worse.  There is many things still to fix.
@@ -54,8 +80,8 @@ introduced.  At present only as a warning but in a future version
 phase names that are not unique will cause errors.  Do not forget to
 change the phase name also in all parameters!  There are several
 changes related to database management that will be documented
-finally.  I working on a new database format more flexible and less
-cryptic than the current TDB format.
+sometime in the future.  I working on a new database format which is
+more flexible and less cryptic than the current TDB format.
 
 2020.01.14 OC version 5.057: I am still trying to improve mapping of
 binary and ternary diagrams with "tie-lines in the plane" as such
@@ -67,11 +93,11 @@ want to update the github version as a backup if I make things even
 worse.
 
 For the future I have decided to abandon the "direct" format for
-saving and is preparing to extend saving also step/map results on the
+saving and is preparing to extend saving of step/map results on the
 UNFORMATTED file, OC seems to cope with quite large results without
 the need for intermediate storing on files.
 
-A am changing the commands for plotting also but I have not yet
+I am changing the commands for plotting also but I have not yet
 decided on a final set of command.  Be careful with macro files!
 
 I you need to set a logfile give the name of the file on the same line
@@ -104,7 +130,7 @@ pmon6/smp/smp2 source code about the plot devices has been sorted out.
 I provide a special makefile for MacOS (because Apple has removed the
 /usr/include directory) which I forgot in the last update.
 
-One can remove stop in macros at @& with the command
+One can remove stop in macros at "@&" with the command
 "set advanced no_macro_stop Y".  Anything else than Y will restore the
 stop.
 
@@ -114,16 +140,17 @@ Makefiles and linkmake and linkpara on Windows.
 
 A subtle problem is what reference state to use for integral
 properties like H and G if the elements have different referaence
-states.  By default SER (the stable state at 298.15K and 1bar) is used
-as reerence state but often the reference state for C or O is set to
-graphite or gas at the current T to have aa reasonable chemical
-potential but that should not affect the value of H.  But if one has
-measured the enthalpy of mixing of a phase in a binary the reference
-state for all elements is set to that phase.  In OC I have now added
-that if the reference state is different for the elements I use SER
-for the integral properties.  Only if all elements have the same
-reference state the values of integral properties like H will be
-relative to the pure elements in that phase at the specified T.
+states.  By default SER (the stable state at 298.15K and 1 bar) is
+used as reerence state but often the reference state for C or O is set
+to graphite or gas at the current T in order to have aa reasonable
+chemical potential.  But such a change should not affect the value of
+the enthalpy, H.  But if one has measured the enthalpy of mixing of a
+phase in a binary system the reference state for all elements is set
+to that phase.  In OC I have now added that if the reference state is
+different for the elements I use SER for the integral properties.
+Only if all elements have the same reference state the values of an
+integral properties like H will be relative to the pure elements in
+that phase at the specified T.
 
 Some problems with normallized state variables like NPM and BPW has
 been fixed.
@@ -132,19 +159,19 @@ been fixed.
 the Makefile I provide with OC broke.  The GNU C compiler could not
 find the necessary systems files /usr/include because Apple evidently
 does not like software they do not provide themselves.  So now there
-is a special Makefile-MacOS which use Apple's "cc" compiler.
+is a special Makefile-MacOS which uses Apple's "cc" compiler.
 
 For application software developers I have also updated some files in
 the application directory TQ4lib/F90/.  The liboctq.F90 now contains
 two extra dummy modules that are used in the interactive program but
-not needed for applications.  The the F90/crfe directory example is
+not needed for applications.  The F90/crfe directory example is
 updated, the other will be soon I hope.  I am not able to update the
 Cpp examples as I do not know C++, anyone who does is welcome to help.
 The TQ3lib-clean has been removed.
 
 2019.10.10 OC version 5.054: I have introduced a command DEBUG SYMBOL
 <symbol> <value> used in my test macros to have a hard stop if the
-value of a symbol is not the same (6 significant digits) as with
+value of a symbol is not the same (6 significant digits) as in
 previous versions.
 
 The set of stable phases is now restored after "step separate".
@@ -157,18 +184,21 @@ equilibrium for a system with many components and phases which has
 convergence problem: CALCULATE BOSSES_METHOD (or c b).  This command
 requires that the grid minimizer can be used, (i.e conditions on T, P
 and the amounts or fractions of components only) because the first
-step is to use just the grid minimizer.  In the second step all phases
-except those selected stable by the grid minimizer are suspended and
-the equilibrium calculated with the iterative algorithm.  Normally
-this will not be any problem.  Step 3 is to set all suspended phases
-as dormant and calculate again with the iterative method.  Any phase
-which is dormant but should be stable will then have a positive
-driving force.  In step 4 all dormant phases with a positive driving
+step is to use just the grid minimizer.
+- In the second step all phases except those set as stable by the grid
+minimizer are suspended and the equilibrium calculated with the
+iterative algorithm.  Normally this will not be any problem.
+- Step 3 is to set all suspended phases as dormant and calculate again
+with the iterative method.  Any phase which is dormant but should be
+stable will then have a positive driving force.
+- In step 4 the dormant phase (if any) with the most positive driving
 force will be set as entered and the equilibrium calculated again with
 the iterative method.  Step 4 is repeated until no dormant phase has a
-positive driving force.  The remaining dormant phases will then be set
-as entered and the equilibrium calculation has hopefully converged.
-This should be a more stable way to calculate a complex equilibrium.
+positive driving force.
+
+The remaining dormant phases will then be set as entered and the
+equilibrium calculation has hopefully converged.  This should be a
+more stable way to calculate a complex equilibrium.
 
 The save/read unformatted feature has been changed to make it possible
 to save direcly to some allocated memory.  It should make it a bit
@@ -184,7 +214,7 @@ connection between symbols and TP functions needed for assessments.
 But suddenly my tests using OC crashed inside lmdif without it having
 been touched.  I naturally belived this had to do with my other
 changes but finally it turned out to be a bug I introduced in lmdif
-many yeara ago in order to have regular outputs from lmdif.  I had
+many years ago in order to have regular outputs from lmdif.  I had
 misspelled a variable (I forgot this routine had not IMPLICT NONE as I
 had converted it from an F77 version).  Evidently for several years
 this mispelled variable had been assigned an arbitrary value which had
@@ -196,7 +226,7 @@ change is still being tested but if you have problems please report.
 The intention is to be able to transfer values from TP functions (or
 optimizing parameters to state variable symbols and vice versa.
 
-Finally I have found I must use Garamond Bold for the OC logo, not
+Finally I was told that I must use Garamond Bold for the OC logo, not
 Garamond bold... very subtle.
 
 2019.08.26 OC version 5.051: Finally a new facility for the users, I
@@ -208,20 +238,21 @@ phase can be offset by a certain energy with the command "AMEND PHASE
 <phase name> GADD" to add a Gibbs energy to one of the¨phases.
 
 To do this I needed a solver for non-linear equations and I use HYBRD
-from the MINPACK package.  I already use the LMDIF routine from this
-package for the assessments.  Thanks to ANL and the University of
+from the MINPACK package.  I already use the LMDIF routine from the
+same package for the assessments.  Thanks to ANL and the University of
 Chicago to provide these.  There were some difficulties to merge these
 routines as I originally had not managed to use "external" subroutines
 in calls (partially because the MODULE concept makes it impossible to
-call routines outside the module).  It was a bit trial and error until
-I managed to link everyting in correct order and run all the tests.
+call routines outside the module or in a submodule).  It was a bit
+trial and error until I managed to link everyting in correct order and
+run all the tests.
 
 This has required changes in the Makefile and the files to compile and
 link on Windows.  I have test this on Windows, 2 Linux dialects and
 MacOS but please give me feedback on any problems.
 
 Otherwise there are some minor fixes with the user interface and
-manuals, I have updated the help files for the T-zero command!
+manuals, I have even updated the help files for the T-zero command!
 
 2019.08.26 OC version 5.050: A few minor changes mainly for the popup
 help facility.  The User Guide and some of the installation guides
@@ -238,7 +269,7 @@ combinations.
 
 For the online help facility you must create an environment variable
 OCHOME which should be the path to the directory where you have the
-ochelp.html file.  In the download this file is int he manual/
+ochelp.html file.  In the download this file is in he manual/
 directory.
 
 To understand the new plot commands you can also look at some of the
@@ -249,13 +280,13 @@ previous option, for example "extra Gibbs-triangle y"
 2019.08.11 OC version 5.048: A major change in the online help has
 been made.  Previously a complicated way trying to keep trace of the
 commands was used to provide help and the help text was written on the
-same screen as the program used.  Now each question for user input is
+same screen as the program.  Now each question for user input is
 associated with an HTML "hypertarget" to find the position in the user
 guide that can provide relevant help.  The help text is provided in a
-separate browser window using explorer or firefox.  The user may seach
-the whole user guide in this window.  But it requires a proper
-installation of the help facility, there is a separate installation
-guide for the help.
+separate browser window using Windows explorer or firefox.  The user
+may seach the whole user guide in this window.  But it requires a
+proper installation of the help facility and the environment
+varaiable, there is a separate installation guide for the help.
 
 At present the update of the user guide is not complete but most
 features should work.  On the command level a simple ? gives the manu
@@ -267,9 +298,9 @@ online help please give feedback.
 2019.08.03 OC version 5.047: The metlib package has now been updated
 completely to the new Fortran standard and for example uses IMPLICIT
 NONE in all routines.  There are still things to fix but it is now
-possible to trace changes.  I worried that some of the WPACK routines
-would create difficulties as I sometimes transfer argument with the
-wrong types.
+possible to trace changes.  I was worried that some of the WPACK
+routines would create difficulties as I sometimes transfer argument
+with the wrong types.
 
 PLEASE REPORT ANY PROBLEMS!
 
@@ -299,11 +330,12 @@ I also discovered a bug I introduced in the previous release, it is
 now fixed.
 
 2019.07.31 OC version 5.045: The possibility to set a condition on a
-fraction has been extended to allow axpressions which is necessary to
-calculate a 2nd order transition when the fractions of the same
-element in two sublattice has a small difference.  I have added a
-macro for this, step9.OCM, where I also test a new expression for the
-SRO parameter.  This is still not perfect but it can be improved.
+constituent fraction has been extended to allow axpressions which is
+necessary to calculate a 2nd order transition when the fractions of
+the same element in two sublattice has a small difference.  I have
+added a macro for this, step9.OCM, where I also test a new expression
+for the SRO parameter.  This is still not perfect but it can be
+improved.
 
 I have also spent some time to improve my documentation software as it
 is now almost 3 years since I updated the OC documentation and I am
@@ -312,14 +344,14 @@ and most complicated part of OC and there is now a new PDF file which
 is (almost) up to date.
 
 2019.07.22 OC version 5.044: I have added a possibility to set a
-condition of a site fraction of a phase.  An example using this has
-been added to the STEP8 macro, setting the constituent fraction of H2O
-in a gas phase.  Note that in an ideal gas phase the fraction of a
-molecule should be equal to its partial pressure.  At present it does
-not work to redefine the components in order to make, for example, a
-species such as H2O1 to a component.  But setting a condition the
-fraction of a gas molecule is the same as to set its partial pressure
-when the gas is ideal.
+condition of a constituent (site) fraction of a phase.  An example
+using this has been added to the STEP8 macro, setting the constituent
+fraction of H2O in a gas phase.  Note that in an ideal gas phase the
+fraction of a molecule should be equal to its partial pressure.  At
+present it does not work to redefine the components in order to make,
+for example, a species such as H2O1 to a component.  But setting a
+condition the fraction of a gas molecule is the same as to set its
+partial pressure when the gas is ideal.
 
 A minor bug setting reference states has also been fixed.  I have also
 added a function MAX1(X) that can be used in a TP function or
@@ -727,7 +759,7 @@ I have spent some time deriving derivatives for the UNIQUAC model.
 This model, contrary to most fluid models, has an integral Gibbs
 energy expression even if I think the derived "activity coefficients"
 are the most used and modeling activity coefficients leads to
-inconsistencies.  Probably many modificatios has also been made since
+inconsistencies.  Probably many modifications has also been made since
 the model was published 1975.
 
 I have also found and fixed a rather dangerous bug in the TPPFUN

@@ -2741,6 +2741,31 @@ end subroutine get_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine suspend_unstable_sets
+!\begin{verbatim}
+ subroutine suspend_unstable_sets(mode,ceq)
+! suspend extra composition sets that are not stable
+   implicit none
+   integer mode
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer lokph,ics,lokcs
+!   loop for all phases
+   phases: do lokph=1,noofph
+      if(phlista(lokph)%noofcs.eq.1) cycle phases
+      sets: do ics=2,phlista(lokph)%noofcs
+! never change first composition set, even if not stable
+         lokcs=phlista(lokph)%linktocs(ics)
+         if(ceq%phase_varres(lokcs)%phstate.gt.0) cycle sets
+         ceq%phase_varres(lokcs)%phstate=PHSUS
+      enddo sets
+   enddo phases
+1000 continue
+   return
+ end subroutine suspend_unstable_sets
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !\addtotable subroutine set_uniquac_species
 !\begin{verbatim}
  subroutine set_uniquac_species(loksp)

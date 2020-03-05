@@ -86,6 +86,8 @@ MODULE ocsmp
 ! if we have 3 or more axis there can be 2 or more fix phases along the line??
 ! With 2 axis there can only be one fix phase!
      type(gtp_phasetuple), dimension(:), allocatable :: linefixph
+! also save index to phr!!
+     integer, dimension(:), allocatable :: linefix_phr
 ! Save the phase tuplet representing the phase fix at start node here
 ! If it wants to be stable at first step along a line change axis direction
 !     type(gtp_phasetuple) :: nodfixph
@@ -96,6 +98,8 @@ MODULE ocsmp
      integer nstabph
      type(gtp_phasetuple), dimension(:), allocatable :: stableph
      double precision,     dimension(:), allocatable :: stablepham
+! added also index to phr as that seems useful
+     integer,              dimension(:), allocatable :: stable_phr
 ! axandir is set when linenode is created to the axis and direction for first
 ! step from the node.  It can be changed to another axis and direction
 ! during map and indicate the current axis with active condition
@@ -169,7 +173,7 @@ MODULE ocsmp
 ! seqx is unique identifier for a map node
 ! seqy unique identifier for maplines, incremented for each line (only maptop)
      integer seqx,seqy
-! nodefix is the phase held fix when calculating node (negative if removed)
+! nodefix is the phase held fix when calculating node
      type(gtp_phasetuple) :: nodefix
 ! Value of T and P, copied from meqrec
      double precision, dimension(2) :: tpval

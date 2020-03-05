@@ -149,6 +149,8 @@ MODULE liboceqplus
      integer nfixph,nstabph
      type(gtp_phasetuple), dimension(:), allocatable :: fixph
      type(gtp_phasetuple), dimension(:), allocatable :: stableph
+! most likely some of these variables are redundant stable_phr added 2020.03.05
+     integer, dimension(:), allocatable :: stable_phr
      double precision, dimension(:), allocatable :: stablepham
 ! new 180814 to have nonzero fix phase amounts  ... not yet used
      double precision, dimension(:), allocatable :: fixphamap
@@ -218,10 +220,14 @@ CONTAINS
     type(map_fixph), allocatable :: mapfix
 !    type(map_fixph), pointer :: mapfix
     double precision starting,finish2,gtot
-    integer starttid,endoftime,ij,addtuple
+    integer starttid,endoftime,ij,addtuple,errall
     character name*16
 !--------------------------------
-    allocate(meqrec1)
+    allocate(meqrec1,stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 1: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     meqrec=>meqrec1
     meqrec%status=0
     if(allocated(mapfix)) deallocate(mapfix)
@@ -232,7 +238,7 @@ CONTAINS
     call calceq7(mode,meqrec,mapfix,ceq)
     call system_clock(count=endoftime)
     call cpu_time(finish2)
-!1000 continue
+1000 continue
     if(gx%bmperr.eq.0) then
 ! Gibbs energy using SER as reference state
        call get_state_var_value('GS ',gtot,name,ceq)
@@ -289,9 +295,13 @@ CONTAINS
     type(map_fixph), allocatable :: mapfix
 !    type(map_fixph), pointer :: mapfix
     double precision starting,finish2
-    integer starttid,endoftime,ij,addtuple
+    integer starttid,endoftime,ij,addtuple,errall
 !--------------------------------
-    allocate(meqrec1)
+    allocate(meqrec1,stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 2: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     meqrec=>meqrec1
     meqrec%status=0
     if(.not.confirm) meqrec%status=ibset(meqrec%status,MMQUIET)
@@ -304,7 +314,7 @@ CONTAINS
     call calceq7(mode,meqrec,mapfix,ceq)
     call system_clock(count=endoftime)
     call cpu_time(finish2)
-!1000 continue
+1000 continue
     if(gx%bmperr.eq.0) then
 ! Here we have now an equilibrium calculated.  Do a cleanup of the structure
 ! for phases with several compsets the call below shifts the stable one
@@ -366,7 +376,7 @@ CONTAINS
 ! for global minimization (change maybe to allocate dynamically)
     integer, dimension(maxph) :: nyphl
     double precision, dimension(maxconst) :: yarr
-    integer np,iph,ics,jph,lokph,lokcs,mode2
+    integer np,iph,ics,jph,lokph,lokcs,mode2,errall
     integer mostcon,mph,nvf,mostconph(2,maxel),icc,jcc
 ! max number of potential conditions
     integer, parameter :: mmu=20
@@ -375,9 +385,9 @@ CONTAINS
     integer fixph(2,maxel),oldorder(mmu),kst,jj
 ! just for debugging
 !    integer idum(1000)
-    double precision fixpham(maxel),sumnp
+    double precision fixpham(maxel),sumnp,props(5)
     logical ycond
-    integer jq,ntup
+    integer jq,ntup,saverr
 !    character statevar*40
 !
     ntup=nooftup()
@@ -568,10 +578,14 @@ CONTAINS
     if(np.gt.0) then 
 ! number of fixed chemical potentials
        if(.not.allocated(meqrec%mufixel)) then
-          allocate(meqrec%mufixel(np))
-          allocate(meqrec%mufixref(np))
-          allocate(meqrec%mufixval(np))
-          allocate(meqrec%mufixvalref(np))
+          allocate(meqrec%mufixel(np),stat=errall)
+          allocate(meqrec%mufixref(np),stat=errall)
+          allocate(meqrec%mufixval(np),stat=errall)
+          allocate(meqrec%mufixvalref(np),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 3: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
        else
 ! this can happen if activity condition and calculating without gridmin
           write(*,*)'Warning: meqrec has already mufixel allocated!'
@@ -605,8 +619,12 @@ CONTAINS
 ! allocate 5 extra places for fix phase during mapping ...
        if(.not.allocated(meqrec%fixph)) then
 !          write(*,*)'Allocate  meqrec%fixph'
-          allocate(meqrec%fixph(2,meqrec%nfixph+5))
-          allocate(meqrec%fixpham(meqrec%nfixph+5))
+          allocate(meqrec%fixph(2,meqrec%nfixph+5),stat=errall)
+          allocate(meqrec%fixpham(meqrec%nfixph+5),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 4: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
 !          write(*,*)'Allocated meqrec%fixph'
        endif
        if(np.gt.1) then
@@ -622,8 +640,12 @@ CONTAINS
     else
 ! allocate 5 places for fix phase during mapping (one per axis)
        if(.not.allocated(meqrec%fixph)) then
-          allocate(meqrec%fixph(2,5))
-          allocate(meqrec%fixpham(5))
+          allocate(meqrec%fixph(2,5),stat=errall)
+          allocate(meqrec%fixpham(5),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 5: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
        endif
     endif
 !----------------------------
@@ -898,7 +920,11 @@ CONTAINS
 ! allocate phaseremoved to avoid same phase stable again and again
     if(allocated(ceq%phaseremoved)) deallocate(ceq%phaseremoved)
     ntup=nooftup()
-    allocate(ceq%phaseremoved(2,ntup))
+    allocate(ceq%phaseremoved(2,ntup),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 6: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     ceq%phaseremoved=0
 !
 ! this routine varies the set of phases and the phase constitutions
@@ -919,6 +945,21 @@ CONTAINS
     endif
 !--------------------------------------------------
 1000 continue
+    if(gx%bmperr.ne.0) then
+! test if total number of models > 10; that can create converge problems
+       saverr=gx%bmperr; gx%bmperr=0
+! This routine returns total G, S, V, N and B
+       call sumprops(props,ceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Convergence error, check your conditions are reasonable'
+       elseif(props(4).gt.10 .and. &
+            .not.(saverr.eq.4210 .or. saverr.eq.4364)) then
+          write(*,*)'Convergence error: *** REDUCE THE SIZE OF YOUR SYSTEM!',&
+               saverr
+       endif
+       gx%bmperr=saverr
+    endif
+! This error means T or P is less than 0.1
     if(gx%bmperr.eq.4187) write(*,*)'Exit calceq7 with error ',gx%bmperr
     return
   end subroutine calceq7
@@ -944,7 +985,7 @@ CONTAINS
     double precision xxx,tpvalsave(2)
     integer iremsave,zz,tupadd,tuprem,samephase,phloopaddrem1,phloopaddrem2
 ! mapx is special for using meq_sameset for mapping
-    integer phloopv,noremove,findtupix,saverr,mapx
+    integer phloopv,noremove,findtupix,saverr,mapx,errall
     character phnames*50
 ! prevent loop that a phase is added/removed more than 10 times
     integer, allocatable, dimension(:,:) :: addremloop
@@ -975,7 +1016,11 @@ CONTAINS
     if(gx%bmperr.ne.0) goto 1000
 ! Nathalie had an error here "already allocated"
     if(allocated(meqrec%phr)) deallocate(meqrec%phr)
-    allocate(meqrec%phr(meqrec%nphase))
+    allocate(meqrec%phr(meqrec%nphase),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 7: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 ! order the inital set of stable phases in ascending order
 ! VERY CLUMSY SORTING
 15  continue
@@ -1166,7 +1211,11 @@ CONTAINS
     phloopaddrem1=0
 ! code above executed only intially
 !    write(*,*)'MM allocating addremloop',meqrec%nphase
-    allocate(addremloop(meqrec%nphase,3))
+    allocate(addremloop(meqrec%nphase,3),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 8: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     addremloop=0
 !----------------------------------------------------------------
 !
@@ -1313,7 +1362,10 @@ CONTAINS
              call get_phasetup_name(tuprem,phnames(2:))
           endif
           if(formap) then
-             write(*,*)'Phase change not allowed: ',trim(phnames)
+! This can be too strong, we can have a tie-line betwen two stoichiometric
+! phases, i.e. a new phase appears at first attempt to step in two-phase region.
+! UNFINISHED handling of many exceptions during mapping 
+             write(*,'(a,a)')'MM Phase change not allowed: ',trim(phnames)
              gx%bmperr=4210; goto 1000
 #ifdef silent
 #else
@@ -1728,7 +1780,7 @@ CONTAINS
     double precision maxphasechange,molesofatoms,factconv
     double precision lastdeltat,deltatycond,phfmin,value
 !    double precision, allocatable, dimension(:) :: loopfact
-    integer notf,dncol,iy,jy,iremsave,phasechangeok,nextch,iremax,srem
+    integer notf,dncol,iy,jy,iremsave,phasechangeok,nextch,iremax,srem,errall
     character phnames*50
     double precision, dimension(:), allocatable :: lastdeltaam
     logical vbug,stoikph
@@ -1774,7 +1826,11 @@ CONTAINS
 !    ymagic=one
 !    nmagic=0
 ! this is an attempt to decrease variation in phase amount corrections
-    allocate(lastdeltaam(meqrec%nstph))
+    allocate(lastdeltaam(meqrec%nstph),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 9: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     lastdeltaam=zero
 ! dimension matrix for conditions, components+stable phases
     nz1=meqrec%nrel-meqrec%nfixmu+meqrec%nstph-meqrec%nfixph
@@ -1785,8 +1841,12 @@ CONTAINS
 11  format('In meq_sameset, sysmat: ',4i7,2l2,i5,1pe12.4)
     nz2=nz1+1
     if(vbug) write(*,*)'Allocating smat: ',nz1
-    allocate(smat(nz1,nz2))
-    allocate(svar(nz1))
+    allocate(smat(nz1,nz2),stat=errall)
+    allocate(svar(nz1),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 10: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 ! check if constituent fraction correction in stable phases increases
 ! for each iteration.  Needed for the Re-V case ....
     prevmaxycorr=zero
@@ -2266,8 +2326,11 @@ CONTAINS
 !          write(*,*)'Fixed phase: ',jj,phf
        else
 ! phase is dormant or suspended, must not be stable!!!!
-          write(*,373)phr(jj)%iph,phr(jj)%ics,kkz
-373       format('MM This phase must not be stable:',3i7)
+          call get_phase_name(phr(jj)%iph,phr(jj)%ics,phnames)
+          if(gx%bmperr.ne.0) goto 1000
+!          write(*,373)phr(jj)%iph,phr(jj)%ics,kkz
+          write(*,373)trim(phnames),kkz
+373       format('MM The phase ',a,' cannot vary its amount:',3i7)
           gx%bmperr=4194; goto 1000
        endif
 ! problem with Fe-O-U-Zr convergence, all phases disappear ??
@@ -2433,7 +2496,11 @@ CONTAINS
 ! if phr(jj)%xdone=1 then phase has no composition variation
        if(phr(jj)%xdone.eq.1) cycle
 !----------------------------------------------------
-       allocate(cit(phr(jj)%idim))
+       allocate(cit(phr(jj)%idim),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 11: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        cit=zero
        if(meqrec%tpindep(1)) then
 ! variable T, code copied from calc_dgdyterms, cit(nj) used below
@@ -2847,7 +2914,11 @@ CONTAINS
     ceq%nfixmu=meqrec%nfixmu
     if(allocated(ceq%fixmu)) deallocate(ceq%fixmu)
     if(ceq%nfixmu.gt.0) then
-       allocate(ceq%fixmu(ceq%nfixmu))
+       allocate(ceq%fixmu(ceq%nfixmu),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 12: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        do ie=1,ceq%nfixmu
           ceq%fixmu(ie)=meqrec%mufixel(ie)
        enddo
@@ -2855,7 +2926,11 @@ CONTAINS
     ceq%nfixph=meqrec%nfixph
     if(allocated(ceq%fixph)) deallocate(ceq%fixph)
     if(ceq%nfixph.gt.0) then
-       allocate(ceq%fixph(2,ceq%nfixph))
+       allocate(ceq%fixph(2,ceq%nfixph),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 13: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        do ie=1,ceq%nfixph
 ! phase and composition set numbers
           ceq%fixph(1,ie)=meqrec%fixph(1,ie)
@@ -2897,9 +2972,13 @@ CONTAINS
        if(vbug) write(*,*)'Save inverted phase matrix in meq_sameset: ',jj,ie
 !       ie=int(sqrt(real(size(phr(jj)%invmat)))+0.1)
 !       write(*,*)'Size: ',ie,phr(jj)%ncc
-       allocate(phr(jj)%curd%cinvy(ie,ie))
-       allocate(phr(jj)%curd%cxmol(meqrec%nrel))
-       allocate(phr(jj)%curd%cdxmol(meqrec%nrel,phr(jj)%ncc))
+       allocate(phr(jj)%curd%cinvy(ie,ie),stat=errall)
+       allocate(phr(jj)%curd%cxmol(meqrec%nrel),stat=errall)
+       allocate(phr(jj)%curd%cdxmol(meqrec%nrel,phr(jj)%ncc),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 14: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        phr(jj)%curd%cinvy=phr(jj)%invmat
        phr(jj)%curd%cxmol=phr(jj)%xmol
        phr(jj)%curd%cdxmol=phr(jj)%dxmol
@@ -2955,7 +3034,7 @@ CONTAINS
 ! cmix dimensioned for 2 terms ...
     integer tcol,pcol,dncol
     integer sel,jph,jj,ie,je,ncol
-    integer nz2,nrow
+    integer nz2,nrow,errall
     double precision cvalue,totam,pham,mag,mat,map,xxx
 ! the next line of values are a desperate search for a solution
 !    double precision amount
@@ -2999,7 +3078,11 @@ CONTAINS
 !
 !-------------------------------------------------------------------
 !    write(*,*)'MM: in comp2cons'
-    allocate(mamu(meqrec%nrel))
+    allocate(mamu(meqrec%nrel),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 15: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 !    goto 1000
 ! zero all values in equil matrix, dimension (nz1)x(nz1)
     nz2=nz1+1
@@ -3043,7 +3126,11 @@ CONTAINS
 !        \sum_alpha N^a \sum_i d2M^a_A/dTdy_i z^a_ij d2G/dTdy_j      *deltaT
 !        \sum_alpha N^a \sum_i d2M^a_A/dPdy_i z^a_ij d2G/dPdy_j      *deltaP
 !        \sum_A M^a_A                                    *deltaN^a
-       allocate(xcol(nz2))
+       allocate(xcol(nz2),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 16: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        xcol=zero
 !       totam=zero
 !       nallph: do jj=1,meqrec%nphase
@@ -3156,7 +3243,7 @@ CONTAINS
 ! cmix dimensioned for 2 terms ...
     integer cmix(22),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
     integer notf,nz2,nrow,nterms,mterms,moffs,ncol2,iph
-    integer xterm,yindex,jy,allocatestatus
+    integer xterm,yindex,jy,errall
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
 ! the next line of values are a desperate search for a solution
     double precision totalmol,totalmass,check1,check2,amount,mag1,mat1,map1
@@ -3334,7 +3421,11 @@ CONTAINS
     nrow=meqrec%nstph
     lastcond=>ceq%lastcondition
     condition=>lastcond
-    allocate(mamu(meqrec%nrel))
+    allocate(mamu(meqrec%nrel),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 17: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 ! for saving partial dgdyterms, set nosave=.TRUE. to use old calc_dgdyterms1
 !    nosave=.TRUE.
 ! nosave always FALSE as there are places to save results in phase_varres
@@ -3425,7 +3516,11 @@ CONTAINS
 ! calculate and store the drivatives in xcol
 ! How to know wich is the independent for each index?
 ! SEE HOW A V condition is calculated below!!
-          allocate(xcol(nz2))
+          allocate(xcol(nz2),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 18: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
 220       continue
           if(mterms.le.nterms) then
 ! loop over ALL phases
@@ -3469,7 +3564,11 @@ CONTAINS
 !     \sum_i dGM/dP*dP + ??
 !     \sum_alpha ???
 ! UNFINISHED ??
-          allocate(xcol(nz2))
+          allocate(xcol(nz2),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 19: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           xcol=zero
           totam=zero
           notf=0
@@ -3490,11 +3589,19 @@ CONTAINS
              endif
 ! moles formula unit of phase
              pham=pmi%curd%amfu
-             allocate(hval(pmi%ncc))
+             allocate(hval(pmi%ncc),stat=errall)
+             if(errall.ne.0) then
+                write(*,*)'MM Allocation error 20: ',errall
+                gx%bmperr=4370; goto 1000
+             endif
              notdone=.FALSE.
              if(.not.allocated(mamu1)) then
 ! it will be deallocated when leaving this subroutine ??
-                allocate(mamu1((meqrec%nrel)))
+                allocate(mamu1((meqrec%nrel)),stat=errall)
+                if(errall.ne.0) then
+                   write(*,*)'MM Allocation error 21: ',errall
+                   gx%bmperr=4370; goto 1000
+                endif
              endif
              ncol=1
              if(stvix.eq.3) then
@@ -3648,7 +3755,11 @@ CONTAINS
 !     \sum_alpha ???
 ! Condition H=value and H(phase)=value are OK, HM=value is NOT OK  Why??
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-          allocate(xcol(nz2))
+          allocate(xcol(nz2),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 22: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           xcol=zero
           totam=zero
           notf=0
@@ -3669,11 +3780,15 @@ CONTAINS
              endif
 ! moles formula unit of phase
              pham=pmi%curd%amfu
-             allocate(hval(pmi%ncc))
+             allocate(hval(pmi%ncc),stat=errall)
              notdone=.FALSE.
              if(.not.allocated(mamu1)) then
 ! it will be deallocated when leaving this subroutine ??
-                allocate(mamu1((meqrec%nrel)))
+                allocate(mamu1((meqrec%nrel)),stat=errall)
+             endif
+             if(errall.ne.0) then
+                write(*,*)'MM Allocation error 23: ',errall
+                gx%bmperr=4370; goto 1000
              endif
              ncol=1
              if(stvix.eq.3) then
@@ -3835,7 +3950,11 @@ CONTAINS
 !   (-Td2G/dT2 + \sum_i (dG/dy_i - Td2G/dTdY_i)c_iT)dT + ...
 !   +\sum_alpha (G-TdG/dT)\delta FU(alpha) =
 !    \sum_alpha FU(alpha)\sum_i(dG/dy_i-Td2G/dTdy_i)c_iG + H-\tilde H
-          allocate(xcol(nz2))
+          allocate(xcol(nz2),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 24: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           xcol=zero
           totam=zero
           notf=0
@@ -3844,7 +3963,11 @@ CONTAINS
           notdone=.TRUE.
           if(.not.allocated(mamu1)) then
 ! it will be deallocated when leaving this subroutine ??
-             allocate(mamu1((meqrec%nrel)))
+             allocate(mamu1((meqrec%nrel)),stat=errall)
+             if(errall.ne.0) then
+                write(*,*)'MM Allocation error 25: ',errall
+                gx%bmperr=4370; goto 1000
+             endif
           endif
 ! current value of molar enthalpy
           if(sph.eq.0) then
@@ -3879,7 +4002,11 @@ CONTAINS
                 pham=pmi%curd%amfu
              endif
 ! moles formula unit of phase
-             allocate(hval(pmi%ncc))
+             allocate(hval(pmi%ncc),stat=errall)
+             if(errall.ne.0) then
+                write(*,*)'MM Allocation error 26: ',errall
+                gx%bmperr=4370; goto 1000
+             endif
              notdone=.FALSE.
 ! calculate the terms dG/dy_i - T*d2G/dTdy_i for all constituents
              do ie=1,pmi%ncc
@@ -4034,7 +4161,11 @@ CONTAINS
              sph=cmix(3); scs=cmix(4)
           endif
 ! current value of dG=\sum_A dM_A \mu_A + G -\tilde G=0
-          allocate(xcol(nz2))
+          allocate(xcol(nz2),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 27: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           xcol=zero
 !...UNFINISHED
           gx%bmperr=4207; goto 1000
@@ -4095,7 +4226,11 @@ CONTAINS
 !        \sum_alpha N^a \sum_i d2M^a_A/dTdy_i z^a_ij d2G/dTdy_j      *deltaT
 !        \sum_alpha N^a \sum_i d2M^a_A/dPdy_i z^a_ij d2G/dPdy_j      *deltaP
 !        \sum_A M^a_A                                    *deltaN^a
-          allocate(xcol(nz2))
+          allocate(xcol(nz2),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 28: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           xcol=zero
           totam=zero
 ! notf keeps track on entered non-fixed phases with variable amount
@@ -4215,12 +4350,13 @@ CONTAINS
 ! allocate arry to save intermediate results
 ! -Wuninitialized gave a warning: qmat.dim[0].ubound may be uninitilzed
 ! when used a few lines below but adding this removed this ... 
-!               if(.not.allocated(qmat)) allocate(qmat(nz2),STAT=allocatestatus)
-!                if(allocatestatus.ne.0) then
-!                   write(*,*)'Allocation failed',allocatestatus
-!                endif
-!                write(*,*)'Allocation of qmat OK',allocatestatus
-                if(.not.allocated(qmat)) allocate(qmat(nz2))
+                if(.not.allocated(qmat)) then
+                   allocate(qmat(nz2),stat=errall)
+                   if(errall.ne.0) then
+                      write(*,*)'MM Allocation error 29: ',errall
+                      gx%bmperr=4370; goto 1000
+                   endif
+                endif
                 qmat=zero
                 evalue=zero
              endif
@@ -4342,9 +4478,13 @@ CONTAINS
           if(.not.allocated(xxmm)) then
 ! this call returns the current fractions and total amounts.  We need
 ! to do it only once inside this subroutine. xxmm are deallocated at exit
-             allocate(xxmm(meqrec%nrel))
-             allocate(wwnn(meqrec%nrel))
+             allocate(xxmm(meqrec%nrel),stat=errall)
+             allocate(wwnn(meqrec%nrel),stat=errall)
              calcmolmass=.FALSE.
+             if(errall.ne.0) then
+                write(*,*)'MM Allocation error 30: ',errall
+                gx%bmperr=4370; goto 1000
+             endif
           endif
           if(.not.calcmolmass) then
              call calc_molmass(xxmm,wwnn,totalmol,totalmass,ceq)
@@ -4352,8 +4492,12 @@ CONTAINS
              calcmolmass=.TRUE.
           endif
 ! two summations, zcol sums the term dN(A); xcol sums dN (as above)
-          allocate(xcol(nz2))
-          allocate(zcol(nz2))
+          allocate(xcol(nz2),stat=errall)
+          allocate(zcol(nz2),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 31: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           xcol=zero
           zcol=zero
           totam=zero
@@ -4493,7 +4637,13 @@ CONTAINS
 ! this branch if 2 or more terms
              if(mterms.eq.1) then
 ! allocate array for saving intermediate results
-                if(.not.allocated(qmat)) allocate(qmat(nz2))
+                if(.not.allocated(qmat)) then
+                   allocate(qmat(nz2),stat=errall)
+                   if(errall.ne.0) then
+                      write(*,*)'MM Allocation error 32: ',errall
+                      gx%bmperr=4370; goto 1000
+                   endif
+                endif
                 qmat=zero
                 evalue=zero
              endif
@@ -4614,7 +4764,11 @@ CONTAINS
 !        \sum_alpha N^a \sum_i d2M^a_A/dTdy_i z^a_ij d2G/dTdy_j      *deltaT
 !        \sum_alpha N^a \sum_i d2M^a_A/dPdy_i z^a_ij d2G/dPdy_j      *deltaP
 !        \sum_A M^a_A                                    *deltaN^a
-          allocate(xcol(nz2))
+          allocate(xcol(nz2),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 33: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           xcol=zero
           totam=zero
 ! notf keeps track on entered non-fixed phases with variable amount
@@ -4707,8 +4861,12 @@ CONTAINS
           if(.not.allocated(xxmm)) then
 ! this call returns the current fractions and total amounts.  We need
 ! to do it only once inside this subroutine. xxmm are deallocated at exit
-             allocate(xxmm(meqrec%nrel))
-             allocate(wwnn(meqrec%nrel))
+             allocate(xxmm(meqrec%nrel),stat=errall)
+             allocate(wwnn(meqrec%nrel),stat=errall)
+             if(errall.ne.0) then
+                write(*,*)'MM Allocation error 34: ',errall
+                gx%bmperr=4370; goto 1000
+             endif
              call calc_molmass(xxmm,wwnn,totalmol,totalmass,ceq)
              if(gx%bmperr.ne.0) goto 1000
           endif
@@ -4779,8 +4937,12 @@ CONTAINS
           if(.not.allocated(xxmm)) then
 ! this call returns the current fractions and total amounts.  We need
 ! to do it only once inside this subroutine. xxmm are deallocated at exit
-             allocate(xxmm(meqrec%nrel))
-             allocate(wwnn(meqrec%nrel))
+             allocate(xxmm(meqrec%nrel),stat=errall)
+             allocate(wwnn(meqrec%nrel),stat=errall)
+             if(errall.ne.0) then
+                write(*,*)'MM Allocation error 35: ',errall
+                gx%bmperr=4370; goto 1000
+             endif
              calcmolmass=.FALSE.
           endif
           if(.not.calcmolmass) then
@@ -4791,8 +4953,12 @@ CONTAINS
 !          write(*,267)'wwnn: ',(wwnn(ncol),ncol=1,noel())
 !          write(*,267)'xxmm: ',(xxmm(ncol),ncol=1,noel())
 ! two summations, zcol sums the term dN(A); xcol sums dN (as above)
-          allocate(xcol(nz2))
-          allocate(zcol(nz2))
+          allocate(xcol(nz2),stat=errall)
+          allocate(zcol(nz2),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 36: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           xcol=zero
           zcol=zero
           totam=zero
@@ -5152,7 +5318,7 @@ CONTAINS
     integer nrel,i2sly(2),info
     integer ik,iph,ics,jz,iz,jk,ierr,kk,kkk,ll,lokcs,ncc,loksp,ncl
 !    integer nd1,nd2,neq,nochange,nsl,nspel,nv,ncon,icon,jxsym,kxsym
-    integer nd1,nd2,neq,nochange,nsl,nspel,nv,ncon,icon,jxsym
+    integer nd1,nd2,neq,nochange,nsl,nspel,nv,ncon,icon,jxsym,errall
 ! needed for call to get_phase_data
     integer, dimension(maxsubl) ::  nkl
     integer, dimension(maxconst) :: knr
@@ -5285,17 +5451,29 @@ CONTAINS
 ! last column of pmat is left hand side ?? (reminicent from Lukas program)
 !    allocate(pmat(nd1,nd2))
 ! pmat should be a square matrix
-    allocate(pmat(nd1,nd1))
+    allocate(pmat(nd1,nd1),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 37: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 ! return dimension of pmi%invmat
     if(pmi%idim.eq.0) then
        pmi%idim=nd1
        pmi%ncc=ncc
-       allocate(pmi%invmat(nd1,nd1))
+       allocate(pmi%invmat(nd1,nd1),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 38: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        pmi%invmat=zero
 !       write(*,*)'Allocated invmat: ',nd1,ncc
 ! meqrec is not available in this routine but meqrec%nrel passed in call
-       allocate(pmi%xmol(nrel))
-       allocate(pmi%dxmol(nrel,ncc))
+       allocate(pmi%xmol(nrel),stat=errall)
+       allocate(pmi%dxmol(nrel,ncc),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 39: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
 !       write(*,*)'Allocated phase matrix: ',nd2,noel(),ncc
     endif
 ! value of RT should be moved before phase loop
@@ -5557,7 +5735,11 @@ CONTAINS
        dqsum=zero
        pmi%sumxmol=zero
        pmi%sumwmol=zero
-       allocate(sumion(nrel,2))
+       allocate(sumion(nrel,2),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 40: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
 !       pmi%sumiliq=zero
 ! end extra
        ncon=0
@@ -6289,7 +6471,7 @@ CONTAINS
     type(meq_phase), pointer :: pmi
 !\end{verbatim} %+
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
-    integer iy,jy,ib,nocon
+    integer iy,jy,ib,nocon,errall
 ! initial values for saved results OLD VERSION
     integer :: sameit=0,big1p=0,big2p=0,big1n=0,big2n=0
     double precision cig,cit,cip,haha
@@ -6371,13 +6553,17 @@ CONTAINS
 ! noofits=1 means phase is ideal, use only diagonal
     nocon=pmi%ncc
 !    if(allocated(zib)) deallocate(zib)
-    allocate(zib(nrel))
+    allocate(zib(nrel),stat=errall)
     if(nocon.gt.nrel) then
        big=.TRUE.
        if(allocated(maybesave)) deallocate(maybesave)
-       allocate(maybesave(nrel+3,nocon))
+       allocate(maybesave(nrel+3,nocon),stat=errall)
     else
        big=.FALSE.
+    endif
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 41: ',errall
+       gx%bmperr=4370; goto 1000
     endif
     do ib=1,nrel
        mamu(ib)=zero
@@ -6422,7 +6608,11 @@ CONTAINS
        big1p=10*pmi%iph+pmi%ics
        big1n=nocon
        if(allocated(save1)) deallocate(save1)
-       allocate(save1(nrel+3,nocon))
+       allocate(save1(nrel+3,nocon),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 42: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        do iy=1,nocon
           do ib=1,nrel+3
              save1(ib,iy)=maybesave(ib,iy)
@@ -6434,7 +6624,11 @@ CONTAINS
        big2p=10*pmi%iph+pmi%ics
        big2n=nocon
        if(allocated(save2)) deallocate(save2)
-       allocate(save2(nrel+3,nocon))
+       allocate(save2(nrel+3,nocon),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 43: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        do iy=1,nocon
           do ib=1,nrel+3
              save2(ib,iy)=maybesave(ib,iy)
@@ -6479,7 +6673,7 @@ CONTAINS
 !\end{verbatim} %+
 ! THIS IS THE ONE CURRENTLY USED IN THE MINIMIZATIONS
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
-    integer iy,jy,ib,nocon
+    integer iy,jy,ib,nocon,errall
 ! initial values for saved results
 !    integer :: sameit=0,big1p=0,big2p=0,big1n=0,big2n=0
     double precision cig,cit,cip,haha
@@ -6557,12 +6751,16 @@ CONTAINS
 !    sameit=noofits
 ! allocate the pmi%curd%invsaved at first iteration
     if(noofits.gt.1 .and. .not.allocated(pmi%curd%invsaved)) then
-       allocate(pmi%curd%invsaved(nrel+3,nocon))
+       allocate(pmi%curd%invsaved(nrel+3,nocon),stat=errall)
 !       write(*,17)'MM allocate    ',noofits,pmi%iph,pmi%ics,nocon,ia,&
 !            pmi%curd%invsavediter,allocated(pmi%curd%invsaved),&
 !            nrel,(nrel+3)*nocon,size(pmi%curd%invsaved)
     endif
-    allocate(zib(nrel))
+    allocate(zib(nrel),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 44: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 !
 !    write(*,17)'MM calculate:  ',noofits,pmi%iph,pmi%ics,nocon,ia,&
 !         pmi%curd%invsavediter,allocated(pmi%curd%invsaved),&
@@ -7183,7 +7381,7 @@ CONTAINS
 !\end{verbatim}
     TYPE(meq_phase), pointer :: pmi
     integer iph,ics,kst,ie,mph,lokph,lokcs,nz1,tcol,pcol,dncol,converged
-    integer ierr,nz2,jel,ztableph1,ztableph2,ztableph3
+    integer ierr,nz2,jel,ztableph1,ztableph2,ztableph3,errall
     double precision, allocatable :: smat(:,:)
     double precision xxx
 !
@@ -7222,7 +7420,11 @@ CONTAINS
 !    meqrec%nphase=totalphcs(ceq)
     meqrec%nphase=nonsusphcs(ceq)
     if(gx%bmperr.ne.0) goto 1000
-    allocate(meqrec%phr(meqrec%nphase))
+    allocate(meqrec%phr(meqrec%nphase),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 45: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 ! this means T and P are fixed (not independent)
     meqrec%tpindep=.FALSE.
     mph=0
@@ -7281,7 +7483,11 @@ CONTAINS
 ! already existing MAPNODE records.  That error not found !!
 ! Calculate G for this phase !!!
 !          call calcg(ztableph3,1,2,ztableph2,ceq)
-          allocate(svar(1))
+          allocate(svar(1),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'MM Allocation error 46: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
 ! ATTENTION: THIS IS A VERY TEMPORARY FIX!!!!
 ! gval(4,1) is the CP of a stoichiometric compound
           svar(1)=-ceq%tpval(1)*ceq%phase_varres(ztableph2)%gval(4,1)
@@ -7319,14 +7525,14 @@ CONTAINS
 ! no problem to allocate as meqrec just allocated
     if(ceq%nfixmu.gt.0) then
        meqrec%nfixmu=ceq%nfixmu
-       allocate(meqrec%mufixel(meqrec%nfixmu))
+       allocate(meqrec%mufixel(meqrec%nfixmu),stat=errall)
        do mph=1,ceq%nfixmu
           meqrec%mufixel(mph)=ceq%fixmu(mph)
        enddo
     endif
     if(ceq%nfixph.gt.0) then
        meqrec%nfixph=ceq%nfixph
-       allocate(meqrec%fixph(2,meqrec%nfixph))
+       allocate(meqrec%fixph(2,meqrec%nfixph),stat=errall)
        do mph=1,ceq%nfixph
           meqrec%fixph(1,mph)=ceq%fixph(1,mph)
           meqrec%fixph(2,mph)=ceq%fixph(2,mph)
@@ -7334,9 +7540,13 @@ CONTAINS
     endif
 ! negative value of ceq%sysmatdim means no matrix saved
     nz1=abs(ceq%sysmatdim)+1
-    allocate(smat(nz1,nz1+1))
+    allocate(smat(nz1,nz1+1),stat=errall)
     smat=zero
-    allocate(svar(nz1))
+    allocate(svar(nz1),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 47: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 ! savesysmat not used, all equations calculated again
 !    do mph=1,nz1-1
 !       do ie=1,nz1-1
@@ -7427,7 +7637,7 @@ CONTAINS
     TYPE(meq_setup), pointer :: meqrec
  !   TYPE(meq_phase), pointer :: pmi
     TYPE(gtp_condition), pointer :: pcond
-    integer iel,mph,jj,nterm
+    integer iel,mph,jj,nterm,errall
     double precision xxx,sumam
     double precision, allocatable :: svar(:)
     character dum*128
@@ -7470,7 +7680,11 @@ CONTAINS
 !17 format(a,10i4)
 ! meqrec creates the data structure for the equilibrium data
 ! this routine also calculated Delta-amount of phases and delta-mu
-    allocate(meqrec1)
+    allocate(meqrec1,stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 48: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     meqrec=>meqrec1
 !    write(*,88)'MM calling initiate_meqrec',svr2%statevarid,ceq%eqno
 88  format(a,2i4)
@@ -7634,7 +7848,7 @@ CONTAINS
 !\end{verbatim}
 ! variables needed to calculate phase inverse
     TYPE(meq_phase), pointer :: pmi
-    integer jy,jel,jz,phncc
+    integer jy,jel,jz,phncc,errall
     double precision x1,x2,x3
     double precision mag,mat,map,dpham,musum,dy,hconfig
     double precision, allocatable :: mamu(:)
@@ -7663,7 +7877,11 @@ CONTAINS
 ! statevarid=1 is T, 2 is P, 3 is MU, 4 is AC, 5 is LNAC
 !------------------------------------------------------------
 !    write(*,*)'MM meq_calc_phase_derivative',iph,iel
-    allocate(mamu(meqrec%nrel))
+    allocate(mamu(meqrec%nrel),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 49: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     pmi=>meqrec%phr(iph)
     value=zero
 ! CCI
@@ -8572,13 +8790,17 @@ CONTAINS
     TYPE(gtp_equilibrium_data), pointer :: ceq
     TYPE(meq_setup) :: meqrec
 !\end{verbatim} %+
-    integer nel,ii
+    integer nel,ii,errall
     double precision, allocatable :: xknown(:),wmass(:),cpot(:)
     double precision totmol,totmass,amount
     nel=noel()
-    allocate(xknown(nel))
-    allocate(wmass(nel))
-    allocate(cpot(nel))
+    allocate(xknown(nel),stat=errall)
+    allocate(wmass(nel),stat=errall)
+    allocate(cpot(nel),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 50: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 ! find the current molefractions
 !    call calc_phase_molmass(phtup%phaseix,phtup%compset,xknown,wmass,&
     call calc_phase_molmass(phtup%ixphase,phtup%compset,xknown,wmass,&
@@ -8663,22 +8885,26 @@ CONTAINS
     TYPE(meq_phase), dimension(*), target :: phr
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    integer nz1,nz2,converged,ierr,jj,nj,nk,nl
+    integer nz1,nz2,converged,ierr,jj,nj,nk,nl,errall
     TYPE(meq_phase), pointer :: pmi
     double precision, allocatable :: smat(:,:),svar(:),yarr(:),ycorr(:)
     double precision chargefact,chargerr,pv,qq(5),ys,ycormax2
 ! number of variables is number of components + one stable phase
     nz1=meqrec%nrel+1
     nz2=nz1+1
-    allocate(smat(nz1,nz2))
-    allocate(svar(nz1))
+    allocate(smat(nz1,nz2),stat=errall)
+    allocate(svar(nz1),stat=errall)
 !    allocate(ovar(nz1))
 ! current values of chemical potentials
 !    do jj=1,meqrec%nrel
 !       ovar(jj)=ceq%cmuval(jj)
 !    enddo
-    allocate(ycorr(phr(1)%ncc))
-    allocate(yarr(phr(1)%ncc))
+    allocate(ycorr(phr(1)%ncc),stat=errall)
+    allocate(yarr(phr(1)%ncc),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 51: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     chargefact=one
     chargerr=one
 !    write(*,*)'We are in equilph1c: ',phr(1)%iph,phr(1)%ics,gx%bmperr
@@ -8903,20 +9129,24 @@ CONTAINS
 ! 800 + cs where cs is the constituent index counted over all sublattices ??
 ! can be REDEFINED when new model parameter identifiers was added!!! 
 ! we get the current value (set in gtp3A.F90) by calling getmqindex below
-    integer mqindex
+    integer mqindex,errall
 ! mqindex is a constant set in gtpini in models/gtp3A.F90
 ! number of variables is number of components + one stable phase
     nz1=meqrec%nrel+1
     nz2=nz1+1
-    allocate(smat(nz1,nz2))
-    allocate(svar(nz1))
+    allocate(smat(nz1,nz2),stat=errall)
+    allocate(svar(nz1),stat=errall)
 !    allocate(ovar(nz1))
 ! current values of chemical potentials
 !    do jj=1,meqrec%nrel
 !       ovar(jj)=ceq%cmuval(jj)
 !    enddo
-    allocate(delta(phr(1)%ncc))
-    allocate(yarr(phr(1)%ncc))
+    allocate(delta(phr(1)%ncc),stat=errall)
+    allocate(yarr(phr(1)%ncc),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 52: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     chargefact=one
     chargerr=one
 ! we have just one phase in phr, phr must be TARGET
@@ -9103,7 +9333,7 @@ CONTAINS
     substitutional: if(nsl.eq.1) then
 ! specially simple if nsl=1 (substitutional)
        noofend=nkl(1)
-       allocate(muend(noofend))
+       allocate(muend(noofend),stat=errall)
 ! calculate just mu(endmember)
 !       loop1: do nend=1,noofend
 !          muend(nend)=muall+pmi%curd%dgval(1,nend,1)
@@ -9113,7 +9343,11 @@ CONTAINS
 !          enddo loop2
 !       enddo loop1
 ! now we calculate dmu(end)/dy_is (just for substitutional)
-       allocate(dmuenddy(noofend,pmi%ncc))
+       allocate(dmuenddy(noofend,pmi%ncc),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 53: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        dmuenddy=zero
 ! For a substitutional solution:
 ! dmu_i/dx_j = 1/N ( d2G/dx_i/dx_j -
@@ -9159,8 +9393,12 @@ CONTAINS
        enddo
 ! we need this to indicate when we reached the end
        first(nsl+1)=is
-       allocate(muend(noofend))
-       allocate(py(noofend))
+       allocate(muend(noofend),stat=errall)
+       allocate(py(noofend),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 54: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        py=one
 !       write(*,611)'first: ',nsl,(first(nj),nj=1,nsl)
 !611    format(a,i2,2x,10i3)
@@ -9204,7 +9442,11 @@ CONTAINS
 ! sumsum    = \sum_k \sum_m y_k y_m d2G/dy_k/dy_m (already added above)
 !---------------------------------------------------
 ! all derivatives of the partial has the sumsum term
-       allocate(dmuenddy(noofend,noofend))
+       allocate(dmuenddy(noofend,noofend),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 55: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        dmuenddy=sumsum
        nj=0
        nend=0
@@ -9379,7 +9621,7 @@ CONTAINS
 ! cpot are the (calculated) chemical potentials
 ! tyst is TRUE means keep quiet
     implicit none
-!    integer mode
+    integer mode,errall
     TYPE(meq_setup) :: meqrec
 !    double precision tpval(*),xknown(*),cpot(*)
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -9393,7 +9635,11 @@ CONTAINS
     meqrec%nfixmu=0
     meqrec%tpindep=.FALSE.
     meqrec%nphase=1
-    allocate(meqrec%phr(1))
+    allocate(meqrec%phr(1),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 56: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     meqrec%nstph=1
 ! wrong?? phaseix is index in phases, ixphase is index in phlista
 !    meqrec%phr(1)%iph=phtup%phaseix
@@ -9430,7 +9676,7 @@ CONTAINS
     meqrec%noofits=0
 ! this replaces call to meq_sameset as we will never change stable phase
 !    call equilph1c(meqrec,meqrec%phr,tpval,xknown,cpot,ceq)
-!1000 continue
+1000 continue
     return
   end subroutine equilph1_meqrec
 
@@ -9582,8 +9828,8 @@ CONTAINS
 !     =2 Too many iterations 
 !     =3 tol variable too small
 !     =4 Too slow progress
-       write(*,*)'HYBRD solver return error: ',info
-       if(gx%bmperr.eq.0) gx%bmperr=4399
+!       write(*,*)'HYBRD solver return error: ',info
+       if(gx%bmperr.eq.0) gx%bmperr=4371
     else
     endif
     if(gx%bmperr.ne.0) goto 1000
@@ -9759,7 +10005,7 @@ CONTAINS
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     integer, allocatable, dimension(:) :: phcsstat
-    integer ntups,mtups,itup,lokcs,ns,naa,phmax,saverr
+    integer ntups,mtups,itup,lokcs,ns,naa,phmax,saverr,errall
     double precision dgmax
     character phname*24
     logical again
@@ -9779,7 +10025,11 @@ CONTAINS
        gx%bmperr=0
     endif
     ntups=nooftup()
-    allocate(phcsstat(ntups))
+    allocate(phcsstat(ntups),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 57: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     phcsstat=0
     ns=0
     do itup=1,ntups
@@ -9875,6 +10125,10 @@ CONTAINS
 ! we have found a solution, set all phases as entered
 ! or we have an error so restore suspended phases
 900 continue
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Calculation not converged, some phases remain as dormant'
+       goto 1000
+    endif
     saverr=gx%bmperr
     gx%bmperr=0
     ns=0
@@ -10119,7 +10373,7 @@ CONTAINS
 !    logical isotherm
     integer idum,jdum,savefix(2),saveent
 !    
-    write(*,*)'In two_stoich_same_comp'
+!    write(*,*)'In two_stoich_same_comp'
     if(meqrec%nrel.ne.2) then
 ! How to check if I should use this routine? Only 2 components?
 ! If we have an activity condition one could have 3 components ....
@@ -10164,8 +10418,8 @@ CONTAINS
 !     =2 Too many calls to tzcalc_stoich
 !     =3 tol is too small
 !     =4 Convergence too slow
-       write(*,*)'HYBRD solver return error: ',info
-       gx%bmperr=4399
+!       write(*,*)'HYBRD solver return error: ',info
+       if(gx%bmperr.eq.0) gx%bmperr=4371
     endif
     if(gx%bmperr.ne.0) goto 1000
     if(abs(ceq%tpval(1)-tinit).gt.2.0D1) then
@@ -10246,12 +10500,12 @@ CONTAINS
 ! But we must have a condition on the amount
 ! mapx set to zero inside this routine.  Make sure no error code set!!
     if(gx%bmperr.ne.0) gx%bmperr=0
-    write(*,*)'MM calling meq_sameset from two_stoich_same_comp'
-    write(*,*)'This is a recurve call as we call two_stoich from meq_sameset!!'
+!    write(*,*)'MM calling meq_sameset from two_stoich_same_comp'
+!   write(*,*)'This is a recursive call as we call two_stoich from meq_sameset!'
     call meq_sameset(idum,jdum,mapx,meqrec,meqrec%phr,inmap,ceq)
 !    write(*,*)'MU(*) after  meq_sameset: ',ceq%cmuval(1),ceq%cmuval(2)
     if(gx%bmperr.ne.0) then
-       write(*,*)'Error calling meq_sameset',gx%bmperr
+!       write(*,*)'MM Error calling meq_sameset from two_stoich',gx%bmperr
        goto 1000
     endif
 ! return the entered phase in mapx (maybe not needed?)

@@ -123,7 +123,7 @@
    double precision, dimension(:,:), allocatable :: tmpd2g
 ! added when implicit none
    double precision rtg,pyq,ymult,add1,sum,yionva,fsites,xxx,sublf
-   integer nofc2,nprop,nsl,msl,lokdiseq,ll,id,id1,id2,lm,qz,floryhuggins
+   integer nofc2,nprop,nsl,msl,lokdiseq,ll,id,id1,id2,lm,qz
    integer lokfun,itp,nz,intlat,ic,jd,jk,ic1,jpr,ipy,i1,j1,jj,jxsym
    integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva,icat
    integer nsit1,nsit2
@@ -143,8 +143,6 @@
    rtg=globaldata%rgas*ceq%tpval(1)
    ceq%rtn=rtg
 !-----------------------
-! this is used for the Flory-Huggins model NO LONGER AVAILABLE
-   floryhuggins=0
    chkperm=.false.
    already=0
    if(btest(phlista(lokph)%status1,PHFORD) .or. &
@@ -217,24 +215,6 @@
 !      iliqsave=.FALSE.
       iliqva=.FALSE.
       jonva=0
-!      write(*,*)'3X Config G 1: ',phres%gval(1,1)*rtg
-!      if(phlista(lokph)%i2slx(1).gt.phlista(lokph)%tnooffr .and. &
-!           phlista(lokph)%i2slx(2).gt.phlista(lokph)%tnooffr) then
-!         onlyanions=.TRUE.
-!      else
-!         onlyanions=.FALSE.
-!      endif
-!   elseif(btest(phlista(lokph)%status1,PHFHV)) then
-! FLORY-HUGGINS model no longer implemented, use UNIQUAC
-! Flory-Huggins model require special treatment to calculate the molar
-! volumes of the constituents.  The entropy is calculated in the end and
-! a second loop through all parameters done by jumping to label 100
-! check that just one sublattice and sites equal to one
-!      if(nsl.ne.1 .or. phres%sites(1).ne.one) then
-!         write(*,*)'3X Flory-Huggins model must have one lattice and site'
-!         gx%bmperr=4337; goto 1000
-!      endif
-!      floryhuggins=-1
    elseif(btest(phlista(lokph)%status1,PHQCE)) then
 ! corrected quasichemical model
 ! we have to calculate the G of the the cluster constituents
@@ -1635,7 +1615,7 @@
 !   norfc=phlista(lokph)%tnooffr
 ! 4SL FCC all correct here
 !   write(*,69)'3X d2G/dy2B:',norfc,(phres%d2gval(ixsym(j1,j1),1),j1=1,norfc)
-!69 format(a,i3,6(1pe12.4))
+69 format(a,i3,6(1pe12.4))
 !--------------------------------------------------------------
 ! finished loops for all fractypes, now add together G and all
 ! partial derivatives for all fractypes
@@ -1843,13 +1823,11 @@
 !................................
 ! we have now finished calculate all parameters including those 
 ! properties that affect the Gibbs energy indirectly like Curie T etc
-! For a model like the Flory-Huggins the partial molar volume must be
-! calculated before any other part of G so all must be calculated again ...
-! The label here just to indicate this, there is no explict jump here
+! The label here just a label, there is no explict jump here
 500 continue
 !   write(*,69)'3X d2G/dy2C:',norfc,(phres%d2gval(ixsym(j1,j1),1),j1=1,norfc)
    if(btest(phmain%status2,CSADDG)) then
-! we have an addition to G, at present just a constant /RT
+! we have an constant addition to G, at present just a constant /RT
       if(allocated(phmain%addg)) then
          xxx=phmain%addg(1)/ceq%rtn
       else
@@ -1870,66 +1848,7 @@
          enddo
       enddo
    endif
-!   floryhugg: if(floryhuggins.lt.0) then
-! The Flory-Huggins entropy require that we use the volume parameters
-! These have now been calculated and can be used in a second loop through
-! the other parameters
-! find where the molar volumes are stored, phmain%listprop(1) is no props
-!      write(*,507)'3X FH: ',nofc2,phmain%listprop(1),&
-!           (phmain%listprop(ipy),ipy=2,phmain%listprop(1)-1)
-!507   format(a,i5,i3,20i5)
-!      allocate(fhlista(gz%nofc))
-!      fhlista=0
-!      ll=1
-!      do ipy=2,phmain%listprop(1)
-!         if(phmain%listprop(ipy).gt.2000) then
-! NOTE each element has a Flory-Huggins volume ... 2001, 2002 etc in any order
-! fhlista(i) is the index to gval(*,ipy)
-!            fhlista(phmain%listprop(ipy)-2000)=ipy
-!         endif
-!      enddo
-! we must save the Flory-Huggins volumes as they are used in next loop
-!      allocate(fhv(gz%nofc,6))
-!      allocate(dfhv(gz%nofc,3,gz%nofc))
-!      allocate(d2fhv(gz%nofc,nofc2))
-!      dfhv=zero
-!      d2fhv=zero
-!      fhvsum=zero
-!      do qz=1,gz%nofc
-!         ipy=fhlista(qz)
-! if ipy is zero then the volume is constant
-!         do ll=1,6
-!            if(ipy.gt.0) then
-!               fhv(qz,ll)=phmain%gval(ll,ipy)
-!            endif
-!         enddo
-!         do ll=1,gz%nofc
-!            if(ipy.gt..0) then
-!               dfhv(qz,1,ll)=phmain%dgval(1,ll,ipy)
-!               dfhv(qz,2,ll)=phmain%dgval(2,ll,ipy)
-!               dfhv(qz,3,ll)=phmain%dgval(3,ll,ipy)
-!            endif
-!         enddo
-!         do ll=1,nofc2
-!            if(ipy.gt.0) then
-!               d2fhv(qz,ll)=phmain%d2gval(ll,ipy)
-!            endif
-!         enddo
-! this is the only non-zero value for elements with no Flory-Huggins para,eter
-!         if(ipy.eq.0) fhv(qz,1)=one
-!      enddo
-! the Flory-Huggins parametr for each constituent is in the "fhv" arguments
-! They may be updated inside this subroutine ...
-!      call config_entropy_floryhuggins(moded,gz%nofc,phmain,gz%tpv(1),&
-!           fhv,dfhv,d2fhv)
-! set floryhuggins to 1 so the entropy is not calculated again but 
-! the molar volumes that have been calculated here can be used
-!      floryhuggins=1
-! we must calculate the other parameters again using the specific molar volumes
-! not implemented yet ...
-!      write(*,*)'3X Flory-Huggins model only config entropy, no goto 100'
-!      goto 100
-!   endif floryhugg
+! uniquac model
    uniquac: if(btest(phlista(lokph)%status1,phuniquac)) then
 !      write(*,'(a,6(1pe12.4))')'3X calling uniquac: ',&
 !           phmain%dgval(1,1,1),phres%dgval(1,2,1)
@@ -1940,6 +1859,7 @@
 ! calculate additions like magnetic contributions etc and add to G
 ! Now also Einstein, 2-state liquid, volume ...
    addrec=>phlista(lokph)%additions
+!   write(*,*)'3X check for first addrec: ',associated(addrec)
    additions: do while(associated(addrec))
 ! Note for phases with a disordered fraction set, gz%nofc is equal to
 ! the disordered number of fractions here 
@@ -1948,14 +1868,15 @@
 ! to result arrays, lokadd is the addition record, listprop is needed to
 ! find where TC and BM are stored, gz%nofc are number of constituents
 ! EINSTEIN
-!      write(*,*)'3X calling addition selector',phres%gval(1,2)
+!      write(*,*)'3X addition select: ',phres%gval(1,2),gz%nofc
 !      write(*,1001)'Addto: ',gx%bmperr,(phres%gval(j1,1),j1=1,4)
       call addition_selector(addrec,moded,phres,lokph,gz%nofc,ceq)
       if(gx%bmperr.ne.0) goto 1000
-! NOTE that the addition record is not in the dynamic data struturce
+! NOTE that the addition record is not in the dynamic data structure
 ! but the values calculated are returned added to phres
 ! There is a temporary storage of results for listing only.
       addrec=>addrec%nextadd
+!      write(*,*)'3X check for next addrec: ',associated(addrec)
    enddo additions
 ! there are some special properties like mobilities and similar which
 ! have a conmponent or constituent index like MQ&<constituent>
@@ -1995,7 +1916,7 @@
 !   write(*,1001)'Total: ',gx%bmperr,(phres%gval(j1,1),j1=1,4)
 !    write(*,1002)(phres%dgval(1,i,1),i=1,3)
 !    write(*,1003)(phres%d2gval(i,1),i=1,6)
-1001 format('3X ',a,i5,4(1PE12.4))
+1001 format('3X/',a,i5,4(1PE12.4))
 1002 format('3X calcg dg:  ',3(1PE15.7))
 1003 format('3X calcg d2g: ',6(1PE11.3))
    return

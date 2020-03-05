@@ -98,6 +98,7 @@ render
 plot x(*,cu)
 gm(*)
 extra tie 3
+title map 1 fig 5
 
 
 set inter
