@@ -1,6 +1,6 @@
 OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o minpack1.o  gtp3.o matsmin.o smp2.o pmon6.o
 LIBS=liboctq.o liboctqisoc.o liboctqcpp.o
-EXE=oc5P
+EXE=oc6P
 
 #
 # IMPORTANT at the getkey.o: label
@@ -150,5 +150,6 @@ $(EXE):
 
 	# If getkey.o is undefined below
 	# you have forgotten to uncomment a line above at getkey.o !!
+	# static: $(FC) -o $(EXE) $(FCOPT) -static-libgfortran pmain1.F90 $(OBJS) liboceq.a
 	$(FC) -o $(EXE) $(FCOPT) pmain1.F90 $(OBJS) liboceq.a
 

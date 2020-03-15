@@ -76,7 +76,7 @@ REM generating the library (needed also for TQ library)
 ar sq liboceq.a metlib4.o ocnum.o oclablas.o gtp3.o matsmin.o minpack1.o
 
 REM Finally linking all together
-gfortran -o oc5P -fopenmp -O2 pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o liboceq.a -lcomdlg32 -lole32
+gfortran -o oc6P -fopenmp -O2 pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o liboceq.a -lcomdlg32 -lole32
 
 REM *******************************************
 REM ** OC graphics require GNUPLOT 5.0 or later

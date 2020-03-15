@@ -69,7 +69,7 @@
 !
     if(ocv()) write(*,*)'Entering map_setup',nax
 ! if automatic statpoints requested they are generatet here
-    call auto_startpoints(maptop,nax,axarr,seqxyz,starteq)
+!    call auto_startpoints(maptop,nax,axarr,seqxyz,starteq)
     ceq=>starteq
     iadd=1
 21  continue
@@ -236,6 +236,8 @@
        if(maptop%tieline_inplane.gt.0) then
 ! with tie-lines in plane we must check axis variable for stable phase also
           allocate(mapline%axvals2(nax))
+       else
+          
        endif
     endif
 ! Each thread must have separate meqrec and ceq records
@@ -993,6 +995,8 @@
 ! set appropriate next/previous/first links
        tmpnode=>maptop%previous
        allocate(maptop%previous)
+! initiate all status bits to zero
+       maptop%previous%status=0
        tmpnode%next=>maptop%previous
        mapnode=>maptop%previous
 ! initiate mapnode
@@ -1014,6 +1018,8 @@
 ! UNFINISHED: VALGRIND indicates loss of >24000 bytes in map_startpoint 
        allocate(maptop)
        mapnode=>maptop
+! inititate status and links
+       mapnode%status=0
        mapnode%noofstph=meqrec%nstph
        mapnode%savednodeceq=-1
 !       mapnode%noofstph=-1
@@ -3902,7 +3908,7 @@
 ! When we are there we have successfully calculated an equilibrium with a
 ! new phase set create a node with this equilibrium and a new line records
 500 continue
-!    write(*,*)'Successful calculation of a node point',phfix
+    write(*,*)'SMP2 Successful calculation of a node point',phfix
 ! phfix is set negative if phase should be removed
 ! NOTE the phase set fix in the node may not be the same which
 ! wanted to disappear/appear when calling the map_calcnode!!
@@ -4092,11 +4098,13 @@
     integer remph,addph,nel,iph,ics,jj,seqx,nrel,jphr,stabph,kph,kcs,kk,lfix
     integer zph,stepax,kpos,seqy,jp,nopotax,lokcs,lokph,haha2,linefphr
 ! there should be 8 significant digits, first step factor
-    double precision, parameter :: vz=1.0D-9,axinc1=1.0D-3
+!    double precision, parameter :: vz=1.0D-9,axinc1=1.0D-3
+    double precision, parameter :: vz=1.0D-8,axinc1=1.0D-3
     character eqname*24,phases*60
     double precision stepaxval,middle,testv,xxx
 ! mark that line ended with two stoichometric phases and data for isopleth inv
     integer twostoichset,errall,jfix,jstab,jlast,kstab,zp,phrix
+    integer onlyone,notone,jused,zz,tz,qy
     integer, allocatable, dimension(:,:) :: invph
 !
     lfix=0
@@ -4118,21 +4126,28 @@
     nrel=meqrec1%nrel
 100 continue
 ! loop all mapnodes to check if any has the same chemical potentials
-!       write(*,*)'Comparing chemical potentials with node: ',mapnode%seqx,nrel
+!       write(*,*)'Comparing with node: ',mapnode%seqx,nrel
 !       write(*,105)'T diff: ',ceq%tpval(1),mapnode%tpval(1),&
 !            abs(ceq%tpval(1)-mapnode%tpval(1)),abs(vz*mapnode%tpval(1))
 !       write(*,105)'P diff: ',ceq%tpval(2),mapnode%tpval(2),&
 !            abs(ceq%tpval(2)-mapnode%tpval(2)),abs(vz*mapnode%tpval(2))
        if(abs(ceq%tpval(1)-mapnode%tpval(1)).gt.abs(vz*mapnode%tpval(1)) .or.&
-            abs(ceq%tpval(2)-mapnode%tpval(2)).gt.abs(vz*mapnode%tpval(2))) &
-            goto 110
+            abs(ceq%tpval(2)-mapnode%tpval(2)).gt.abs(vz*mapnode%tpval(2))) then
+!          write(*,*)'Not same, compare with next'
+          goto 110
+       endif
        do nel=1,nrel
 !          write(*,105)'Chempot: ',ceq%cmuval(nel),mapnode%chempots(nel),&
 !               abs(ceq%cmuval(nel)-mapnode%chempots(nel)),&
 !               abs(vz*mapnode%chempots(nel))
 105       format(a,5(1pe16.8))
           if(abs(ceq%cmuval(nel)-mapnode%chempots(nel)).gt.&
-               abs(vz*mapnode%chempots(nel))) goto 110
+               abs(2.0D1*vz*mapnode%chempots(nel))) then
+             write(*,'(a,3(1pe12.4))')'Not same chempots, compare next node',&
+                  abs(ceq%cmuval(nel)-mapnode%chempots(nel)),&
+                  abs(2.0D1*vz*mapnode%chempots(nel))
+             goto 110
+          endif
        enddo
 ! We can come here with a STEP command without any fix phases
        if(maptop%tieline_inplane.eq.0) then
@@ -4142,9 +4157,12 @@
 ! T, P and all chemical potentials the same, one should maybe check phases??
        iph=mapline%linefixph(1)%ixphase
        ics=mapline%linefixph(1)%compset
-       if(ocv()) write(*,107)'Node exist: ',&
-            mapnode%seqx,size(mapnode%linehead),iph,ics
+!       if(ocv()) write(*,107)'Node exist: ',&
+!       write(*,107)'Node already exist: ',&
+!            mapnode%seqx,size(mapnode%linehead),iph,ics
 107    format(a,i5,i3,i5,i2)
+! do not remove exits from invariant nodes ...
+       if(btest(mapnode%status,MAPINVARIANT)) goto 800
        removexit: do jj=1,size(mapnode%linehead)
 ! loop for all exits
           nodexit=>mapnode%linehead(jj)
@@ -4174,6 +4192,8 @@
        mapnode=>mapnode%next
 ! the next links should form a circular list ...
        if(.not.associated(mapnode,maptop)) goto 100
+!==================================================================
+! 
 120 continue
     mapnode=>maptop%next
     seqx=mapnode%seqx+1
@@ -4183,11 +4203,13 @@
 ! a single maptop record
 !       write(*,*)'allocate mapnone%next 1'
        allocate(mapnode%next)
+       mapnode%next%status=0
     else
 ! there is more mapnode records ... allocation here means memory leak
 ! I do not know how to fix ... it seems one can deallocate pointers!! no leak
 !       write(*,*)'allocate mapnone%next 2'
        allocate(maptop%next)
+       maptop%next%status=0
     endif
     newnode=>maptop%next
     newnode%first=>maptop
@@ -4306,8 +4328,9 @@
        if(inveq(haha2,ceq)) then
           newnode%lines=2*haha-1
           write(*,*)'SMP2A *** invariant node with exits: ',newnode%lines
-          write(*,*)'SMP2A Currently this is ignored'
-          newnode%lines=3
+!          write(*,*)'SMP2A Currently this is ignored'
+! uncommenting next line means isopleth inveriants are ignored
+!          newnode%lines=3
        else
           newnode%lines=3
        endif
@@ -4366,7 +4389,7 @@
 !
 !
 !    write(*,*)'SMP2A creating lineheads: ',haha,newnode%lines
-    if(newnode%lines.gt.3) write(*,*)'SMP: generate exit lines: ',newnode%lines
+!    if(newnode%lines.gt.3) write(*,*)'SMP: generate exit lines: ',newnode%lines
     allocate(newnode%linehead(newnode%lines),stat=errall)
     if(errall.ne.0) then
        write(*,*)'SMP2A Allocation error 1: ',errall
@@ -4993,7 +5016,7 @@
 390    continue
 !---------------------------------------------------------------
 ! invariant isopleth, more then 3 exits
-    case(4) ! invariants for isopleths,
+    case(4) ! isopleth invariants for isopleths, inveq
 ! number of stable phases equal to components+1
 ! number of adjacent regions with "components" stable phases is "components+1"
 ! number of exit lines are 2*(components+1)
@@ -5010,14 +5033,14 @@
 ! f = n + 2 - p
 ! where n is number of components, 2 if T and P variable, 1 if T or P variable,
 ! 0 if both T and P fixed, p is number of stable phases.
-       write(*,*)'SMP2A Generating exits from isopleth invariant',newnode%lines
+!       write(*,*)'SMP2A Generating exits from isopleth invariant',newnode%lines
 ! Two crossing lines, one in and 3 exits
 ! THERE IS NO CASE WHEN FINDING AN INVARIANT
 ! this is probably redundant, fixph already reset
 ! phfix is the new stable phase! Must be positive
 ! mapline is the just finished line
        if(meqrec1%nfixph.gt.0) then
-          write(*,*)'Invariant isopleth:',meqrec1%nfixph,phfix,mapline%nstabph
+!          write(*,*)'Invariant isopleth:',meqrec1%nfixph,phfix,mapline%nstabph
           meqrec1%fixph(1,meqrec1%nfixph)=0
           meqrec1%fixph(2,meqrec1%nfixph)=0
           meqrec1%phr(abs(phfix))%phasestatus=PHENTUNST
@@ -5036,7 +5059,7 @@
              exit flfix2
           endif
        enddo flfix2
-       write(*,*)'SMP2A found lfix?',lfix
+!       write(*,*)'SMP2A found lfix?',lfix
        if(lfix.eq.0) stop 'ERROR'
 ! this is total number of phases at each the invariant
 ! 1 fix and stabph-2 should be stable at each exit
@@ -5047,7 +5070,9 @@
        endif
 ! Collect all stable phases to be used as different exits.
 ! invph(1,jj) is iph,, invph(2,jj) is ics; invph(3,jj) is index in meqrec1%phr
-       allocate(invph(3,stabph+2))
+! invph(4,jj) is to count number of times this phase is forbidden, max 2
+       allocate(invph(4,stabph+2))
+       invph=0
        do jj=1,stabph
 ! stableph is a phase_tuple
           invph(1,jj)=mapline%stableph(jj)%ixphase
@@ -5059,29 +5084,47 @@
        invph(1,jj)=meqrec1%phr(phfix)%iph
        invph(2,jj)=meqrec1%phr(phfix)%ics
        invph(3,jj)=phfix
-! this is phase fix at incomming line
+! this is the phase fix at incomming line, only one exit line with this fix
        invph(1,jj+1)=iph
        invph(2,jj+1)=ics
        invph(3,jj+1)=lfix
        jlast=stabph+2
-! MORE WORK: STABLE PHASES HAS TO BE IN PHR ORDER!! SORT invph
+!       do jj=1,jlast
+!          phases=' '
+!          call get_phase_name(invph(1,jj),invph(2,jj),phases)
+!          write(*,420)'SMP2A invrnt phase: ',jj,invph(1,jj),invph(2,jj),&
+!               invph(3,jj),trim(phases)
+!       enddo
+! STABLE PHASES HAS TO BE IN PHR ORDER!! SORT invph
+       call sort_invph(jlast,invph)
+       if(gx%bmperr.ne.0) goto 1000
        do jj=1,jlast
           phases=' '
           call get_phase_name(invph(1,jj),invph(2,jj),phases)
-          write(*,420)'SMP2A invariant phase: ',jj,invph(1,jj),invph(2,jj),&
-               invph(3,jj),trim(phases)
+! keep track of the phase found at the invariant and the linefix phase
+          if(invph(3,jj).eq.lfix) onlyone=jj
+          if(invph(3,jj).eq.phfix) notone=jj
+!          write(*,420)'SMP2A sorted phase: ',jj,invph(1,jj),invph(2,jj),&
+!               invph(3,jj),trim(phases)
        enddo
 420    format(a,4i5,2x,a)
+! the entering line had notone "forbidden", mark it is used
+       invph(4,notone)=1
+!       write(*,'(a,5i4)')'SMP2: linefix and nodefix: ',&
+!            onlyone,lfix,notone,phfix
 ! NOTE lfix should only be used once as fixed phase
 ! all the others should be fixed one two exits
 !-------------- 
-! We have the generate newnode%lines exits!!
+! We have to generate newnode%lines exits!!
        jphr=mapline%nstabph
        jfix=1
-       jstab=2
+       qy=0
+! set bit in mapnode!
+       if(newnode%status.ne.0) write(*,*)'SMP2 nodestatus: ',newnode%status
+       newnode%status=ibset(newnode%status,MAPINVARIANT)
        invexit: do jj=1,newnode%lines
 ! initiate data in map_line record
-          write(*,410)'SMP2A exit: ',jj,jphr
+!          write(*,410)'SMP2A exit: ',jj,jphr
 410       format(a,10i4)
           newnode%linehead(jj)%number_of_equilibria=0
           newnode%linehead(jj)%first=0
@@ -5109,46 +5152,120 @@
 ! links to node records at start and end of line
           newnode%linehead(jj)%start=>newnode
           nullify(newnode%linehead(jj)%end)
-!
-! ---------------------------------------------------------------------
-! something like this has to be added to define the stable and fix phase
-! different for each line
-          phases=' '
-          newnode%linehead(jj)%linefixph%ixphase=invph(1,jfix)
-          newnode%linehead(jj)%linefixph%compset=invph(2,jfix)
-          newnode%linehead(jj)%linefix_phr=invph(3,jfix)
-          call get_phase_name(invph(1,jfix),invph(2,jfix),phases)
-          zp=len_trim(phases)+2
+! number of stable phases along all lines.  Additionally a fix and a forbidden
           newnode%linehead(jj)%nstabph=stabph
-          do kk=1,stabph
-             kstab=jstab
-             if(kstab+kk.eq.jfix) kstab=kstab+1
-             if(kstab+kk.gt.jlast) kstab=0
-             write(*,*)'smp2a stable:',kstab,kk,kstab+kk
-             newnode%linehead(jj)%stableph(kk)%ixphase=invph(1,kstab+kk)
-             newnode%linehead(jj)%stableph(kk)%compset=invph(2,kstab+kk)
-! The amount of the stable phase is impossible to estimate 
-             newnode%linehead(jj)%stablepham(kk)=1.0D-2
-             newnode%linehead(jj)%stable_phr(kk)=invph(3,kstab+kk)
-          call get_phase_name(invph(1,kstab+kk),invph(2,kstab+kk),phases(zp:))
+!
+! ------------------------------------------------------------------
+! something like this has to be added to define the stable and fix phase
+! different for each line.  But we have to specify one fix and one forbidden
+          phases=' '
+          first: if(jj.eq.1) then
+! For jj=1 we create the only exit with LFIX (in onlyone) as fix and
+! in this case another phase than PHFIX (in notone) should be forbiddem
+             newnode%linehead(jj)%linefixph%ixphase=invph(1,onlyone)
+             newnode%linehead(jj)%linefixph%compset=invph(2,onlyone)
+             newnode%linehead(jj)%linefix_phr=invph(3,onlyone)
+             call get_phase_name(invph(1,onlyone),invph(2,onlyone),phases)
              zp=len_trim(phases)+2
-          enddo
-! again, 
-          newnode%linehead(jj)%nodfixph=invph(3,kstab+stabph+1)
-!          newnode%linehead(1)%nodfixtup=&
-!               meqrec1%phr(invph(1,kstab+stabph+1))%phtupix
-          call get_phase_name(invph(1,kstab+kk),invph(2,kstab+kk),phases(zp:))
-          write(*,430)jj,phases
-430       format('SMP2A: ',i3,2x,a)
-          if(mod(kk,2).eq.1) jfix=jfix+1
-          jstab=jstab+1
-! ---------------------------------------------------------------------
+!             write(*,*)'smp2: fix: ',trim(phases),onlyone,invph(3,onlyone)
+! set a phase forbidden to become stable when line starts
+! must not be the fix phase and not the phase found at the node (phfix)
+! THE CODE HERE IS NOT CORRECT
+             klop1: do kk=jlast,1,-1
+                if(kk.ne.notone .and. kk.ne.onlyone) then
+                   newnode%linehead(jj)%nodfixph=invph(3,kk); jused=kk;
+                   invph(4,kk)=1
+                   exit klop1
+                endif
+             enddo klop1
+             call get_phase_name(invph(1,jused),invph(2,jused),phases(zp:))
+             zp=len_trim(phases)+2
+!             write(*,*)'smp2: not: ',trim(phases),jused,invph(3,jused),kk
+! NOW add the stable phases excluding onlyone and jused
+             zz=1
+             do kk=1,stabph
+                if(zz.eq.onlyone) zz=zz+1
+                if(zz.eq.jused)  zz=zz+1
+                if(zz.eq.onlyone) zz=zz+1
+                newnode%linehead(jj)%stableph(kk)%ixphase=invph(1,zz)
+                newnode%linehead(jj)%stableph(kk)%compset=invph(2,zz)
+                newnode%linehead(jj)%stablepham(kk)=1.0D-2
+                newnode%linehead(jj)%stable_phr(kk)=invph(3,zz)
+                call get_phase_name(invph(1,zz),invph(2,zz),phases(zp:))
+                zp=len_trim(phases)+2
+                zz=zz+1
+             enddo
+             write(*,430)jj,phases
+430          format('SMP2A invexit: ',i3,2x,a)
+          else
+! UNIFINISHED else is for all other exit lines, jfix is updated globally
+! The same phase should be twice as LINEFIX with a different phase as NODEFIXPH
+! the use of jfix for selecting LINEFIX is OK but NODEFIXPH is not correct
+! The pair  has to be determined better
 !
-!
+! probably one has to calculate combination of fix phases to determine
+! combinations of LINEFIX and NODEFIXPHASE that is correct.
+! If the invariant has n+1 phases stable (with n elements) there are 
+! n+1 adjacent regions with n stable phases and in between these there are 
+! n+1 regions with n-1 stable phases.
+! But there mixing are (n+1)*n regions.  For n=3 that is 3*2=6 two-phase
+! regions but only 4 of these are connected to the invariant.  
+! In order to determine which one has to calculate equilibria with different
+! set of fixed phases at the invariant.
+             tz=jfix
+             if(tz.eq.onlyone) then
+                jfix=jfix+1; tz=tz+1
+             endif
+             newnode%linehead(jj)%linefixph%ixphase=invph(1,tz)
+             newnode%linehead(jj)%linefixph%compset=invph(2,tz)
+             newnode%linehead(jj)%linefix_phr=invph(3,tz)
+             call get_phase_name(invph(1,tz),invph(2,tz),phases)
+             zp=len_trim(phases)+2
+!             write(*,*)'smp2: ',trim(phases),tz,qy
+! The LINEFIX phase is easy because each phase should appear twice as FIX
+! but which to be NODEFIXPHASE?  
+! Rule: Each pair LINEFIX/NODEFIX should appear inverted.
+! here set (arbitraily) the phase forbidden to become stable when line starts
+             klop2: do kk=jlast,1,-1
+! with same fix phase we must not have the same nodfixphase
+! the same phase must not be forbidden more than twice ....
+!                write(*,440)kk,tz,qy,invph(4,kk)
+440             format('smp2A forbidden: ',6i4)
+                if(kk.ne.tz .and. kk.ne.qy .and. &
+                     invph(4,kk).lt.2) then
+                   newnode%linehead(jj)%nodfixph=invph(3,kk); qy=kk;
+                   invph(4,kk)=invph(4,kk)+1
+                   exit klop2
+                endif
+             enddo klop2
+             call get_phase_name(invph(1,qy),invph(2,qy),phases(zp:))
+             zp=len_trim(phases)+2
+!             write(*,*)'smp2: ',trim(phases),tz,qy
+! now set the stable phases avoiding tz
+             zz=1
+             do kk=1,stabph
+ ! maybe this if sequence is too simple ...
+               if(zz.eq.tz) zz=zz+1
+                if(zz.eq.qy) zz=zz+1
+                if(zz.eq.tz) zz=zz+1
+                newnode%linehead(jj)%stableph(kk)%ixphase=invph(1,zz)
+                newnode%linehead(jj)%stableph(kk)%compset=invph(2,zz)
+                newnode%linehead(jj)%stablepham(kk)=1.0D-2
+                newnode%linehead(jj)%stable_phr(kk)=invph(3,zz)
+                call get_phase_name(invph(1,zz),invph(2,zz),phases(zp:))
+                zp=len_trim(phases)+2
+                zz=zz+1
+             enddo
+             write(*,430)jj,phases
+             if(mod(jj,2).ne.0) then
+! increment jfix by one when jj is odd, i.e. 3, 5, etc and clear qy
+                jfix=jfix+1; qy=0
+             endif
+!             write(*,*)'smp2a jfix: ',jj,jfix,tz,qy
+          endif first
        enddo invexit
-! unfinished
 490    continue
-       stop ' *** Unfinished invariant isopleth node exits *** '
+!       stop ' *** Unfinished invariant isopleth node exits *** '
     end select
 !=========================================================================
     goto 1000
@@ -5169,6 +5286,33 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine sort_invph
+!\begin{verbatim}
+  subroutine sort_invph(nitems,array)
+! primitive sorting of array
+    implicit none
+    integer nitems,array(4,*)
+!\end{verbatim}
+! sort array in acending order of value in array(3,*)    
+    integer ia,ib,ic,more
+    more=nitems
+    ia=1
+    do while(more.gt.0)
+       more=0
+       do ia=2,nitems
+          if(array(3,ia-1).gt.array(3,ia)) then
+             more=more+1
+             do ic=1,4
+                ib=array(ic,ia-1); array(ic,ia-1)=array(ic,ia); array(ic,ia)=ib
+             enddo
+          endif
+       enddo
+    enddo
+1000 continue
+  end subroutine sort_invph
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine reserve_saveceq
 !\begin{verbatim}
   subroutine reserve_saveceq(location,saveceq)
@@ -5178,7 +5322,7 @@
     integer location
     type(map_ceqresults), pointer :: saveceq
 !\end{verbatim}
-    location=saveceq%free
+location=saveceq%free
 !    write(*,*)'SMP reserve record: ',location,saveceq%size
 !    write(*,*)'Reserve place for equilibrium: ',location,saveceq%size
     if(location.eq.saveceq%size-10) then
@@ -6046,15 +6190,20 @@
 !\begin{verbatim}
   subroutine create_saveceq(ceqres,size)
 ! creates an array of equilibrium records to save calculated lines for step
-! and map
+! and map.  This can be very big
     type(map_ceqresults), pointer :: ceqres
     integer size
 !\end{verbatim}
 !    write(*,*)'In create saveceq',size
+    integer errall
     allocate(ceqres)
     ceqres%size=size
     ceqres%free=1
-    allocate(ceqres%savedceq(size))
+    allocate(ceqres%savedceq(size),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'SMP2A Allocation error 1: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 1000 continue
     return
   end subroutine create_saveceq
@@ -6953,9 +7102,9 @@
 !
     if(noofaxis.ne.2 .or. &
          btest(globaldata%status,GSNOAUTOSP)) goto 1000
-    goto 1000
+!    goto 1000
 ! the rest here works but not converting the startpoint to lines.
-!    write(*,*)'Trying to generate 12 startpoints for mapping'
+    write(*,*)'SMP *** in auto_startpoints'
     ceq=>starteq
     mode=1
     eqname='_STARTEQ_00'
@@ -6963,7 +7112,23 @@
 ! loop for corners
 100 continue
     cycle1: do j1=1,2
+!-----------
+       xx2=axarr(2)%axmin+x2(j2)*(axarr(2)%axmax-axarr(2)%axmin)
+       seqz2=axarr(2)%seqz
+       call locate_condition(seqz2,pcond2,ceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'SMP failed find 2nd condition ',j1,j2
+          gx%bmperr=0
+          cycle cycle1
+       endif
+! first argument 1 means get value, 0 means set value
+       call condition_value(0,pcond2,xx2,ceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error setting start point condition',gx%bmperr
+          gx%bmperr=0; cycle cycle1
+       endif
        cycle2: do j2=1,2
+          write(*,*)'SMP auto ',j1,j2
           nss=nss+1
           xx1=axarr(1)%axmin+x1(j1)*(axarr(1)%axmax-axarr(1)%axmin)
           seqz1=axarr(1)%seqz
@@ -6979,39 +7144,25 @@
              write(*,*)'Error setting start point condition',gx%bmperr
              gx%bmperr=0; cycle cycle2
           endif
-!-----------
-          xx2=axarr(2)%axmin+x2(j2)*(axarr(2)%axmax-axarr(2)%axmin)
-          seqz2=axarr(2)%seqz
-          call locate_condition(seqz2,pcond2,ceq)
-          if(gx%bmperr.ne.0) then
-             write(*,*)'SMP failed find 2nd condition ',j1,j2
-             gx%bmperr=0
-             cycle cycle2
-          endif
-! first argument 1 means get value, 0 means set value
-          call condition_value(0,pcond2,xx2,ceq)
-          if(gx%bmperr.ne.0) then
-             write(*,*)'Error setting start point condition',gx%bmperr
-             gx%bmperr=0; cycle cycle2
-          endif
 ! calculate equilibrium
 !          write(*,130)'SMP startpoint: ',nss,xx1,xx2
 130       format(a,i3,2(1pe14.4))
 !          call list_conditions(kou,ceq)
-!          cycle cycle2
           call calceq2(mode,ceq)
           if(gx%bmperr.ne.0) then
              write(*,*)'SMP failed calculate startpoint'
              gx%bmperr=0
           else
 ! enter a start equilibrum with two directions
+             write(*,*)'SMP eqname: ',eqname
              call incunique(eqname(10:11))
+             write(*,*)'SMP eqname: ',eqname
              call copy_equilibrium(neweq,eqname,ceq)
              if(gx%bmperr.ne.0) then
-                write(*,*)'Failed to store start equilibrium',gx%bmperr
+                write(*,*)'Failed to store starteq: ',trim(eqname),gx%bmperr
                 gx%bmperr=0; cycle cycle2
              endif
-!             write(*,*)'start equilibrium: ',trim(eqname),neweq%eqno
+             write(*,*)'SMP Created equilibrium: ',trim(eqname),neweq%eqno
              neweq%multiuse=20+nss
 ! create the list, ceq is always same equilibrium as stareq
              neweq%nexteq=ceq%nexteq
@@ -7069,6 +7220,7 @@
        starteq%nexteq=neweq%eqno
     endif
 1000 continue
+    write(*,*)'SMP *** leaving auto_startpoint'
     return
   end subroutine auto_startpoints
 

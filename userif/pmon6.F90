@@ -21,9 +21,9 @@ MODULE cmon1oc
 !
 !------------------------------------------------------------------
 !
-!************************************
-! command line monitor for OC version 3
-!************************************
+!*****************************
+! command line monitor for OC 
+!*****************************
 !
   use ocsmp
   use liboceqplus
@@ -50,10 +50,10 @@ contains
 ! argline and narg are inline arguments
     character linkdate*(*),version*(*),argline(*)*64
     integer narg
-! various symbols and texts
-    character :: ocprompt*8='--->OC5:'
+! various symbols and texts, version 6
+    character :: ocprompt*8='--->OC6:'
     character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort*1
-    integer, parameter :: ocmonversion=50
+    integer, parameter :: ocmonversion=55
 ! for the on-line help, at present turn off by default, if a HTML file set TRUE
     character*128 browser,latexfile,htmlfile,unformfile
     logical :: htmlhelp=.FALSE.
@@ -161,7 +161,7 @@ contains
 ! saved parameters for analyze
     double precision, allocatable, dimension(:,:) :: savedcoeff
     double precision savesumerr,delta
-    integer analyze,cormatix,nvcoeffsave,mexpsave,iz
+    integer analyze,cormatix,nvcoeffsave,mexpsave,iz,jz
 ! this is least square error from using LMDIF
 ! 1: previous value, 2 new value, 3 normalized error (divided by m-n)
     double precision err0(3)
@@ -377,7 +377,7 @@ contains
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
           'SPECIES         ','TPFUN           ','BROWSER         ',&
-          'TRACE           ','SYMBOL_VALUE    ','                ',&
+          'TRACE           ','SYMBOL_VALUE    ','MAP_STARTPOINTS ',&
           'GRID            ','                ','                ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
@@ -464,6 +464,7 @@ contains
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! Default gnuterminals, edit these as they may not be same on your systems
     graphopt%gnutermid=' '
+!    graphopt%status=0 initiated to zero
 ! Screen is terminal 1
     graphopt%gnutermid(1)='SCREEN '
 ! default font, not reinitiated if set explicitly
@@ -4202,7 +4203,7 @@ contains
 !          write(*,*)'PMON: ',kom,kom2,nv
           if(kom2.eq.19 .and. nv.eq.1) goto 100
           write(lut,6212)
-6212      format('Number  Name',25x,'T   Weight Comment')
+6212      format('Number  Name',25x,'T   Weight Comment & phases')
           jp=0
           do iel=1,nv
              if(associated(ceq,eqlista(iel))) then
@@ -4212,21 +4213,41 @@ contains
              endif
 !             write(*,*)'PMON: ',kom2,iel,eqlista(iel)%weight,jp
 !             j4=len_trim(eqlista(iel)%comment)
+!             write(*,*)'PMON eqlista: ',len_trim(eqlista(iel)%comment),&
+!                  eqlista(iel)%weight
+             text=eqlista(iel)%comment
+             jz=len_trim(text)
+             if(jz.lt.20) then
+! if there is space add names of stable phases
+                if(jz.gt.0) then
+                   text(jz+1:)=' & '; jz=jz+4
+                else
+                   jz=1
+                endif
+                do iz=1,nooftup()
+                   i2=phasetuple(iz)%lokvares
+                   if(eqlista(iel)%phase_varres(i2)%phstate.gt.0) then
+                      if(eqlista(iel)%phase_varres(i2)%phstate.eq.2) then
+! prefix any FIX phase with *
+                         text(jz:jz)='*'; jz=jz+1
+                      endif
+                      call get_phasetup_name(iz,text(jz:))
+! text is limited to 72 characters and anyway only 32 are written
+                      jz=min(len_trim(text)+2,40)
+                   endif
+                enddo
+!                write(*,*)'PMON phases: ',trim(text)
+             endif
              if(eqlista(iel)%weight.gt.zero) then
 ! always list equilibria with weight>0
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1),eqlista(iel)%weight,&
-                     eqlista(iel)%comment(1:28)
-!                     eqlista(iel)%comment(1:32)
-!6203            format(i4,1x,a2,1x,a,' T=',F8.2,', weight=',F5.2,', ',a)
+                     eqlista(iel)%tpval(1),eqlista(iel)%weight,text(1:32)
 6203            format(i4,1x,a2,1x,a,1x,F8.2,1x,F5.2,1x,a)
              elseif(iel.eq.1 .or. kom2.eq.11) then
 ! for kom2=11 list all equilibria without including weight
-! NOTE all equilibria outside "range" (default and step/map) has weight=-1.0
+! NOTE all equilibria outside "range" (default and step/map) has weight= -1.0
                 write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:28)
-!                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:32)
-!6202            format(i4,1x,a2,1x,a,' T=',F8.2,', ',a)
+                     eqlista(iel)%tpval(1),text(1:32)
 6202            format(i4,1x,a2,1x,a,1x,F8.2,7x,a)
              elseif(eqlista(iel)%weight.eq.zero) then
                 jp=jp+1
@@ -5354,8 +5375,13 @@ contains
              write(kou,*)'Testing symbol ',trim(name1),' value OK ++++++++'
           endif
 !..................................
-! not used
+! debug map_startpoints
        case(9)
+          nullify(starteq)
+          starteq=>ceq
+          starteq%nexteq=0
+          call auto_startpoints(maptop,noofaxis,axarr,seqxyz,starteq)
+          if(gx%bmperr.ne.0) goto 990
 !..................................
 ! debug grid.  This calculates grid for phases one by one and check
        case(10)
@@ -5817,7 +5843,7 @@ contains
                 jp=index(text,'=')
                 text(jp:)=' '
                 if(maptop%tieline_inplane.eq.1) then
-! if tie-lines in the plane is 1 and calculating axis was x(A)
+! if tie-lines in the plane is 1 (.e. YES) and calculating axis was x(A)
 ! then plot axis should be x(*,cu) 
                    jp=index(text,'(')
                    if(jp.gt.0) then 
@@ -5825,6 +5851,7 @@ contains
                    endif
                 endif
              else
+! this is plotting a STEP calculation
                 text='NP(*) '
              endif
              axplotdef(iax)=text
@@ -5977,6 +6004,17 @@ contains
           graphopt%filename=' '
 !          write(*,*)' >>>>>>>>>>>>> ',trim(plotfile)
           graphopt%filename=plotfile
+!          write(*,*)'PMON6 tieline_inplane: ',maptop%tieline_inplane,&
+!               graphopt%status
+          if(maptop%tieline_inplane.lt.0) then
+! set the isopleth bit
+             graphopt%status=ibset(graphopt%status,GRISOPLETH)
+!             write(*,*)'PMON6 graphopt: ',graphopt%status,grisopleth
+          else
+! for step and tie-lines in plane clear the bit
+             graphopt%status=ibclr(graphopt%status,GRISOPLETH)
+          endif
+!          write(*,*)'PMON6 **** call ocplot2: ',graphopt%status,grisopleth
 ! added ceq in the call to make it possible to handle change of reference states
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
           if(gx%bmperr.ne.0) goto 990
@@ -6432,7 +6470,7 @@ contains
           case(1)
 ! monovariant and tielinecolor declared in smp2.F90
              call gparcdx('Monovariant color ',cline,last,1,&
-                  name1,monovariant,'?PLOT font')
+                  name1,monovariant,'?PLOT color')
              call capson(name1)
              do kl=1,6
                 if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
@@ -6610,10 +6648,12 @@ contains
 !...............................................
 ! PLOT EXTRA axis factor to plot kJ or GPa instead of J and kJ
           case(13)
-             call gparcdx('Wich axis?',cline,last,1,ch1,'Y','?PLOT misc')
+             call gparcdx('Wich axis?',cline,last,1,ch1,'Y',&
+                  '?PLOT extra factor')
              call capson(ch1)
              if(ch1.eq.'Y' .or. ch1.eq.'X') then
-                call gparrdx('Factor?',cline,last,xxx,1.0D-3,'?PLOT misc')
+                call gparrdx('Factor?',cline,last,xxx,1.0D-3,&
+                     '?PLOT extra factor')
                 if(ch1.eq.'X') graphopt%scalefact(1)=abs(xxx)
                 if(ch1.eq.'Y') graphopt%scalefact(2)=abs(xxx)
 !                write(*,*)'PMON: ',graphopt%scalefact(1),graphopt%scalefact(2)

@@ -3209,8 +3209,9 @@ CONTAINS
 ! typ<0 means new or old file; 0 old file no filer, 
 ! typ >0 means old file with filter:
 ! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT, 8=LOG
+!       write(*,*)'M4 opening popup window',typ
        call getfilename(typ,sval)
-!       write(*,*)'From getfilename: "',trim(sval),'"'
+!       write(*,*)'M4 From getfilename: "',trim(sval),'"',typ
        if(sval(1:1).eq.' ') then
           buperr=1020
        elseif(typ.eq.-7) then
@@ -3240,6 +3241,7 @@ CONTAINS
        endif
     endif
 #endif    
+!    write(*,*)'M4 exit gparfilex: ',trim(sval)
 900 RETURN
   END SUBROUTINE GPARFILEX
 

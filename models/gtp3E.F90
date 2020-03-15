@@ -29,6 +29,7 @@
       call gtpsavedir(filename,str(3:))
    elseif(str(1:1).eq.'T') then
 ! TDB format
+      write(*,*)'In gtpsave '
       call gtpsavetdb(filename,str(3:))
    elseif(str(1:1).eq.'L') then
 ! LaTeX format

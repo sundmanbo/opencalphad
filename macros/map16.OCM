@@ -1,0 +1,85 @@
+@$
+@$===================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$  Mapping of isopleth in C-Cr-Fe
+@$
+@$===================================================================
+@$ 
+new Y
+
+set echo Y
+
+@$===================================================================
+@$
+r t ./steel7
+fe cr c
+ 
+set c t=1200 p=1e5 n=1 w%(cr)=13 w%(c)=1
+
+c e
+
+@&
+
+l
+RESULTS
+1
+
+@&
+
+set ax 1 w%(c)
+0
+2
+
+
+set ax 2 t 800 1800 ,,
+
+map
+
+
+@&
+
+plot
+
+T_C
+@$ Plotting this text is a bit complicated
+@$ The Y coordinate must be in the units used to calculate the diagram (Kelvin)
+@$ but the text will be plotted using the units for the plot (Celcius)
+@$ This will eventually be corrected (until then edit the ocgnu.plt file)
+text
+1
+1100
+2
+0
+Y
+
+title map 16 Fig 1
+
+
+@$ The lines with the same phase fix has the same color
+
+set inter
+

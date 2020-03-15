@@ -3021,7 +3021,7 @@
    type(tpfun_expression), pointer :: tpfexpr
    type(gtp_tpfun_as_coeff), dimension(:), allocatable :: cadd
    double precision ccc
-   logical skipnext
+   logical skipnext,isqrt
    integer noofcadd,fsqrt
 !----------
 !  TYPE gtp_tpfun_as_coeff
@@ -3077,6 +3077,7 @@
    jadd=0
    noofcadd=0
    krange=1
+   isqrt=.false.
 100 continue
    i1a=i1a+1
    i1b=i1b+1
@@ -3098,7 +3099,7 @@
 !              cfun1%coefs(i2,i1b),cfun1%tpows(i2,i1b)
 !113      format(a,4i4,E20.8,i5)
          if(skipnext) then
-! skip this term as it should just contains the ln(T)
+! skip this term as it should just contain the ln(T)
             if(tpfexpr%plevel(i2).ne.1 .or. tpfexpr%link(i2).ne.0 &
                  .or. tpfexpr%tpow(i2).ne.1) then
 !               write(*,*)'3Z WARNING check if TPFUN error in: ',&
@@ -3108,7 +3109,11 @@
             cfun1%coefs(i2,i1b)=zero
             cfun1%tpows(i2,i1b)=-100
             skipnext=.false.
-!            cycle trange
+            if(isqrt) then
+! fixing a bug for T**2 as EXP(0.5*LN(T))
+               isqrt=.false.
+               cycle trange
+            endif
          endif
          funrefif: if(funref.lt.0) then
 ! this is assumed to be a link to LN(T) or SQRT
@@ -3121,15 +3126,24 @@
 !114            format(a,i5,2x,a,i5,2x,a)
 ! set T power to -8; this will be converted to 0.5 when writing !!!
                cfun1%tpows(i2,i1b)=-8
+               write(*,*)'3Z sqrt coeff: ',cfun1%coefs(i2,i1b)
+               isqrt=.true.
                skipnext=.true.
             elseif(funref.ne.-2) then
+! this is an unknown type of funref link (-2 means LN(T))
                write(*,*)'3Z TPFUN with other unary function than LN(T): ',&
                     trim(tpfroot%symbol),lfun,funref
                gx%bmperr=4393; goto 1000
             elseif(tpfexpr%tpow(i2).eq.1) then
+! NOTE not elseif(funref ... just extract the power of T, could be 0?
 ! Tln(T) will have tpows = 100, we skip the next term with the T
                cfun1%tpows(i2,i1b)=tpfexpr%tpow(i2)+99
                skipnext=.true.
+!            else
+! This could be a LN(T) term?
+!               write(*,'(a,a,5i5)')'3Z TPFUN with just LN(T)? ',&
+!                    trim(tpfroot%symbol),lfun,i2,funref,tpfexpr%tpow(i2)
+!               gx%bmperr=4393; goto 1000
             endif
          elseif(funref.gt.0) then
             funrefranges: if(ctpf(funref)%nranges.gt.0) then

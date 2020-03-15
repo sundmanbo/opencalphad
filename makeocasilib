@@ -40,6 +40,6 @@ REM generating the library needed also for TQ appications
 ar sq libocasi.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
 
 REM =================================================================
-REM libocasi.a and liboceqplus.mod are used when linking applications.
+REM libocasi.a and liboceqplus.mod are needed to link applications.
 REM =================================================================
 

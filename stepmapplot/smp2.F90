@@ -23,11 +23,11 @@ MODULE ocsmp
   use liboceqplus
 !
   implicit none
-  character*8, parameter :: smpversion='SMP-2.21'
+  character*8, parameter :: smpversion='SMP-2.30'
 !
 ! note the type map_fixph declared in matsmin.F90 (in liboceq)
 !
-! this will be smp3.  New method to calculate diagrams with tie-line in plane
+! Thought for smp3.  A new method to calculate diagrams with tie-line in plane
 ! No fix phase but instead a fixed compostion in the middle of the tie-line
 ! That means no problems changing fix phase!
 !
@@ -58,11 +58,15 @@ MODULE ocsmp
 ! two ends of the line.  A map_line that terminates at the end of an axis will
 ! have a zero link for that end of the line.
 !
+!\begin{verbatim}
 ! These are bits in the map_line status word
 ! if EXCLUDEDLINE set the whole line is inactived
 ! TWOSTOICH set if there are tie-lines inplane and line ends with stoich phases
 ! with same composition (see for example U-O)
   integer, parameter :: EXCLUDEDLINE=0, TWOSTOICH=1
+! Bit in the MAP_NODE record
+  integer, parameter :: MAPINVARIANT=0
+!\end{verbatim}
 !
 !\begin{verbatim}
   TYPE map_line
@@ -322,7 +326,7 @@ MODULE ocsmp
 ! these bits very confused ...
 ! GRKEEP is set if graphics windows kept
 ! GRNOTITLE is set if no title plotted 
-  integer, parameter :: GRKEEP=2,GRNOTITLE=3
+  integer, parameter :: GRKEEP=2,GRNOTITLE=3,GRISOPLETH=4
 !--------------------------------------------------
 ! default for some colors
   character (len=6) :: monovariant='7CFF40'       ! this is light green

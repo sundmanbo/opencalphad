@@ -39,6 +39,9 @@
     character pfh*64,dummy*24
     double precision, dimension(:,:), allocatable :: anp
     double precision, dimension(:), allocatable :: xax,yyy
+! save isopleth invariants in special array, max 50 invariants
+    double precision xyinv(4,50)
+    integer ninv
 ! Too big??
 !    integer, parameter :: maxval=10000
 ! plotting isothermal section Cr-Fe-Mo required more than 2000
@@ -48,24 +51,30 @@
 ! encoded2 stores returned text from get_many ... 2048 is too short ...
 ! selphase used when plotting data just for a selected phase like y(fcc,*)
     character statevar*64,encoded1*1024,encoded2*4096,selphase*24
-    character*64, dimension(:), allocatable :: phaseline
+    character*128, dimension(:), allocatable :: phaseline
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv,nofapl
-    integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil
+    integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil,errall
     double precision xmax,xmin,ymax,ymin,value,anpmin,anpmax
 ! lhpos is last used position in lineheader
     integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat,anpdim,qp
-    integer nix,stoichfix,invlines
+    integer nix,stoichfix,invlines,invnode,nrett,mfix
     integer, allocatable, dimension(:) :: ixpos
+! setting color on isopleth lines?  Dimension is max different fix phases
+    integer, allocatable, dimension(:,:) :: phamfu
+    integer fixphasecolor
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
-    logical overflow,first,last,novalues,selectph,varofun,moretops
+    logical overflow,first,last,novalues,selectph,varofun,moretops,isopleth
     logical, allocatable, dimension(:) ::  nevernone
 ! textlabels
     type(graphics_textlabel), pointer :: textlabel
 ! line identification (title)
     character*16, dimension(:), allocatable :: lid
 !
-!    write(*,*)'In ocplot2, looking for segmentation fault 1'
+!    write(*,*)'In ocplot2 graphopt%status: ',maptop%status,MAPINVARIANT
+!    if(btest(maptop%mapinvariant) &
+!         graphopt%status=ibset(graphopt%status,GRISOPLETH)
+!    write(*,*)'smp2b isoplethplot 0: ',btest(graphopt%status,GRISOPLETH)
 ! transfer from graphics record to local variables
 ! initiate lines_excluded
     lines_excluded=0
@@ -74,6 +83,8 @@
     nullify(lastplotline%nextline)
     lastplotline%type=-1
     plotline1=>lastplotline
+    isopleth=btest(graphopt%status,GRISOPLETH)
+    if(isopleth) write(*,*)'smp2b plotting isoplteh'
 ! when creating a new plotline: ??
 ! 1: allocate(plotline%nextline)
 ! 2: plotline%nextline%nextline=>plotline1
@@ -82,6 +93,9 @@
     pltax(1)=graphopt%pltax(1)
     pltax(2)=graphopt%pltax(2)
     filename=graphopt%filename
+! for isopleths this value determine the line color
+    fixphasecolor=1
+
 !    write(*,*)' ocplot2 >> plot file: ',trim(filename)
 !    pform=graphopt%pform
 ! continue as before ...
@@ -124,12 +138,23 @@
 ! Hm, if merging plots the number of separators needed can be any value
     jj=100+10*maptop%next%seqx+1
 !    write(*,*)'SMP: Allocating linesep: ',jj
-    allocate(linesep(jj))
+    allocate(linesep(jj),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'SMP2B Allocation error 1: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
     nax=maptop%number_ofaxis
     linesep=0
 ! allocate texts to identify the lines on the gnuplot file
 !    write(*,*)'SMP: Allocating phaseline: ',jj
-    allocate(phaseline(jj))
+    allocate(phaseline(jj),stat=errall)
+    allocate(phamfu(2,jj),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'SMP2B Allocation error 2: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
+! zero array fr isopleth fix phase
+    phamfu=0
 !    if(maptop%number_ofaxis.gt.1) then
 !       write(*,*)'Warning: may not not handle map graphics correctly',jj
 !    endif
@@ -137,7 +162,11 @@
     giveup=0
     nrv=maxval
 !    write(*,*)'SMP: allocating xax: ',nrv
-    allocate(xax(nrv))
+    allocate(xax(nrv),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'SMP2B Allocation error 3: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
 ! to insert MOVE at axis terminations
     nlinesep=1
     phaseline(1)=' '
@@ -153,6 +182,7 @@
     maxanp=1000
     np=maxanp
     qp=1
+    ninv=0
     wildcard=.FALSE.
     selectph=.FALSE.
     selphase=' '
@@ -170,23 +200,31 @@
 ! allocate as many array elements as columns
           anpdim=np
 !          write(*,*)'SMP: allocating anp1: ',np*nrv
-          allocate(anp(np,nrv))
+          allocate(anp(np,nrv),stat=errall)
 !          write(*,*)'SMP: allocating anp2: ',np
 ! nonzero indicates for each column if there is any nonzero value
 ! columns with only zero values will be eliminated before plotting
-          allocate(nonzero(np))
+          allocate(nonzero(np),stat=errall)
 !          write(*,*)'SMP: allocating nonzero: ',np
 ! linzero indicate for the present block of equilibria for each column
 ! if this column contain nonzero values
           allocate(linzero(np))
 !          write(*,*)'SMP: allocating yyy: ',np
-          allocate(yyy(np))
+          allocate(yyy(np),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'SMP2B Allocation error 5: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           nzp=np
 ! nzp should be dimension of yyy, np returns the number of values in yyy
 ! yyy is to extract state variable values for the column with wildcard
 ! NOTE binary phase diagrams are plotted with wildcard axis like x(*,cr) vs T
 ! nevernone is an attempt to remove columns that are zero by the value NaN
-          allocate(nevernone(np))
+          allocate(nevernone(np),stat=errall)
+          if(errall.ne.0) then
+             write(*,*)'SMP2B Allocation error 6: ',errall
+             gx%bmperr=4370; goto 1000
+          endif
           nevernone=.FALSE.
           nonzero=0
           wildcard=.TRUE.
@@ -198,6 +236,7 @@
 ! NOTE that a single * without , can be phase or component:
 ! MU(*) is for a component
           ikol=index(pltax(iax),',')
+!          write(*,*)'smp2b selectph: ',trim(pltax(iax)),ikol
           if(ikol.gt.0) then
 ! if the * is after the , then extract the phase name before             
 ! and set selecrph to TRUE
@@ -217,8 +256,11 @@
     enddo
     if(.not.wildcard) then
        anpdim=1
-!       write(*,*)'SMP: allocating anp2: ',np
-       allocate(anp(1,nrv))
+       allocate(anp(anpdim,nrv),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'SMP2B Allocation error 7: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        wildcard=.FALSE.
        nnp=1
        anpax=2
@@ -241,6 +283,11 @@
 ! we sometimes have a segmentation fault when several maptops ...
     if(associated(localtop%next)) then
        mapnode=>localtop%next
+       invnode=0
+       if(btest(mapnode%status,MAPINVARIANT)) then
+          invnode=size(mapnode%linehead)
+!          write(*,*)'ocplot2 invariant node 1',invnode
+       endif
     else
        write(*,*)'Mapnode next link missing 1'
        goto 79
@@ -305,6 +352,7 @@
 !200    continue
 ! this is the loop for all equilibria in the line
 !       write(*,*)'SMP2: nr and nv: ',nr,nv
+       nrett=nv+1
        plot1: do while(nr.gt.0)
           nv=nv+1
           if(nv.ge.maxval) then
@@ -315,19 +363,21 @@
           if(ocv()) write(*,201)'Current equilibrium: ',nr,nv,curceq%tpval(1)
 201       format(a,2i5,F8.2,1pe14.6)
 ! extract the names of stable phases to phaseline from the first equilibrium
-! Note that the information of the fix phases are not saved
+! Note that the information of the fix phases have not been saved
           if(first) then
 ! segmentation fault after here
 !             write(*,*)'In ocplot2, looking for segmentation fault 4A'
              first=.false.
              kk=1
+! leave space to write fixphasecolor index first
+             if(isopleth) kk=5
 !             if(selectph) novalues=.TRUE.
              phloop: do jj=1,noph()
 !                write(*,*)'In ocplot2, segmentation fault 4Ax',jj,noofcs(jj)
                 do ic=1,noofcs(jj)
                    k3=test_phase_status(jj,ic,value,curceq)
                    if(gx%bmperr.ne.0) goto 1000
-                   if(k3.gt.0) then
+                   stableph1: if(k3.gt.0) then
 ! this phase is stable or fix
                       call get_phase_name(jj,ic,dummy)
                       if(gx%bmperr.ne.0) goto 1000
@@ -336,7 +386,9 @@
 ! data for a specific phase like y(fcc#4,*) which is not stable??
                          if(abbr_phname_same(dummy,trim(selphase))) then
                             novalues=.FALSE.
-!                            write(*,*)'SMP2B novalues set FALSE',mapline%lineid
+!                            write(*,217)'SMP2B novalues set FALSE',&
+!                                 mapline%lineid,trim(dummy),trim(selphase)
+217                         format(a,i5,2x,a,2x,a)
                             exit phloop
                          else
                             novalues=.TRUE.
@@ -350,11 +402,44 @@
                          phaseline(nlinesep)(kk:)=dummy
                          kk=len_trim(phaseline(nlinesep))+2
                       endif
-                   endif
+                      linecolor: if(isopleth .and. value.eq.zero) then
+! attempt to have the same color for all lines with same fix phase
+                         kkk=10*jj+ic
+                         do mfix=1,nlinesep
+                            if(kkk.eq.phamfu(1,mfix)) then
+                               phamfu(1,nlinesep)=kkk
+                               phamfu(2,nlinesep)=phamfu(2,mfix)
+!                               write(*,*)'smp2b same: ',kkk,phamfu(1,mfix)
+                               exit linecolor
+                            endif
+                         enddo
+                         if(mfix.gt.nlinesep) then
+                            phamfu(1,nlinesep)=kkk
+                            phamfu(2,nlinesep)=fixphasecolor
+                            fixphasecolor=fixphasecolor+1
+! save phase names in lid for KET, how many phases?
+                            if(.not.allocated(lid)) then
+                               allocate(lid(20))
+                               lid=' '
+                            endif
+                            lid(fixphasecolor-1)=dummy
+                         endif
+!                         write(*,'(a,7i5)')'smp2b phasecolor: ',nlinesep,mfix,&
+!                              kkk,jj,fixphasecolor
+                      endif linecolor
+                   endif stableph1
                 enddo
              enddo phloop
-!             write(*,117)nlinesep,phaseline(nlinesep)(1:kk-1)
-117          format('Stable phases on line ',i5/a)
+!             do kkk=1,nlinesep
+!                write(*,'(a,i3,3i5)')'smp2b color: ',nlinesep,&
+!                     kkk,phamfu(1,kkk),phamfu(2,kkk)
+!             enddo
+! This destroyed phaseline for map with tie-lines in plasne ...
+             if(isopleth) &
+                  write(phaseline(nlinesep)(1:3),'(i3)')phamfu(2,nlinesep)
+!             write(*,117)'smp2b phaseline: ',nlinesep,phamfu(2,nlinesep),&
+!                  trim(phaseline(nlinesep))
+117          format(a,2i5,2x,a)
 ! the segmentation fault was that linzero not always allocated ....
              if(allocated(linzero)) linzero=0
           endif
@@ -409,7 +494,7 @@
                 endif
 ! problem that part of encoded2 desctroyed in late calls, it is OK here
 !                write(*,737)len_trim(encoded2),trim(encoded2)
-!737             format('smp2b: debug encoded2 ',i5/a/)
+737             format('smp2b: debug encoded2 ',i5/a/)
 ! compiling without -finit-local-zero gives a segmentation fault here
 ! running the MAP11 macro
                 qp=np
@@ -422,7 +507,11 @@
                 nix=np
 ! we must allocate the array to indicate which values that should e plotted
                 if(allocated(ixpos)) deallocate(ixpos)
-                allocate(ixpos(nix))
+                allocate(ixpos(nix),stat=errall)
+                if(errall.ne.0) then
+                   write(*,*)'SMP2B Allocation error 8: ',errall
+                   gx%bmperr=4370; goto 1000
+                endif
 ! This quite complicated IF is to handle the case when the wildcard is
 ! is a phase or component/constituent
 !                write(*,*)'SMP stvarix: ',trim(statevar),selectph
@@ -457,7 +546,9 @@
              endif
 !             write(*,*)'On ocplot2, segmentation fault 4D1'
 !             write(*,213)trim(encoded2),np,(yyy(ic),ic=1,np)
-213          format('windcard: ',a,i3,6(1pe12.4))
+213          format('WILDCARD: ',a,i3/6(1pe12.4))
+!             write(*,214)np,(ixpos(ic),ic=1,np)
+214          format('ixpos: ',12i3)
 !             write(*,16)'val: ',kp,nr,gx%bmperr,(yyy(i),i=1,np)
 16           format(a,2i3,i5,/6(1pe11.3/))
              anpmin=1.0D20
@@ -494,9 +585,6 @@
                       anp(jj,nv)=yyy(jj)
                    endif
 ! difficult ...
-!                   if(abs(yyy(jj)).gt.zero) then
-!                   write(*,9000)rnone,yyy(jj),jj,ixpos(jj),ikol
-!9000               format('SMP lid: ',e10.4,2x,e10.4,10i4)
                    if(yyy(jj).ne.rnone .and. ixpos(jj).ne.0) then
 ! ths is the trick to supress lines for phases that are never stable
                       nonzero(jj)=1
@@ -506,17 +594,23 @@
                       if(anp(jj,nv).gt.anpmax) anpmax=anp(jj,nv)
                       if(anp(jj,nv).ne.rnone .and. &
                            anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
-! extract state variable jj
+! extract state variable jj used for table headings and key
                       if(.not.allocated(lid)) then
-!                         write(*,*)'Allocating lid: ',np+5
-                         allocate(lid(np+5))
+                         allocate(lid(np+5),stat=errall)
+                         if(errall.ne.0) then
+                            write(*,*)'SMP2B Allocation error 9: ',errall
+                            gx%bmperr=4370; goto 1000
+                         endif
                       endif
+                      if(.not.isopleth) then
+! if not isopleth save variable symbol in lid for headings (KEY)
 ! getext( , ,2, , , ) returns next text item up to a space
-                      call getext(encoded2,lcolor,2,encoded1,'x',lhpos)
-                      lid(jj)=encoded1
-                      kk=len_trim(encoded1)
-                      if(kk.gt.len(lid(jj))) then
-                         lid(jj)(7:)='..'//encoded1(kk-6:kk)
+                         call getext(encoded2,lcolor,2,encoded1,'x',lhpos)
+                         lid(jj)=encoded1
+                         kk=len_trim(encoded1)
+                         if(kk.gt.len(lid(jj))) then
+                            lid(jj)(7:)='..'//encoded1(kk-6:kk)
+                         endif
                       endif
                    else
 ! skip state variable
@@ -585,16 +679,15 @@
 !       write(*,*)'SMP2B at 220: nr and nv: ',nr,nv
        invariant_lines: if(nax.gt.1) then
 !---------------------------------------------------------------
-!------------------ special for invariant lines
+!------------------ special for invariant lines ?? and others
 !---------------------------------------------------------------
 ! for phase diagram always move to the new line 
           map1: if(nlinesep.ge.1) then
-             if(linesep(nlinesep).lt.nv) then
-!             if(linesep(nlinesep).le.nv) then
+             newsep: if(linesep(nlinesep).lt.nv) then
 ! we should never have several linesep for the same value of nv!
                 nlinesep=nlinesep+1
                 linesep(nlinesep)=nv
-! phaseline(nlinesep) is already filled with spaces
+! names of phases on new line
                 phaseline(nlinesep+1)=' '
 !                write(*,*)'adding empty line 1',nlinesep,linesep(nlinesep)
                 inv: if(localtop%tieline_inplane.gt.0 .and. &
@@ -617,26 +710,27 @@
 ! get the names of stable phases from the node equilibrium record
                    kk=1
                    stoichfix=0
-                   do jj=1,noph()
+                   extractphnames: do jj=1,noph()
                       do ic=1,noofcs(jj)
+! value is amount of phase?
                          k3=test_phase_status(jj,ic,value,curceq)
                          if(k3.gt.0) then
 ! this phase is stable or fix
 !                            write(*,*)'SMP addto phaseline 2: ',trim(dummy),&
 !                                 nlinesep
                             call get_phase_name(jj,ic,dummy)
-                            phaseline(nlinesep)(kk:)=dummy
+                            if(kk.lt.100) phaseline(nlinesep)(kk:)=dummy
                             kk=len_trim(phaseline(nlinesep))+2
                             stoichfix=stoichfix+1
                          endif
                       enddo
-                   enddo
+                   enddo extractphnames
+! invariant         write(*,*)'SMP2 phases: ',trim(phaseline(nlinesep)),nlinesep
                    if(stoichfix.gt.3) then
                       write(*,*)'SMP2B too many stable phases at invariant',&
                            stoichfix
                       stoichfix=3
                    endif
-!                   write(*,117)nlinesep,phaseline(nlinesep)(1:kk-1)
 !-------------------
 ! axis without wildcard
                    statevar=pltax(notanp)
@@ -667,7 +761,7 @@
 ! axis with possible wildcard
                    statevar=pltax(anpax)
 !                   write(*,*)'In ocplot2, segmentation fault 4H'
-                   if(wildcard) then
+                   wild2: if(wildcard) then
 
 ! this cannot be a state variable derivative
 !                    write(*,*)'Getting a wildcard value 2: ',nr,statevar(1:20)
@@ -696,20 +790,50 @@
 !                         write(*,*)'Empty line after invariant: ',nlinesep,nv
                       endif
                    else
-! if no wildcard there is no invariant line
-!                      write(*,*)'It can be an invariant point here!!'
+! if no wildcard extract the phase with zero amount
+
                       nv=nv-stoichfix
                       goto 225
-                   endif
+                   endif wild2
+222                continue
+!                else
+!                   write(*,*)'SMP no else link ...'
                 endif inv
-222             continue
-!             else
-!                write(*,*)'No line as linesep(nlinesep)=nv ...
-             endif
+             endif newsep
           endif map1
 ! jump here if no wildcard
 225       continue
        endif invariant_lines
+       if(invnode.ne.0) then
+!          write(*,'(a,3i4,2(1pe12.4))')'Invariant isopleth node: ',invnode,&
+!               ninv,nrett,xax(nrett),anp(1,nrett)
+          if(ninv.eq.0) then
+! the first invariant isopleth 
+             ninv=ninv+1
+             xyinv(1,1)=xax(nrett); xyinv(2,1)=anp(1,nrett)
+             xyinv(3,1)=xax(nrett); xyinv(4,1)=anp(1,nrett)
+          else
+! check if anp value same as already saved invariant
+             cinv: do kk=1,ninv
+                if(abs(anp(1,nrett)-xyinv(2,kk)).lt.1.0D-4) then
+! same ... check if x values lesser than xyinv(1,kk) or greater than xyinv(3,kk)
+                   if(xax(nrett).lt.xyinv(1,kk)) xyinv(1,kk)=xax(nrett)
+                   if(xax(nrett).gt.xyinv(3,kk)) xyinv(3,kk)=xax(nrett)
+                   goto 227
+                endif
+             enddo cinv
+! this is a new invariant, do not accept zero values
+             if(abs(xax(nrett)).gt.1.0D-6.and.abs(anp(1,nrett)).gt.1.0D-6) then
+                ninv=ninv+1
+                xyinv(1,ninv)=xax(nrett); xyinv(2,ninv)=anp(1,nrett)
+                xyinv(3,ninv)=xax(nrett); xyinv(4,ninv)=anp(1,nrett)
+!                write(*,*)'New invariant:',ninv,xyinv(1,ninv),xyinv(2,ninv)
+!             else
+!                write(*,*)'Invariant with zero values ignored'
+             endif
+227          continue
+          endif
+       endif
 !---- take next node along the same line
 230    continue
 !       write(*,*)'SMP2B at 230: nr and nv: ',nr,nv
@@ -743,6 +867,11 @@
              giveup=giveup+1
           endif
           mapnode=>localtop%next
+          invnode=0
+          if(btest(mapnode%status,MAPINVARIANT)) then
+             invnode=size(mapnode%linehead)
+!             write(*,*)'ocplot2 invariant node 2',invnode
+          endif
 !          write(*,*)'In ocplot2, looking for segmentation fault 4M'
 ! loop through all mapnodes
 250       continue
@@ -760,6 +889,12 @@
           endif
           if(.not.associated(mapnode,localtop)) then
              mapnode=>mapnode%next
+             invnode=0
+             if(btest(mapnode%status,MAPINVARIANT)) then
+                invnode=size(mapnode%linehead)
+! All invariant nodes have the same number of stable phases !!
+!                write(*,*)'ocplot2 invariant node 3',invnode
+             endif
              goto 250
           else
 ! we have gone through all mapnodes without finding one with index seqx!!
@@ -774,6 +909,11 @@
 !       write(*,*)'Checking for unplotted lines'
 !       write(*,*)'In ocplot2, looking for segmentation fault 5'
        mapnode=>localtop%next
+       invnode=0
+       if(btest(mapnode%status,MAPINVARIANT)) then
+          invnode=size(mapnode%linehead)
+!          write(*,*)'ocplot2 invariant node 4',invnode
+       endif
        do while(.not.associated(mapnode,localtop))
           jjline: do jj=1,mapnode%lines
              if(mapnode%linehead(jj)%done.eq.0) then
@@ -800,6 +940,11 @@
              endif
           enddo jjline
           mapnode=>mapnode%next
+          invnode=0
+          if(btest(mapnode%status,MAPINVARIANT)) then
+             invnode=size(mapnode%linehead)
+!             write(*,*)'ocplot2 invariant node 5',invnode
+          endif
 !          write(*,*)'Looking at node: ',mapnode%seqx
        enddo
 !--------------------------------------------
@@ -850,7 +995,11 @@
              endif
              if(.not.allocated(lid)) then
 !                write(*,*)'SMP allocating lid 3: ',np
-                allocate(lid(np+5))
+                allocate(lid(np+5),stat=errall)
+                if(errall.ne.0) then
+                   write(*,*)'SMP2B Allocation error 10: ',errall
+                   gx%bmperr=4370; goto 1000
+                endif
              endif
              do jj=ic,nnp-1
                 do nnv=1,nv
@@ -873,16 +1022,43 @@
 ! nnp is the number of columns to plot
 ! nv is the number of separate lines
 690 continue
-!       write(*,651)'SMP at 690:                 ',wildcard,np,qp,nnp,ic
+!       write(*,651)'SMP at 690:                     ',wildcard,np,qp,nnp,ic
        nrv=nv
        np=nnp
 !       goto 800
 !============================================ generate gnuplot file
 800 continue
-    write(*,808)np,nv,maxanp,maxval
-808 format('plot data used: ',2i7,' out of ',2i7)
+! are there any isopleth invariants?
+       if(ninv.gt.0) then
+          do kk=1,ninv
+! nlinesep is last line with data, linesep(nlinsesp) is index of last data line
+!             write(*,'("Isoinv: ",3i4,4(1pe12.4))')nlinesep,linesep(nlinesep),&
+!                  kk,(xyinv(jj,kk),jj=1,4)
+! add these to lines to be plotted
+             kkk=nlinesep
+             if(len_trim(phaseline(kkk)).gt.0) then
+                write(*,*)'smp2b phaseline: "',trim(phaseline(kkk)),'"',kkk
+             endif
+             phaseline(kkk)='100 invariant equilibrium'
+             phaseline(kkk+1)=' '
+!             write(*,*)'smp2b isoinv: "',trim(phaseline(kkk)),'"',kkk
+             jj=linesep(kkk)
+             nlinesep=nlinesep+1
+! the line nlinesep contain  2 points, beginning and end of invariant line
+             linesep(nlinesep)=jj+2
+             xax(jj+1)=xyinv(1,kk); anp(1,jj+1)=xyinv(2,kk)
+             xax(jj+2)=xyinv(3,kk); anp(1,jj+2)=xyinv(4,kk)
+             nrv=nrv+2
+          enddo
+       endif
+! add the invariant lines to be plotted
+! two points for each invariants (X and Y)
+!
+!    write(*,808)np,nv,nlinesep,maxanp,maxval
+!    write(*,'(a,(16i4))')'SMP pp: ',(linesep(kk),kk=1,nlinesep)
+808 format('plot data used: ',3i7,' out of ',2i7)
     if(np.eq.0) then
-       write(kou,*)'No data to plot'
+       write(kou,*)'No data to plot',np
        gx%bmperr=4248
        goto 1000
     endif
@@ -891,9 +1067,12 @@
 !       if(np.ge.1) then
 ! lid should always be allocated if np>1, but ... one never knows 
 !       write(*,*)'SMP: allocate lid 4: ',np
-       allocate(lid(np))
+       allocate(lid(np),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'SMP2B Allocation error 11: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
        do i=1,np
-!          lid(i)='calculated '
           lid(i)='appended '
        enddo
     endif
@@ -918,6 +1097,7 @@
 !    write(*,*)'We are at 2000 '
 !----------------------------------------------------------------------
 !
+!    write(*,*)'smp2b isoplethplot 1: ',btest(graphopt%status,GRISOPLETH)
     call get_plot_conditions(encoded1,maptop%number_ofaxis,axarr,ceq)
 !
 ! NOW pltax should be the the axis labels if set manually
@@ -925,7 +1105,7 @@
     if(graphopt%labeldefaults(3).ne.0) pltax(2)=graphopt%plotlabels(3)
 !    write(*,*)' >>>>>>>>**>>> plot file: ',trim(filename)
     call ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-         phaseline,title,filename,graphopt,version,encoded1)
+         phaseline,title,filename,graphopt,version,encoded1,fixphasecolor)
 !         title,filename,graphopt,pform,version,encoded1)
 !    goto 900
 ! deallocate, not really needed for local arrays ??
@@ -945,27 +1125,26 @@
 !\addtotable subroutine ocplot2B
 !\begin{verbatim} %-
   subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-       phaseline,title,filename,graphopt,version,conditions)
-!       title,filename,graphopt,pform,version,conditions)
+       phaseline,title,filename,graphopt,version,conditions,fixphasecolor)
 ! called from icplot2 to generate the GNUPLOT file after extracting data
 ! np is number of columns (separate lines), if 1 no labelkey
-! nrv is number of values to plot?
+! nrv is number of values to plot
 ! nlinesep is the number of separate lines (index to linesep)
-! linesep is the row when the line to plot finishes
-! pltax
+! linesep is the row index when a line to be plotted finishes (1..nlinesep)
+! pltax are axis labels
 ! xax array of values for single valued axis (T or mu etc)
 ! anpax=2 if axis with single value is column 2 and (multiple) values in
 !         columns 3 and higher
 ! anp array of values for axis with multiple values (can be single values also)
-! lid array with GNUPLOT line types for the different lines
+! lid array with a label for the different lines
 ! title Title of the plot
 ! filename GNUPLOT file name, (also used for pdf/ps/gif file)
 ! graphopt is graphical option record
-! NOT USED: pform is output form (screen/acrobat/postscript/gif)
 ! conditions is a character with the conditions for the diagram
+! fixphasecolor is used for isopleths to know how many columns are needed
     implicit none
-    integer np,anpax,nlinesep
-    integer ndx,nrv,linesep(*),anpdim
+    integer np,anpax,nlinesep,fixphasecolor
+    integer ndx,nrv,linesep(*),anpdim,npx
     character pltax(*)*(*),filename*(*),lid(*)*(*),title*(*)
     character conditions*(*),version*(*),phaseline(*)*(*)
     type(graphics_options) :: graphopt
@@ -980,13 +1159,15 @@
 ! ltf1 is a LineTypeoFfset for current plot when appending a plot, 0 default
     integer appfiletyp,lz,ltf1
     character pfc*64,pfh*64,backslash*2,appline*128
-    character applines(mofapl)*128,gnuplotline*80,labelkey*64,rotate*16
+    character applines(mofapl)*128,gnuplotline*128,labelkey*64,rotate*16
     character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
+    logical isoplethplot
 ! write the gnuplot command file with data appended
 !
-!    write(*,10)'in ocplot2B: ',np,anpax,nrv,pform(1:1),trim(title),&
-!         nlinesep,(linesep(kk),kk=1,nlinesep)
-10  format(a,3i5,' "',a,'" '/a/i3,2x,15i4)
+!    write(*,10)'in ocplot2B: ',np,anpax,nrv,nlinesep,trim(title),&
+!         (linesep(kk),kk=1,nlinesep)
+!    write(*,*)'smp2b isoplethplot 2: ',btest(graphopt%status,GRISOPLETH)
+10  format(a,4i5,a/(15i4))
 !    write(*,*)'In ocplot2B filename: ',trim(filename)
     ltf1=0
     if(graphopt%appendfile(1:1).ne.' ') ltf1=10
@@ -1023,13 +1204,23 @@
 841    format('set terminal ',a/'#set terminal ',a/'#set output "ocgnu.pdf"')
 !841    format('set terminal ',a)
     endif
+! for isopleths we will generate one column for each phase even if there
+! are just a single value in anpax.  To handle this we need different
+! values of "np" for these columns
+    isoplethplot=btest(graphopt%status,GRISOPLETH)
+    npx=np
+    if(isoplethplot) then
+! This is the number of columns with phases in the isopleth incl. invariant
+       npx=fixphasecolor
+    endif
 ! this part is independent of which axis is a single value
 !------------------ some GNUPLOT colors:
 ! colors are black: #000000, red: #ff000, web-green: #00C000, web-blue: #0080FF
 ! dark-yellow: #C8C800, royal-blue: #4169E1, steel-blue #306080,
 ! gray: #C0C0C0, cyan: #00FFFF, orchid4: #804080, chartreuse: 7CFF40
 ! if just one line set key off for that line.
-    if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
+    if(npx.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
+!    if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
        labelkey=' off'
     else
        labelkey=graphopt%labelkey
@@ -1043,31 +1234,56 @@
     else
        write(21,859)trim(title),trim(conditions),trim(graphopt%font)
     endif
-    lz=graphopt%linetype
-    write(21,860)graphopt%xsize,graphopt%ysize,&
-         trim(pltax(1)),trim(pltax(2)),trim(labelkey),&
-         ltf1+1,lz,ltf1+2,lz,ltf1+3,lz,ltf1+4,lz,ltf1+5,lz,&
-         ltf1+6,lz,ltf1+7,lz,ltf1+8,lz,ltf1+9,lz,ltf1+10,lz
 858 format('#set title "',a,' \n #',a,'" font "',a,',10" ')
 859 format('set title "',a,' \n ',a,'" font "',a,',10" ')
-860 format('set origin 0.0, 0.0 '/&
-         'set size ',F8.4', ',F8.4/&
-         'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
-!         'set label "O" at graph -0.090, -0.100 font "Garamond Bold,20"'/&
-!         'set label "C" at graph -0.080, -0.100 font "Garamond Bold,20"'/&
+    lz=graphopt%linetype
+    if(isoplethplot) then
+       write(21,8601)graphopt%xsize,graphopt%ysize,&
+            trim(pltax(1)),trim(pltax(2)),trim(labelkey),&
+            ltf1+1,ltf1+2,ltf1+3,ltf1+4,ltf1+5,&
+            ltf1+6,ltf1+7,ltf1+8,ltf1+9,ltf1+10
+8601   format('set origin 0.0, 0.0 '/&
+            'set size ',F8.4', ',F8.4/&
+            'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-         'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
-         'set key ',a/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#000000" lw 2 pt 10'/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#00C000" lw 2 pt 3'/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#FF0000" lw 2 pt 2'/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#0080FF" lw 2 pt 4'/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#C8C800" lw 2 pt 5'/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#C0C0C0" lw 2 pt 7'/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#00FFFF" lw 2 pt 8'/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#804080" lw 2 pt 9'/&
-         'set style line ',i2,' lt ',i2,' lc rgb "#7CFF40" lw 2 pt 1')
+        'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
+            'set key ',a/&
+            'set linetype ',i2,' lc rgb "#000000" lw 2 pt 10'/&
+            'set linetype ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
+            'set linetype ',i2,' lc rgb "#00C000" lw 2 pt 3'/&
+            'set linetype ',i2,' lc rgb "#FF0000" lw 2 pt 2'/&
+            'set linetype ',i2,' lc rgb "#FF00FF" lw 2 pt 4'/&
+            'set linetype ',i2,' lc rgb "#C8C800" lw 2 pt 5'/&
+            'set linetype ',i2,' lc rgb "#C0C0C0" lw 2 pt 7'/&
+            'set linetype ',i2,' lc rgb "#00FFFF" lw 2 pt 8'/&
+            'set linetype ',i2,' lc rgb "#804080" lw 2 pt 9'/&
+            'set linetype ',i2,' lc rgb "#7CFF40" lw 2 pt 1'/&
+            '# for invariants, orange'/&
+            'set linetype 100 lc rgb "#FFC000" lw 3 pt 1')
+       else
+          write(21,860)graphopt%xsize,graphopt%ysize,&
+               trim(pltax(1)),trim(pltax(2)),trim(labelkey),&
+               ltf1+1,lz,ltf1+2,lz,ltf1+3,lz,ltf1+4,lz,ltf1+5,lz,&
+               ltf1+6,lz,ltf1+7,lz,ltf1+8,lz,ltf1+9,lz,ltf1+10,lz
+860       format('set origin 0.0, 0.0 '/&
+               'set size ',F8.4', ',F8.4/&
+               'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
+! Help with stackoverflow to fix nice logo independent of plot size!
+          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
+               'set key ',a/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#000000" lw 2 pt 10'/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#00C000" lw 2 pt 3'/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#FF0000" lw 2 pt 2'/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#FF00FF" lw 2 pt 4'/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#C8C800" lw 2 pt 5'/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#C0C0C0" lw 2 pt 7'/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#00FFFF" lw 2 pt 8'/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#804080" lw 2 pt 9'/&
+               'set style line ',i2,' lt ',i2,' lc rgb "#7CFF40" lw 2 pt 1'/&
+               '# for invariants, faded read'/&
+               'set style line 100 lt 1 lc rgb "#FF3333" lw 3 pt 1')
+       endif
 ! add some useful things for maniplulation of graph
     write(21,8000)
 8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
@@ -1272,16 +1488,31 @@
     write(21,3000)nrv,trim(tablename)
 3000 format(//'# begin of data with lines',i7/'$',a,' << EOD')
 !
+! A digit before the first phase gives number of columns to plot
+!    write(*,*)'smp2b: isopleth? ',isoplethplot,np,npx
+    if(isoplethplot) read(phaseline(1),'(i3)')fixphasecolor
 ! columnheaders used as keys
-    write(21,3100)'KEYS: ',trim(pltax(3-anpax)),(trim(lid(jj)),jj=1,np)
-3100 format(a,a,' ',100(a,' '))
+    if(isoplethplot) then
+! This column headin is not set before
+       lid(npx)='Invariant'
+!       write(*,3100)'KEYS: ',trim(pltax(3-anpax)),(trim(lid(jj)),jj=1,npx)
+       write(21,3100)'KEYS: ',trim(pltax(3-anpax)),(trim(lid(jj)),jj=1,npx)
+!2900 format(a,i3,2x,10(a,2x))
+    else
+       write(21,3100)'KEYS: ',trim(pltax(3-anpax)),(trim(lid(jj)),jj=1,np)
+3100   format(a,' ',100(a,' '))
+    endif
     ksep=2
+    write(21,*)'# First line: ',trim(phaseline(1))
+!    write(*,*)'smp2b isoplethplot 3: ',isoplethplot,&
+!         btest(graphopt%status,GRISOPLETH),fixphasecolor
     do nv=1,nrv
 !---------------------------------------------------------------
 ! values written multiplied with graphopt%scalefact, 
 ! first value is single valued axis (can be X or Y axis) multiplied with scale1
 ! remaining values multiplied svalem
        write(21,'(i4,1pe16.6)',advance='no')nv,scale1*xax(nv)
+! note that isopletpots have np=1
        do jj=1,np-1
 ! second and later columns represent Y axis
           if(anp(jj,nv).ne.rnone) then
@@ -1290,7 +1521,29 @@
              write(21,'(a)',advance='no')' NaN '
           endif
        enddo
-       if(anp(jj,nv).ne.rnone) then
+       if(isoplethplot) then
+! fixphasecolor 100 means invariant
+          if(fixphasecolor.lt.100) then
+! dummy column values up to fixphasecolor
+             do jj=1,fixphasecolor-1
+                write(21,'(" NaN ")',advance='no')
+             enddo
+! This column has real value, then maybe additional columns with dummy values
+! note only anp(1,nv) has any value!!
+             write(21,2821,advance='no')scalem*anp(1,nv)
+             do jj=1,npx-fixphasecolor-1
+                write(21,'(" NaN ")',advance='no')
+             enddo
+! The last colum is for invariants which are written seperatey below
+             write(21,'(" NaN ")')
+          else
+! this is an invariant, last column has values.  There may be no invariant!
+             do jj=1,npx-1
+                write(21,'(" NaN ")',advance='no')
+             enddo
+             write(21,2821)scalem*anp(1,nv)
+          endif
+       elseif(anp(jj,nv).ne.rnone) then
           write(21,2821)scalem*anp(jj,nv)
        else
           write(21,'(a)')' NaN '
@@ -1299,11 +1552,14 @@
 2821   format(1pe16.6)
 !2822   format(' NaN ')
 !---------------------------------------------------------------
+! here we shift to another line and color
        if(nv.eq.linesep(ksep)) then
-! an empty line in the dat file means a MOVE to the next point.
+! an empty line in the plot file means a MOVE to the next point.
           if(nv.lt.nrv) then
-             write(21,3819)ksep-1,trim(phaseline(ksep-1))
-3819         format('# end of line ',i3,2x,a//)
+             write(21,3819)ksep-1,trim(phaseline(ksep-1)),trim(phaseline(ksep))
+3819         format('# end of line ',i3,2x,a//'# new line ',a)
+!             write(*,*)'SMP2B readfixcolor: ',trim(phaseline(ksep)),ksep
+             if(isoplethplot) read(phaseline(ksep),'(i3)')fixphasecolor
           else
 ! try to avoid rubbish
              write(21,3821)ksep-1,trim(phaseline(ksep-1))
@@ -1324,12 +1580,17 @@
 ! If no file appended the line types are (i-2)
 ! if a file appended then line types are (i-2+ltf1(=10))
 ! if anpax is axis with single value (1=x, 2=y)
+!    if(isoplethplot) then
+!       write(21,3800)trim(tablename)
+!3800   format('plot $',a,' using 2:3:4 with lines lc variable notitle')
+!    elseif(anpax.eq.1) then
+! here we use npx for both isopleths and others!
     if(anpax.eq.1) then
-       write(21,3900)np+2,trim(tablename),ltf1
+       write(21,3900)npx+2,trim(tablename),ltf1
 3900   format('plot for [i=3:',i2,'] $',a,' using i:2',&
             ' with lines ls (i-2+',i2,') title columnheader(i)') 
     else
-       write(21,3910)np+2,trim(tablename),ltf1
+       write(21,3910)npx+2,trim(tablename),ltf1
 3910   format('plot for [i=3:',i2,'] $',a,' using 2:i',&
             ' with lines ls (i-2+',i2,') title columnheader(i)') 
     endif
@@ -1441,6 +1702,7 @@
   subroutine ocplot3(ndx,pltax,filename,mastertop,axarr,graphopt,&
        version,ceq)
 ! special to plot isothermal sections (two columns like x(*,cr) x(*,ni))
+!   or other diagrams with two extensive variable on the axis
 ! ndx is mumber of plot axis, 
 ! pltax is text with plotaxis variables
 ! filename is intermediary file (maybe not needed)
@@ -1474,7 +1736,7 @@
     character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
     character phname*32,encoded*1024,axis*32
     character lid(2,maxsame)*24
-    integer nooflineends,ephl
+    integer nooflineends,ephl,invnode
 !
 ! do not change mastertop!
     maptop=>mastertop
@@ -1482,7 +1744,9 @@
 ! points on one line is       xval(1,jj),yval(1,jj)
 ! points on the other line is xval(2,jj),yval(2,jj)
 ! zval is an occational point zval(1,kk),zval(2,kk) at line ends (invariants)
-! plotkod is a specific code for each point (not used?)
+! plotkod is a specific code for each point
+!    normal point just the index, -1 means point should be suppressed
+!    -100 or -101 is a tieline; -1000 an invariant
 ! lineends is the index in xval/yval for an end of line
     if(.not.associated(maptop)) then
        write(*,*)'No data to plot'
@@ -1529,6 +1793,11 @@
     if(.not.allocated(curtop%linehead)) goto 500
     lines=size(curtop%linehead)
     results=>plottop%saveceq
+    invnode=0
+    if(btest(plottop%status,MAPINVARIANT)) then
+       invnode=size(plottop%linehead)
+       write(*,*)'ocplot3 invariant node 1',invnode
+    endif
     noftielineblocks=0
 !    write(*,*)'SMP Number of lines: ',lines
     node: do ii=1,lines
@@ -2027,7 +2296,7 @@
          'set style line 3 lt ',i2,' lc rgb "#4169E1" lw 2 pt 7'/&
          'set style line 4 lt ',i2,' lc rgb "#FF0000" lw 2 pt 3'/&
          'set style line 5 lt ',i2,' lc rgb "#00FFFF" lw 2 pt 10'/&
-         'set style line 6 lt ',i2,' lc rgb "#0080FF" lw 2 pt 5'/&
+         'set style line 6 lt ',i2,' lc rgb "#FF00FF" lw 2 pt 5'/&
          'set style line 7 lt ',i2,' lc rgb "#804080" lw 2 pt 6'/&
          'set style line 8 lt ',i2,' lc rgb "#00C000" lw 2 pt 8'/&
          'set style line 9 lt ',i2,' lc rgb "#C0C0C0" lw 2 pt 1'/&
@@ -3086,9 +3355,9 @@
 100 continue
 !    mapnode=>localtop
     write(kou,101)mapnode%seqx,mapnode%noofstph,mapnode%savednodeceq,&
-         mapnode%lines
-101 format(' Mapnode: ',i5,' with ',i2,' stable phases, ceq saved in ',i5,&
-         ', lines exit: ',i2)
+         mapnode%status,mapnode%lines
+101 format(' Mapnode: ',i5,' with ',i2,' phases, ceq saved ',i5,&
+         ', status ',z8,', lines exit: ',i2)
     do kl=1,mapnode%lines
        if(.not.associated(mapnode%linehead(kl)%end)) then
           if(mapnode%linehead(kl)%termerr.gt.0) then

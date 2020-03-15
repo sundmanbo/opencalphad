@@ -241,7 +241,7 @@
 !\begin{verbatim}
  integer function test_phase_status(iph,ics,val,ceq)
 ! Almost same as get_..., returns phase status as function value but no text
-! old: 1=entered, 2=fix, 3=dormant, 4=suspended, 5=hidden
+! value is amfu
 ! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
 ! this is different from in change_phase .... one has to make up one's mind
    implicit none

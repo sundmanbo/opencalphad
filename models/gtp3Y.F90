@@ -123,7 +123,7 @@
    allocate(phord(nrph),stat=errall)
    if(errall.ne.0) then
       write(*,*)'3Y allocation error 1: ',errall
-      gx%bmperr=4370; goto 1000
+      gx%bmperr=4370; goto 1100
    endif
    ggloop: do iph=1,nrph
 ! include all phases with any composition set entered (but only once!)
@@ -153,7 +153,7 @@
 !   write(*,*)'3Y allocating gridpoints 2',nrel,maxgrid
    allocate(xarr(nrel,maxgrid),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 2: ',errall
       gx%bmperr=4370; goto 1000
    endif
    gmax=zero
@@ -513,7 +513,7 @@
 !   write(*,*)'3Y allocating startup 3',nvsph
    allocate(starttup(nvsph),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 2: ',errall
+      write(*,*)'3Y allocation error 3: ',errall
       gx%bmperr=4370; goto 1000
    endif
    call extract_massbalcond(ceq%tpval,xdum,totam,ceq)
@@ -606,6 +606,7 @@
       deallocate(gridpoints)
       deallocate(phord)
    endif
+1100 continue
    if(ocv()) write(*,*)'3Y leaving global_gridmin'
 !   write(*,*)'3Y leaving global_gridmin'
    return
@@ -865,8 +866,8 @@
    allocate(endm(nsl,nend),stat=errall)
    allocate(yfra(inkl(nsl)),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
-      gx%bmperr=4370; goto 1000
+      write(*,*)'3Y allocation error 4: ',errall
+      gx%bmperr=4370; goto 1001
    endif
    nofy=inkl(nsl)
 ! generate endmembers, endm(ll,ie) is set to consituent index in sublattice ll
@@ -1298,7 +1299,7 @@
    allocate(yendm(ncon,nend),stat=errall)
    allocate(yfra(ncon))
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 5: ',errall
       gx%bmperr=4370; goto 1000
    endif
    yendm=1.0D-12
@@ -1707,7 +1708,7 @@
 !   allocate(yfra(inkl(nsl)))
    allocate(xbrr(noofel),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 6: ',errall
       gx%bmperr=4370; goto 1000
    endif
 !   nofy=inkl(nsl)
@@ -2068,7 +2069,7 @@
 !   write(*,*)'3Y allocating endmembers 5:',nsl,nend,inkl(nsl)
    allocate(endm(nsl,nend),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 7: ',errall
       gx%bmperr=4370; goto 1000
    endif
 ! inkl(nsl) is the number of fraction variables in the phase
@@ -2127,7 +2128,7 @@
 !   write(*,*)'3Y allocating endmembers 6:',inkl(2),nend
    allocate(yendm(inkl(2),nend),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 8: ',errall
       gx%bmperr=4370; goto 1000
    endif
    yendm=zero
@@ -2421,7 +2422,7 @@
    allocate(yfra(ncon),stat=errall)
    allocate(ysave(ncon),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 9: ',errall
       gx%bmperr=4370; goto 1000
    endif
    yendm=1.0D-12
@@ -2821,7 +2822,7 @@
    allocate(endmem(nend),stat=errall)
    allocate(endmem(1)%constit(nsl),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 10: ',errall
       gx%bmperr=4370; goto 1000
    endif
    charge=zero
@@ -2950,7 +2951,7 @@
 ! guess a safe value ...
    allocate(neutral(alloneut,0:3),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 11: ',errall
       gx%bmperr=4370; goto 1000
    endif
    neutral=0
@@ -3167,7 +3168,7 @@
    allocate(y3(ncc),stat=errall)
    allocate(y4(ncc),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 12: ',errall
       gx%bmperr=4370; goto 1000
    endif
 !   write(*,*)'3Y Charged grid: ',mode,nend,ncon,ncc
@@ -5044,7 +5045,7 @@
    allocate(kphl(0:nrph+1),stat=errall)
    allocate(iphx(nrph+1),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 13: ',errall
       gx%bmperr=4370; goto 1000
    endif
 !
@@ -5076,7 +5077,7 @@
    allocate(xarr(nrel,maxgrid),stat=errall)
    allocate(garr(maxgrid),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 14: ',errall
       gx%bmperr=4370; goto 1000
    endif
 ! calculate the composition and G for the gridpoints
@@ -5329,7 +5330,7 @@
    allocate(xarr(nrel,maxgrid),stat=errall)
    allocate(garr(maxgrid),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 15: ',errall
       gx%bmperr=4370; goto 1000
    endif
    gset=-one
@@ -5818,7 +5819,7 @@
 ! but then I cannot set xx=dum below ...
    allocate(dum(n*m+10),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 16: ',errall
       gx%bmperr=4370; goto 1000
    endif
 !   write(*,*)'3F corrected sortinphtup',n,m
@@ -6863,7 +6864,7 @@
    allocate(maxel(noofel,noofph),stat=errall)
    allocate(wmass(noofel),stat=errall)
    if(errall.ne.0) then
-      write(*,*)'3Y allocation error 1: ',errall
+      write(*,*)'3Y allocation error 17: ',errall
       gx%bmperr=4370; goto 1000
    endif
 !   phl=0

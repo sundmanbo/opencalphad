@@ -1289,22 +1289,26 @@
    integer last,unit1,ftyp
 !\end{verbatim}
    integer iph,ipos,kousave,unit,isp
-   character text*64, text2*2000,fil*64
+   character text*64, text2*2000,fil*128
    character date*8,CHTD*1
 ! if not screen then ask for file name
 ! for screen output of file use /option= ...
    if(ftyp.ne.1) then
 !     call gparcdx('Output file: ',cline,last,1,fil,'database','?Output format')
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
-! negative is for write, 0 read without filter, -100 write without filter
-      call gparfilex('Output file: ',cline,last,1,fil,' ',&
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, -8=LOG
+! NEGATIVE is for write, 0 read without filter, -100 write without filter
+      text=' '
+      call gparfilex('Output file: ',cline,last,1,fil,text,&
            -ftyp,'?Output format')
+! Segmentation fault between exit of GPARFILEX and this write statement
+      write(*,*)'3C back from gparcdx',ftyp,' "',trim(fil),'"'
       ipos=len_trim(fil)
       if(ipos.le.0) then
          write(*,*)'No file name, using "database"'
          fil='database'
          ipos=8
       endif
+      write(*,*)'3C file name: ',trim(fil)
 ! it is impossible to have a blank name here, check if there is an extension
       iph=index(fil,'.')
       if(iph.gt.0) then
@@ -1324,12 +1328,14 @@
             fil(ipos:)='.PDB'
          endif
       endif
+      write(*,*)'3C opening a new file',ftyp
 ! check if file exists ... overwriting not allowed ...
       open(unit=31,file=fil,access='sequential',status='new',err=900)
       kousave=unit
       unit=31
    endif
    call date_and_time(date)
+   write(*,*)'3C select case: ',ftyp
    select case(ftyp) 
    case default
       write(kou,*)'No such format'
@@ -1338,7 +1344,7 @@
    case(1) ! ftyp=1 SCREEN format
 ! add a line if EET (Hickel T, equi-entropy check)
       if(globaldata%sysreal(1).gt.zero) &
-           write(kou,'(/"Equi-entropy (EET) check enabled above T= ",f8.2)')&
+           write(kou,'(/"Equi-entropy check (EEC) enabled above T= ",f8.2)')&
            globaldata%sysreal(1)
       call list_all_elements(kou)
       if(gx%bmperr.ne.0) goto 1000

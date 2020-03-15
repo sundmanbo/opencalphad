@@ -142,7 +142,7 @@ l sh a
 
 @&
 @$ First start point between the A1 and L1_2 phases in the middle
-set c t=500 p=1e5 n=1 x(ni)=.6
+set c t=350 p=1e5 n=1 x(ni)=.57
 
 c e
 
@@ -166,13 +166,15 @@ plot
 
 title map 8 fig 1
 
+
+@$ Sometimes parts are missing, add a point on Ni-rich side
 @&
 
 
-@&
+@$ this falis for oc6d
+@$ set c x(ni)=.60  T=500
 
-@$ Add a start point between L1_0 and L1_2 on the Ni-rich side
-set c x(ni)=.57  T=400
+set c x(ni)=.9 t=400
 
 c e
 
@@ -192,7 +194,26 @@ title map 8 fig 2
 
 @&
 
-@$ Almost there !!
+@$ Sometimes parts are missing, add a point an on Fe-rich side
+
+set c x(ni)=.45 t=200
+
+c e
+
+map
+N
+
+
+plot
+
+
+title map 8 fig 3
+
+
+@&
+
+
+@$ The mapping is not really good handling the order/disorder transitions
 
 set inter
 

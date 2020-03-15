@@ -13,6 +13,31 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+************************************************************************
+*              This is a prerelease of OC version 6                    *
+************************************************************************
+
+2020.03.15 OC version 6.000: Note the linkpara and Makefiles are
+changed to use the name oc6p for the executable.  I will update the
+"stable" version on http://www.opencalphad.org soon.  The handling of
+isopleth diagrams has improved and now I have added colors to the
+lines, indicating which phase which haz zero amount, i.e. becomes
+stable along the line.  The isopleth invariants are now calculated
+correctly but there are still problems generating the correct set of
+stable phases at the exit lines from the invariants.  There is a new
+macro, map16, featuring an isothermal invariant in the C-Cr-Fe system.
+Macros 6 and 7 also features the colors but there are several
+incmplete or missing lines.
+
+I will add automatic start points for phase diagram mapping but one
+problem is that sometimes metastable lines are calculated.  There are
+also numerical problems when following a line and some line may end in
+the middle of nowhere.  A complete diagram may require several
+independent start points but such a routine may generate lines
+representing metastable equilibria.
+
+********************************************************************
+
 2020.03.05 OC version 5.060: I am working on STEP/MAP and have made
 several canges in the datastaructure and I want to save an
 intermediary version not to blow up the whole thing.  The invariants
@@ -968,8 +993,8 @@ now been implemented.  It combines 3 commands, "LIST STATE_VARIABLE",
 "LIST MODEL_PARAM_VALUE" (i.e. properties like Curie T) and "CALCULATE
 SYMBOL".  The original commands remain.  After SHOW you can give
 several symbols, state variables etc on the same line (separated by
-spaces) and get their values listed on separate lines.  You can also
-use state variables with wildcards like X(FCC,*).  However, I
+spaces NOT commas) and get their values listed on separate lines.  You
+can also use state variables with wildcards like X(FCC,*).  However, I
 discovered a problem that I am not sure I can fix very quickly, the
 command "SHOW X(*,CR)" (and similar) asking for the composition of CR
 in all phases lists the CR content in all stable phases but the
@@ -1559,6 +1584,8 @@ things to fix.
 
 2016.07.13 I have decided that this update is now a prerelease of OC
 version 4.
+
+***********************************************************************
 
 2016.07.10 With a lot of help from Jacques Lechelle and others the
 mapping now seems to work much better, also the multicomponent
