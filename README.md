@@ -1,4 +1,4 @@
 
-This is OpenCalphad version 5++
+This is OpenCalphad version 6 prerelease
 
 
