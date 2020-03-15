@@ -33,7 +33,7 @@ new Y
 set echo Y
 
 
-r t ./alfe-4slbf
+r t ./AlFe-4SLBF
  
 @&
 
@@ -140,7 +140,7 @@ new Y
 
 
 
-r t ./alfe-4slbf
+r t ./AlFe-4SLBF
  
 @&
 @$ Start with the High Al side

@@ -60,11 +60,14 @@ plot
 
 @$ Some parts are missing, add another startpoint
 
-set c x(ni)=.2
+@$ does not work on LINUX set c x(ni)=.2
+set c x(re)=.37 x(ni)=.2
 
 c e
 
+l,,,,,
 
+@&
 map
 N
 
