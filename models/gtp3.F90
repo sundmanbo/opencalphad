@@ -929,6 +929,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! TPVALUE     set if evaluated only explicitly (keeping its value)
 ! TPEXPORT    set if value should be exported to symbol
 ! TPIMPORT    set if value should be imported from symbol (only for constants)
+! TPINTEIN    set if value should always be calculated
   integer, parameter :: &
        TPCONST=0,    TPOPTCON=1,   TPNOTENT=2,    TPVALUE=3, &
        TPEXPORT=4,   TPIMPORT=5

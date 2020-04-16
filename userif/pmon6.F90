@@ -310,7 +310,7 @@ contains
          'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
          '                ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
          '                ','GADDITION       ','AQUEUS_MODEL    ',&
-         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
+         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
          '                ','                ','QUIT            ']
 !-------------------
 ! subsubsubcommands to PHASE ADDITION
@@ -924,7 +924,7 @@ contains
 !         '                ','                ','DEFAULT_CONSTIT ',&
 !         '                ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
 !         '                ','GADDITION       ','AQUEUS_MODEL    ',&
-!         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
+!         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
 !         '                ','                ','QUIT            ']
 !....................................................
           CASE DEFAULT
@@ -999,6 +999,13 @@ contains
 !....................................................
              case(4) ! amend phase <name> addition twostate_liquid model
                 call add_addrecord(lokph,' ',twostatemodel1)
+                call gparcdx('Is the addition calculated for one mole atoms? ',&
+                     cline,last,1,ch1,'Y','?Add per formula unit')
+! The CP model calculates a molar Gibbs energy, must be multiplied with
+! the number of atoms in the phase. j2 set above to the addition type
+                if(ch1.eq.'Y' .or. ch1.eq.'y') then
+                   call setpermolebit(lokph,twostatemodel1)
+                endif
                 write(kou,667)
 667             format('This addition require THET parameters for the',&
                      ' Einstein T of the amorphous state'/'and G2 parameters',&
@@ -1017,7 +1024,7 @@ contains
              case(7) ! amend phase <name> LowT_CP_model
                 call add_addrecord(lokph,' ',einsteincp)
                 write(*,*)'This addition requires the THET parameter'
-                call gparcdx('Is the addition calculated for one mole? ',&
+                call gparcdx('Is the addition calculated for one mole atoms? ',&
                      cline,last,1,ch1,'Y','?Add per formula unit')
 ! The CP model calculates a molar Gibbs energy, must be multiplied with
 ! the number of atoms in the phase. j2 set above to the addition type
@@ -1038,13 +1045,17 @@ contains
 !....................................................
              case(12) ! amend phase ... smooth-Cp-step
                 call add_addrecord(lokph,' ',secondeinstein)
-                write(*,672)
-672             format('This addition recures the THT2 and DCP2 parameters')
-! The smooth CP model calculates a molar Gibbs energy, must be multiplied with
+                call gparcdx('Is the addition calculated for one mole? ',&
+                     cline,last,1,ch1,'Y','?Add per formula unit')
+! The CP model calculates a molar Gibbs energy, must be multiplied with
 ! the number of atoms in the phase. j2 set above to the addition type
                 if(ch1.eq.'Y' .or. ch1.eq.'y') then
                    call setpermolebit(lokph,secondeinstein)
                 endif
+                write(*,672)
+672             format('This addition recures the THT2 and DCP2 parameters')
+! The smooth CP model calculates a molar Gibbs energy, must be multiplied with
+! the number of atoms in the phase. j2 set above to the addition type
              end select amendphaseadd
 !************************************ end of amend phase ... addition
 !....................................................
@@ -1159,10 +1170,8 @@ contains
              write(kou,*)'Not implemented yet'
 !                call set_phase_status_bit(lokph,PHCVMCE)
 !....................................................
-          case(15) ! amend phase ... FLORY_HUGGINS_MODEL
+          case(15) ! amend phase ... unused
              write(kou,*)'Not implemented, use UNIQUAC'
-!             call set_phase_status_bit(lokph,PHFHV)
-!             call clear_phase_status_bit(lokph,PHID)
 !....................................................
           case(16) ! moved
 !....................................................

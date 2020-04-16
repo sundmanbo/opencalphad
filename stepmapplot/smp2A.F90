@@ -273,8 +273,9 @@
 !       write(*,*)'problems',mapline%problems,ceq%tpval(1)
 !    endif
 !    write(*,*)'Calling calceq7 with T=',ceq%tpval(1),mapline%axandir
+!    write(*,*)'Calling calceq7 with meqrec%status:',meqrec%status
     call calceq7(mode,meqrec,mapfix,ceq)
-!    write(*,*)'Back from calceq7A ',gx%bmperr
+!    write(*,*)'SMP2A Back from calceq7 ',gx%bmperr,meqrec%status
     if(gx%bmperr.ne.0) then
 ! error 4187 is to set T or P to less than 0.1
        if(gx%bmperr.eq.4187) then
@@ -947,6 +948,7 @@
 ! (without global minimization).  We will save the meq_setup record!
 !    write(*,*)'meq_startpoint: allocating meqrec'
     allocate(meqrec)
+    meqrec%status=0
 ! We must use mode=-1 for map_replaceaxis below has to calculate several equil
 ! and the phr array must not be deallocated.  mapfix will be used later to
 ! indicate fix and stable phases for different lines (maybe ...)
@@ -1102,6 +1104,10 @@
 !-----------------------------------------------------------------------
     if(ocv()) write(*,*)'allocating lineheads: ',ieq,maptop%seqy
     allocate(mapnode%linehead(ieq))
+! meqrec%status
+    do jp=1,ieq
+       mapnode%linehead(ieq)%meqrec%status=0
+    enddo
 ! we can have 3 or more exits if starting inside a 3 phase triagle for isotherm
     if(ieq.eq.2) then
 ! STEP command: set one exit in each direction of the active axis axactive
@@ -1415,7 +1421,7 @@
              fixphaseloop: do jph=1,3
 ! all phases are already set as stable
                 kj=meqrec%stphl(jph)
-                write(*,*)'tmpline 1: ',jph,kj
+!                write(*,*)'tmpline 1: ',jph,kj
                 if(jph.gt.1) then
                    allocate(tmpline(jph)%linefixph(1))
                    allocate(tmpline(jph)%linefix_phr(1))
@@ -1429,15 +1435,15 @@
 !                meqrec%fixpham(1)=zero
                 tmpline(jph)%nfixphases=1
                 tmpline(jph)%linefixph(1)=zerotup
-                write(*,*)'tmpline 2A: ',jph,kj
-                write(*,*)'tmpline 2C: ',allocated(meqrec%phr)
-                write(*,*)'tmpline 2B: ',meqrec%phr(kj)%iph
-                write(*,*)'tmpline 2C: ',allocated(tmpline(jph)%linefixph)
+!                write(*,*)'tmpline 2A: ',jph,kj
+!                write(*,*)'tmpline 2C: ',allocated(meqrec%phr)
+!                write(*,*)'tmpline 2B: ',meqrec%phr(kj)%iph
+!                write(*,*)'tmpline 2C: ',allocated(tmpline(jph)%linefixph)
                 tmpline(jph)%linefix_phr(1)=kj
                 tmpline(jph)%linefixph(1)%ixphase=meqrec%phr(kj)%iph
-                write(*,*)'SMP2A tmpline 3: ',jph,kj
+!                write(*,*)'SMP2A tmpline 3: ',jph,kj
                 tmpline(jph)%linefixph(1)%compset=meqrec%phr(kj)%ics
-                write(*,*)'SMP2A tmpline 4: ',jph,kj
+!                write(*,*)'SMP2A tmpline 4: ',jph,kj
                 tmpline(jph)%nstabph=1
                 kph=jph+1
                 if(kph.gt.3) kph=1
@@ -2218,7 +2224,7 @@
        mapline%meqrec%tpindep(1)=.FALSE.
        if(ocv()) write(*,*)'Marking that T is variable'
     elseif(pcond%statev.eq.2) then
-       mapline%meqrec%tpindep(1)=.FALSE.
+       mapline%meqrec%tpindep(2)=.FALSE.
     endif
 !-------------------------------------------
 ! this is the old axis with active condition, look for its condition
@@ -2239,7 +2245,7 @@
        if(ocv()) write(*,*)'Marking that T is variable',ceq%tpval(1)
        ceq%tpval(1)=pcond%prescribed
     elseif(pcond%statev.eq.2) then
-       mapline%meqrec%tpindep(1)=.TRUE.
+       mapline%meqrec%tpindep(2)=.TRUE.
     endif
 !----------------------------------------------------------
 ! now we calculate the same equilibrium but with different axis condition!
@@ -3580,7 +3586,7 @@
     meqrec%fixpham(1)=zero
     meqrec%iphl(1)=mapline%linefixph(1)%ixphase
     meqrec%icsl(1)=mapline%linefixph(1)%compset
-!------------- now the stable phase
+!------------- now the stable phase  ?? value of stable_phr=??
     mapline%stableph(1)=phtup1
     mapline%stable_phr(1)=phrix
 !    write(*,*)'SMP2A phrix switching fix/stable phase: ',phrix
@@ -3694,7 +3700,7 @@
        if(ocv()) write(*,*)'Marking that T is variable'
        maxstph=1
     elseif(pcond%statev.eq.2) then
-       meqrec%tpindep(1)=.TRUE.
+       meqrec%tpindep(2)=.TRUE.
        maxstph=1
     endif
 !--------------------------------------------
@@ -3872,7 +3878,7 @@
             axval,ceq%tpval(1)
 55     format(a,6(1pe14.6))
     elseif(pcond%statev.eq.2) then
-       meqrec%tpindep(1)=.FALSE.
+       meqrec%tpindep(2)=.FALSE.
 !       ceq%tpval(2)=value
     endif
 !    write(*,*)'error in map_calcnode, remove phfix: ',phfix
@@ -3908,7 +3914,7 @@
 ! When we are there we have successfully calculated an equilibrium with a
 ! new phase set create a node with this equilibrium and a new line records
 500 continue
-    write(*,*)'SMP2 Successful calculation of a node point',phfix
+!    write(*,*)'SMP2 Successful calculation of a node point',phfix
 ! phfix is set negative if phase should be removed
 ! NOTE the phase set fix in the node may not be the same which
 ! wanted to disappear/appear when calling the map_calcnode!!
@@ -3948,7 +3954,7 @@
        ceq%tpval(1)=value
        if(ocv()) write(*,*)'Marking that T is a condition again',value
     elseif(pcond%statev.eq.2) then
-       meqrec%tpindep(1)=.FALSE.
+       meqrec%tpindep(2)=.FALSE.
        ceq%tpval(2)=value
     endif
 ! Save this as the last equilibrium of the line
@@ -4028,7 +4034,7 @@
 ! the number of lines ending at an invariant isopleth is 2*haha
 ! current number of stable phases is meqrec%nstph. 
 ! sign(1,phfix) is 1 if phfix>0; -1 if phfix<0
-          write(*,21)meqrec%nstph,haha,phfix,meqrec%nstph-haha+sign(1,phfix)
+!          write(*,21)meqrec%nstph,haha,phfix,meqrec%nstph-haha+sign(1,phfix)
 21        format('SMP2A stable phases mm: ',3i5,i10)
        endif
     endif
@@ -4091,9 +4097,11 @@
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: newceq,tmpceq
     type(map_node), pointer :: mapnode,newnode
-    type(map_line), pointer :: linenode
+    type(map_line), pointer :: linenode,tmpline
     type(gtp_condition), pointer :: pcond
     type(gtp_state_variable), pointer :: svrrec,svr2
+    type(map_fixph), allocatable :: mapfix
+    type(meq_setup), pointer :: meqrec2
     type(gtp_state_variable), target :: svrtarget
     integer remph,addph,nel,iph,ics,jj,seqx,nrel,jphr,stabph,kph,kcs,kk,lfix
     integer zph,stepax,kpos,seqy,jp,nopotax,lokcs,lokph,haha2,linefphr
@@ -4103,14 +4111,18 @@
     character eqname*24,phases*60
     double precision stepaxval,middle,testv,xxx
 ! mark that line ended with two stoichometric phases and data for isopleth inv
-    integer twostoichset,errall,jfix,jstab,jlast,kstab,zp,phrix
-    integer onlyone,notone,jused,zz,tz,qy
+    integer twostoichset,errall,jfix,jstab,jlast,kstab,zp,phrix,infix3
+    integer onlyone,notone,jused,zz,tz,qy,savefix1,savefix2,nodein(2),nodeut(2)
+! lifexix, nodefix and prevfix are used to fix pair of phases that have zero
+! amount at the exit points of lines from an invariant equilibrium.
+    integer linefix,nodefix,infix,infix2,doubline,twice,firstoutfix,outfix
     integer, allocatable, dimension(:,:) :: invph
+    double precision, allocatable, dimension(:) :: exitcomp,eqcopy
+    logical stepinvariantnode
 !
     lfix=0
 ! the phase kept fix with zero amount at the node is phfix  It can be
 ! negative at STEP if it is a phase that will dissapear.
-!   write(*,*)'In map_newnode with phase change',phfix,mapnode%seqx,ceq%tpval(1)
     if(ocv()) write(*,87)'We are in map_newnode with a fix phase: ',&
          phfix,ceq%tpval(1)
 87  format(a,i4,2x,1pe12.4)
@@ -4125,7 +4137,9 @@
     mapnode=>maptop
     nrel=meqrec1%nrel
 100 continue
+!---------------------------------------------------------------------
 ! loop all mapnodes to check if any has the same chemical potentials
+!---------------------------------------------------------------------
 !       write(*,*)'Comparing with node: ',mapnode%seqx,nrel
 !       write(*,105)'T diff: ',ceq%tpval(1),mapnode%tpval(1),&
 !            abs(ceq%tpval(1)-mapnode%tpval(1)),abs(vz*mapnode%tpval(1))
@@ -4143,9 +4157,9 @@
 105       format(a,5(1pe16.8))
           if(abs(ceq%cmuval(nel)-mapnode%chempots(nel)).gt.&
                abs(2.0D1*vz*mapnode%chempots(nel))) then
-             write(*,'(a,3(1pe12.4))')'Not same chempots, compare next node',&
-                  abs(ceq%cmuval(nel)-mapnode%chempots(nel)),&
-                  abs(2.0D1*vz*mapnode%chempots(nel))
+!             write(*,'(a,3(1pe12.4))')'SMP not same chempots, at this node',&
+!                  abs(ceq%cmuval(nel)-mapnode%chempots(nel)),&
+!                  abs(2.0D1*vz*mapnode%chempots(nel))
              goto 110
           endif
        enddo
@@ -4262,10 +4276,8 @@
 ! save index of the phase set fix at the node
 !    write(*,*)'SMP Saving index of new fix phase: ',abs(phfix)
     if(phfix.lt.0) then
-!       newnode%nodefix%phaseix=-meqrec1%phr(abs(phfix))%iph
        newnode%nodefix%ixphase=-meqrec1%phr(abs(phfix))%iph
     else
-!       newnode%nodefix%phaseix=meqrec1%phr(abs(phfix))%iph
        newnode%nodefix%ixphase=meqrec1%phr(abs(phfix))%iph
     endif
     newnode%nodefix%compset=meqrec1%phr(abs(phfix))%ics
@@ -4326,11 +4338,10 @@
 ! an invariant equlibrium with haha stable phases and 2*haha-1 exiting lines
 !       newnode%lines=2*jj-1
        if(inveq(haha2,ceq)) then
-          newnode%lines=2*haha-1
-          write(*,*)'SMP2A *** invariant node with exits: ',newnode%lines
-!          write(*,*)'SMP2A Currently this is ignored'
-! uncommenting next line means isopleth inveriants are ignored
-!          newnode%lines=3
+!          newnode%lines=2*haha-1
+! Only few of the exit lines will be in the plane f the diagram.  Assume 8
+! i.e. there will be 7 exits          
+          newnode%lines=7
        else
           newnode%lines=3
        endif
@@ -4395,10 +4406,12 @@
        write(*,*)'SMP2A Allocation error 1: ',errall
        gx%bmperr=4370; goto 1000
     endif
+!
     do jp=1,newnode%lines
 !--------------------- code moved from map_findline
 ! COPY of the equilibrium record from newnode to newnode%linehead(jp)%lineceq
        if(ocv()) write(*,*)'We found a line from node: ',mapnode%seqx
+       newnode%linehead(jp)%meqrec%status=0
        eqname='_MAPLINE_'
        kpos=10
        seqy=maptop%seqy+1
@@ -4424,7 +4437,7 @@
 ! MAP tie-line in plane 2; isopleth non-invariant 3; isopleth invariant >3
     kpos=min(newnode%lines,4)
 !    select case(newnode%lines)
-    select case(kpos)
+    exits: select case(kpos)
 !==========================================================================
     case default
        write(*,*)'SMP2A node error: exit lines= ',newnode%lines
@@ -4432,6 +4445,7 @@
 !==========================================================================
     case(1)! step node with just one exit
 ! If phfix negative the fix phase wants to dissapear
+       if(inveq(jj,ceq)) write(*,'(a)')'This is an invariant node'
        changephaseset: if(phfix.lt.0) then
 ! remove a phase ---------------------------
           remph=-phfix
@@ -4466,15 +4480,90 @@
 ! we have to add phase phfix to the stable phase set, that is no problem
 ! as it is already in all lists, just remove that it should be fix
 !          write(kou,88)phfix,' appears,   ',meqrec1%nstph
-! meqrec1%nfixph seems not to be used ....
+! meqrec1%nfixph seems not to be used .... ??
           if(meqrec1%nfixph.gt.0) then
              meqrec1%fixph(1,meqrec1%nfixph)=0
              meqrec1%fixph(2,meqrec1%nfixph)=0
              meqrec1%phr(phfix)%phasestatus=PHENTSTAB
              meqrec1%nfixph=meqrec1%nfixph-1
           endif
+          stepinvariantnode=.FALSE.
+          if(inveq(jj,ceq)) then
+!
+! if node is invariant we must remove one phase, which? NOT phfix
+             stepinvariantnode=.TRUE.
+             newnode%status=ibset(newnode%status,STEPINVARIANT)
+!             write(*,*)'SMP2A invariant node at step',phfix,newnode%status,&
+!                  meqrec1%nstph
+! set the invariant bit in the node and calculate en equilibrium at
+! a very small step above the invariant to find the new set of phases
+             newnode%linehead(1)%meqrec=meqrec1
+             tmpline=>newnode%linehead(1)
+!             do kk=1,meqrec1%nstph
+!                jj=meqrec1%stphl(kk)
+!                write(*,294)'SMP initial set of phases: ',kk,jj,&
+!                     meqrec1%phr(jj)%iph,meqrec1%phr(jj)%curd%amfu
+!             enddo
+             meqrec2=>tmpline%meqrec
+!             do kk=1,meqrec2%nstph
+!                jj=meqrec2%stphl(kk)
+!                write(*,294)'SMP same initial set of phases: ',kk,jj,&
+!                     meqrec2%phr(jj)%iph,meqrec2%phr(jj)%ics,&
+!                     meqrec2%phr(jj)%curd%amfu
+!             enddo
+294          format(a,3i5,i2,1pe14.6)
+             call locate_condition(axarr(1)%seqz,pcond,tmpline%lineceq)
+             if(gx%bmperr.ne.0) goto 100
+!             call list_conditions(kou,tmpline%lineceq)
+!             call list_sorted_phases(kou,tmpline%lineceq)
+!             if(gx%bmperr.ne.0) goto 100
+             pcond%prescribed=pcond%prescribed+&
+                  1.0D-3*stepax*axarr(1)%axinc
+!             call list_conditions(kou,tmpline%lineceq)
+!             write(*,*)'SMP small step invariant to find phase which disappear'
+             call calceq3(0,.FALSE.,tmpline%lineceq)
+! first argument -1 to keep the datastructure in meqrec2
+!             call calceq7(-1,meqrec2,mapfix,tmpline%lineceq)
+!             write(*,*)'Back from calceqx',gx%bmperr,meqrec1%nstph
+!             call list_sorted_phases(kou,tmpline%lineceq)
+! NOTE the content of meqrec2 has not been updated as calceq3 creates a new
+! independent meqrec structure.  We must copy the values of phase amounts
+! using a pointer directly to the phase_varres record
+! list amount of phases after this small step.  However, the layout of
+! the meqrec records are the same, we can use phase indices and other things
+             do kk=1,meqrec2%nstph-1
+                jj=meqrec2%stphl(kk)
+                call get_phase_compset(meqrec2%phr(jj)%iph,meqrec2%phr(jj)%ics,&
+                     lokph,lokcs)
+                xxx=tmpline%lineceq%phase_varres(lokcs)%amfu
+!                write(*,294)'SMP new set of phases: ',kk,jj,&
+!                     meqrec2%phr(jj)%iph,meqrec2%phr(jj)%ics,xxx
+                if(xxx.gt.zero) then
+                   meqrec2%phr(jj)%curd%amfu=xxx
+                else
+                   do zz=kk,meqrec2%nstph-1
+                      meqrec2%stphl(zz)=meqrec2%stphl(zz+1)
+                   enddo
+                endif
+             enddo
+             meqrec2%nstph=meqrec2%nstph-1
+!             do kk=1,meqrec2%nstph
+!                jj=meqrec2%stphl(kk)
+!                write(*,294)'SMP final initial set of phases: ',kk,jj,&
+!                     meqrec2%phr(jj)%iph,meqrec2%phr(jj)%ics,&
+!                     meqrec2%phr(jj)%curd%amfu
+!             enddo
+! finally copy to meqrec1 ...
+             meqrec1%nstph=meqrec2%nstph
+             do kk=1,meqrec2%nstph
+                meqrec1%stphl(kk)=meqrec2%stphl(kk)
+! I assume the amounts are not needed, they should already be in lineceq ...??
+             enddo
+! rearrange the array of stable phases, one should be removed
+!             stop 'all OK?'
+          endif
        else
-          write(*,*)'This is another never never error'
+          write(*,*)'This is another never never error',phfix
           gx%bmperr=4239; goto 1000
        endif changephaseset
 ! set values in linhead record
@@ -4492,16 +4581,29 @@
        newnode%linehead(1)%axfact=1.0D-2
        newnode%linehead(1)%nfixphases=0
 ! try to get a nice output of stable phases below
-       allocate(newnode%linehead(1)%stableph(meqrec1%nstph))
-       allocate(newnode%linehead(1)%stable_phr(meqrec1%nstph))
-       newnode%linehead(1)%nstabph=0
-       do iph=1,meqrec1%nstph
-          newnode%linehead(1)%nstabph=newnode%linehead(1)%nstabph+1
-          jj=meqrec1%stphl(iph)
-          newnode%linehead(1)%stableph(iph)%ixphase=meqrec1%phr(jj)%iph
-          newnode%linehead(1)%stableph(iph)%compset=meqrec1%phr(jj)%ics
-          newnode%linehead(1)%stable_phr(iph)=jj
-       enddo
+!       if(stepinvariantnode) then
+!          allocate(newnode%linehead(1)%stableph(meqrec2%nstph))
+!          allocate(newnode%linehead(1)%stable_phr(meqrec2%nstph))
+!          newnode%linehead(1)%nstabph=0
+!          do iph=1,meqrec2%nstph
+!             newnode%linehead(1)%nstabph=newnode%linehead(1)%nstabph+1
+!             jj=meqrec2%stphl(iph)
+!             newnode%linehead(1)%stableph(iph)%ixphase=meqrec2%phr(jj)%iph
+!             newnode%linehead(1)%stableph(iph)%compset=meqrec2%phr(jj)%ics
+!             newnode%linehead(1)%stable_phr(iph)=jj
+!          enddo
+!       else
+          allocate(newnode%linehead(1)%stableph(meqrec1%nstph))
+          allocate(newnode%linehead(1)%stable_phr(meqrec1%nstph))
+          newnode%linehead(1)%nstabph=0
+          do iph=1,meqrec1%nstph
+             newnode%linehead(1)%nstabph=newnode%linehead(1)%nstabph+1
+             jj=meqrec1%stphl(iph)
+             newnode%linehead(1)%stableph(iph)%ixphase=meqrec1%phr(jj)%iph
+             newnode%linehead(1)%stableph(iph)%compset=meqrec1%phr(jj)%ics
+             newnode%linehead(1)%stable_phr(iph)=jj
+          enddo
+!       endif
 ! end attempt
        newnode%linehead(1)%firstinc=1.0D-2*axarr(1)%axinc*mapline%axandir
 !       newnode%linehead(1)%firstinc=1.0D-3*axarr(1)%axinc*mapline%axandir
@@ -4645,6 +4747,7 @@
 ! the previously fix phase is set as entered with stablepham as initial amount
        newnode%linehead(1)%stableph(1)%ixphase=iph
        newnode%linehead(1)%stableph(1)%compset=ics
+! value of %stable_phr=??
        newnode%linehead(1)%stable_phr(1)=phrix
        newnode%linehead(1)%stablepham(1)=one
 ! store the phase number that must not become stable in nodfixph
@@ -5015,14 +5118,14 @@
 !       write(*,*)'Created node with 2 exits: ',newnode%seqx,ceq%tpval(1)
 390    continue
 !---------------------------------------------------------------
-! invariant isopleth, more then 3 exits
+! invariant isopleth, more than 3 exits
     case(4) ! isopleth invariants for isopleths, inveq
 ! number of stable phases equal to components+1
 ! number of adjacent regions with "components" stable phases is "components+1"
-! number of exit lines are 2*(components+1)
-! each line has a fix phase and one of the phases stable at the invariant
-! as not stable.  The remaining phases  are entered.
-! Each phase is fix for two lines and not stable for two others
+! number of exit lines are 2*(components+1) ?? limit to 8 (minus 1 for entry)
+! each line has a fix phase and one of the phases is stable at the invariant
+! (set as not "nodefix").  The remaining phases  are entered.
+! Each phase is fix for two lines and "nodefix" for two others
 ! This is the way to generate the exit lines:
 ! - loop for all phases to set a phase fix (for two lines)
 ! - loop for the next two phases to set one phase not stable
@@ -5035,7 +5138,6 @@
 ! 0 if both T and P fixed, p is number of stable phases.
 !       write(*,*)'SMP2A Generating exits from isopleth invariant',newnode%lines
 ! Two crossing lines, one in and 3 exits
-! THERE IS NO CASE WHEN FINDING AN INVARIANT
 ! this is probably redundant, fixph already reset
 ! phfix is the new stable phase! Must be positive
 ! mapline is the just finished line
@@ -5059,7 +5161,6 @@
              exit flfix2
           endif
        enddo flfix2
-!       write(*,*)'SMP2A found lfix?',lfix
        if(lfix.eq.0) stop 'ERROR'
 ! this is total number of phases at each the invariant
 ! 1 fix and stabph-2 should be stable at each exit
@@ -5070,62 +5171,89 @@
        endif
 ! Collect all stable phases to be used as different exits.
 ! invph(1,jj) is iph,, invph(2,jj) is ics; invph(3,jj) is index in meqrec1%phr
-! invph(4,jj) is to count number of times this phase is forbidden, max 2
-       allocate(invph(4,stabph+2))
+! invph(4,jj) is to count number of times jj has been linefix
+! invph(5,jj) is to count number of times jj has been nodefix
+! invph(6,jj) is index to phase_varres
+       allocate(invph(6,stabph+2))
        invph=0
        do jj=1,stabph
 ! stableph is a phase_tuple
           invph(1,jj)=mapline%stableph(jj)%ixphase
           invph(2,jj)=mapline%stableph(jj)%compset
-! NOW ADDED stable_phr to find the index in phr !!
           invph(3,jj)=mapline%stable_phr(jj)
+! stable_phr is used to find the index in phr and index to phase_varres
+! I DO NOT TRUST THE VALUE, "stable_phr"
+! I SHOULD REORGANIZE PHE TO BE IN PHASE TUPLE ORDER.
+! THERE ARE ALWAYS PROBLEM IS IF NEW COMPOSIION SETS ARE CREATED DURING MAPPING
+          do zz=1,meqrec1%nphase
+             if(meqrec1%phr(zz)%iph.eq.invph(1,jj) .and.&
+                  meqrec1%phr(zz)%ics.eq.invph(2,jj)) then
+                invph(3,jj)=zz
+!                if(zz.ne.mapline%stable_phr(jj)) &
+!                     write(*,*)'SMP correction: ',jj,zz,mapline%stable_phr(jj)
+             endif
+          enddo
+          call get_phase_compset(invph(1,jj),invph(2,jj),lokph,lokcs)
+          if(gx%bmperr.ne.0) goto 1000
+          invph(6,jj)=lokcs
        enddo
 ! at the end of loop jj=stabph+1; store phfix, the new fix phase, 
        invph(1,jj)=meqrec1%phr(phfix)%iph
        invph(2,jj)=meqrec1%phr(phfix)%ics
        invph(3,jj)=phfix
+       call get_phase_compset(invph(1,jj),invph(2,jj),lokph,lokcs)
+       if(gx%bmperr.ne.0) goto 1000
+       invph(6,jj)=lokcs
 ! this is the phase fix at incomming line, only one exit line with this fix
        invph(1,jj+1)=iph
        invph(2,jj+1)=ics
        invph(3,jj+1)=lfix
-       jlast=stabph+2
-!       do jj=1,jlast
-!          phases=' '
-!          call get_phase_name(invph(1,jj),invph(2,jj),phases)
-!          write(*,420)'SMP2A invrnt phase: ',jj,invph(1,jj),invph(2,jj),&
-!               invph(3,jj),trim(phases)
-!       enddo
-! STABLE PHASES HAS TO BE IN PHR ORDER!! SORT invph
-       call sort_invph(jlast,invph)
+       call get_phase_compset(invph(1,jj+1),invph(2,jj+1),lokph,lokcs)
        if(gx%bmperr.ne.0) goto 1000
+       invph(6,jj+1)=lokcs
+       jlast=stabph+2
+! STABLE PHASES HAS TO BE IN PHR ORDER!! SORT invph
+!       do kk=1,stabph+2
+!          write(*,'(a,i3,2x,i3,i2,4i4)')'SMP invph:',kk,(invph(zz,kk),zz=1,6)
+!       enddo
+! second argument is first dimenstion of invph!!
+       call sort_invph(jlast,6,invph)
+       if(gx%bmperr.ne.0) goto 1000
+!       write(*,*)'SMP sorted invph: '
+!       do kk=1,stabph+2
+!          write(*,'(a,i3,2x,i3,i2,4i4)')'SMP invph:',kk,(invph(zz,kk),zz=1,6)
+!       enddo
        do jj=1,jlast
           phases=' '
           call get_phase_name(invph(1,jj),invph(2,jj),phases)
 ! keep track of the phase found at the invariant and the linefix phase
-          if(invph(3,jj).eq.lfix) onlyone=jj
-          if(invph(3,jj).eq.phfix) notone=jj
-!          write(*,420)'SMP2A sorted phase: ',jj,invph(1,jj),invph(2,jj),&
-!               invph(3,jj),trim(phases)
+! nodein(1) is linefix
+          if(invph(3,jj).eq.lfix) then
+             nodein(1)=jj
+             linefix=jj
+             invph(4,nodein(1))=1
+! nodein(2) is nodefix
+          elseif(invph(3,jj).eq.phfix) then
+             nodein(2)=jj
+             nodefix=jj
+             invph(5,nodein(2))=1
+          endif
        enddo
-420    format(a,4i5,2x,a)
-! the entering line had notone "forbidden", mark it is used
-       invph(4,notone)=1
+! the entering line found at node, nodefix, mark it is used
+! the entering line had this phase fix with zero amount
 !       write(*,'(a,5i4)')'SMP2: linefix and nodefix: ',&
 !            onlyone,lfix,notone,phfix
-! NOTE lfix should only be used once as fixed phase
 ! all the others should be fixed one two exits
 !-------------- 
 ! We have to generate newnode%lines exits!!
        jphr=mapline%nstabph
        jfix=1
-       qy=0
 ! set bit in mapnode!
        if(newnode%status.ne.0) write(*,*)'SMP2 nodestatus: ',newnode%status
        newnode%status=ibset(newnode%status,MAPINVARIANT)
-       invexit: do jj=1,newnode%lines
-! initiate data in map_line record
-!          write(*,410)'SMP2A exit: ',jj,jphr
-410       format(a,10i4)
+!       write(*,*)'SMP2 number of exit lines: ',newnode%lines,jphr
+       allexit: do jj=1,newnode%lines
+! initiate common data in map_line record in all exit lines
           newnode%linehead(jj)%number_of_equilibria=0
           newnode%linehead(jj)%first=0
           newnode%linehead(jj)%last=0
@@ -5154,119 +5282,203 @@
           nullify(newnode%linehead(jj)%end)
 ! number of stable phases along all lines.  Additionally a fix and a forbidden
           newnode%linehead(jj)%nstabph=stabph
+! possible problem with meqrec%status
+          if(newnode%linehead(jj)%meqrec%status.ne.0) then
+             write(*,*)'SMP zero meqrec%status for newnode%linehead',&
+                  newnode%linehead(jj)%meqrec%status
+             newnode%linehead(jj)%meqrec%status=0
+          endif
+       enddo allexit
 !
-! ------------------------------------------------------------------
-! something like this has to be added to define the stable and fix phase
-! different for each line.  But we have to specify one fix and one forbidden
-          phases=' '
-          first: if(jj.eq.1) then
-! For jj=1 we create the only exit with LFIX (in onlyone) as fix and
-! in this case another phase than PHFIX (in notone) should be forbiddem
-             newnode%linehead(jj)%linefixph%ixphase=invph(1,onlyone)
-             newnode%linehead(jj)%linefixph%compset=invph(2,onlyone)
-             newnode%linehead(jj)%linefix_phr=invph(3,onlyone)
-             call get_phase_name(invph(1,onlyone),invph(2,onlyone),phases)
-             zp=len_trim(phases)+2
-!             write(*,*)'smp2: fix: ',trim(phases),onlyone,invph(3,onlyone)
-! set a phase forbidden to become stable when line starts
-! must not be the fix phase and not the phase found at the node (phfix)
-! THE CODE HERE IS NOT CORRECT
-             klop1: do kk=jlast,1,-1
-                if(kk.ne.notone .and. kk.ne.onlyone) then
-                   newnode%linehead(jj)%nodfixph=invph(3,kk); jused=kk;
-                   invph(4,kk)=1
-                   exit klop1
-                endif
-             enddo klop1
-             call get_phase_name(invph(1,jused),invph(2,jused),phases(zp:))
-             zp=len_trim(phases)+2
-!             write(*,*)'smp2: not: ',trim(phases),jused,invph(3,jused),kk
-! NOW add the stable phases excluding onlyone and jused
-             zz=1
-             do kk=1,stabph
-                if(zz.eq.onlyone) zz=zz+1
-                if(zz.eq.jused)  zz=zz+1
-                if(zz.eq.onlyone) zz=zz+1
-                newnode%linehead(jj)%stableph(kk)%ixphase=invph(1,zz)
-                newnode%linehead(jj)%stableph(kk)%compset=invph(2,zz)
-                newnode%linehead(jj)%stablepham(kk)=1.0D-2
-                newnode%linehead(jj)%stable_phr(kk)=invph(3,zz)
-                call get_phase_name(invph(1,zz),invph(2,zz),phases(zp:))
-                zp=len_trim(phases)+2
-                zz=zz+1
-             enddo
-             write(*,430)jj,phases
-430          format('SMP2A invexit: ',i3,2x,a)
+! ------------------------ ISOPLETHAL INVARIANTS EXITS -----------
+! we have to find sets of LINEFIX and NODEFIX phases for each line
+! We know the LINEFIX and NODEFIX phases for the line INTO THE INVARIAT
+! For the first exit line we just swich these as they are at the same point
+! with zero amount of both phases
+!
+!  (C is ?) Cfix         Afix  Dfix       Bfix (B is ?)
+!            \   ABCE..   \BCE./  BCDE.. /
+!             \            \  /         /
+!              \____________\/_________/  
+!      ABDE..  !_________ ABCDE..______!   CDE...
+!              /            /\         \
+!             /  ABDE..    /  \  ACDE.. \
+!            /            /ADE.\         \
+!           Dfix         Bfix   Cfix      Afix
+!
+! Assume we have A as linefix and find the invariant when D becomes stable
+! (the top middle point).  Then there is an exit with D as linefix and A as
+! nodefix.  There is certainly one more exit line with A and D as linefix 
+! but we do not know which nodefix phases they have. And there is a final
+! exit with two line where these two nodefix are linefix/nodefix.
+! The subroutine FIND_INV loop each phase (not A or D) set as fix=0 and fix T
+! to find an equilibrium with either A or D stable with zero amount.  The
+! phase fix represet B or C.  This has to be done twice to geerate 4 lines.
+! The final two lines have B or C as linefix/nodefix.
+! To simplify these calculations all uninvolved phases are suspended
+! 
+!
+       jj=1
+       phases=' '
+! now code to create correct combination of linefix and nodefix
+! first a line with nodefix as linefix and vice versa
+! and old linefix as nodefix phase (sorry very confusing for me too)
+       newnode%linehead(jj)%linefixph%ixphase=invph(1,nodefix)
+       newnode%linehead(jj)%linefixph%compset=invph(2,nodefix)
+       newnode%linehead(jj)%linefix_phr=invph(3,nodefix)
+! this is needed just to understand what is happening
+       call get_phase_name(invph(1,nodefix),invph(2,nodefix),phases)
+       zp=len_trim(phases)+3
+       phases(zp-1:zp-1)='('
+!       write(*,*)'smp2: fix: ',trim(phases),onlyone,invph(3,onlyone)
+! set linefix=LFIX as phase forbidden to become stable when line starts
+! enclose the nodefix phase with ( .... )
+       newnode%linehead(jj)%nodfixph=invph(3,linefix)
+       call get_phase_name(invph(1,linefix),invph(2,linefix),phases(zp:))
+       zp=len_trim(phases)+3
+       phases(zp-2:zp-2)=')'
+! at this line we have switched nodefix/linefix; nodefix is fix along the line
+! the incomming line had the same fix phases so set both 4 and 5 to 1
+       invph(4,nodefix)=1; invph(5,nodefix)=1
+       invph(4,linefix)=1; invph(5,linefix)=1
+! NOW add the stable phases excluding linefix and nodefix
+       kk=0
+       names: do zz=1,stabph+2
+          if(zz.eq.linefix .or. zz.eq.nodefix) cycle names
+          kk=kk+1
+          newnode%linehead(jj)%stableph(kk)%ixphase=invph(1,zz)
+          newnode%linehead(jj)%stableph(kk)%compset=invph(2,zz)
+          newnode%linehead(jj)%stablepham(kk)=1.0D-2
+          newnode%linehead(jj)%stable_phr(kk)=invph(3,zz)
+          call get_phase_name(invph(1,zz),invph(2,zz),phases(zp:))
+          zp=len_trim(phases)+2
+       enddo names
+! note again: nodefix here is fix along the line, linefix is stable at invarant
+       write(*,430)jj,nodefix,linefix,trim(phases)
+430    format('SMP2A invexit: ',3i3,2x,a)
+! The code above is for the FIRST exit line
+! We will use nodein(1) and nodein(2) to find 4 more lines
+! save the constitution of the node equilibrium, copy it to eqcopy
+       if(allocated(exitcomp)) deallocate(exitcomp)
+       call save_constitutions(newnode%nodeceq,exitcomp)
+! this is used to save the stable phases and constituion for each line found
+       allocate(eqcopy(size(exitcomp)))
+! This will be used for the second call to find_inv ??
+!       call restore_constitutions(newnode%linehead(jj)%lineceq,exitcomp)
+       if(gx%bmperr.ne.0) goto 1000
+! --------------
+! Now we use FIND_INV to find a phase with zero amount together with
+! either nodein(1) or nodein(2) and we come back again to find a second phase
+! with zero amount with the other phase fix at the entering line
+       jj=2
+       firstoutfix=0
+391    continue
+! use the lineceq record to be used in the linehead for the calculation
+       eqcopy=exitcomp
+       tmpline=>newnode%linehead(jj)
+!       call list_sorted_phases(kou,tmpline%lineceq)
+!       write(*,*)'SMP before calling find_inv with: ',nodein
+! the parir of phases for the line is returned in nodeut
+! nodeut(1) is a new phase, nodeut(2) is either nodein(1) or nodein(2)
+       call find_inv_nodephase(nodeut,nodein,stabph,invph,6,axarr,&
+            eqcopy,tmpline)
+       nolinefix: if(gx%bmperr.ne.0) then
+! Calculation failed, take any unused phase in invph to use as nodefix
+          gx%bmperr=0
+          failed: do kk=1,stabph+2
+             if(invph(4,kk).eq.0) then
+! select this unused phase as linefix.  Note invph(4,linefix) incremented below
+                nodeut(1)=kk
+             endif
+! as nodefix use an unused invph(5,nodein(1) or nodein(2))
+             if(invph(5,invph(5,nodein(1))).eq.1) then
+                nodeut(2)=nodein(1)
+             else
+                nodeut(2)=nodein(2)
+             endif
+             exit nolinefix
+          enddo failed
+          write(*,*)'SMP cannot find exit line with nodefix:',nodefix
+          stop
+       endif nolinefix
+       linefix=nodeut(1)
+       nodefix=nodeut(2)
+!       write(*,'(a,6i4)')'SMP back from find_inv: ',jj,nodeut
+!       call list_sorted_phases(kou,tmpline%lineceq)
+       if(jj.eq.2) then
+          firstoutfix=nodeut(1)
+       endif
+!       write(*,'(a,i4,i2,5x,i5,i2)')'SMP phases at exit line: ',&
+!            invph(1,linefix),invph(2,linefix),invph(1,nodefix),invph(2,nodefix)
+! doubline is used to jump back to label 392 for second line from same point
+       doubline=0
+! Here we will create 2 exit lines with linefix/nodefix in both positions
+! We should remember the linefix phase to generate the next set of 2 lines
+! repeat this with switched linefix/nodefix
+392    continue
+       newnode%linehead(jj)%linefixph%ixphase=invph(1,linefix)
+       newnode%linehead(jj)%linefixph%compset=invph(2,linefix)
+       newnode%linehead(jj)%linefix_phr=invph(3,linefix)
+       invph(4,linefix)=invph(4,linefix)+1
+       call get_phase_name(invph(1,linefix),invph(2,linefix),phases)
+       zp=len_trim(phases)+3
+       phases(zp-1:zp-1)='('
+       newnode%linehead(jj)%nodfixph=invph(3,nodefix)
+       invph(5,nodefix)=invph(5,nodefix)+1
+       call get_phase_name(invph(1,nodefix),invph(2,nodefix),phases(zp:))
+       zp=len_trim(phases)+3
+       phases(zp-2:zp-2)=')'
+       kk=0
+       names2: do zz=1,stabph+2
+          if(zz.eq.linefix .or. zz.eq.nodefix) cycle names2
+          kk=kk+1
+          if(kk.le.stabph) then
+             newnode%linehead(jj)%stableph(kk)%ixphase=invph(1,zz)
+             newnode%linehead(jj)%stableph(kk)%compset=invph(2,zz)
+             newnode%linehead(jj)%stablepham(kk)=1.0D-2
+             newnode%linehead(jj)%stable_phr(kk)=invph(3,zz)
           else
-! UNIFINISHED else is for all other exit lines, jfix is updated globally
-! The same phase should be twice as LINEFIX with a different phase as NODEFIXPH
-! the use of jfix for selecting LINEFIX is OK but NODEFIXPH is not correct
-! The pair  has to be determined better
-!
-! probably one has to calculate combination of fix phases to determine
-! combinations of LINEFIX and NODEFIXPHASE that is correct.
-! If the invariant has n+1 phases stable (with n elements) there are 
-! n+1 adjacent regions with n stable phases and in between these there are 
-! n+1 regions with n-1 stable phases.
-! But there mixing are (n+1)*n regions.  For n=3 that is 3*2=6 two-phase
-! regions but only 4 of these are connected to the invariant.  
-! In order to determine which one has to calculate equilibria with different
-! set of fixed phases at the invariant.
-             tz=jfix
-             if(tz.eq.onlyone) then
-                jfix=jfix+1; tz=tz+1
-             endif
-             newnode%linehead(jj)%linefixph%ixphase=invph(1,tz)
-             newnode%linehead(jj)%linefixph%compset=invph(2,tz)
-             newnode%linehead(jj)%linefix_phr=invph(3,tz)
-             call get_phase_name(invph(1,tz),invph(2,tz),phases)
-             zp=len_trim(phases)+2
-!             write(*,*)'smp2: ',trim(phases),tz,qy
-! The LINEFIX phase is easy because each phase should appear twice as FIX
-! but which to be NODEFIXPHASE?  
-! Rule: Each pair LINEFIX/NODEFIX should appear inverted.
-! here set (arbitraily) the phase forbidden to become stable when line starts
-             klop2: do kk=jlast,1,-1
-! with same fix phase we must not have the same nodfixphase
-! the same phase must not be forbidden more than twice ....
-!                write(*,440)kk,tz,qy,invph(4,kk)
-440             format('smp2A forbidden: ',6i4)
-                if(kk.ne.tz .and. kk.ne.qy .and. &
-                     invph(4,kk).lt.2) then
-                   newnode%linehead(jj)%nodfixph=invph(3,kk); qy=kk;
-                   invph(4,kk)=invph(4,kk)+1
-                   exit klop2
-                endif
-             enddo klop2
-             call get_phase_name(invph(1,qy),invph(2,qy),phases(zp:))
-             zp=len_trim(phases)+2
-!             write(*,*)'smp2: ',trim(phases),tz,qy
-! now set the stable phases avoiding tz
-             zz=1
-             do kk=1,stabph
- ! maybe this if sequence is too simple ...
-               if(zz.eq.tz) zz=zz+1
-                if(zz.eq.qy) zz=zz+1
-                if(zz.eq.tz) zz=zz+1
-                newnode%linehead(jj)%stableph(kk)%ixphase=invph(1,zz)
-                newnode%linehead(jj)%stableph(kk)%compset=invph(2,zz)
-                newnode%linehead(jj)%stablepham(kk)=1.0D-2
-                newnode%linehead(jj)%stable_phr(kk)=invph(3,zz)
-                call get_phase_name(invph(1,zz),invph(2,zz),phases(zp:))
-                zp=len_trim(phases)+2
-                zz=zz+1
-             enddo
-             write(*,430)jj,phases
-             if(mod(jj,2).ne.0) then
-! increment jfix by one when jj is odd, i.e. 3, 5, etc and clear qy
-                jfix=jfix+1; qy=0
-             endif
-!             write(*,*)'smp2a jfix: ',jj,jfix,tz,qy
-          endif first
-       enddo invexit
+             write(*,'(a,10i5)')'SMP2 too many stable phases: ',jj,kk,zz,&
+                  invph(1,zz),invph(2,zz),linefix,nodefix
+          endif
+          call get_phase_name(invph(1,zz),invph(2,zz),phases(zp:))
+          zp=len_trim(phases)+2
+       enddo names2
+       write(*,430)jj,linefix,nodefix,trim(phases)
+       jj=jj+1
+       if(doubline.eq.0) then
+! we have switch linefix and nodefis to create one more exit line
+          doubline=linefix
+          linefix=nodefix; nodefix=doubline
+          phases=' '
+! copy also the phase amounts and constitutions to this lineceq
+          call restore_constitutions(newnode%linehead(jj)%lineceq,eqcopy)
+          goto 392
+       endif
+       if(jj.eq.4) then
+! If jj is 4 we generated 3 lines, we have to call find_inv again
+! to find another phase fix with zero amount at the invariant
+!          write(*,*)'SMP generate 2 more exit lines'
+          goto 391
+       endif
+       if(jj.eq.6) then
+! If jj=6 we use the 2 phases we found above, firstoutfix and last nodeut(1)
+! to generate the last 2 exit lines
+!          write(*,*)'SMP last exits:',firstoutfix,nodeut(1),linefix
+          nodefix=firstoutfix; linefix=nodeut(1); doubline=0
+! we cannot set any constitions for these lines
+          goto 392
+       endif
+! clean up ...
+       deallocate(eqcopy)
+       deallocate(exitcomp)
+!---------------------------------------
+! when doubline is 4 all is done!
+!       stop 'this will work'
+! error exit from above
 490    continue
 !       stop ' *** Unfinished invariant isopleth node exits *** '
-    end select
+    end select exits
 !=========================================================================
     goto 1000
 !------------------------------------------- 
@@ -5288,10 +5500,10 @@
 
 !\addtotable subroutine sort_invph
 !\begin{verbatim}
-  subroutine sort_invph(nitems,array)
+  subroutine sort_invph(nitems,ndim,array)
 ! primitive sorting of array
     implicit none
-    integer nitems,array(4,*)
+    integer nitems,ndim,array(ndim,*)
 !\end{verbatim}
 ! sort array in acending order of value in array(3,*)    
     integer ia,ib,ic,more
@@ -5302,7 +5514,7 @@
        do ia=2,nitems
           if(array(3,ia-1).gt.array(3,ia)) then
              more=more+1
-             do ic=1,4
+             do ic=1,ndim
                 ib=array(ic,ia-1); array(ic,ia-1)=array(ic,ia); array(ic,ia)=ib
              enddo
           endif
@@ -5310,6 +5522,465 @@
     enddo
 1000 continue
   end subroutine sort_invph
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine find_inv_nodephase_old
+!\begin{verbatim}
+  subroutine find_inv_nodephase_old(phnew,phnode,stabph,invph,dim1,axarr,&
+       eqcopy,linerec)
+! Find the phase to set as linefix when nodefix has zero amount
+! phnew is 2 phase index at point of entering the invariant
+! phnode is two phase indices for a point of exit from the invariant
+! stabph is number of stable phases along the lines, at node point 2 more stable
+! invph is matrix with all phases at the node, dim1 is its first dim
+! axarr has axis information (needed to maniplulate conditions)
+! eqcopy is array with phase anounts and constitutions at new point
+! linerec is a line record with all necessary data to calculate en equil
+    implicit none
+    integer phnew,phnode,stabph,dim1,invph(dim1,*)
+    type(map_axis), dimension(*) :: axarr
+    double precision eqcopy(*)
+    type(map_line), pointer :: linerec
+!\end{verbatim}
+! linefix and nodefix is 2nd index in invph(5,*)
+    type(gtp_condition), pointer :: lastcond,pcond,pcondx,pcondt
+    type(gtp_equilibrium_data), pointer :: thisceq
+!    integer, parameter :: inmap=1
+!    double precision, allocatable, dimension(:) :: eqcopy
+!    type(meq_setup), pointer :: meqrec
+! not really needed
+    integer linefix,nodefix,reset
+    integer ii,jj,kk,nodeph,mapx,iadd,irem,iz,jax,mode,okcond,lokph,lokcs,lokcs2
+    character*24 phname1,phname2,phname3
+    double precision, parameter :: mamfu=1.0D-6
+!
+! we must set the axis condtion on T and
+! remove the axis condition on the composition on the other axis
+!-------------------- copied from somewhere ...................
+!    write(*,10)phnew,phnode,stabph,linerec%lineceq%tpval(1)
+10 format(/'SMP find_inv generating an exit from isopleth invariant',3i4,F10.2)
+!    call list_conditions(kou,linerec%lineceq)
+    reset=globaldata%status
+! supress messages from calceq3 done inside find_inv
+    globaldata%status=ibset(globaldata%status,GSSILENT)
+    thisceq=>linerec%lineceq
+! loop both axis
+    okcond=0
+    do jax=1,2
+! Set the condition on T and remember the condition on composition
+       lastcond=>thisceq%lastcondition
+       if(.not.associated(lastcond)) then
+          write(*,*)'in find_inv, no conditions: ',jax
+          gx%bmperr=4221; goto 1000
+       endif
+       pcond=>lastcond
+60     continue
+       pcond=>pcond%next
+       if(pcond%seqz.eq.axarr(jax)%seqz) goto 70
+       if(.not.associated(pcond,lastcond)) goto 60
+       write(*,*)'in find_inv the axis condition not found: ',jax
+       gx%bmperr=4221; goto 1000
+!
+70     continue
+       if(pcond%statev.ge.10) then
+! save pointer to extensive condition and remove it
+          pcond%active=1
+          okcond=okcond+1
+          pcondx=>pcond
+       elseif(pcond%statev.eq.1) then
+! set condition on T as active
+          okcond=okcond+1
+          pcondt=>pcond
+          pcond%active=0
+       endif
+    enddo
+    if(okcond.ne.2) then
+       write(*,*)'Conditions not T and X, quitting'
+       gx%bmperr=4399
+       goto 1000
+    endif
+!----------------- end copy from somewhere.................
+!    write(*,*)'SMP find_inv conditions with no fix phase:'
+!    call list_conditions(kou,thisceq)
+    linefix=phnew
+    nodefix=phnode
+! extract the name of the linefix and nodefix phases
+    call get_phase_name(invph(1,nodefix),invph(2,nodefix),phname1)
+    call get_phase_name(invph(1,linefix),invph(2,linefix),phname2)
+! suspend the linefix phase
+    call change_many_phase_status(phname2,PHSUS,zero,thisceq)
+! set nodefix fix with zero amount
+    call change_many_phase_status(phname1,PHFIXED,zero,thisceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP error suspending or fixing ',&
+            trim(phname1)//' or '//trim(phname2)
+       gx%bmperr=4399; goto 1000
+    endif
+! Calculate an equilibrium at the invariant T with nodefix as fix
+    write(*,*)'SMP find_inv conditions before calling calceq3'
+    call list_conditions(kou,thisceq)
+! mode=0 no grid minimizer and no data structures
+    mode=0
+    call calceq3(mode,.FALSE.,thisceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP fail calculate invariant',gx%bmperr
+       goto 1000
+    endif
+! debug listing
+    call list_sorted_phases(kou,thisceq)
+    write(*,*)'SMP find_inv: phases at invariant'
+! set nodefix entered with zero amount and linefix as enetered with small
+    call change_many_phase_status(phname1,PHENTERED,zero,thisceq)
+    call change_many_phase_status(phname2,PHENTERED,1.0D-2,thisceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP error restoring phases ',trim(phname1//phname2)
+       gx%bmperr=4399; goto 1000
+    endif
+! remove the condition on compostion
+    pcondx%active=1
+!-------------------------------------------------------
+! start loop to find new linefix phase
+!    deallocate=.false.
+! save current amount of phases and constitutions
+!    call save_constitutions(thisceq,eqcopy)
+!    if(gx%bmperr.ne.0) goto 1000
+! we must check that the amount of the nodefix phase is zero !!
+    call get_phase_compset(invph(1,nodefix),invph(2,nodefix),lokph,lokcs)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP find_inv failed get lokcs'
+       goto 1000
+    endif
+! and the amount of old linefix must not be zero at the same time!
+    call get_phase_compset(invph(1,linefix),invph(2,linefix),lokph,lokcs2)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP find_inv failed get lokcs'
+       goto 1000
+    endif
+! suspend/restore phases not involved in the invariant
+! maybe not needed ?
+! call suspend_somephases(1,invph,6,stabph+2,thisceq)
+! this is to restore
+! call suspend_somephases(0,invph,6,stabph+2,thisceq)
+!
+! THIS IS OLD VERSION !!
+!
+! all calculations below are made at fixed T with different fix phases
+! afterwards we check that the amount of nodefix is still zero (or very small)
+! total number of phases at nodepoint is stabph+2
+    loop: do ii=1,stabph+2
+! inverted order ... works for map7 but fails for map16 SUCK
+!    loop: do ii=stabph+2,1,-1
+       if(invph(4,ii).eq.0) then
+! only phases with invph(4,ii)=0 can be tested as linefix
+          call get_phase_name(invph(1,ii),invph(2,ii),phname3)
+!          write(*,*)'SMP find_inv testing: ',ii,': ',trim(phname1//phname3)
+! test ii as new linefix, set it fix with zero amount
+          call change_many_phase_status(phname3,PHFIXED,zero,thisceq)
+          call list_conditions(kou,thisceq)
+! debug listing
+          call list_sorted_phases(kou,thisceq)
+          write(*,*)'SMP find_inv: phases before calculations'
+          mode=0
+          call calceq3(mode,.FALSE.,thisceq)
+          if(gx%bmperr.ne.0) then
+! calculation error, remove phase ii as fix and try another
+             write(*,*)'SMP find_inv error: ',gx%bmperr
+             gx%bmperr=0
+             call change_many_phase_status(phname3,PHENTERED,zero,&
+                  thisceq)
+             call restore_constitutions(thisceq,eqcopy)
+             if(gx%bmperr.ne.0) goto 1000
+             cycle loop
+          endif
+! Calculation converged, check if amount of nodefix, it should be zero
+          write(*,*)'SMP find_inv amfu: ',nodefix,lokcs,&
+               thisceq%phase_varres(lokcs)%amfu
+          if(thisceq%phase_varres(lokcs)%amfu.gt.mamfu) then
+! amount of nodefix phase too large, remove phase ii as fix and try another
+             call change_many_phase_status(phname3,PHENTERED,zero,&
+                  thisceq)
+             call restore_constitutions(thisceq,eqcopy)
+             if(gx%bmperr.ne.0) goto 1000
+             cycle loop
+          endif
+          if(thisceq%phase_varres(lokcs2)%amfu.lt.mamfu) then
+! the amount of old linefix phase must be larger then 0!
+             write(*,*)'SMP both linefix and nodefix must not be zero!'
+             call change_many_phase_status(phname3,PHENTERED,zero,&
+                  thisceq)
+             call restore_constitutions(thisceq,eqcopy)
+             if(gx%bmperr.ne.0) goto 1000
+             cycle loop
+          endif
+          if(invph(1,ii).eq.invph(1,nodefix)) then
+! this is a problem for map7 macro ...
+             write(*,*)'SMP ignore 2nd composition set of fix: ',ii,nodefix
+             call change_many_phase_status(phname3,PHENTERED,zero,&
+                  thisceq)
+             call restore_constitutions(thisceq,eqcopy)
+             write(*,*)'SMP error? ',gx%bmperr,ii,stabph+2
+             if(gx%bmperr.ne.0) then
+                gx%bmperr=0
+             endif
+             cycle loop
+          endif
+! Heureka! we have found a linefix phase, clean up the conditions
+! if we found a phase which is a second composition set of a phase
+! that is set fix, ignore!! (like FCC and FCC-carbide          
+          write(*,*)'SMP find_inv success, linefix: ',phname3,ii,nodefix
+          phnew=ii; goto 1000
+       endif
+    enddo loop
+! we did not find any linefix, return error and use default
+    write(*,*)'SMP find_inv failed to find phase',ii
+    gx%bmperr=4399
+1000 continue
+    ii=gx%bmperr; gx%bmperr=0
+! restore axis conditions, set x condition
+    pcondx%active=0
+! remove T condition
+    pcondt%active=1
+!
+!    write(*,*)'SMP finc_inv exit conditions (same as on entering?):'
+!    call list_conditions(kou,thisceq)
+!    write(*,*)
+    gx%bmperr=ii
+! remove quite mode!
+    globaldata%status=reset
+    return
+  end subroutine find_inv_nodephase_old
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine find_inv_nodephase
+!\begin{verbatim}
+  subroutine find_inv_nodephase(phut,phin,stabph,invph,dim1,axarr,&
+       eqcopy,linerec)
+! Find the phase to set as linefix when nodefix has zero amount
+! phut will on exit be two phases with zero amount at the invariant
+! phin is on enter the two phase with zero amount when the invariant is found
+! stabph is number of stable phases along the lines, at node point 2 more stable
+! invph is matrix with all phases at the node, dim1 is its first dim
+! axarr has axis information (needed to maniplulate conditions)
+! eqcopy is array with phase anounts and constitutions at new point
+! linerec is a line record with all necessary data to calculate en equil
+    implicit none
+    integer phut(2),phin(2),stabph,dim1,invph(dim1,*)
+    type(map_axis), dimension(*) :: axarr
+    double precision eqcopy(*)
+    type(map_line), pointer :: linerec
+!\end{verbatim}
+! linefix and nodefix is 2nd index in invph(5,*)
+    type(gtp_condition), pointer :: lastcond,pcond,pcondx,pcondt
+    type(gtp_equilibrium_data), pointer :: thisceq
+!    integer, parameter :: inmap=1
+!    double precision, allocatable, dimension(:) :: eqcopy
+!    type(meq_setup), pointer :: meqrec
+! not really needed
+    integer linefix,nodefix,reset,ph1,ph2,lokcs1,lokcs2,enteredphase
+    integer ii,jj,kk,nodeph,mapx,iadd,irem,iz,jax,mode,okcond,lokph
+    character*24 phname1,phname2,phname3
+    double precision, parameter :: mamfu=1.0D-6
+!
+! we must set the axis condition on T and
+! remove the axis condition on the composition on the other axis
+!-------------------- copied from somewhere ...................
+!    write(*,10)phin,stabph,linerec%lineceq%tpval(1)
+10 format(/'SMP find_inv exits from isopleth invariant: ',2i4,2x,i2,F10.2)
+    reset=globaldata%status
+! supress messages from calceq3 done inside find_inv
+!    globaldata%status=ibset(globaldata%status,GSSILENT)
+    thisceq=>linerec%lineceq
+! constitution is OK here
+!    call list_conditions(kou,linerec%lineceq)
+!    call list_sorted_phases(kou,thisceq)
+!    write(*,*)'SMP constitution entering find_inv'
+! suspend all phases not involved in the invariant, 1 means suspend
+    call suspend_somephases(1,invph,6,stabph+2,thisceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP error calling suspend_somephases'; goto 1000
+    endif
+! loop both axis to extract condition pointer
+    okcond=0
+    do jax=1,2
+! Set the condition on T and remember the condition on composition
+       lastcond=>thisceq%lastcondition
+       if(.not.associated(lastcond)) then
+          write(*,*)'in find_inv, no conditions: ',jax
+          gx%bmperr=4221; goto 1000
+       endif
+       pcond=>lastcond
+60     continue
+       pcond=>pcond%next
+       if(pcond%seqz.eq.axarr(jax)%seqz) goto 70
+       if(.not.associated(pcond,lastcond)) goto 60
+       write(*,*)'in find_inv the axis condition not found: ',jax
+       gx%bmperr=4221; goto 1000
+!
+70     continue
+       if(pcond%statev.ge.10) then
+! save pointer to extensive condition and remove it
+          pcond%active=1
+          okcond=okcond+1
+          pcondx=>pcond
+       elseif(pcond%statev.eq.1) then
+! set condition on T as active
+          okcond=okcond+1
+          pcondt=>pcond
+! try setting two fix phases .... remove condition on T
+!          pcond%active=1
+       endif
+    enddo
+    if(okcond.ne.2) then
+       write(*,*)'Conditions not T and X, quitting'
+       gx%bmperr=4399
+       goto 1000
+    endif
+!----------------- end copy from somewhere.................
+! most of these variables are just for debugging
+    ph1=phin(1)
+    ph2=phin(2)
+! extract the name of the linefix and nodefix phases
+    call get_phase_name(invph(1,ph1),invph(2,ph1),phname1)
+    call get_phase_name(invph(1,ph2),invph(2,ph2),phname2)
+! set small amounts of ph1 ??
+    call change_many_phase_status(phname1,PHENTSTAB,mamfu,thisceq)
+    call change_many_phase_status(phname1,PHENTSTAB,zero,thisceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP error setting small amounts of line/nodefix'
+       goto 1000
+    endif
+! we check the amounts and driving forces of both linefix and nodefix
+    call get_phase_compset(invph(1,ph1),invph(2,ph1),lokph,lokcs1)
+    call get_phase_compset(invph(1,ph2),invph(2,ph2),lokph,lokcs2)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP find_inv failed get phase_varres index'
+       goto 1000
+    endif
+! remove the condition on compostion and set fix T
+    pcondx%active=1
+    pcondt%active=0
+! set phname1 as fix with zero amount
+!    call change_many_phase_status(phname1,PHFIX,zero,thisceq)
+!    if(gx%bmperr.ne.0) then
+!       write(*,*)'SMP error setting '//trim(phname1)//' as fix'
+!       goto 1000
+!    endif
+!-------------------------------------------------------
+! start loop to find a phase with zero amount with either phin
+!    deallocate=.false.
+! save current amount of phases and constitutions
+!    call save_constitutions(thisceq,eqcopy)
+!    if(gx%bmperr.ne.0) goto 1000
+!
+! THIS IS NEW VERSION
+!
+! the loop below if first run with phases1 entered with small amount
+! if that failes we jump hack to label 50 with phase2 entered with small amount
+    enteredphase=1
+50  continue
+! all calculations below are made at fixed T with different fix phases
+! afterwards we check that the amount of nodefix is still zero (or very small)
+! total number of phases at nodepoint is stabph+2
+    loop: do ii=1,stabph+2
+       if(invph(4,ii).eq.0 .and. invph(5,ii).eq.0) then
+! only test phases which has not already been used, extract its name
+          call restore_constitutions(thisceq,eqcopy)
+          call get_phase_name(invph(1,ii),invph(2,ii),phname3)
+!          write(*,76)trim(phname3),ii
+76        format(/'SMP find_inv testing: ',a,i4)
+! set ii fix with zero amount
+          call change_many_phase_status(phname3,PHFIXED,zero,thisceq)
+!          call list_conditions(kou,thisceq)
+          if(enteredphase.eq.1) then
+! set a small amount on phase1 (if both phases small error TOO MANY STABLE PHA)
+             call change_many_phase_status(phname1,PHENTSTAB,1.0D-3,thisceq)
+          else
+! set a small amount on phase2
+!             write(*,*)'Trying harder with ',phname2
+             call change_many_phase_status(phname2,PHENTSTAB,1.0D-3,thisceq)
+          endif
+! debug listing
+!          call list_sorted_phases(kou,thisceq)
+!          write(*,*)'SMP find_inv: phases BEFORE calculations',gx%bmperr
+          mode=0
+          call calceq3(mode,.FALSE.,thisceq)
+          if(gx%bmperr.ne.0) then
+! calculation error, remove phase ii as fix and try another
+!             write(*,*)'SMP find_inv error: ',gx%bmperr
+             gx%bmperr=0
+             call change_many_phase_status(phname3,PHENTERED,zero,thisceq)
+             if(gx%bmperr.ne.0) goto 1000
+             cycle loop
+          endif
+! debug listing
+!          call list_sorted_phases(kou,thisceq)
+!          write(*,*)'SMP find_inv: phases AFTER calculations',gx%bmperr
+! there should be stabph-1 stable phases
+          jj=0
+          do kk=1,stabph+2
+             if(thisceq%phase_varres(invph(6,kk))%amfu.gt.zero) jj=jj+1
+          enddo
+!          write(*,*)'SMP number of stable phases',jj,stabph
+          if(jj.ne.stabph) goto 120
+! Calculation converged, check if the amount of phin(1) or phin(2) is zero
+!          write(*,111)'SMP find_inv amfu: ',&
+!            trim(phname1),invph(4,phin(1)),thisceq%phase_varres(lokcs1)%amfu,&
+!            trim(phname2),invph(4,phin(2)),thisceq%phase_varres(lokcs2)%amfu
+111       format(a,a,i2,1pe12.4,5x,a,i2,1pe12.4)
+          if(invph(4,phin(1)).eq.1 .and.&
+               thisceq%phase_varres(lokcs1)%amfu.lt.mamfu) then
+! phase invph(*,ii) and invph(*,phin(1)) have zero amount, use as exit
+!
+!  ADD CHECK IF amfu for BOTH phin(1) and ph(2) are zero we must check dgm ...
+!
+             phut(1)=ii; phut(2)=phin(1)
+!             write(*,112)trim(phname3)//'+'//trim(phname1),phut(1),phut(2)
+112          format('SMP find_inv **** success: ',a,2i4)
+             goto 200
+          elseif(invph(4,phin(2)).eq.1 .and. &
+               thisceq%phase_varres(lokcs2)%amfu.lt.mamfu) then
+! phase invph(*,ii) and invph(*,phin(1)) have zero amount, use as exit
+             phut(1)=ii; phut(2)=phin(2)
+!             write(*,112)trim(phname3)//'+'//trim(phname2),phut(1),phut(2)
+             goto 200
+          endif
+!       else
+!          write(*,*)'SMP skipping ',ii
+       endif
+120    continue
+! set phase as entered and restore constitutions for another phase as fix
+       call change_many_phase_status(phname3,PHENTERED,zero,thisceq)
+!       call restore_constitutions(thisceq,eqcopy)
+       if(gx%bmperr.ne.0) goto 1000
+    enddo loop
+! we have not found any set of phases for an exit line
+    if(enteredphase.eq.1) then
+       enteredphase=2; goto 50
+    endif
+ !   write(*,*)'SMP find_inv failed to find two phases with zero amount'
+    gx%bmperr=4399; goto 1000
+200 continue
+! we have a pair of phases in phut, reset phname3 as entered
+    call change_many_phase_status(phname3,PHENTERED,zero,thisceq)
+!----------------------------- exit
+1000 continue
+    ii=gx%bmperr; gx%bmperr=0
+! restore axis conditions, set x condition
+    pcondx%active=0
+! remove T condition
+    pcondt%active=1
+! this is to restore phases earlier suspended, 0 menas restore
+    call suspend_somephases(0,invph,6,stabph+2,thisceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP error calling suspend_somephases'; goto 1000
+    endif
+    gx%bmperr=ii
+! remove quite mode!
+    globaldata%status=reset
+    return
+  end subroutine find_inv_nodephase
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -5473,6 +6144,7 @@ location=saveceq%free
        allocate(mapfix)
 ! with only 2 axis we have just 1 fix phase for mapping, fixph is a tuple
        allocate(mapfix%fixph(1))
+       mapfix%status=0
        mapfix%nfixph=1
        mapfix%fixph=mapline%linefixph(1)
 ! we can have several stable phases when no tie-lines in plane
@@ -5483,7 +6155,7 @@ location=saveceq%free
 !       write(*,*)'Findline: Tie-lines not in plane: ',nyline,ip
 ! create a heading text for the line
        phaseset=' '
-       call get_phasetup_name_old(mapfix%fixph(1),phaseset)
+       call get_phasetuple_name(mapfix%fixph(1),phaseset)
        if(gx%bmperr.ne.0) goto 1000
        ip=len_trim(phaseset)
        phaseset(ip+1:ip+10)=', stable: '
@@ -5502,7 +6174,7 @@ location=saveceq%free
 ! this is stored only for "real" nodes
           mapfix%stableph(jp)=mapnode%linehead(nyline)%stableph(jp)
           mapfix%stable_phr(jp)=mapnode%linehead(nyline)%stable_phr(jp)
-          call get_phasetup_name_old(mapfix%stableph(jp),phaseset(ip:))
+          call get_phasetuple_name(mapfix%stableph(jp),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! this values hould perhaps be in linehead??
 !          mapfix%stablepham(jp)=mapnode%linehead(nyline)%stablepham(jp)
@@ -5544,6 +6216,7 @@ location=saveceq%free
        allocate(mapfix%stablepham(1))
        allocate(mapfix%stable_phr(1))
        mapfix%nfixph=1
+       mapfix%status=0
 !.........................................................
 ! trying to impove mapping with two extensive axis variables
        nofecond=0
@@ -5679,7 +6352,7 @@ location=saveceq%free
        endif
 ! create a heading text for the line
        phaseset=' '
-       call get_phasetup_name_old(mapfix%fixph(1),phaseset)
+       call get_phasetuple_name(mapfix%fixph(1),phaseset)
        if(gx%bmperr.ne.0) goto 1000
        ip=len_trim(phaseset)+4
        phaseset(ip-2:ip-2)='+'
@@ -5695,7 +6368,7 @@ location=saveceq%free
              mapfix%stableph(1)=mapnode%linehead(nyline)%stableph(1)
              mapfix%stable_phr(1)=mapnode%linehead(nyline)%stable_phr(1)
           endif
-          call get_phasetup_name_old(mapfix%stableph(1),phaseset(ip:))
+          call get_phasetuple_name(mapfix%stableph(1),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! set positive amount both in mapfix and in phase_varres ...??
           mapfix%stablepham(1)=one-fixpham
@@ -5737,7 +6410,7 @@ location=saveceq%free
        phaseset=' '
        ip=1
        do jp=1,mapnode%linehead(1)%nstabph
-          call get_phasetup_name_old(mapnode%linehead(1)%stableph(jp),&
+          call get_phasetuple_name(mapnode%linehead(1)%stableph(jp),&
                phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
           ip=len_trim(phaseset)+2
@@ -5754,8 +6427,19 @@ location=saveceq%free
           write(*,*)'Line with unkonwn stable phases: ',&
                mapnode%linehead(1)%nstabph
        endif
-! for step calculation mapfix is not needed
-!       nullify(mapfix)
+!       write(*,*)'SMP is mapfix allocated? ',allocated(mapfix)
+!       if(.not.allocated(mapfix)) then
+! for STEP calculations mapfix was normally not allocated but I need the status
+! but instead of adding this set a bit in the meqrec record after first
+! call to calceq7
+!          allocate(mapfix)
+!          mapfix%nfixph=0
+!          mapfix%status=0
+!          if(btest(mapnode%status,STEPINVARIANT)) then
+!             write(*,*)'SMP invarant step node',mapnode%status
+!             mapfix%status=ibset(mapfix%status,STEPINVARIANT)
+!          endif
+!       endif
     endif
 1000 continue
     return
@@ -5896,6 +6580,7 @@ location=saveceq%free
           deallocate(mapfix)
        endif
        allocate(mapfix)
+       mapfix%status=0
 ! with only 2 axis we have just 1 fix phase for mapping
        allocate(mapfix%fixph(1))
        mapfix%nfixph=1
@@ -5908,7 +6593,7 @@ location=saveceq%free
 !       write(*,*)'Findline: Tie-lines not in plane: ',nyline,ip
 ! create a heading text for the line
        phaseset=' '
-       call get_phasetup_name_old(mapfix%fixph(1),phaseset)
+       call get_phasetuple_name(mapfix%fixph(1),phaseset)
        if(gx%bmperr.ne.0) goto 1000
        ip=len_trim(phaseset)+4
        phaseset(ip-1:ip-2)='+'
@@ -5926,7 +6611,7 @@ location=saveceq%free
 ! this is stored only for "real" nodes
           mapfix%stableph(jp)=mapnode%linehead(nyline)%stableph(jp)
           mapfix%stable_phr(jp)=mapnode%linehead(nyline)%stable_phr(jp)
-          call get_phasetup_name_old(mapfix%stableph(jp),phaseset(ip:))
+          call get_phasetuple_name(mapfix%stableph(jp),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! this values hould perhaps be in linehead??
           mapfix%stablepham(jp)=one
@@ -5967,6 +6652,7 @@ location=saveceq%free
        allocate(mapfix%stablepham(1))
        allocate(mapfix%stable_phr(1))
        mapfix%nfixph=1
+       mapfix%status=0
 !.........................................................
 ! trying to impove mapping with two extensive axis variables
        nofecond=0
@@ -6102,7 +6788,7 @@ location=saveceq%free
        endif
 ! create a heading text for the line
        phaseset=' '
-       call get_phasetup_name_old(mapfix%fixph(1),phaseset)
+       call get_phasetuple_name(mapfix%fixph(1),phaseset)
        if(gx%bmperr.ne.0) goto 1000
        ip=len_trim(phaseset)+4
        phaseset(ip-2:ip-2)='+'
@@ -6118,7 +6804,7 @@ location=saveceq%free
              mapfix%stableph(1)=mapnode%linehead(nyline)%stableph(1)
              mapfix%stable_phr(1)=mapnode%linehead(nyline)%stable_phr(1)
           endif
-          call get_phasetup_name_old(mapfix%stableph(1),phaseset(ip:))
+          call get_phasetuple_name(mapfix%stableph(1),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! set positive amount both in mapfix and in phase_varres ...??
           mapfix%stablepham(1)=one-fixpham
@@ -6160,7 +6846,7 @@ location=saveceq%free
        phaseset=' '
        ip=1
        do jp=1,mapnode%linehead(1)%nstabph
-          call get_phasetup_name_old(mapnode%linehead(1)%stableph(jp),&
+          call get_phasetuple_name(mapnode%linehead(1)%stableph(jp),&
                phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
           ip=len_trim(phaseset)+2
@@ -6333,78 +7019,6 @@ location=saveceq%free
 !    if(ocv()) write(*,*)'tie-line in plane return: ',inplane
     return
   end function tieline_inplane
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable logical function inveq
-!\begin{verbatim}
-  logical function inveq(phases,ceq)
-! Only called for tie-lines not in plane.  If tie-lines in plane then all
-! nodes are invariants.
-! UNFINISHED
-    integer phases
-    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    integer nrel,ii,nostph,tpvar,degf,www
-    type(gtp_condition), pointer :: pcond,lastcond
-    type(gtp_state_variable), pointer :: stvr
-! How to know if the ceq is invariant? Gibbs phase rule, Degrees of freedom
-! f = n + z - w - p
-! where n is number of components, z=2 if T and P variable, 
-!                      z=1 if T or P variable, z=0 if both T and P fixed,
-!                      w is number of other potential conditions (MU, AC)
-!                      p is number of stable phases.
-!    write(*,*)'in inveq'
-    nrel=noel()
-! sum up nubler of stable phases and check if T and P are fixed
-    nostph=0
-!    ntups=nooftup()
-!    do ii=1,noofphasetuples()
-    do ii=1,nooftup()
-       if(ceq%phase_varres(phasetuple(ii)%lokvares)%phstate.gt.0) &
-            nostph=nostph+1
-    enddo
-! loop all conditions
-    lastcond=>ceq%lastcondition
-    pcond=>lastcond
-    tpvar=2
-    www=0
-100 continue
-       if(pcond%active.eq.0) then
-! condtion is active
-          stvr=>pcond%statvar(1)
-! statevarid 1 is T and 2 is P
-          if(stvr%statevarid.eq.1 .or. stvr%statevarid.eq.2) then
-! Hm, ceq is not the equilibrium record for the node point ...
-             tpvar=tpvar-1
-          elseif(stvr%statevarid.lt.10) then
-! potential/activity condition for a component
-             www=www+1
-          endif
-       endif
-       pcond=>pcond%next
-       if(.not.associated(pcond,lastcond)) goto 100
-!
-! Hm again, ignore tpvar?
-!    degf=nrel+tpvar-www-nostph
-    degf=nrel-www-nostph
-!    write(*,*)'in inveq 2',nrel,tpvar,www,nostph,degf
-    if(degf.lt.0) then
-! We have an invariant equilibrium, return the number of stable phases
-       phases=nostph
-       inveq=.true.
-!       write(*,200)'We have an invariant equilibrium!',nrel,tpvar,nostph,phases
-!200    format(a,5i7)
-    else
-!       write(*,210)degef,nrel,tpvar,phases
-!210     format('Not inveq, elements, stable phases: ',4i4)
-!       if not invariant isoplet node there are 3 exits (2 lines crossing)
-       phases=nostph
-       inveq=.false.
-    endif
-1000 continue
-    return
-  end function inveq
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -6859,7 +7473,7 @@ location=saveceq%free
 ! this call calculates the value of the axis condition with default composition
              call state_variable_val(svr,val,ceq)
              if(gx%bmperr.ne.0) goto 500
-             call get_phasetup_name_old(entphcs(itup),name)
+             call get_phasetuple_name(entphcs(itup),name)
 ! axis variable is composition, skip hases with no variance
 !             call get_phase_variance(entphcs(itup)%phaseix,nv)
              call get_phase_variance(entphcs(itup)%ixphase,nv)

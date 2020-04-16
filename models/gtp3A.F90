@@ -1783,7 +1783,7 @@ end function find_phasetuple_by_indices
  subroutine get_phase_name(iph,ics,name)
 ! Given the phase index and composition set number this subroutine returns
 ! the name with pre- and suffix for composition sets added and also 
-! a \# followed by a digit 2-9 for composition sets higher than 1.
+! a \# followed by a digit 1-9 if there are more than one composition sets
    implicit none
    character name*(*)
    integer iph,ics
@@ -1794,6 +1794,12 @@ end function find_phasetuple_by_indices
    if(gx%bmperr.ne.0) goto 1000
    if(ics.eq.1) then
       name=phlista(lokph)%name
+      if(phlista(lokph)%noofcs.ge.2) then
+! this was added 2020.04.02 because a call to change_many_phase_status
+! using a phase name returned from this routine will suspend all compsets
+         kp=len_trim(name)+1
+         name(kp:)='#1'
+      endif
    else
       kp=len_trim(firsteq%phase_varres(lokcs)%prefix)
       if(kp.gt.0) then
@@ -1835,25 +1841,43 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine get_phasetup_name_old
-!\begin{verbatim}
- subroutine get_phasetup_name_old(phtuple,name)
-! Given the phase tuple this subroutine returns the name with pre- and suffix
-! for composition sets added and also a \# followed by a digit 2-9 for
-! composition sets higher than 1.
+!\addtotable subroutine get_phasetuple_name
+!\begin{verbatim} %-
+ subroutine get_phasetuple_name(phtuple,name)
+! phtuple is a phase tuple
+! the name has pre- and suffix for composition sets added and also 
+! a \# followed by a digit 2-9 for composition sets higher than 1.
    implicit none
    character name*(*)
    type(gtp_phasetuple) :: phtuple
 !\end{verbatim} %+
+!   integer phx,phy
+   call get_phase_name(phtuple%ixphase,phtuple%compset,name)
+1000 continue
+   return
+ end subroutine get_phasetuple_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!
+!-\addtotable subroutine get_phasetup_name_old
+!-\begin{verbatim}
+! subroutine get_phasetup_name_old(phtuple,name)
+! Given the phase tuple this subroutine returns the name with pre- and suffix
+! for composition sets added and also a \# followed by a digit 2-9 for
+! composition sets higher than 1.
+!   implicit none
+!   character name*(*)
+!   type(gtp_phasetuple) :: phtuple
+!-\end{verbatim} %+
 !
 ! PROBABLY REDUNDANT and wrong ...
 !
 !   call get_phase_name(phtuple%phaseix,phtuple%compset,name)
-   call get_phase_name(phtuple%ixphase,phtuple%compset,name)
-1000 continue
-   return
- end subroutine get_phasetup_name_old
-
+!   call get_phase_name(phtuple%ixphase,phtuple%compset,name)
+!1000 continue
+!   return
+! end subroutine get_phasetup_name_old
+!
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine get_phasetup_record
@@ -2693,6 +2717,76 @@ end function find_phasetuple_by_indices
    enddo loop
    return
  end function gettupix
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine suspend_somephases
+!\begin{verbatim}
+  subroutine suspend_somephases(mode,invph,dim1,dim2,ceq)
+! This was added to handle calculating restricted equilibria during mapping
+! to suspend (mode=1) or restore (mode=0) phases not involved
+! in an invariant equilibrium.
+! invph is array with phases that are involved, it has dimension (dim1,*)
+! the current status is saved and restored 
+    implicit none
+    integer mode,dim1,dim2,invph(dim1,*)
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer, save, allocatable, dimension(:) :: phtupixstatus
+    integer, save :: ntup
+    integer ii,jj,kk,lokcs,lokph
+    character phname*24
+    ii=nooftup()
+    kk=0
+    if(mode.eq.1) then
+! after saving current status suspend all phases not included in invph
+!       write(*,*)'3A suspending some phases',ii
+       ntup=ii
+       if(allocated(phtupixstatus)) then
+          write(*,*)'3A calls to suspend_somephases cannot be nested'
+          gx%bmperr=4399; goto 1000
+       else
+          allocate(phtupixstatus(ntup))
+       endif
+       loop1: do ii=1,ntup
+          lokcs=phasetuple(ii)%lokvares
+          phtupixstatus(ii)=ceq%phase_varres(lokcs)%phstate
+          do jj=1,dim2
+!             write(*,*)'3A suspend? ',jj,lokcs,&
+!                  phlista(invph(1,jj))%linktocs(invph(2,jj)),phtupixstatus(ii)
+! invph(1,jj) is index in phases (phase and alphabetcal order)
+! lokph is the order the phase were entered into phlista (arbitrary)
+             lokph=phases(invph(1,jj))
+             if(lokcs.eq.phlista(lokph)%linktocs(invph(2,jj))) then
+!                write(*,'(a,6i5)')'3A not suspending',jj,invph(1,jj),&
+!                     invph(2,jj),phlista(lokph)%linktocs(invph(2,jj))
+                cycle loop1
+             endif
+          enddo
+! this phase should be suspended
+          kk=kk+1
+          ceq%phase_varres(lokcs)%phstate=PHSUS
+       enddo loop1
+!       write(*,'(a,i3,a,i3)')'3A suspededed ',kk,' phases out of ',ntup
+    elseif(mode.eq.0) then
+! restore status of all phases except those in invph
+!       write(*,*)'3A restoring some phases',ii
+       if(ii.ne.ntup) then
+          write(*,*)'3A number of phases and compsets changed!',ntup,ii
+          stop
+       endif
+       do ii=1,ntup
+          ceq%phase_varres(phasetuple(ii)%lokvares)%phstate=phtupixstatus(ii)
+       enddo
+!       write(*,'(a,i3,a)')'3A restored phase status for ',ntup,' phases'
+       deallocate(phtupixstatus)
+    else
+       write(*,*)'3A mode must be 0 or 1'
+       gx%bmperr=4399
+    endif
+1000 continue
+    return
+  end subroutine suspend_somephases
 
  !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

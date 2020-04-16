@@ -331,6 +331,10 @@
 ! skip composition set number and pre/suffixes at present ....
             susph(nsusp:)=trim(phlista(lokph)%name)//', '
             nsusp=len_trim(susph)+2
+            if(ics.gt.1) then
+               susph(nsusp-2:)='#'//char(ichar('0')+ics)//','
+               nsusp=nsusp+2
+            endif
          endif
       enddo csloop
    enddo phloop
@@ -499,6 +503,10 @@
                susph(nsusp:)=phlista(lokph)%name(1:&
                     len_trim(phlista(lokph)%name))//', '
                nsusp=len_trim(susph)+2
+               if(ics.gt.1) then
+                  susph(nsusp-2:)='#'//char(ichar('0')+ics)//','
+                  nsusp=nsusp+2
+               endif
                cycle
             endif
          elseif(csrec%phstate.ne.PHDORM) then

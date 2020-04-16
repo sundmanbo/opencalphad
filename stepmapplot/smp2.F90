@@ -65,7 +65,7 @@ MODULE ocsmp
 ! with same composition (see for example U-O)
   integer, parameter :: EXCLUDEDLINE=0, TWOSTOICH=1
 ! Bit in the MAP_NODE record
-  integer, parameter :: MAPINVARIANT=0
+  integer, parameter :: MAPINVARIANT=0,STEPINVARIANT=1
 !\end{verbatim}
 !
 !\begin{verbatim}
@@ -90,12 +90,12 @@ MODULE ocsmp
 ! if we have 3 or more axis there can be 2 or more fix phases along the line??
 ! With 2 axis there can only be one fix phase!
      type(gtp_phasetuple), dimension(:), allocatable :: linefixph
-! also save index to phr!!
+! also save index to phr!! (do not trust ...)
      integer, dimension(:), allocatable :: linefix_phr
 ! Save the phase tuplet representing the phase fix at start node here
 ! If it wants to be stable at first step along a line change axis direction
-!     type(gtp_phasetuple) :: nodfixph
-! This is the phase index in the phr array (ncludes both index and compset)
+!     type(gtp_phasetuple) :: nodfixph <<<< not used
+! This is the phase index in the phr array (phr has both phase and compset)
      integer nodfixph
 ! We must also save the number and set of stable phases and theit amounts
 ! as we will have different stable phases for different lines

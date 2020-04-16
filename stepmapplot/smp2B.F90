@@ -1246,7 +1246,7 @@
             'set size ',F8.4', ',F8.4/&
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-        'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
+        'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,28"'/&
             'set key ',a/&
             'set linetype ',i2,' lc rgb "#000000" lw 2 pt 10'/&
             'set linetype ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
@@ -1269,7 +1269,7 @@
                'set size ',F8.4', ',F8.4/&
                'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
+          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,28"'/&
                'set key ',a/&
                'set style line ',i2,' lt ',i2,' lc rgb "#000000" lw 2 pt 10'/&
                'set style line ',i2,' lt ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
@@ -1288,7 +1288,7 @@
     write(21,8000)
 8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
           '# This is a dashed line (on pdf/wxt):'/&
-          '# set style line 15 lt 0 lc rgb "C8C800" lw 2 pt 2'//&
+          '# set style line 15 lt 0 lc rgb "#C8C800" lw 2 pt 2'//&
           '# set pointsize 0.6'/&
           '# set label "text" at 0.5, 0.5 rotate by 60 font "arial,12"'/&
           '# set xrange [0.5 : 0.7] '/&
@@ -1468,8 +1468,10 @@
     ii=len_trim(graphopt%lowerleftcorner)
     if(ii.gt.0) then
 ! in square diagram below figure
+!       write(21,209)trim(graphopt%lowerleftcorner)
+!209    format('set label "',a,'" at graph -0.10, -0.08 ')
        write(21,209)trim(graphopt%lowerleftcorner)
-209    format('set label "',a,'" at graph -0.10, -0.08 ')
+209    format('set label "',a,'" at graph -0.05, -0.05 ')
     endif
 ! if lowerleftcorner is empty ignore it
 !---------------------------------------------------------------
@@ -2271,21 +2273,15 @@
 ! THIS IS THE Y-AXIS WITH 60 degrees angle
        write(21,131)trim(pltax(2)), 0.15*xmax, 0.37*xmax
 131    format('set label "',a,'" at ',F8.4,',',F8.4,' rotate by 60 '/&
-!            'set label "O" at screen 0.130, 0.027 font "Garamond Bold,20"'/&
-!            'set label "C" at screen 0.139, 0.027 font "Garamond Bold,20"')
 ! Help with stackoverflow to fix nice logo independent of plot size!
-         'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"')
-!            'set label "O" at graph -0.090, -0.100 font "Garamond Bold,20"'/&
-!            'set label "C" at graph -0.077, -0.100 font "Garamond Bold,20"')
+         'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,28"')
 ! we should also enforce same length of X and Y axis !!!
     else
 ! SQUARE DIAGRAM
        write(21,132)trim(pltax(2))
 132    format('set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-            'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"')
-!            'set label "O" at graph -0.090, -0.100 font "Garamond Bold,20"'/&
-!            'set label "C" at graph -0.080, -0.100 font "Garamond Bold,20"')
+            'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,28"')
     endif
     lz=graphopt%linetype
     write(21,133)lz,lz,lz,lz,lz,lz,lz,lz,lz,lz
@@ -2305,7 +2301,7 @@
     write(21,8000)
 8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
           '# This is a dashed line (on pdf/wxt):'/&
-          '# set style line 15 lt 0 lc rgb "C8C800" lw 2 pt 2'//&
+          '# set style line 15 lt 0 lc rgb "#C8C800" lw 2 pt 2'//&
           '# set pointsize 0.6'/&
           '# set label "text" at 0.5, 0.5 rotate by 60 font "arial,12"'/&
           '# set xrange [0.5 : 0.7] '/&
@@ -2655,8 +2651,10 @@
     ii=len_trim(graphopt%lowerleftcorner)
     if(graphopt%gibbstriangle) then
        if(ii.gt.3) then
-          write(21,208)trim(graphopt%lowerleftcorner),-0.14
-208       format('set label "',a,'" at graph ',F10.4,', -0.05 ')
+!          write(21,208)trim(graphopt%lowerleftcorner),-0.14
+!208       format('set label "',a,'" at graph ',F10.4,', -0.05 ')
+          write(21,208)trim(graphopt%lowerleftcorner),-0.05
+208       format('set label "',a,'" at graph ',F10.4,', -0.03 ')
        elseif(ii.gt.0) then
           write(21,208)trim(graphopt%lowerleftcorner),-0.08
        endif

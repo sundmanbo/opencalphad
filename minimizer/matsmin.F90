@@ -51,7 +51,11 @@ MODULE liboceqplus
 ! BITS in meqrec status word
 ! MMQUIET means no output for the equilibrium calculation
 ! MMNOSTARTVAL means grid minimizer not called at start
-  integer, parameter :: MMQUIET=0, MMNOSTARTVAL=1
+  integer, parameter :: MMQUIET=0, MMNOSTARTVAL=1,MMSTEPINV=2
+! NOTE in calceq7 status word is set to zero if more bits used because
+! it seemed to have an arbitrary value and it created problems in macro map7
+! I have now correceted the main reason (creating linehead records in SMP)
+! but I kept this check
 !
 !\begin{verbatim}
   TYPE meq_phase
@@ -146,7 +150,7 @@ MODULE liboceqplus
 !\begin{verbatim}
   TYPE map_fixph
 ! provides information about phase sets for each line during mapping
-     integer nfixph,nstabph
+     integer nfixph,nstabph,status
      type(gtp_phasetuple), dimension(:), allocatable :: fixph
      type(gtp_phasetuple), dimension(:), allocatable :: stableph
 ! most likely some of these variables are redundant stable_phr added 2020.03.05
@@ -156,6 +160,7 @@ MODULE liboceqplus
      double precision, dimension(:), allocatable :: fixphamap
   end TYPE map_fixph
 !\end{verbatim}
+! declared as mapfix in call to calceq7 and some other routines
 !
 ! Added for debugging converge problems
   TYPE meqdebug
@@ -254,7 +259,8 @@ CONTAINS
 ! For example to ensure a fcc-carbonitrides is always the same compset.
        ij=1
 ! if meqrec%status indicate no initial startvalues set ij<0 to indicate test
-       if(btest(meqrec%status,MMNOSTARTVAL)) ij=-ij
+! DO not test if mode=0
+       if(mode.ne.0 .and. btest(meqrec%status,MMNOSTARTVAL)) ij=-ij
 ! OC went into a loop for a complex alloy calcumation here (once long ago ...)
 !       write(*,*)'MM calling todo_after: 2',&
 !            btest(meqrec%status,MMNOSTARTVAL),mode
@@ -322,7 +328,7 @@ CONTAINS
 ! For example to ensure a fcc-carbonitrides is always the same compset.
        ij=1
 ! if meqrec%status indicate no initial startvalues set ij<0 to indicate test
-       if(btest(meqrec%status,MMNOSTARTVAL)) ij=-ij
+       if(mode.ne.0 .and. btest(meqrec%status,MMNOSTARTVAL)) ij=-ij
 !       write(*,*)'MM Calling todo_after calceq3'
        call todo_after_found_equilibrium(ij,addtuple,ceq)
        if(gx%bmperr.eq.4358) then
@@ -393,7 +399,14 @@ CONTAINS
     ntup=nooftup()
 !    write(*,*)'MM in calceq7',ntup
     ycond=.FALSE.
-    meqrec%status=0
+!    if(btest(meqrec%status,MMSTEPINV)) then
+! this is the problem with map7? only bit 0 and 1 are used!!
+!       write(*,'(a,z8)')'MM warning **** eqcalc7 meqrec%status: ',&
+!            meqrec%status,' reset'
+!       meqrec%status=0
+!       meqrec%status may be set by STEPMAPPLOT to indicate 
+!       write(*,*)'MM calceq7 meqrec%status: ',meqrec%status,meqrec%nstph
+!    endif
     if(btest(globaldata%status,GSSILENT)) &
          meqrec%status=ibset(meqrec%status,MMQUIET)
     if(ocv()) write(*,*)"Entering calceq7",mode
@@ -442,7 +455,8 @@ CONTAINS
 !               gx%bmperr.eq.4174 .or. &
 !               (gx%bmperr.ge.4176 .and. gx%bmperr.le.4185)) goto 1000
 ! if mode=0 we should not use grid minimizer
-          if(mode.ne.0 .or. .not.btest(meqrec%status,MMQUIET)) &
+!          if(mode.ne.0 .or. .not.btest(meqrec%status,MMQUIET)) &
+          if(mode.ne.0 .and. .not.btest(meqrec%status,MMQUIET)) &
                write(*,9)
 9         format('Warning: global minimizer cannot be used for the current',&
                ' set of conditions')
@@ -867,8 +881,14 @@ CONTAINS
        meqrec%icsl(meqrec%nv)=meqrec%fixph(2,mjj)
        meqrec%aphl(meqrec%nv)=meqrec%fixpham(mjj)
     enddo addfixph
-!------------------------------- special for mapping
-    if(allocated(mapfix)) then
+!------------------------------- special for mapping and STEP
+    mapfixdata: if(allocated(mapfix)) then
+! for step only the status word is used to indicate an invarant node
+!       if(mapfix%nfixph.eq.0) then
+!          if(btest(mapfix,STEPINVARIANT)) then
+!             exit mapfixdata
+!          endif
+!       endif
 ! the stable and fix phases copied from mapfix record.
        do ij=1,meqrec%nv
           meqrec%iphl(ij)=0
@@ -909,7 +929,19 @@ CONTAINS
 !            mapfix%stableph(1)%ixphase,mapfix%stableph(1)%compset,&
 !            mapfix%stablepham(1)
 64     format(a,i3,2i5,1pe12.4)
-    endif
+!    elseif(formap) then
+! mapfixrecord not allocated for STEP calculations
+! this dis not work for handling invariant nodes for STEP
+!       write(*,*)'MM calceq7 formap MMSTEPINV:',btest(meqrec%status,MMSTEPINV)
+!       if(btest(meqrec%status,MMSTEPINV)) then
+! The line start at an invariant node for a STEP calculation, 
+!          write(*,*)'MM invariant node with phases: ',meqrec%nstph
+!          do jj=1,meqrec%nstph
+!             jq=meqrec%stphl(jj)
+!             write(*,*)'MM stable: ',jj,jq,meqrec%phr(jq)%curd%amfu
+!          enddo
+!       endif
+    endif mapfixdata
 !------------------------------- 
 ! zero start of link to phases set temporarily dormant ....
     meqrec%dormlink=0
@@ -952,10 +984,10 @@ CONTAINS
        call sumprops(props,ceq)
        if(gx%bmperr.ne.0) then
           write(*,*)'Convergence error, check your conditions are reasonable'
-       elseif(props(4).gt.10 .and. &
+       elseif(props(4).gt.1.0D1 .and. &
             .not.(saverr.eq.4210 .or. saverr.eq.4364)) then
-          write(*,*)'Convergence error: *** REDUCE THE SIZE OF YOUR SYSTEM!',&
-               saverr
+          write(*,'(a,a,i5,1pe12.4)')'Convergence error, maybe reduce ',&
+               'the size of your system!',saverr,props(4)
        endif
        gx%bmperr=saverr
     endif
@@ -1071,6 +1103,7 @@ CONTAINS
 ! new: -4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
           if(zap.ge.PHDORM) then
              mph=mph+1
+! this iph is the index in the phlista record
              meqrec%phr(mph)%iph=iph
              meqrec%phr(mph)%ics=ics
 ! compare with these the first time a phase wants to be added or removed
@@ -1272,7 +1305,8 @@ CONTAINS
 !                  addremloop(iadd,2),addremloop(iadd,3)
           endif
           if(addremloop(iadd,2).gt.5) then
-             write(*,'(a,2i4,"#",i1)')'MM Removing phase: ',iadd,&
+             if(.not.btest(meqrec%status,MMQUIET)) &
+                  write(*,'(a,2i4,"#",i1)')'MM Removing phase: ',iadd,&
                   meqrec%phr(iadd)%iph,meqrec%phr(iadd)%ics
              meqrec%phr(iadd)%phasestatus=PHDORM
              meqrec%phr(iadd)%curd%phstate=PHDORM
@@ -1361,7 +1395,29 @@ CONTAINS
              phnames='-'
              call get_phasetup_name(tuprem,phnames(2:))
           endif
-          if(formap) then
+          addph: if(formap) then
+!             if(btest(meqrec%status,MMSTEPINV)) then
+! This did not work to handle invariants during STEP
+! we are exiting an invariant node for a STEP calculation, allow phase change
+! meq_sameset wants to ADD a phase, instead remove the last stable phase
+!                write(*,*)'MM meq_phaseset invariant node',meqrec%noofits,iadd
+!                do jj=1,meqrec%nstph
+!                   irem=meqrec%stphl(jj)
+!                   if(iadd.eq.0 .and. &
+!                        meqrec%phr(irem)%curd%amfu.eq.zero) then
+!                      meqrec%phr(irem)%curd%amfu=1.0D-1
+!                   endif
+!                   write(*,*)'MM stable: ',jj,irem,meqrec%phr(irem)%curd%amfu
+!                enddo
+!                if(iadd.gt.0 .and. meqrec%nstph.gt.1) then
+!                   meqrec%nstph=meqrec%nstph-1
+!                   meqrec%phr(irem)%curd%amfu=zero
+!                   write(*,*)'MM ignore adding ',iadd,' but remove ',irem
+!                   iadd=0
+!                   goto 200
+!                endif
+!                exit addph
+!             endif
 ! This can be too strong, we can have a tie-line betwen two stoichiometric
 ! phases, i.e. a new phase appears at first attempt to step in two-phase region.
 ! UNFINISHED handling of many exceptions during mapping 
@@ -1395,15 +1451,8 @@ CONTAINS
                   write(*,281)meqrec%noofits,trim(phnames)
 281          format('Phase change iteration: ',i5,2x,a)
 #endif
-          endif
+          endif addph
        endif
-!       if(formap) then
-! when called during mapping the set of phases must not change!
-!          if(ocv()) write(*,*)'Phase change not allowed',ceq%tpval(1)
-! Phase change not allowed due to step/map constraints
-! step/map should handle this by creating a node point
-!          gx%bmperr=4210; goto 1000
-!       endif
     endif
 222 continue
     remove: if(irem.gt.0) then
@@ -1662,11 +1711,13 @@ CONTAINS
           write(*,*)'MM cannot find phasetup name: ',jj,kk,gx%bmperr
           gx%bmperr=0
        endif
-       if(meqrec%phr(jj)%curd%dgm.gt.zero) then
-          write(*,1220)jj,kk,trim(phnames),meqrec%phr(jj)%curd%dgm
-1220      format('Restoring phase:  ',2i5,2x,a,5x,1pe12.4)
-       else
-          write(*,1220)jj,kk,trim(phnames)
+       if(.not.btest(meqrec%status,MMQUIET)) then
+          if(meqrec%phr(jj)%curd%dgm.gt.zero) then
+             write(*,1220)jj,kk,trim(phnames),meqrec%phr(jj)%curd%dgm
+1220         format('MM Restoring phase:  ',2i5,2x,a,5x,1pe12.4)
+          else
+             write(*,1220)jj,kk,trim(phnames)
+          endif
        endif
        if(meqrec%phr(jj)%curd%dgm.gt.1.0D-2) jph=jj
 ! do I have two places for suspendeded ?? YES!!
@@ -1677,7 +1728,8 @@ CONTAINS
        goto 1200
     endif
     if(jph.gt.0) then
-       write(*,*)' *** Warning, a restored phase wants to be stable:',jph
+       if(.not.btest(meqrec%status,MMQUIET)) &
+            write(*,*)'MM warning, a restored phase wants to be stable:',jph
        gx%bmperr=4363
     endif
 ! we may already have had an error ...
@@ -7685,6 +7737,8 @@ CONTAINS
        write(*,*)'MM Allocation error 48: ',errall
        gx%bmperr=4370; goto 1000
     endif
+! problems with map7 ???
+    meqrec1%status=0
     meqrec=>meqrec1
 !    write(*,88)'MM calling initiate_meqrec',svr2%statevarid,ceq%eqno
 88  format(a,2i4)
@@ -10378,7 +10432,7 @@ CONTAINS
 ! How to check if I should use this routine? Only 2 components?
 ! If we have an activity condition one could have 3 components ....
        write(*,*)'MM This routine should  be used only when tie-lines in plane'
-       goto 1000
+       gx%bmperr=4399; goto 1000
     endif
 !    call get_state_var_value('X(O) ',value,phases,ceq)
 !    write(*,806)meqrec%fixph(1,1),meqrec%fixph(2,1),mapx,iadd,value

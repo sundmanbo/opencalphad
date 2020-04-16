@@ -1453,9 +1453,10 @@
 ! NOTE ALL VALUES CALCULATED AS FOR G/RT
 ! kvot=theta/T
    if(phres%gval(1,ith).gt.1.0D2) then
-      write(*,*)'Most likely wrong value of THET, parameter should be ln(THET)'
+      write(*,*)'3H Probably wrong value of THET, parameter should be ln(THET)'
       gx%bmperr=4399; goto 1000
    endif
+! The exp( ) because the parameter value is LN(THETA)   
    kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
 !   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
 !        phres%gval(3,1),phres%gval(4,1),kvot
@@ -1487,7 +1488,7 @@
       kvotexpkvotm1=kvot/(exp(kvot)-one)
       ln1mexpkvot=log(one-expmkvot)
    endif
-! 
+! kvot is +THETA/T; gein is integrated contribution to the Gibbs energy
    gein=1.5D0*kvot+3.0D0*ln1mexpkvot
 !   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
 !        kvotexpkvotm1
@@ -1993,9 +1994,12 @@
 !         write(*,*)'3H found liquid delta-cp: ',dcpl
       endif
    enddo findix
+! ignore this error message
    if(ith.eq.0) then
-      write(*,*)'Cannot find value for amorphous THET'
-      gein=zero; dgeindt=zero; d2geindt2=zero; goto 300
+!      write(*,*)'3H Cannot find value for amorphous THET'
+      write(*,*)'3H warning no value for amorphous THET'
+      gein=zero; dgeindt=zero; d2geindt2=zero
+      goto 300
 !      gx%bmperr=4367; goto 1000
    endif
 !----------------------------------
@@ -2236,11 +2240,14 @@
       endif
    enddo findix
    if(ith.eq.0) then
-      write(*,*)'Cannot find value for amorphous THET'
-      gx%bmperr=4367; goto 1000
+!      write(*,*)'3H Cannot find value for amorphous THET'
+      write(*,*)'3H warning: no value for amorphous THET'
+      gein=zero; dgeindt=zero; d2geindt2=zero
+      goto 300
+!      gx%bmperr=4367; goto 1000
    endif
    if(ig2.eq.0) then
-      write(*,*)'Cannot find value for G2 two-state parameter'
+      write(*,*)'3H Cannot find value for G2 two-state parameter'
       gx%bmperr=4367; goto 1000
    endif
 !----------------------------------
@@ -2297,7 +2304,9 @@
    else
       d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
    endif
+!-------------------------- jump here if no THET variable
 ! return the values in phres%gval(*,1)
+300 continue
    phres%gval(1,1)=phres%gval(1,1)+msize*gein
    phres%gval(2,1)=phres%gval(2,1)+msize*dgeindt
 !   phres%gval(3,1)=phres%gval(3,1)
@@ -2333,7 +2342,7 @@
 ! if g2val is positive we are in the amorphous region
 ! if g2val is negative we are in the liquid region
 ! The if statements here ensure expmg2 is between 1e-60 and 1e+60
-!   write(*,'(a,6(1pe12.4))')'3H g2val: ',g2val,dg2dt,-g2val/rt
+   write(*,'(a,6(1pe12.4))')'3H g2val: ',g2val,dg2dt,-g2val/rt
    if(-g2val/rt.gt.2.0D2) then
 ! LIQUID REGION exp(200) >> 1, thus d2g=ln(1+exp(g2val))=g2val
 ! and the derivatives are those above. DIVIDED BY RT?
@@ -2378,6 +2387,10 @@
         ((g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt)*expg2/&
         (rt*(one+expg2)**2))/rt
 700 continue
+   write(*,705)'3H 2SL: ',g2val/rt, dg2, dgfdt, dgfdt, d2g2dt2, tv,&
+        rt, expg2, dg2dt, msize, d2g2dt2*rt
+705 format(a,6(1pe12.4)/8x,6(1pe12.4))
+! THIS IS THE SUBROUTINE USED FOR 2STATE LIQUID
 ! This should be OK/ 2020.02.27
    phres%gval(1,1)=phres%gval(1,1)-msize*dg2
    phres%gval(2,1)=phres%gval(2,1)-msize*dgfdt

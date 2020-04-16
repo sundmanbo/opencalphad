@@ -5022,7 +5022,7 @@
    double precision totmol,totmass,amount,gmax,dgmax,dgtest
    integer, allocatable :: kphl(:),iphx(:)
    integer gmode,iph,ngg,nrel,ny,ifri,firstpoint,sumng,nrph,ii,jj,nz,lokcs
-   integer ics,pph,nyfas,gpz,iphz,nggz,errall
+   integer ics,pph,nyfas,gpz,iphz,nggz,errall,haha
    integer, parameter :: maxgrid=400000
 !
 !   write(*,*)'3Y In global_equil_check1',mode
@@ -5037,6 +5037,12 @@
    if(mode.ne.1) addgridpoint=.FALSE.
    dgmax=zero
    addtuple=0
+! Problem with invariant when mapping but not here
+!   if(inveq(haha,ceq)) then
+!      write(*,*)'3Y equilibrium is invariant when entering',haha
+!   else
+!      write(*,*)'3Y equilibrium is not invariant when entering',haha
+!   endif
 ! COPY the whole equilibrium record to avoid destroying anything!!
 ! otherwise I had strange problems with amounts of phases ??
    cceq=ceq
@@ -5227,6 +5233,11 @@
       deallocate(iphx)
    endif
 2000 continue
+!   if(inveq(haha,ceq)) then
+!      write(*,*)'3Y equilibrium is invariant when at exit',haha
+!   else
+!      write(*,*)'3Y equilibrium is not invariant when at exit',haha
+!   endif
    global_equil_check1=global
    return
  end function global_equil_check1
@@ -7116,6 +7127,77 @@
    vssize=sum
    return
  end function vssize
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable logical function inveq
+!\begin{verbatim}
+  logical function inveq(phases,ceq)
+! Only called for mapping tie-lines not in plane.  If tie-lines in plane
+! then all nodes are invariants.
+    integer phases
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer nrel,ii,nostph,tpvar,degf,www
+    type(gtp_condition), pointer :: pcond,lastcond
+    type(gtp_state_variable), pointer :: stvr
+! How to know if the ceq is invariant? Gibbs phase rule, Degrees of freedom
+! f = n + z - w - p
+! where n is number of components, z=2 if T and P variable, 
+!                      z=1 if T or P variable, z=0 if both T and P fixed,
+!                      w is number of other potential conditions (MU, AC)
+!                      p is number of stable phases.
+!    write(*,*)'3Y in inveq'
+    nrel=noel()
+! sum up nubler of stable phases and check if T and P are fixed
+    nostph=0
+!    ntups=nooftup()
+!    do ii=1,noofphasetuples()
+    do ii=1,nooftup()
+       if(ceq%phase_varres(phasetuple(ii)%lokvares)%phstate.gt.0) &
+            nostph=nostph+1
+    enddo
+! loop all conditions
+    lastcond=>ceq%lastcondition
+    pcond=>lastcond
+    tpvar=2
+    www=0
+100 continue
+       if(pcond%active.eq.0) then
+! condtion is active
+          stvr=>pcond%statvar(1)
+! statevarid 1 is T and 2 is P
+          if(stvr%statevarid.eq.1 .or. stvr%statevarid.eq.2) then
+! Hm, ceq is not the equilibrium record for the node point ...
+             tpvar=tpvar-1
+          elseif(stvr%statevarid.lt.10) then
+! potential/activity condition for a component
+             www=www+1
+          endif
+       endif
+       pcond=>pcond%next
+       if(.not.associated(pcond,lastcond)) goto 100
+!
+! Hm again, ignore tpvar?
+!    degf=nrel+tpvar-www-nostph
+    degf=nrel-www-nostph
+!    write(*,'(a,8i4)')'3Y in inveq 2',nrel,tpvar,www,nostph,degf
+    if(degf.lt.0) then
+! We have an invariant equilibrium, return the number of stable phases
+       phases=nostph
+       inveq=.true.
+!       write(*,200)'3Y An invariant equilibrium!',nrel,tpvar,nostph,phases
+!200    format(a,5i7)
+    else
+!       write(*,210)degef,nrel,tpvar,phases
+!210     format('3Y not invariant eq, elements, stable phases: ',4i4)
+!       if not invariant isoplet node there are 3 exits (2 lines crossing)
+       phases=nostph
+       inveq=.false.
+    endif
+1000 continue
+    return
+  end function inveq
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

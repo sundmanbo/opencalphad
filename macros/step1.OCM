@@ -32,7 +32,9 @@ set c t=1200 p=1e5 n=1 w(c)=.009 w(cr)=.045, w(mo)=.1,w(si)=.001 w(v)=.009
 
 @$ Enter a composition set for the MC carbide (FCC)
 @$ This is convenient to specify an additional pre/suffix 
-amend phase fcc comp_set y MC ,
+amend phase fcc comp_set y
+MC
+
 NONE
 <.1
 NONE

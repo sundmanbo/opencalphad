@@ -432,7 +432,6 @@
 !
 ! for TDB compatibility skip #
 !
-! DO NOT allow unary functions ABOVE(TB) and BELOW(TB) 
 ! check consistency
    implicit none
    integer ip,nc,koder(5,*)
@@ -454,7 +453,8 @@
 ! NEIN is the Einstein function
 ! MAX1 is 1.0 if argument is larger than 1.0, error if argument negative
 ! LOG is LOG10 and LN is the natural logarithm!!!
-   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN ','MAX1  '/
+   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','INTEIN','MAX1  '/
+!   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN ','MAX1  '/
 !   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN '/
 !   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','ABOVE ','BELOW '/
 !
@@ -618,7 +618,7 @@
       call store_tpfun_dummy(symbol)
    else
 ! otherwise give error message
-!      write(*,*)'TPFUN Unknown symbol: ',symbol,freetpfun-1
+      write(*,*)'TPFUN contain unknown symbol: ',symbol,freetpfun-1
       gx%bmperr=4002; goto 1000
    endif
 ! we have found the symbol
@@ -995,7 +995,9 @@
  subroutine ct1efn(inrot,tpval,val,tpres)
 !...evaluates a datastructure of an expression. Value returned in val
 !     inrot is root expression tpfunction record
-!     tpval is valuse of T and P, symval is values of symbols
+!     tpval is valuse of T and P,
+!     val is array of values calculated here
+!     tpres is array of all calculated functions
 ! first and second derivatives of T and P also calculated and returned
 ! in order F, F.T, F.P, F.T.T, F.T.P, F.P.P
 !
@@ -1092,6 +1094,7 @@
       link4=0
 !       if(link.ne.0) write(*,201)'funev: ',lrot,ic,link,link3
 !201    format(a,10i5)
+!      write(*,'(a,5i4,1pe12.4)')'3Z intein2: ',ic,ipow,link,link3,link4,ff
       if(link.lt.0 .and. link3.gt.1000) then
 ! if link is negative (unary funktion) and link3 is >1000 (link)
 ! we must evaluate link3 first
@@ -1154,6 +1157,7 @@
          exprot%wpow(ic)=link4
       endif
 !-------------------------------------------------------------
+!      write(*,'(a,5i4,1pe12.4)')'3Z intein3: ',ic,ipow,link,link3,link4,ff
       evlink: if(link.gt.0) then
 ! link to another symbol, extract its value and use chain rule
 ! extract the results from the symbol if already calculated
@@ -1317,6 +1321,7 @@
       elseif(link.lt.0) then
 !------------------------------------------------------
 ! unary function, next term is argument, not very elegant ....
+!         write(*,'(a,5i4,1pe12.4)')'3Z intein4: ',ic,ipow,link,link3,link4,ff
          unfun=link
          cc=exprot%coeffs(ic+1)
 ! cc should never be zero here, if so bug in the parser
@@ -1362,7 +1367,6 @@
             if(abs(tpres(link2)%tpused(1)-tpval(1)).lt.&
                  mini*tpres(link2)%tpused(1) .and. &
                  abs(tpres(link2)%tpused(2)-tpval(2)).lt.&
-!                 mini*tpres(link2)%tpused(2)) then
                  mini*tpres(link2)%tpused(2) .and. &
 ! added this check as it seems new assessment coefficients are nor used!!
                  tpres(link2)%forcenewcalc.eq.tpfuns(link2)%forcenewcalc) then
@@ -1430,8 +1434,10 @@
          endif
 ! now combine term1 and term2 using chain rule. link values are
 ! -1: LOG,   -2: LN,    -3: EXP, -4: ERF, only LN and EXP implemented below
-! -5: NEIN,  is the Einstein function
+! -5: INTEIN, is the Einstein function, integrated as a Gibbs energy
+!             the argument is the Einstein T
 ! -6: MAX1, if argument <0 ERROR, if >1 replace by 1
+!         write(*,'(a,5i4,1pe12.4)')'3Z intein5: ',ic,ipow,link,link3,link4,ff
          evunfun: if(unfun.eq.-1) then
 ! LOG base 10
 ! ff=ff*Log10(gg) added by Sheng Yen Li
@@ -1480,9 +1486,21 @@
             write(*,*)'Error function not implemented'
             stop 71
          elseif(unfun.eq.-5) then
-! EINSTEIN FUNCTION
-            write(*,*)'Einstein function not implemented'
-            stop 72
+! INTEGRATED EINSTEIN: INTEIN = 1.5*R + 3*R*T*LN(EXP(THETA/T)+1), THETA=gg
+            if(dfdt.ne.zero) then
+               write(*,*)'3Z GEIN must not be multiplied with T!'
+               gx%bmperr=4399; goto 1000
+            endif
+!           write(*,'(a,5i5,1pe12.4)')'3Z intein6: ',ic,ipow,link,link3,link4,ff
+! ff is the constant factor in front of the Einstein function
+! It is overwritten by the Einsten function (multiplied by original ff)
+            call tpfun_geinstein(tpval,gg,ff,dfdt,dfdp,d2fdt2,d2fdtdp,d2fdp2)
+!            write(*,'(a,i3,6(1pe12.4))')'3Z call Einstein:',link,&
+!                 gg,ff,dfdt,d2fdt2
+! ff is the coefficient for the Einstein Functions, should be a constant ...?
+!            write(*,*)'Einstein function not implemented'
+!            stop 72
+            if(gx%bmperr.ne.0) goto 1000
          elseif(unfun.eq.-6) then
 ! MAX1 function, used for SRO .... function and derivatives in gg, dgdt etc.
 !            write(*,*)'MAX1 function',gg
@@ -1499,27 +1517,8 @@
                d2fdp2=zero; d2fdtdp=zero; d2fdt2=zero
                dfdp=zero; dfdt=zero; ff=one
             endif
-!         elseif(unfun.eq.-5) then
-! above(T0): ff=ff*above(gg).  gg is t0, breakfun(1..6) are fun and derivatives
-! NO P-derivatives means breakfun(3)=breakfun(5)=breakfun(6)=0
-!            call above_t0_calc(gg,tpval,breakfun)
-!            d2fdp2=breakfun(1)*d2fdp2
-!            d2fdtdp=breakfun(1)*d2fdtdp+dfdp*breakfun(2)
-!            d2fdt2=breakfun(1)*d2fdt2+ff*breakfun(4)+2.0D0*dfdt*breakfun(2)
-!            dfdp=breakfun(1)*dfdp
-!            dfdt=breakfun(1)*dfdt+ff*breakfun(2)
-!            ff=ff*breakfun(1)
-!         elseif(unfun.eq.-6) then
-! below T0,  ff=ff*above(gg).  gg is t0, breakfun(1..6) are fun and derivatives
-! NO P-derivatives means breakfun(3)=breakfun(5)=breakfun(6)=0
-!            call below_t0_calc(gg,tpval,breakfun)
-!            d2fdp2=breakfun(1)*d2fdp2
-!            d2fdtdp=breakfun(1)*d2fdtdp+dfdp*breakfun(2)
-!            d2fdt2=breakfun(1)*d2fdt2+ff*breakfun(4)+2.0D0*dfdt*breakfun(2)
-!            dfdp=breakfun(1)*dfdp
-!            dfdt=breakfun(1)*dfdt+ff*breakfun(2)
-!            ff=ff*breakfun(1)
          else
+! undefined function
             gx%bmperr=4021
             goto 1000
          endif evunfun
@@ -1588,6 +1587,54 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine tpfun_geinstein
+!\begin{verbatim}
+ subroutine tpfun_geinstein(tpval,gg,ff,dfdt,dfdp,d2fdt2,d2fdtdp,d2fdp2)
+! evaluates the integrated Einstein function (including 1.5*R) INTEIN
+! gg is the value of the Einstein THETA
+! ff is a constant factor which should be multiplied with all terms
+! ff is overwritten with the Einstein function (multiplied with ff in)
+! the other parameters are derivatives of the integrated Einstein function
+   implicit none
+   double precision tpval(*)
+   double precision gg,ff,dfdt,dfdp,d2fdt2,d2fdtdp,d2fdp2
+!\end{verbatim}
+   double precision kvot,kvotexpkvotm1,expmkvot,lnexpkvot,ww,rgas
+! return ff = 1.5*R + 3*R*T*LN(EXP(-gg/T) + 1) and derivatives
+   rgas=globaldata%rgas
+!   write(*,*)'3Z in Einstein function',gg,tpval(1)
+   ww=ff
+   kvot=gg/tpval(1)
+   if(kvot.gt.2.0d2) then
+! handle extreme values of kvot, we divide by kvotexpkvotm1**2 by expmkvot bolw
+      expmkvot=one
+      kvotexpkvotm1=zero
+      lnexpkvot=zero
+!      write(*,'(a,5(1pe12.4))')'3Z Einetsin 1: ',kvot,expmkvot,&
+!           kvotexpkvotm1,lnexpkvot
+   else
+      expmkvot=exp(-kvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+      lnexpkvot=log(one-expmkvot)
+!      write(*,'(a,5(1pe12.4))')'3Z Einetsin 2: ',kvot,expmkvot,&
+!           kvotexpkvotm1,lnexpkvot
+   endif
+! this is the integral G contribution from an Einstein solid
+   ff=1.5d0*rgas*gg*ww + 3.0D0*rgas*tpval(1)*lnexpkvot*ww
+   dfdt=3.0d0*rgas*(lnexpkvot-kvotexpkvotm1)*ww
+!   write(*,10)rgas,kvot,lnexpkvot,kvotexpkvotm1,dfdt
+!10 format('3Z bug: ',6(1pe12.4))
+   dfdp=zero
+! this is the second derivative of G wrt T; i.e. the Einstein solid Cp equation
+   d2fdt2=-3.0d0*rgas*kvotexpkvotm1**2/(expmkvot*tpval(1))*ww
+   d2fdtdp=zero
+   d2fdp2=zero
+1000 continue
+   return
+ end subroutine tpfun_geinstein
+
+   !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine ct1wfn
 !\begin{verbatim}
  subroutine ct1wfn(exprot,tps,string,ip)
@@ -1605,7 +1652,8 @@
    character ch1*1,cht*1,extsym*(lenfnsym),unary(nunary)*6
    TYPE(tpfun_expression), pointer :: exprot
 ! these should be the same as in ct1xfn !!! ??
-   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN ','MAX1  '/
+   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','INTEIN','MAX1  '/
+!   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','GEIN  ','MAX1  '/
 !
    if(.not.associated(exprot)) then
       string(ip:ip+2)='0; '
@@ -1739,6 +1787,7 @@
    endif symbol
 ! no symbol or unary function, coefficient with possible powers
    if(coeff(level).ne.one) then
+! if 4th argument >0 then write a sign
       call wrinum(string,ip,12,6,coeff(level))
       mult=-1
    else
@@ -1750,7 +1799,10 @@
          if(koder(i,level).ne.0) goto 219
       enddo
 ! without this the Inden magnetic function will miss its initial 1.0
-      call wrinum(string,ip,2,0,coeff(level))
+!      call wrinum(string,ip,2,0,coeff(level))
+! changed 20.03.17/BoS because EXP(T)+1 missed the + between ) and 1
+! Force wrinum to write positive signs by 4th parameter positive
+      call wrinum(string,ip,2,1,coeff(level))
       goto 220
 219   continue
 ! missing coefficient discovered by Mauro, as the coefficient is unity
