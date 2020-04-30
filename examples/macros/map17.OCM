@@ -1,5 +1,5 @@
 @$
-@$ calculate A2/B2 line in ALFe
+@$ calculate Al-Fe phase diagram including A2/B2 line in BCC
 @$
 @$
 @$
@@ -243,7 +243,22 @@ title map 17 fig 2d
 
 
 
-@$ Now append the already calculated and plotted a2/b2 curve
+@&
+@$ Now the gamma loop
+
+set c x(al)=.015 t=1400
+
+c e
+
+l,,,,
+
+@&
+
+map
+n
+
+
+@$ Now plot everyting and append the already calculated and plotted a2/b2 curve
 @&
 
 plot

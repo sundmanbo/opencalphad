@@ -274,6 +274,7 @@ CONTAINS
              goto 100
           endif
        endif
+!       write(*,*)'MM back in calceq2 after todo_after'
     endif
 ! maybe memory leak 2
 !    write(*,*)'MM deallocate 2'
@@ -698,7 +699,7 @@ CONTAINS
 !       write(*,*)'MM calling global gridmin'
        call global_gridmin(1,tpval,xknown,meqrec%nv,&
             meqrec%iphl,meqrec%icsl,meqrec%aphl,nyphl,vmu,ceq)
-       if(ocv()) write(*,*)'back from gridmin'
+       if(ocv()) write(*,*)'MM back from gridmin'
 !       write(*,*)'MM back from gridmin'
        if(gx%bmperr.ne.0) then
 ! if global fails reset error code and try a default start set of phases
@@ -2284,8 +2285,8 @@ CONTAINS
           if(ioff.gt.size(svar)) then
 ! error here calculating Fe-Si-C with 2 phases set fix zero
 ! setting w(si)=w(c)=none and fix T; should have w(si) fix and T=none
-             write(*,42)'Too many phases with variable amount',ioff,size(svar),&
-                  meqrec%nstph,phr(jj)%iph
+             write(*,42)'MM Too many phases with variable amount',ioff,&
+                  size(svar),meqrec%nstph,phr(jj)%iph
 42           format(a,10i4)
             gx%bmperr=4193; goto 1000
           endif

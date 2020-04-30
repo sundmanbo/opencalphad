@@ -89,7 +89,7 @@ RENDER
 @$
 @$
 
-set c t=1400
+set c t=1200
 set c x(cr)=.12
 c e
 l,,,,

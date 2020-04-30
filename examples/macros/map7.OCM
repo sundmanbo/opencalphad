@@ -56,7 +56,8 @@ default
 @& calculate a first equilibrium at 1200 where we have both fcc phases 
 
 @$ Startpoint change needed for new gridminimizer, same diagram
-set c t=1300 p=1e5 n=1 w%(c)=1 w%(cr)=5, w%(mo)=8 w%(v)=1
+set c t=1300 p=1e5 n=1 w%(c)=1.2 w%(cr)=5, w%(mo)=8 w%(v)=1
+
 @$ It is important that the grid minimizer provide gridpoints with small
 @$ amounts of alloying elements !!!
 
@@ -67,7 +68,7 @@ l r 4
 
 @&
 
-set axis 1 w%(c) 0 1.2 ,,,
+set axis 1 w%(c) 0 2 ,,,
 set axis 2 T 800 1800 25
 
 l ax
@@ -89,12 +90,23 @@ plot
 title map 7 fig 1
 
 @&
+@$ Some lines are still missing but the invariants are OK
+@$ There is a need for several automatic startpoints
 @$ add some labels
 
 plot
 
 
 title map 7 fig 2
+scale x
+n
+0
+2
+@$ Position of keys, Size of font must be on separate line!
+pos
+bottom left
+12
+@$ Label some areas
 text
 0.4 1000
 .8
@@ -111,7 +123,7 @@ text
 n 0.15 1400 .8 0 y
 
 text 
-n 0.9 1580 .8 0 y
+n 0.8 1580 .8 0 y
 
 
 @&
@@ -130,8 +142,15 @@ plot
 
 scale y
 n
-1550
-1600
+1500
+1700
+scale x
+n
+0
+1
+text
+n 0.3 1670 .8 0 y
+
 title map 7 fig 3
 
 

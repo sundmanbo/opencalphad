@@ -7,24 +7,40 @@ The installation of OC on Windows is now fully automatic including an
 introduction, on-line help and macro examples.  On Linux, MacOS and
 other OS the installation requires some general knowledge about
 compiling and linking of software.  There is an installation manual
-(and video on You Tube) but if you are not familiar with such
-procedures please ask a local guru for help.  We who are providing
-this software do not have time to answer such questions.
+(and an old mainly redundant video on You Tube) but if you are not
+familiar with such procedures please ask a local guru for help.  We
+who are providing this software do not have time to answer such
+questions.
 
 In the list below the most recent changes come first.
+
+2020.04.30 OC version 6.003: In the isopleth phase diagrams the
+invariats are finally calculated correctly and the map7 macro is
+reasonable (even if parts of some lines are missing using a single
+start point).  A new Cmake file to simplfy the installation on various
+OS is on its way.
+
+2020.04.10 OC version 6.002: The directory structure for OC has been
+changed to be similar to other GNU software.  In the src/ directory
+the source code and in examples/macros/ all the macro files for
+teseting and learning to use OC can be found.  The manual is in
+doc/manual/.  The Makefile for Linux and the "linkpara/linkmake" for
+Windows has been updataed for this structure and the final executable
+will be found in the bin/ directory.  The other directories are mainly
+of interest for those who use OC in their own software.
 
 ************************
 * This is OC version 6 *
 ************************
 
-2020.04.14 OC version 6.001: The Coronavirus epidemy is changing the
-world as we know it.
+2020.04.14 OC version 6.001: The Coronavirus epidemy is changing
+the world as we know it.
 
 An automatic installation of OC6 for Windows is now available on the
 opencalphad.org website.  This creates the directories and the OCHOME
 environment variable and installs the executable, on-line help files,
-macro files, the macro manual and an intoductary text.  Many thanks to
-Chunhui for the help with his.  The macro manual and the informative
+macro files, the macro manual and an introduction.  Many thanks to
+Chunhui for the help with this.  The macro manual and the informative
 text has been updated.
 
 The calculation of invariant equilibria for isopleths was added in the
@@ -33,9 +49,10 @@ elaborated.  This has been improved, for example in map7 and map16,
 but there are still some problems to find the set of fix phases
 defining each line exiting rom the invariant.
 
-I found that "c n" actually called the grid minimizer after the
-iterative calculation if the conditions did not allow using the grid
-minimizer initially.  Now "c n" never call the grid minimizer.
+The "c n" (calculate no-global) actually called the grid minimizer
+after the iterative calculation if the conditions did not allow using
+the grid minimizer initially.  Now "c n" never call the grid
+minimizer.
 
 I have also fixed that the STEP command can handle invariant
 equilibria, previously it stopped there because it is necessary to add
@@ -43,9 +60,9 @@ and remove a phase at the same node.  Now it should discover by itself
 which phases to exchange.  As always step and map are fragile and may
 require several startpoints to be complete.
 
-************************************************************************
+****************************************
 * This is a prerelease of OC version 6 *
-************************************************************************
+****************************************
 
 2020.03.15 OC version 6.000: Note the linkpara and Makefiles are
 changed to use the name oc6p for the executable.  I will update the

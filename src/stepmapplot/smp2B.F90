@@ -1079,20 +1079,20 @@
 !------------------------------------------------------------
 !    write(*,*)'We are here removing _ ',np
 ! replace _ by - in lid
-    do i=1,np
+!    do i=1,np
 ! lid may contain phase names with _
 ! replace _ by - in lid because _ is interpreted as subscript (as LaTeX)
 798    continue
 !       write(*,*)'lid: ',i,': ',trim(lid(i))
-       nv=index(lid(i),'_')
-       if(nv.gt.0) then
-          lid(i)(nv:nv)='-'
-          goto 798
-       endif
-    enddo
+!       nv=index(lid(i),'_')
+!       if(nv.gt.0) then
+!          lid(i)(nv:nv)='-'
+!          goto 798
+!       endif
+!    enddo
 ! move data output to the end of PLT file ...
-!    write(*,*)'We jump to 2000'    
-    goto 2000
+!    write(*,*)'smp2B ocplot2 We jump to 2000'    
+!    goto 2000
 2000 continue
 !    write(*,*)'We are at 2000 '
 !----------------------------------------------------------------------
@@ -1229,6 +1229,7 @@
 !    write(*,*)'"',year,'"  "',hour,'"'
     tablename='OCT'//year(3:8)//hour(1:6)
 !    write(*,*)'Plot heading 2? ',btest(graphopt%status,GRNOTITLE)
+    call replace_uwh(conditions)
     if(btest(graphopt%status,GRNOTITLE)) then
        write(21,858)trim(title),trim(conditions),trim(graphopt%font)
     else
@@ -1493,6 +1494,11 @@
 ! A digit before the first phase gives number of columns to plot
 !    write(*,*)'smp2b: isopleth? ',isoplethplot,np,npx
     if(isoplethplot) read(phaseline(1),'(i3)')fixphasecolor
+!    write(*,*)'SMP2B replace _ in keys: ',npx
+    do jj=1,npx
+! remove _ in keys
+       call replace_uwh(lid(jj))
+    enddo
 ! columnheaders used as keys
     if(isoplethplot) then
 ! This column headin is not set before
@@ -2257,6 +2263,7 @@
     if(btest(graphopt%status,GRNOTITLE)) then
        write(21,128)trim(title),trim(conditions),trim(graphopt%font)
     else
+       call replace_uwh(conditions)
        write(21,129)trim(title),trim(conditions),trim(graphopt%font)
     endif
     write(21,130)graphopt%xsize,graphopt%ysize,&
@@ -3834,7 +3841,28 @@
 !    write(*,*)'vix mm: ',vix,(ixpos(vix),vix=1,nix)
 1000 continue
     return
-  end subroutine stvarix 
+  end 
 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine replace_UWH
+!\begin{verbatim}
+  subroutine replace_uwh(text)
+! replaces underscore by a hyphen for texts used in GNUPLOT
+    implicit none
+    character*(*) text
+!\end{verbatim}
+    integer jj
+! replace _ by - in lid
+    jj=-1
+    do while(jj.ne.0)
+! replace _ by - in lid because _ is interpreted as subscript (as LaTeX)
+       if(jj.gt.0) text(jj:jj)='-'
+       jj=index(text,'_')
+    enddo
+!    write(*,*)'SMP2B text without "_": ',trim(text)
+    return
+  end
+  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

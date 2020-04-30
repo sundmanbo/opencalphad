@@ -1,14 +1,17 @@
+#
+# Modified but not tested for the new directory structure
+#
 OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o minpack1.o  gtp3.o matsmin.o smp2.o pmon6.o
 LIBS=liboctq.o liboctqisoc.o liboctqcpp.o
 EXE=oc6P
 
 #
-# IMPORTANT at the getkey.o: label
+# IMPORTANT check at the getkey.o: label
 #
 #	echo "Do not forget to uncomment a line for your OS"
 #
 #=============================================================================#
-# provided by Matthias Strathmann including OC examples
+# original provided by Matthias Strathmann including OC examples
 # NOTE getkey.o : you have to select which getkey routine to compile
 #=============================================================================#
 
@@ -29,11 +32,11 @@ FCOPT= -O2 -fopenmp -fPIC
 #FC=ifort
 #FCOPT= -check bounds -zero
 
-EX1PATH = ./TQ4lib/F90/crfe
-EX2PATH = ./TQ4lib/F90/feni
-EX3PATH = ./TQ4lib/Cpp/Matthias/crfe
-EX4PATH = ./TQ4lib/Cpp/Matthias/feni
-EX5PATH = ./TQ4lib/Cpp/Matthias
+EX1PATH = ./examples/TQ4lib/F90/crfe
+EX2PATH = ./examples/TQ4lib/F90/feni
+EX3PATH = ./examples/TQ4lib/Cpp/Matthias/crfe
+EX4PATH = ./examples/TQ4lib/Cpp/Matthias/feni
+EX5PATH = ./examples/TQ4lib/Cpp/Matthias
 
 #=============================================================================#
 
@@ -44,7 +47,7 @@ EX5PATH = ./TQ4lib/Cpp/Matthias
 #Compiles OpenCalphad to use as standalone Thermodynamic Equilibrium Calculation
 #software.
 # ************************************
-# OC now requires GNUPLOT 5.0 or later
+# OC now requires GNUPLOT 5.2 or later
 # ************************************
 
 # To have the command line editing and history feature on your OS 
@@ -86,74 +89,74 @@ getkey.o:
 	# compile utilities/GETKEY for command line editing
 	# This makefile use MacOS own cc compiler
 	# Mac >>
-	$(C) -c  -DBSD utilities/GETKEY/getkey.c
+	$(C) -c  -DBSD src/utilities/GETKEY/getkey.c
 	# Linux >>
-	#$(C) -c $(FCOPT) -DLinux utilities/GETKEY/getkey.c
+	#$(C) -c $(FCOPT) -DLinux src/utilities/GETKEY/getkey.c
 	# other UNIX systems >>
-	#$(C) -c $(FCOPT) -DG77 utilities/GETKEY/getkey.c
+	#$(C) -c $(FCOPT) -DG77 src/utilities/GETKEY/getkey.c
 	# CYGWIN >> 
-	#$(C) -c $(FCOPT) -DCYGWIN utilities/GETKEY/getkey.c
+	#$(C) -c $(FCOPT) -DCYGWIN src/utilities/GETKEY/getkey.c
 
 M_getkey.o:
-	$(FC) -c $(FCOPT) utilities/GETKEY/M_getkey.F90
+	$(FC) -c $(FCOPT) src/utilities/GETKEY/M_getkey.F90
 
 tinyfiledialogs.o:
-	$(C)  -c  utilities/TINYFILEDIALOGS/tinyfiledialogs.c
+	$(C)  -c  src/utilities/TINYFILEDIALOGS/tinyfiledialogs.c
 
 tinyopen.o:
-	$(C)  -c  utilities/TINYFILEDIALOGS/tinyopen.c
+	$(C)  -c  src/utilities/TINYFILEDIALOGS/tinyopen.c
 
 ftinyopen.o:
-	$(FC) -c $(FCOPT) utilities/TINYFILEDIALOGS/ftinyopen.F90
+	$(FC) -c $(FCOPT) src/utilities/TINYFILEDIALOGS/ftinyopen.F90
 
-metlib4.o:	utilities/metlib4.F90
+metlib4.o:	src/utilities/metlib4.F90
 	# lixed for command line editing, tinyfd for open files
 	# lixhlp for browser help on Linux and MacOS
-	$(FC) -c $(FCOPT) -Dlixed -Dtinyfd -Dlixhlp utilities/metlib4.F90
+	$(FC) -c $(FCOPT) -Dlixed -Dtinyfd -Dlixhlp src/utilities/metlib4.F90
 
-oclablas.o:	numlib/oclablas.F90
-	$(FC) -c $(FCOPT) numlib/oclablas.F90
+oclablas.o:	src/numlib/oclablas.F90
+	$(FC) -c $(FCOPT) src/numlib/oclablas.F90
 
-ocnum.o:	numlib/ocnum.F90
-	$(FC) -c $(FCOPT) numlib/ocnum.F90
+ocnum.o:	src/numlib/ocnum.F90
+	$(FC) -c $(FCOPT) src/numlib/ocnum.F90
 
-minpack1.o:      numlib/minpack1.F90
-	$(FC) -c $(FCOPT) numlib/minpack1.F90
+minpack1.o:      src/numlib/minpack1.F90
+	$(FC) -c $(FCOPT) src/numlib/minpack1.F90
 
-gtp3.o:	models/gtp3.F90
-	$(FC) -c $(FCOPT) models/gtp3.F90
+gtp3.o:	src/models/gtp3.F90
+	$(FC) -c $(FCOPT) src/models/gtp3.F90
 
-matsmin.o:	minimizer/matsmin.F90
-	$(FC) -c $(FCOPT) minimizer/matsmin.F90
+matsmin.o:	src/minimizer/matsmin.F90
+	$(FC) -c $(FCOPT) src/minimizer/matsmin.F90
 
-smp2.o:		stepmapplot/smp2.F90
+smp2.o:		src/stepmapplot/smp2.F90
 	# Remove -Dnotwin if compiled on Windows (for spawning)
-	$(FC) -c $(FCOPT) -Dnotwin stepmapplot/smp2.F90
+	$(FC) -c $(FCOPT) -Dnotwin src/stepmapplot/smp2.F90
 
-pmon6.o:	userif/pmon6.F90
+pmon6.o:	src/userif/pmon6.F90
 	# default wxt graphical driver
-	# use -Dqtplt fot Qt or (also smaller window)
+	# use -Dqtplt for Qt or (also smaller window)
 	# use -Daqplt for aqua plot drivers (also smaller window)
 	# use -Dlixhlp for online help in Linux
 	# use -Dmachlp for online help in MacOS (browser)
-	$(FC) -c $(FCOPT) -Dqtplt -Dlixhlp userif/pmon6.F90
+	$(FC) -c $(FCOPT) -Dqtplt -Dlixhlp src/userif/pmon6.F90
 
-liboctq.o:	./TQ4lib/Cpp/liboctq.F90
-	$(FC) -c -g $(FCOPT) ./TQ4lib/Cpp/liboctq.F90
+liboctq.o:	./examples/TQ4lib/Cpp/liboctq.F90
+	$(FC) -c -g $(FCOPT) ./examples/TQ4lib/Cpp/liboctq.F90
 
-liboctqisoc.o:	./TQ4lib/Cpp/Matthias/liboctqisoc.F90
-	$(FC) -c -g $(FCOPT) ./TQ4lib/Cpp/Matthias/liboctqisoc.F90
+liboctqisoc.o:	./examples/TQ4lib/Cpp/Matthias/liboctqisoc.F90
+	$(FC) -c -g $(FCOPT) ./examples/TQ4lib/Cpp/Matthias/liboctqisoc.F90
 
-liboctqcpp.o:	./TQ4lib/Cpp/Matthias/liboctqcpp.cpp
-	$(CPP) -c -g $(FCOPT) ./TQ4lib/Cpp/Matthias/liboctqcpp.cpp
+liboctqcpp.o:	./examples/TQ4lib/Cpp/Matthias/liboctqcpp.cpp
+	$(CPP) -c -g $(FCOPT) ./examplesTQ4lib/Cpp/Matthias/liboctqcpp.cpp
 
 $(EXE): 
 	#$(FC) -o linkoc linkocdate.F90
 	#./linkoc
 	# create library liboceq.a
-	ar sq liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
+	ar sq libs/liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
 
 	# If getkey.o is undefined below
 	# you have forgotten to uncomment a line above at getkey.o !!
-	$(FC) -o $(EXE) $(FCOPT) pmain1.F90 $(OBJS) liboceq.a
+	$(FC) -o $(EXE) $(FCOPT) src/pmain1.F90 $(OBJS) libs/liboceq.a
 

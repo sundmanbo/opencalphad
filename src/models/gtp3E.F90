@@ -3834,7 +3834,7 @@
    integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never,always
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
    character*24 disph(20)
-   integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason
+   integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz
    logical warning,dbcheck
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
@@ -4157,9 +4157,12 @@
          phtype=' '
       endif
 ! check if phase rejected
+!      write(*,*)'3E number of phases rejected: ',nphrej
       do jt=1,nphrej
          if(name1.eq.phreject(jt)) then
             thisphaserejected=.TRUE.
+!            write(*,*)'3E skipping rejected phase: ',name1
+! why is nophase set true? If I comment it away nothing read!!
             nophase=.true.
             goto 100
          endif
@@ -4180,7 +4183,7 @@
          goto 100
 307      continue
          thisdis=jt
-!         write(*,*)'3E Found disordered part: ',name1,thisdis
+         write(*,'(a,a)')'3E Found disordered part: ',name1
 ! we skip the rest of the phase line ...
          goto 100
       elseif(dodis.eq.0 .and. ndisph.gt.0) then
@@ -4188,7 +4191,18 @@
 !      write(*,*)'3E comparing "',trim(name1),'" with "',trim(disph(1)),'" etc'
          do jt=1,ndisph
             if(name1.eq.disph(jt)) then
-               write(*,*)'Phase ',trim(name1),' is a disordered part',jt
+               write(*,*)'3E Phase ',trim(name1),' is a disordered part of ',&
+                    trim(ordpartph(jt)),jt,nphrej
+! skip this if ordpartph(jt) is rejected
+               do zz=1,nphrej
+!                  write(*,*)'3E check "',trim(ordpartph(jt)),'" and "',&
+!                       trim(phreject(zz)),'"'
+                  if(ordpartph(jt).eq.phreject(zz)) then
+                     write(*,*)'3E keep ',trim(name1),' because ',&
+                          trim(phreject(zz)),' is rejected'
+                     goto 310
+                  endif
+               enddo
 ! do not enter this phase as it is a disordered part
 ! all these must be set ...
                thisdis=-1
@@ -4392,15 +4406,15 @@
          call find_phase_by_name(ordpartph(thisdis),iph,ics)
          if(gx%bmperr.ne.0) then
 ! NOTE THE ORDERED PHASE MAY NOT BE ENTERED DUE TO COMPONENTS!!
-            if(.not.silent) write(kou,396)thisdis,ordpartph(thisdis)
-396         format('3E WARNING disordered phase skipped: ',i3,' "',a,'"')
+            if(.not.silent) write(kou,396)trim(ordpartph(thisdis))
+396         format('3E because ordered part ',a,' has been rejected')
             warning=.TRUE.
             gx%bmperr=0
             goto 100
          else
-            if(.not.silent) write(kou,*) &
-               '3E Adding disordered fraction set to: ',&
-               trim(ordpartph(thisdis)),orddistyp(thisdis)
+!            if(.not.silent) write(kou,*) &
+            write(kou,'(a,a,2i2)')'3E Adding disordered part to ',&
+                 trim(ordpartph(thisdis)),orddistyp(thisdis),thisdis
          endif
 ! we are creating the phase, there is only one composition set, iph is ordered
          call get_phase_compset(iph,1,lokph,lokcs)
@@ -4414,9 +4428,10 @@
             jl=1
             if(phlista(lokph)%noofsubl.le.5) nd1=4
             if(phlista(lokph)%noofsubl.le.3) nd1=2
-            if(.not.silent) write(kou,397) trim(ordpartph(thisdis)),nd1
-397         format('3E Phase ',a,' has an order/disorder partition model',&
-                 ' summing first ',i2)
+!            if(.not.silent) write(kou,397) trim(ordpartph(thisdis)),nd1
+            write(kou,397) trim(ordpartph(thisdis)),nd1,thisdis
+397         format('3E Phase ',a,' has order/disorder partition model',&
+                 ' summing first ',i2,'; thisdis: ',i2)
          else
             jl=0
             nd1=phlista(lokph)%noofsubl
@@ -4424,7 +4439,7 @@
 !         goto 402
 402      continue
          if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
-398      format(' 3E Assuming phase ',a,' cannot be completely disordered')
+398      format('3E The phase ',a,' cannot be completely disordered')
 ! add DIS_PART from TDB
 !         write(*,*)'3E adding disordered fraction set',csfree,highcs
          call add_fraction_set(iph,ch1,nd1,jl)
@@ -4883,28 +4898,21 @@
 ! Allow for NEVER_DIS ...
                km=index(longline,' NEVER')
 ! this is for disordered SIGMA etc.
-               if(km.gt.0) then
+               if(never.gt.0) then
                   never=-1
                endif
             endif
             if(km.gt.0) then
-! disordered part, several checks
+! disordered part, either DIS_PART or NEVER_DIS several checks
                disparttc=disparttc+1
-! find the ordered phase name, we have to go backwrds from km
+! find the ordered phase name, we have to go backwards from km
                ip=km-1
 81             continue
                if(longline(ip:ip).eq.' ') then
-!                  ordpartph(disparttc)=' '
+                  ordpartph(disparttc)=' '
+! The ordpartph is not correct
                   ordpartph(disparttc)=longline(ip+1:km)
 ! if the ordered part rejected skip this TYPE_DEF
-                  do ix=1,nphrej
-                     if(ordpartph(disparttc).eq.phreject(ix)) then
-                        write(*,86)trim(longline(ip+1:))
-86  format('3E TYPE_DEF ignored as ordered phase rejected: ',a)
-                        disparttc=disparttc-1
-                        goto 88
-                     endif
-                  enddo
                else
                   ip=ip-1
                   goto 81
@@ -4913,7 +4921,7 @@
 ! extract the disordered part phase name
                ip=index(longline(km+2:),' ')
                dispartph(disparttc)=longline(km+2+ip:)
-! find the end of phase name, a space or a , there is always a space ...
+! find the end of phase name, a space or a , there is always a space after ,
                ip=index(dispartph(disparttc),' ')
                km=index(dispartph(disparttc),',')
                if(km.gt.0 .and. km.lt.ip) ip=km
@@ -4946,7 +4954,7 @@
                   typedefaction(nytypedef)=99
                   if(.not.silent) &
                        write(kou,87)nl,longline(1:min(78,len_trim(longline)))
-87                format('3E WARNING TYPE_DEFINITION ignored on line ',i5,':'/a)
+87                format('3E WARNING ignoring TYPE_DEF on line ',i5,':'/a)
                   warning=.TRUE.
 !               write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
                endif
@@ -5117,6 +5125,10 @@
          write(*,*)'3E WARNING: ignoring default command: ',trim(name1)
       endif
 794   continue
+! rejected phases OK
+!      do zz=1,nphrej
+!         write(*,*)'3E rejected phase: ',phreject(zz)
+!      enddo
 !--------------------------------- DEFINE
       case(14) !ignore without warning
          write(*,*)'3E ignoring DEFINE keyword'

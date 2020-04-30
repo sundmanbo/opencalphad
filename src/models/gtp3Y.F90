@@ -6501,6 +6501,7 @@
 ! Here we may try to ensure that the stable comp.sets fits the
 ! default constitutions of their current set
 !   write(*,*)'3Y Try to shift stable comp.sets. to match default const.'
+! SEGNENTATION FAULT efter this write statement when reading unformatted file
    call shiftcompsets(ceq)
 !
 ! upto now is safe ... now remove CSAUTO comp.sets if allowed

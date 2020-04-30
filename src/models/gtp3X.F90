@@ -4431,3 +4431,110 @@
  end subroutine restore_constitutions
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine save_phase_constitutions
+!\begin{verbatim}
+ subroutine save_phase_constitutions(rw,ceq,copyofconst)
+! copy the current phase amounts and constituitions to be restored
+! trying to fix problems with saving invariants 
+! compared to reoutines above here abnorm is also saved ...
+! rw=0 if save, 1 if restore
+! NOTE different ceq may be used for save and restore!
+   implicit none
+   integer rw
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   double precision, allocatable, dimension(:) :: copyofconst
+!\end{verbatim} %+
+   integer varresx,nz,ij,syfr,allsize,savedsyfr,sizeofcopy
+   if(rw.eq.0) then
+! calculate dimension of copyofconst
+      nz=0
+! Calculate space needed
+! All phases saved idependent of status
+! skippa varres with index 1, that is the reference phase
+      do varresx=2,highcs
+         if(allocated(ceq%phase_varres(varresx)%yfr)) then
+            syfr=size(ceq%phase_varres(varresx)%yfr)+1
+         else
+            syfr=1
+         endif
+! ionic liquid model require more data saved (see set_constitution)
+         ij=ceq%phase_varres(varresx)%phlink
+         if(btest(phlista(ij)%status1,PHIONLIQ)) then
+            write(*,*)'3X cannot save ionic liquid constitutions'
+            gx%bmperr=4399; goto 1000
+         endif
+! we should save 5 reals in addition to the fractions
+         nz=nz+5+syfr
+      enddo
+      allsize=nz+2
+      allocate(copyofconst(allsize))
+! modification due to problems, save allocated size in first word
+      copyofconst(1)=allsize
+      copyofconst(2)=highcs
+      nz=3
+      do varresx=2,highcs
+! save 1+syfr values for each composition set
+! SAVE also the amount of the phase, DGM and the size of yfr!!
+         copyofconst(nz)=ceq%phase_varres(varresx)%amfu
+         copyofconst(nz+1)=ceq%phase_varres(varresx)%abnorm(1)
+         copyofconst(nz+2)=ceq%phase_varres(varresx)%abnorm(2)
+         copyofconst(nz+3)=ceq%phase_varres(varresx)%abnorm(3)
+         copyofconst(nz+4)=ceq%phase_varres(varresx)%dgm
+         if(allocated(ceq%phase_varres(varresx)%yfr)) then
+            syfr=size(ceq%phase_varres(varresx)%yfr)
+         else
+            syfr=0
+         endif
+         copyofconst(nz+5)=syfr
+         nz=nz+5
+         do ij=1,syfr
+            copyofconst(nz+ij)=ceq%phase_varres(varresx)%yfr(ij)
+         enddo
+         nz=nz+syfr+1
+      enddo
+      write(*,*)'3X saved constitution: ',allsize,nz
+   else
+! restore saved amounts and fractions      
+      if(.not.allocated(copyofconst)) then
+         write(*,*)'3X no constitutions saved!'
+         gx%bmperr=4399; goto 1000
+      endif
+      sizeofcopy=int(copyofconst(1))
+      if(copyofconst(2).ne.highcs) then
+         write(*,*)'3X number of phase tuples not the same'
+         gx%bmperr=4399; goto 1000
+      endif
+      nz=3
+      do varresx=2,highcs
+! note varresx is index of phase_varres, always 1 bigger than phase index
+         ceq%phase_varres(varresx)%amfu=copyofconst(nz)
+         ceq%phase_varres(varresx)%abnorm(1)=copyofconst(nz+1)
+         ceq%phase_varres(varresx)%abnorm(2)=copyofconst(nz+2)
+         ceq%phase_varres(varresx)%abnorm(3)=copyofconst(nz+3)
+         ceq%phase_varres(varresx)%dgm=copyofconst(nz+4)
+         if(allocated(ceq%phase_varres(varresx)%yfr)) then
+            syfr=size(ceq%phase_varres(varresx)%yfr)
+         else
+            syfr=0
+         endif
+! fraction records may have been allocated!! use saved syfr
+         nz=nz+5
+         savedsyfr=int(copyofconst(nz))
+         if(savedsyfr.eq.0 .or. savedsyfr.ne.syfr) then
+            write(*,*)'3X phase with zero saved fractions'
+            ceq%phase_varres(varresx)%dgm=-one
+            syfr=savedsyfr
+         endif
+         do ij=1,syfr
+            ceq%phase_varres(varresx)%yfr(ij)=copyofconst(nz+ij)
+         enddo
+         nz=nz+1+syfr
+      enddo
+      if(nz-1.gt.sizeofcopy) write(*,*)'3X problem restore:',sizeofcopy,nz
+   endif
+1000 continue
+   return
+ end subroutine save_phase_constitutions
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\

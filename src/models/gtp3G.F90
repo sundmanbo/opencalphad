@@ -432,7 +432,7 @@
 ! all entered (stable, unstable, unknown)
          oldstat=0
       elseif(phnames(2:2).eq.'U') then
-! all unstable phases
+! all unstable phases (not those which ar efix!)
          oldstat=1
       elseif(phnames(2:2).eq.' ') then
          qph=-1
@@ -450,11 +450,14 @@
          call get_phase_compset(qph,ics,lokph,lokcs)
 200      continue
 ! stable phases has ceq%phase_varres(lokcs)%phstate = 1
+! fix phases =2
          ipos=oldstat-ceq%phase_varres(lokcs)%phstate
 !         write(*,*)'3G entered: ',qph,ics,oldstat,ipos
          if((oldstat.ne.1 .and. ipos.eq.0) .or. &
               (oldstat.eq.0 .and. abs(ipos).eq.1) .or.&
-              (oldstat.eq.1 .and. abs(ipos).gt.0)) then
+              (oldstat.eq.1 .and. ipos.gt.0)) then
+! *U=nystat means all all with phstate <=0 that means ipos=1-0; 1-(-1)=2 etc
+!              (oldstat.eq.1 .and. abs(ipos).gt.0)) then
 ! this comp.set has correct old phase status
             call change_phase_status(qph,ics,nystat,val,ceq)
             if(gx%bmperr.ne.0) goto 1000
