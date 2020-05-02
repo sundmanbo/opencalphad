@@ -6298,12 +6298,13 @@ contains
           graphopt%labelkey=trim(line)
 !          call gparcdx('Font,size: ',cline,last,5,line,'arial,12',&
 !               '?PLOT keys')
-          call gparidx('Size: ',cline,last,iz,12,'?PLOT keys')
-!          graphopt%labelkey=trim(graphopt%labelkey)//' font "'//trim(line)//'"'
-          graphopt%labelkey=trim(graphopt%labelkey)//' font "'&
-               //trim(graphopt%font)//','
-          ll=len_trim(graphopt%labelkey)+1
-          write(graphopt%labelkey(ll:),'(i2,a)')iz,'"'
+          if(line(1:3).ne.'off') then
+             call gparidx('Size: ',cline,last,iz,12,'?PLOT keys')
+             graphopt%labelkey=trim(graphopt%labelkey)//' font "'&
+                  //trim(graphopt%font)//','
+             ll=len_trim(graphopt%labelkey)+1
+             write(graphopt%labelkey(ll:),'(i2,a)')iz,'"'
+          endif
           write(*,*)'GNUPLOT will use: set key ',trim(graphopt%labelkey)
           goto 21100
 !-----------------------------------------------------------

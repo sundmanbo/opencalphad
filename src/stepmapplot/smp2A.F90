@@ -5249,14 +5249,17 @@
        tmpceq=>newnode%nodeceq
 ! max 20 exit lines ....
        allocate(nodeout(2,10))
-       write(*,*)'SMP call to find all exits',tmpceq%tpval(1)
+!       write(*,*)'SMP call to find all exits',tmpceq%tpval(1)
        call find_inv_exits(nexit,nodeout,nodein,stabph,invph,6,axarr,tmpceq)
        if(gx%bmperr.ne.0) goto 1000
-       write(*,'(a,i3,5(i5,i3))')'SMP back from find_inv_exit: ',nexit,&
-            nodein(1),nodein(2),(nodeout(1,jj),nodeout(2,jj),jj=1,nexit)
+!       write(*,'(a,i3,5(i5,i3))')'SMP back from find_inv_exit: ',nexit,&
+!            nodein(1),nodein(2),(nodeout(1,jj),nodeout(2,jj),jj=1,nexit)
 !       stop 'SMP does it work? YES!'
        if(nexit.gt.2*mapline%nstabph) then
           write(*,*)'SMP too many exit lines: ',nexit,newnode%lines
+       elseif(nexit.le.0) then
+          write(*,*)'SMP no exits found?, just continue with one line'
+          newnode%lines=1
        else
           newnode%lines=2*nexit+1
        endif
@@ -5270,7 +5273,7 @@
 ! set bit in mapnode!
        if(newnode%status.ne.0) write(*,*)'SMP2 nodestatus: ',newnode%status
        newnode%status=ibset(newnode%status,MAPINVARIANT)
-       write(*,*)'SMP2 number of exit lines: ',newnode%lines,jphr
+!       write(*,*)'SMP2 number of exit lines: ',newnode%lines,jphr
        allexit: do jj=1,newnode%lines
 ! initiate common data in map_line record in all exit lines
           newnode%linehead(jj)%number_of_equilibria=0
@@ -5310,7 +5313,7 @@
        enddo allexit
 !
 ! ------------------------ ISOPLETHAL INVARIANTS EXITS -----------
-! we have to find sets of LINEFIX and NODEFIX phases for each line
+! we have set LINEFIX and NODEFIX phases for each line
 ! We know the LINEFIX and NODEFIX phases for the line INTO THE INVARIAT
 ! For the first exit line we just swich these as they are at the same point
 ! with zero amount of both phases
@@ -5325,21 +5328,13 @@
 !            /            /ADE.\         \
 !           Dfix         Bfix   Cfix      Afix
 !
-! Assume we have A as linefix and find the invariant when D becomes stable
-! (the top middle point).  Then there is an exit with D as linefix and A as
-! nodefix.  There is certainly one more exit line with A and D as linefix 
-! but we do not know which nodefix phases they have. And there is a final
-! exit with two line where these two nodefix are linefix/nodefix.
-! The subroutine FIND_INV loop each phase (not A or D) set as fix=0 and fix T
-! to find an equilibrium with either A or D stable with zero amount.  The
-! phase fix represet B or C.  This has to be done twice to geerate 4 lines.
-! The final two lines have B or C as linefix/nodefix.
-! To simplify these calculations all uninvolved phases are suspended
-! 
+! For the other exits FIND_INV_EXITS above have found all points along
+! the invariant line that have two phases with zero amount.
+! If next<0 just one exit will be generated with linefix/nodefix changed
 !
        jj=1
        phases=' '
-       write(*,717)newnode%nodeceq%tpval(1)
+!       write(*,717)newnode%nodeceq%tpval(1)
 717    format(/' *************** invariant node at ',F10.2)
 ! now code to create correct combination of linefix and nodefix
 ! first a line with nodefix as linefix and vice versa
@@ -5379,77 +5374,8 @@
        write(*,430)jj,trim(phases)
 430    format('SMP2A invexit ',i3,' >>> ',a)
 ! The code above is for the FIRST exit line
-! We will use nodein(1) and nodein(2) to find 4 more lines
-! save the constitution of the node equilibrium, copy it to eqcopy
-!       if(allocated(exitcomp)) deallocate(exitcomp)
-!       call save_constitutions(newnode%nodeceq,exitcomp)
-! this is used to save the stable phases and constituion for each line found
-!       allocate(eqcopy(size(exitcomp)))
-!       if(gx%bmperr.ne.0) goto 1000
-! --------------
-! We no longer need FIND_INV, 
-! there are nexit phases are in phout(*,1..nexit)
-! Now we use FIND_INV to find a phase with zero amount together with
-! either nodein(1) or nodein(2) and we come back again to find a second phase
-! with zero amount with the other phase fix at the entering line
-!       jj=2
-!       firstoutfix=0
-!391    continue
-! use the lineceq record to be used in the linehead for the calculation
-!       eqcopy=exitcomp
-!       tmpline=>newnode%linehead(jj)
-!       call list_sorted_phases(kou,tmpline%lineceq)
-!       write(*,*)'SMP before calling find_inv with: ',nodein
-! the parir of phases for the line is returned in nodeut
-! nodeut(1) is a new phase, nodeut(2) is either nodein(1) or nodein(2)
-!       call find_inv_nodephase(nodeut,nodein,stabph,invph,6,axarr,&
-!            eqcopy,tmpline)
-!       nolinefix: if(gx%bmperr.ne.0) then
-! Calculation failed, take any unused phase in invph to use as nodefix
-!          gx%bmperr=0
-!          failed: do kk=1,stabph+2
-!             write(*,'(a,i3,2x,(i5,i3))')'SMP emergency 1: ',kk,&
-!                  invph(4,kk),invph(5,kk)
-!             if(invph(4,kk).eq.0 .and. invph(5,kk).eq.0) then
-! select this unused phase as linefix.  Note invph(4,linefix) incremented below
-!                nodeut(1)=kk
-!                exit failed
-!             endif
-!          enddo failed
-!          if(kk.gt.stabph+2) then
-!             write(*,*)'SMP cannot find exit line with nodefix:',nodefix
-!             stop
-!          endif
-! as nodefix select an unused invph(5,nodein(1) or nodein(2))
-!          if(invph(5,invph(5,nodein(1))).eq.1) then
-!             nodeut(2)=nodein(1)
-!          else
-!             nodeut(2)=nodein(2)
-!          endif
-!          write(*,'(a,2i3,2x,2(i5,i3))')'SMP emergency 2: ',nodeut,&
-!               invph(4,kk),invph(5,kk),invph(4,nodeut(2)),invph(5,nodeut(2))
-!       endif nolinefix
-!       if(nodeut(2).lt.0) then
-! special return with nodeut(2)<0 means we have found two new phases with
-! zero amount
-!          nodefix=abs(nodeut(2))
-!          write(*,*)'SMP negative nodeut to be implemented!',nodeut(2)
-!          stop
-!       endif
-!       linefix=nodeut(1)
-!       nodefix=nodeut(2)
-!       write(*,'(a,6i4)')'SMP back from find_inv: ',jj,nodeut
-!       call list_sorted_phases(kou,tmpline%lineceq)
-!       if(jj.eq.2) then
-!          firstoutfix=nodeut(1)
-!       endif
-!       write(*,'(a,i4,i2,5x,i5,i2)')'SMP phases at exit line: ',&
-!            invph(1,linefix),invph(2,linefix),invph(1,nodefix),invph(2,nodefix)
-! doubline is used to jump back to label 392 for second line from same point
-!       doubline=0
-! Here we will create 2 exit lines with linefix/nodefix in both positions
-! using nodeout(1,jj) and nodeout(2,jj) with jj=1..nexit
-! repeat this with switched linefix/nodefix
+! Here we will create 2 exit lines using nodeout(1,jj) and nodeout(2,jj)
+! with jj=1..nexit, repeat with switched linefix/nodefix
        do qq=1,nexit
           linefix=nodeout(1,qq)
           nodefix=nodeout(2,qq)
@@ -5493,27 +5419,6 @@
              goto 392
           endif
        enddo
-!       if(jj.eq.4) then
-! If jj is 4 we generated 3 lines, we have to call find_inv again
-! to find another phase fix with zero amount at the invariant
-!          write(*,*)'SMP generate 2 more exit lines'
-!          goto 391
-!       endif
-!       if(jj.eq.6) then
-! If jj=6 we use the 2 phases we found above, firstoutfix and last nodeut(1)
-! to generate the last 2 exit lines
-!          write(*,*)'SMP last exits:',firstoutfix,nodeut(1),linefix
-!          nodefix=firstoutfix; linefix=nodeut(1); doubline=0
-! we cannot set any constitions for these lines
-!          goto 392
-!       endif
-! clean up ...
-!       deallocate(eqcopy)
-!       deallocate(exitcomp)
-!---------------------------------------
-! when doubline is 4 all is done!
-!       stop 'this will work'
-! error exit from above
 490    continue
 !       stop ' *** Unfinished invariant isopleth node exits *** '
     end select exits
@@ -5783,7 +5688,9 @@
        call dgetrf(ncomp1,ncomp1,test,ldb,ipiv,info)
        if(info.ne.0) then
           write(*,*)'SMP error from dgetrf',info
-          gx%bmperr=4399; goto 1000
+! some combination of phases may not work, just skip
+          goto 100
+!          gx%bmperr=4399; goto 1000
        endif
 ! solve the system of linear equations, X is overwritten by solution
 !    call dgetrs(trans,n,nrhs,a,lda,ipiv,b,ldb,info)
@@ -5794,8 +5701,10 @@
 !       write(*,'(a,10(1pe10.2))')'SMP rhs: ',rhs
        call dgetrs('N',ncomp1,1,test,ldb,ipiv,rhs,ldb,info)
        if(info.ne.0) then
-          write(*,*)'SMP error from dgetrs',info
-          gx%bmperr=4399; goto 1000
+! some combination of phases may not work, just skip
+          goto 100
+!          write(*,*)'SMP error from dgetrs',info
+!          gx%bmperr=4399; goto 1000
        endif
 600    continue
 !       write(*,'(a,10(1pe10.2))')'SMP phase amounts: ',rhs
@@ -5829,7 +5738,7 @@
 ! here we have solved the system of linear equations
 !------------------------
 100    continue
-! exclude a different phasee in jphase ...
+! exclude a different phase in jphase ...
        jj=ncomp1
        kk=0
        jloop: do while(.true.)
@@ -5848,7 +5757,7 @@
           jphase(kk)=jphase(kk-1)+1
        enddo
     enddo kloop
-! now we have found the exits ...
+! now we have found the all exits ...
 !    write(*,'(a,i3,5(i5,i3))')'SMP exits: ',nexit,&
 !         (phut(1,jj),phut(2,jj),jj=1,nexit)
 !

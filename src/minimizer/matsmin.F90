@@ -270,7 +270,7 @@ CONTAINS
 ! gridpoint below current equilibrium found and set as stable (maybe new
 ! composition set).  Recalculate
              gx%bmperr=0
-             write(*,*)'Recalculating with this phase as stable 2: ',addtuple
+             write(*,*)'MM recalculating with this phase as stable 2: ',addtuple
              goto 100
           endif
        endif
@@ -335,7 +335,7 @@ CONTAINS
        if(gx%bmperr.eq.4358) then
 ! gridcheck after found a new phase stable!  recalculate
           gx%bmperr=0
-!          write(*,*)'Recalculate with new phase added as stable 3:',addtuple
+!          write(*,*)'MM recalculate with new phase added as stable 3:',addtuple
           goto 100
        endif
        if(confirm) then
@@ -644,7 +644,7 @@ CONTAINS
        endif
        if(np.gt.1) then
 ! ?? sort phases in increasing order to simplify below
-          write(*,*)'Cannot handle two fix phases ... '
+          write(*,*)'MM Cannot handle two fix phases ... '
           gx%bmperr=4192; goto 1000
        endif
        do mjj=1,meqrec%nfixph
@@ -809,7 +809,7 @@ CONTAINS
 ! no phase with positive amount, set the noel()-meqrec%nfixmu-1 phases stable
 ! starting with those with highest number of constituents
        if(mostcon.eq.0) then
-!          write(*,*)'No phase to set stable'
+!          write(*,*)'MM no phase to set stable'
           gx%bmperr=4200; goto 1000
        endif
 !       write(*,55)'Initial phases set stable: ',mostcon,&
@@ -852,7 +852,7 @@ CONTAINS
           ceq%cmuval(mjj)=zero
        endif
     enddo
-    if(ocv()) write(*,68)'cmuval: ',meqrec%nrel,&
+    if(ocv()) write(*,68)'MM cmuval: ',meqrec%nrel,&
          (ceq%cmuval(mjj),mjj=1,meqrec%nrel)
 68  format(a,i3,6(1pe12.4))
 !
@@ -872,7 +872,7 @@ CONTAINS
 ! add this phase as stable, check that not too many stable phases ...
 ! meqrec%nv is the current number of stable phases
        if(meqrec%nv.eq.meqrec%maxsph) then
-          write(*,*)'Too many stable phases'
+          write(*,*)'MM Too many stable phases'
           gx%bmperr=4193; goto 1000
        endif
 !       write(*,*)'Adding fix phase to stable phase set',&
@@ -962,7 +962,7 @@ CONTAINS
 !
 ! this routine varies the set of phases and the phase constitutions
 ! until the stable set is found for the given set of conditions.
-    if(ocv()) write(*,*)'calling meq_phaseset'
+    if(ocv()) write(*,*)'MM calling meq_phaseset'
     call meq_phaseset(meqrec,formap,mapfix,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !    gridtest=.false.
@@ -1039,7 +1039,7 @@ CONTAINS
     lastchange=0
 !
     if(ocv()) write(*,*)'entering meq_phaseset: '
-!    write(*,*)'entering meq_phaseset: '
+!    write(*,*)'MM entering meq_phaseset: '
     meqrec%dormlink=0
 ! nphase is set to total number of phases (phase+compset) to be calculated
 ! >>> parallellization ALERT, nphase may change when composition sets created
@@ -1168,7 +1168,7 @@ CONTAINS
 ! fixed phases as conditions have an amount in meqrec%fixpham
 ! fixed phases during mapping should have zero amount (maybe not ...)
 !                   krem=krem+1
-!                   write(*,*)'aphl for fix phase: ',krem,mph,&
+!                   write(*,*)'MM aphl for fix phase: ',krem,mph,&
 !                        meqrec%fixpham(krem)
                       if(meqrec%phr(mph)%curd%phstate.ne.PHFIXED) then
 ! this is a phase set fix by mapping, set amount to zero unless mapfix%fixpham 
@@ -1186,7 +1186,7 @@ CONTAINS
 ! Trying to handle this in mapping ... but here it not the fix phase ...
                       if(allocated(mapfix)) then
                          if(allocated(mapfix%fixphamap)) &
-                              write(*,*)'Phase amount: ',&
+                              write(*,*)'MM phase amount: ',&
                               meqrec%phr(mph)%iph,meqrec%aphl(meqrec%nstph)
                       endif
                       meqrec%phr(mph)%curd%amfu=meqrec%aphl(meqrec%nstph)
@@ -1275,7 +1275,7 @@ CONTAINS
 ! mapx is needed when using meq_sameset for mapping, irrelevant here
     mapx=0
     call meq_sameset(irem,iadd,mapx,meqrec,meqrec%phr,inmap,ceq)
-    if(ocv()) write(*,*)'Back from sameset ',irem,iadd,meqrec%noofits
+    if(ocv()) write(*,*)'MM back from sameset ',irem,iadd,meqrec%noofits
     if(gx%bmperr.ne.0) then
        if(gx%bmperr.eq.4364) then
 !          write(*,*)'MM Two phases with same stoichiometry stable, to be fixed'
@@ -1338,13 +1338,13 @@ CONTAINS
 ! This check should maybe be above as maybe another phase want to be stable??
 ! The last argument is not used
           if(same_composition(iadd,meqrec%phr,meqrec,ceq,zero)) then
-!             write(*,*)'Ignoring the same phase twice: ',iadd
+!             write(*,*)'MM ignoring the same phase twice: ',iadd
              goto 200
           endif
 ! do not add phases with net charge
           if(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-2) then
              if(iadd.ne.samephase) then
-                write(*,218)'Ignoring phase with net charge: ',iadd
+                write(*,218)'MM ignoring phase with net charge: ',iadd
 !                meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
 218             format(a,2i5,1pe14.6)
                 samephase=iadd
@@ -1371,7 +1371,7 @@ CONTAINS
              phloopaddrem2=0
              goto 200
 !          elseif(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-8) then
-!             write(*,231)'Adding phase with net charge: ',iadd,&
+!             write(*,231)'MM adding phase with net charge: ',iadd,&
 !                  meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
 !231          format(a,2i5,1pe14.6)
           endif
@@ -1466,7 +1466,7 @@ CONTAINS
              write(*,*)'Attempt to remove the only stable phase!!!'
              goto 200
           endif
-!          write(*,*)'We are replacing one stable phase with another',irem,iadd
+!          write(*,*)'MM replacing one stable phase with another',irem,iadd
        else
 ! make sure replace is false unless explitly set below
           replace=.FALSE.
@@ -1573,7 +1573,7 @@ CONTAINS
                 irem=jrem
                 if(.not.btest(meqrec%status,MMQUIET)) &
                      write(*,241)meqrec%noofits,irem,iadd,ceq%tpval(1)
-241             format('Too many stable phases at iter ',i3,', phase ',i3,&
+241             format('MM Too many stable phases at iter ',i3,', phase ',i3,&
                      ' replaced by ',i3,', T= ',F8.2)
 !                write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1),&
 !                     (meqrec%stphl(iph),iph=1,meqrec%nstph)
@@ -1582,7 +1582,7 @@ CONTAINS
                 replace=.TRUE.
                 goto 222             
              else
-                write(*,*)'Error setting too many phases stable',meqrec%maxsph
+                write(*,*)'MM setting too many phases stable',meqrec%maxsph
                 gx%bmperr=4201; goto 1000
              endif
           else
@@ -3232,7 +3232,7 @@ CONTAINS
 ! then copy summed columns to row nrow in matrix smat
        nrow=nrow+1
        if(nrow.gt.nz1) then
-          write(*,*)'too many equations 11A',nrow
+          write(*,*)'MM too many equations 11A',nrow
           gx%bmperr=4212; goto 1000
        endif
        do ncol=1,nz2
@@ -3774,7 +3774,7 @@ CONTAINS
           endif
 ! we have one more equation to add to the equilibrium matrix
           nrow=nrow+1
-          if(nrow.gt.nz1) stop 'too many equations 5A'
+          if(nrow.gt.nz1) stop 'MM too many equations 5A'
           do ncol=1,nz2
              smat(nrow,ncol)=xcol(ncol)
           enddo
@@ -3966,7 +3966,7 @@ CONTAINS
           endif
 ! we have one more equation to add to the equilibrium matrix
           nrow=nrow+1
-          if(nrow.gt.nz1) stop 'too many equations 5A'
+          if(nrow.gt.nz1) stop 'MM too many equations 5A'
           do ncol=1,nz2
              smat(nrow,ncol)=xcol(ncol)
           enddo
@@ -4186,7 +4186,7 @@ CONTAINS
           endif
 ! we have one more equation to add to the equilibrium matrix
           nrow=nrow+1
-          if(nrow.gt.nz1) stop 'too many equations 5B'
+          if(nrow.gt.nz1) stop 'MM too many equations 5B'
 ! we must divide all terms in the LHS with totalmol
           do ncol=1,nz1
              smat(nrow,ncol)=xcol(ncol)/totalmol
@@ -4223,7 +4223,7 @@ CONTAINS
 !...UNFINISHED
           gx%bmperr=4207; goto 1000
           nrow=nrow+1
-          if(nrow.gt.nz1) stop 'too many equations 6A'
+          if(nrow.gt.nz1) stop 'MM too many equations 6A'
           do ncol=1,nz2
              smat(nrow,ncol)=xcol(ncol)
           enddo
@@ -4241,14 +4241,14 @@ CONTAINS
 352    format('Not implemented yet, use set status phase=fix: ',2i5)
        gx%bmperr=4207; goto 1000
        nrow=nrow+1
-       if(nrow.gt.nz1) stop 'too many equations 7A'
+       if(nrow.gt.nz1) stop 'MM too many equations 7A'
 !------------------------------------------------------------------
     case(8) ! BP
 ! Amount of phase in mass, use fix phase instead
        write(*,352)stvix,stvnorm
        gx%bmperr=4207; goto 1000
        nrow=nrow+1
-       if(nrow.gt.nz1) stop 'too many equations 8A'
+       if(nrow.gt.nz1) stop 'MM too many equations 8A'
 !------------------------------------------------------------------
 ! 9 and 10 (DG and Q) not allowed as conditions
 !------------------------------------------------------------------
@@ -4434,7 +4434,7 @@ CONTAINS
 ! for last term when more than 1
              nrow=nrow+1
              if(nrow.gt.nz1) then
-                write(*,*)'too many equations 11A0',nrow
+                write(*,*)'MM too many equations 11A0',nrow
                 gx%bmperr=4209; goto 1000
              endif
              do ncol=1,nz2
@@ -4454,7 +4454,7 @@ CONTAINS
 ! then copy summed columns to row nrow in matrix smat
              nrow=nrow+1
              if(nrow.gt.nz1) then
-                write(*,*)'too many equations 11A',nrow
+                write(*,*)'MM too many equations 11A',nrow
                 gx%bmperr=4212; goto 1000
              endif
              do ncol=1,nz2
@@ -4720,7 +4720,7 @@ CONTAINS
 ! for last term of expression
              nrow=nrow+1
              if(nrow.gt.nz1) then
-                write(*,*)'too many equations 11B: ',nrow,nz1,meqrec%nfixph
+                write(*,*)'MM too many equations 11B: ',nrow,nz1,meqrec%nfixph
                 gx%bmperr=4209; goto 1000
              endif
 ! insert results in smat
@@ -4748,7 +4748,7 @@ CONTAINS
 !                     xxmm(sel),zcol(1)-xcol(1)*xxmm(sel)
 !             endif
              if(nrow.gt.nz1) then
-                write(*,*)'too many equations 11B: ',nrow,nz1,meqrec%nfixph
+                write(*,*)'MM too many equations 11B: ',nrow,nz1,meqrec%nfixph
                 gx%bmperr=4209; goto 1000
              endif
 ! in xcol is dN and in zcol dN(A) summed over all phases and components
@@ -4929,7 +4929,7 @@ CONTAINS
 ! copy summed columns to smat nrow
           nrow=nrow+1
           if(nrow.gt.nz1) then
-             write(*,*)'too many equations 12A',nrow
+             write(*,*)'MM too many equations 12A',nrow
              gx%bmperr=4209; goto 1000
           endif
           do ncol=1,nz2
@@ -5141,7 +5141,7 @@ CONTAINS
 ! xmat=dB(A)/B - B(A)*dB/B**2
           nrow=nrow+1
           if(nrow.gt.nz1) then
-             write(*,*)'too many equations 12B',nrow,nz1
+             write(*,*)'MM too many equations 12B',nrow,nz1
              gx%bmperr=4209; goto 1000
           endif
 !          write(*,97)'Totalmass W: ',sel,wwnn(sel),cvalue,totalmass,totam
@@ -5303,7 +5303,7 @@ CONTAINS
 !-------------------
        nrow=nrow+1
        if(nrow.gt.nz1) then
-          write(*,*)'Too many equations 13'
+          write(*,*)'MM Too many equations 13'
           gx%bmperr=4209; goto 1000
        endif
 ! now mamu(1..nrel) are the coefficients for \mu; mat&map is coeff for Delta T&P
@@ -8718,7 +8718,7 @@ CONTAINS
             gx%bmperr=4399; goto 1000
          endif
          if(ip.gt.6) then
-            write(*,*)'Too many columns in plot_data 0. Max: 6',ip
+            write(*,*)'MM Too many columns in plot_data 0. Max: 6',ip
             gx%bmperr=4399; goto 1000
          endif
          if(pun.eq.0) then
@@ -9091,7 +9091,7 @@ CONTAINS
     meqrec%noofits=meqrec%noofits+1
     if(converged.gt.3) then
        if(meqrec%noofits.le.ceq%maxiter) goto 100
-       write(*,*)'Too many iterations',ceq%maxiter
+       write(*,*)'MM Too many iterations',ceq%maxiter
     elseif(meqrec%noofits.lt.6) then
        goto 100
     else
@@ -9327,7 +9327,7 @@ CONTAINS
     if(converged.gt.3) then
        if(meqrec%noofits.le.ceq%maxiter) goto 100
        gx%bmperr=4204
-!       write(*,*)'Too many iterations',ceq%maxiter
+!       write(*,*)'MM Too many iterations',ceq%maxiter
        goto 1000
     elseif(meqrec%noofits.lt.6) then
        goto 100

@@ -14,24 +14,27 @@ questions.
 
 In the list below the most recent changes come first.
 
-2020.04.30 OC version 6.003: In the isopleth phase diagrams the
-invariats are finally calculated correctly and the map7 macro is
-reasonable (even if parts of some lines are missing using a single
-start point).  A new Cmake file to simplfy the installation on various
-OS is on its way.
-
-2020.04.10 OC version 6.002: The directory structure for OC has been
-changed to be similar to other GNU software.  In the src/ directory
-the source code and in examples/macros/ all the macro files for
-teseting and learning to use OC can be found.  The manual is in
-doc/manual/.  The Makefile for Linux and the "linkpara/linkmake" for
-Windows has been updataed for this structure and the final executable
-will be found in the bin/ directory.  The other directories are mainly
-of interest for those who use OC in their own software.
+2020.05.02 OC version 6.004: The first update of version 6.  Guess
+what ... a small fix in mapping to handle invariants in isopleths ...
 
 ************************
 * This is OC version 6 *
 ************************
+
+2020.04.30 OC version 6.003: In the isopleth phase diagrams the
+invariats are finally calculated correctly and the map7 macro is
+reasonable (even if parts of some lines sometimes are missing using a
+single start point).  Some corrections made in the new filestructure.
+
+2020.04.10 OC version 6.002: The directory structure for OC has been
+changed to be similar to other GNU software.  Thanks to Peyman Davvalo
+Khongar for the help with this.  In the src/ directory the source code
+and in examples/macros/ all the macro files for teseting and learning
+to use OC can be found.  The manual is in doc/manual/.  The Makefile
+for Linux and the "linkpara/linkmake" for Windows has been updataed
+for this structure and the final executable will be found in the bin/
+directory.  The other directories are mainly of interest for those who
+use OC in their own software.
 
 2020.04.14 OC version 6.001: The Coronavirus epidemy is changing
 the world as we know it.

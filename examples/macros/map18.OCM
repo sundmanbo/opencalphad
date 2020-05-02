@@ -1,0 +1,74 @@
+new Y
+@$ =========================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map18.OCM
+@$ Calculate an isopleth phase diagram for Al-Mg-Zn
+@$ =========================================================
+@&
+
+set echo y
+
+
+r t ./cost507r
+al mg zn
+
+
+@$ The map is sensitive to the startpoint !!
+set cond t=900 p=1e5 n=1 x(mg)=.8 x(zn)=.05
+
+c e
+
+l r 1
+
+@&
+
+
+set ax 1 x(mg) 0 1 0.025
+set ax 2 t 300 1000 25
+
+
+map
+
+
+plot
+
+
+
+
+@&
+
+@$ magnify the T axis
+plot
+
+
+scale y
+n
+500
+750
+text .5 680 .8 0
+
+
+@$ A nice diagram but the step length control is not very good
+
+set inter
+

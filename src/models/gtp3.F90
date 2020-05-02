@@ -572,7 +572,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 4370
        'Error allocating data, no free memory                           ',&
        'Nonlinear equation solver HYBRD1 error                          ',&
-       '                                                                ',&
+       'Error from DGETRS/F generating isopleth invariant exits         ',&
        '                                                                ',&
        '                                                                ',&
        '5                                                               ',&
