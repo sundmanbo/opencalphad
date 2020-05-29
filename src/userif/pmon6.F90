@@ -6237,6 +6237,13 @@ contains
 ! use the file browser
              call gparfilex('File name: ',cline,last,1,plotfile,' ',-5,&
                   '?Plot file')
+! make sure there is a plt extention
+             jp=index(plotfile,'.')
+             if(jp.le.0) then
+                jp=len_trim(plotfile)
+                plotfile(jp+1:)='.plt'
+             endif
+             write(*,*)'Output will be on: ',trim(plotfile)
           endif
           once=.false.
           if(plotfile(1:2).eq.'./') then

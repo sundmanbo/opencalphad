@@ -276,6 +276,9 @@ CONTAINS
        endif
 !       write(*,*)'MM back in calceq2 after todo_after'
     endif
+!CCI
+! save the number of iterations needed to calculate the equilibrium
+    ceq%conv_iter=meqrec%noofits
 ! maybe memory leak 2
 !    write(*,*)'MM deallocate 2'
     deallocate(meqrec1)
@@ -347,6 +350,8 @@ CONTAINS
        write(*,1020)gx%bmperr
 1020   format('Error return from equilibrium calculation ',i5)
     endif
+! CCI save the number of iterations to calculate the equilibrium
+    ceq%conv_iter=meqrec%noofits
 ! memory leak 2
 !    write(*,*)'MM deallocate 3'
     deallocate(meqrec1)

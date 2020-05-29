@@ -630,14 +630,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! OLDMAP use old map algorithm
 ! NOAUTOSP do not generate automatic start points for mapping
 ! GSYGRID extra dense grid
+! GSVIRTUAL (CCI) enables calculations with a virtual element
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
-       GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
-       GSNOMERGE=4,   GSNODATA=5,     GSNOPHASE=6,  GSNOACS=7, &
+       GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3,  &
+       GSNOMERGE=4,   GSNODATA=5,     GSNOPHASE=6,  GSNOACS=7,   &
        GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
-       GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
-       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
-       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22,GSYGRID=23
+       GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15,  &
+       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19,  &
+       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22,GSYGRID=23,  &
+       GSVIRTUAL=24
 !----------------------------------------------------------------
 !-Bits in ELEMENT record
   integer, parameter :: &
@@ -1702,6 +1704,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision :: gmindif=-1.0D-2
 ! maxiter: maximum number of iterations allowed
      integer maxiter
+! CCI number of iterations needed for the equilibrium calculation
+     integer conv_iter
 ! This is to store additional things not really invented yet ...
 ! It may be used in ENTER MANY_EQUIL for things to calculate and list
      character (len=80), dimension(:), allocatable :: eqextra

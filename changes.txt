@@ -14,6 +14,16 @@ questions.
 
 In the list below the most recent changes come first.
 
+2020.05.29 OC version 6.007: Added a few changes in the model packages
+suggested by Clement Insroini.
+
+2020.05.08 OC version 6.006: A small bug fixed for the "output file"
+option when plotting.  When using the filebrowser, the extension .plt
+is added if missing.
+
+2020.05.07 OC version 6.005: Some confusion with subversion numbering
+version 6.004 and 6.005 same.
+
 2020.05.02 OC version 6.004: The first update of version 6.  Guess
 what ... a small fix in mapping to handle invariants in isopleths ...
 

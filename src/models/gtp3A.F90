@@ -414,6 +414,9 @@
 ! IMPORTANT: in gtp3F new variables must be added to be able to list/plot them
    ndefprop=npid
 !-------------------------------------------------
+!CCI : GSVIRTUAL enables to do calculation with virtual elements
+   globaldata%status=ibclr(globaldata%status,GSVIRTUAL)
+!CCI
 ! globaldata record; set gas constant mm
    globaldata%status=0
 ! set beginner, no data, no phase, no equilibrium calculated
@@ -1901,6 +1904,121 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+ !\begin{verbatim}
+ subroutine get_sublattice_number(iph,nsl,ceq)
+     ! return the number of sublattices for phase iph
+     ! nsl: integer, number of sublattices
+     ! ceq: pointer, to current gtp_equilibrium_data record
+     implicit none
+     integer iph,nsl
+     TYPE(gtp_equilibrium_data), pointer :: ceq
+     !\end{verbatim} %+
+     integer lokph
+     !
+     nsl = 1
+     if(iph.lt.1 .or. iph.gt.noofph) then
+         gx%bmperr=4050; goto 1000
+     else
+         lokph=phases(iph)
+     endif
+     nsl=phlista(lokph)%noofsubl
+
+1000 continue
+   return
+
+ end subroutine get_sublattice_number
+
+ !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+ !\begin{verbatim}
+ subroutine get_sublattice_structure(iph,ics,nsl,nkl,nsites,ceq)
+     ! return the structure of the sublattices for phase iph (ics composition set)
+     ! nsl: integer, number of sublattices
+     ! nkl: integer array, number of constituents in each sublattice
+     ! nsites: double array, number of sites in each sublattice
+     ! ceq: pointer, to current gtp_equilibrium_data record
+     implicit none
+     integer, intent (in) :: iph,ics,nsl
+     integer, dimension(nsl), intent (out) :: nkl, nsites
+     TYPE(gtp_equilibrium_data), pointer :: ceq
+     integer :: i, lokph,lokcs, ncs
+     !
+     if(iph.lt.1 .or. iph.gt.noofph) then
+         gx%bmperr=4050; goto 1000
+     else
+         lokph=phases(iph)
+     endif
+     if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
+         gx%bmperr=4072; goto 1000
+     else
+         ncs=max(ics,1)
+     endif
+     ! extra check if using saved equilibria which may have less composition sets
+     lokcs=phlista(lokph)%linktocs(ncs)
+     if(lokcs.le.0) then
+         write(*,*)'Index of composition set missing, maybe using a saved equil.'
+         gx%bmperr=4072
+         goto 1000
+     endif
+     do i=1,nsl
+      nkl(i)=phlista(lokph)%nooffr(i)
+      nsites(i)=ceq%phase_varres(lokcs)%sites(i)
+    enddo
+1000 continue
+   return
+
+ end subroutine get_sublattice_structure
+ !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+ !\begin{verbatim}
+ subroutine get_constituent_data(iph,ics,icons,yarr,charge,csname,ceq)
+     ! return the constitution for phase iph (ics composition set)
+     ! yarr: double, fraction of constituent
+     ! charge: integer, charge of constituent
+     ! consname: name of the constituent
+     ! ceq: pointer, to current gtp_equilibrium_data record
+     implicit none
+     integer, intent (in) :: iph,ics,icons
+     double precision, intent (inout) :: yarr
+     integer, intent (inout) :: charge
+     character*(*) , intent (inout) :: csname
+
+     TYPE(gtp_equilibrium_data), pointer :: ceq
+     integer :: i, lokph,lokcs,ncs,loksp
+     !
+     if(iph.lt.1 .or. iph.gt.noofph) then
+         gx%bmperr=4050; goto 1000
+     else
+         lokph=phases(iph)
+     endif
+     if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
+         gx%bmperr=4072; goto 1000
+     else
+         ncs=max(ics,1)
+     endif
+     ! extra check if using saved equilibria which may have less composition sets
+     lokcs=phlista(lokph)%linktocs(ncs)
+     if(lokcs.le.0) then
+         write(*,*)'Index of composition set missing, maybe using a saved equil.'
+         gx%bmperr=4072
+         goto 1000
+     endif
+
+     yarr=ceq%phase_varres(lokcs)%yfr(icons)
+     loksp=phlista(lokph)%constitlist(icons)
+     csname=splista(loksp)%symbol
+     if(loksp.gt.0) then
+         charge = splista(loksp)%charge
+     else
+         charge=0.D0
+     endif
+1000 continue
+   return
+ end subroutine get_constituent_data
+ !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !\addtotable subroutine get_phase_data
 !\begin{verbatim}
  subroutine get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
