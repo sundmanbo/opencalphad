@@ -1,3 +1,4 @@
+
 REM This file must be given the extension .cmd to be run on Windows
 REM It compiles OC with the popup window for opening files.
 
@@ -64,6 +65,8 @@ copy src\userif\pmon6.F90 .
 gfortran -c  -Dwinhlp pmon6.F90
 del pmon6.F90
 
+REM If first installation create the libs directory
+mkdir libs
 del libs\liboceq.a
 
 REM generating the library (needed also for TQ library)

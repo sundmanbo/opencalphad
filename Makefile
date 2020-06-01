@@ -152,6 +152,7 @@ $(EXE):
 	#$(FC) -o linkoc linkocdate.F90
 	#./linkoc
 	# create library liboceq.a
+	mkdir libs
 	ar sq libs/liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
 
 	# If getkey.o is undefined below

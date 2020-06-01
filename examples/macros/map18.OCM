@@ -29,7 +29,7 @@ new Y
 set echo y
 
 
-r t ./cost507r
+r t ./cost507R
 al mg zn
 
 
@@ -54,7 +54,6 @@ plot
 
 
 title map18 fig 1
-
 
 @&
 
