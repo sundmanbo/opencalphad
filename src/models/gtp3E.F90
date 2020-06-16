@@ -759,6 +759,9 @@
 ! noofip,sublattice(noofip),fraclink(noofip) 
 !            write(*,*)'3E save link: ',intrec%antalint,intrec%noofip(2)
             fipsize=size(intrec%noofip)
+! 2020.06.08/BoS problem handling interactions permutations ???
+! should there be something separate for level=2 ???
+! Sometimes error when reading a parameter level=2 WITHOUT any permutations
             if(level.eq.1) then
                rsize=7+fipsize+2*intrec%noofip(fipsize)
             else
@@ -2524,7 +2527,7 @@
    intrec%antalint=iws(lokalint+4)
    intrec%order=iws(lokalint+5)
    fipsize=iws(lokalint+6)
-!   write(*,*)'3E In readintrec 1:',intrec%antalint,lokalint,fipsize
+!   write(*,'(a,5i5)')'3E readintrec 1:',intrec%antalint,lokalint,fipsize,level
    allocate(intrec%noofip(fipsize))
 !   read(lin)intrec%noofip,intrec%status,noi,nup,nop
    displace=6
@@ -2532,14 +2535,26 @@
       intrec%noofip(i)=iws(lokalint+displace+i)
    enddo
    displace=displace+fipsize
-   if(level.eq.0) then
-      noofperm=intrec%noofip(2)
-   elseif(level.eq.1) then
+! 2020.06.08/BoS error saving a parameter with level=2 ??? but when saveing
+! an interaction record there are only level=1 separate ???
+   if(level.eq.1) then
       noofperm=intrec%noofip(fipsize)
-   else
-      write(*,*)'3E too many interaction levels for permutations'
-      gx%bmperr=4399; goto 1000
+   else 
+      noofperm=intrec%noofip(2)
+!   else
+! I do not understand this error ...
+!      write(*,*)'3E too many interaction levels for permutations',level
+!      gx%bmperr=4399; goto 1000
    endif
+!   if(level.eq.0) then
+!      noofperm=intrec%noofip(2)
+!   elseif(level.eq.1) then
+!      noofperm=intrec%noofip(fipsize)
+!   else
+!      write(*,*)'3E too many interaction levels for permutations',level
+!      gx%bmperr=4399; goto 1000
+!   endif
+! end of code changes 2020.06.08/BoS
    allocate(intrec%sublattice(noofperm))
    allocate(intrec%fraclink(noofperm))
 !   write(*,*)'3E allocate link: ',intrec%antalint,intrec%noofip(2)

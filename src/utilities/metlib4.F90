@@ -3260,15 +3260,30 @@ CONTAINS
     implicit none
     character*(*) htmlfile,browser
 !\end{verbatim} %+
-!    character*80 line
+    character noquotes*128
+    integer kk
     logical logok
 ! the latex file no longer used for help
     ochelp%latexfile=' '
 ! test that file exists
     inquire(file=browser,exist=logok)
+    write(*,*)'m4A: ',trim(browser),logok
+    if(.not.logok) then
+! This is emergency use of explorer if no Firefox
+!    browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
+       noquotes=browser
+       kk=index(noquotes,'"')
+       do while(kk.gt.0)
+          noquotes(kk:)=noquotes(kk+1:)
+          kk=index(noquotes,'"')
+       enddo
+       inquire(file=noquotes,exist=logok)
+       write(*,*)'m4C: ',trim(noquotes),logok
+    endif
     allok: if(logok) then
        ochelp%browser=browser
        inquire(file=htmlfile,exist=logok)
+       write(*,*)'m4B: ',trim(htmlfile),logok
        if(logok) then
           helprec%okinit=1
           helprec%type='html'
@@ -3847,20 +3862,20 @@ CONTAINS
 !    while running the program.
 ! 3: the same LaTeX can also be used to generate a PDF.  But no one reads 
 !    the manual.
-! For each comand and question the software asks it uses a GPARX routine.
+! For each command and question the software asks it uses a GPARX routine.
 ! in the call this subroutine and a hypertarget text is provided.
 ! When inside this routine the user has typed ? or ?? to get help.
 ! The browser used depend on compiler options ...
-#ifdef lixhlp
-! on linux just ' "file:" as ochelp#htmlfile start with a /
-! The & at the end spawns the browser window and furter ? creates new tags !!
-    htmlhelp=trim(ochelp%browser)//' "file:'//&
-         trim(ochelp%htmlfile)//'#'//ochelp%target//'" &'
-#else
+#ifdef winhlp
 ! on Windows we need the / after file
 ! the initial start spawns a new window with the browser, each ? a new browser
     htmlhelp='start '//trim(ochelp%browser)//' "file:/'//&
          trim(ochelp%htmlfile)//'#'//ochelp%target//'"'
+#else
+! on linux or Mac just ' "file:" as ochelp#htmlfile start with a /
+! The & at the end spawns the browser window and furter ? creates new tags !!
+    htmlhelp=trim(ochelp%browser)//' "file:'//&
+         trim(ochelp%htmlfile)//'#'//ochelp%target//'" &'
 #endif
     if(helptrace) write(*,*)'QZ: ',trim(htmlhelp)
     call execute_command_line(htmlhelp)

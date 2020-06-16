@@ -149,8 +149,9 @@ liboctqcpp.o:	./examples/TQ4lib/Cpp/Matthias/liboctqcpp.cpp
 	$(CPP) -c -g $(FCOPT) ./examples/TQ4lib/Cpp/Matthias/liboctqcpp.cpp
 
 $(EXE): 
-	#$(FC) -o linkoc linkocdate.F90
-	#./linkoc
+	# Add date of linking to main program
+	$(FC) -o linkoc linkocdate.F90
+	./linkoc
 	# create library liboceq.a
 	mkdir libs
 	ar sq libs/liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o

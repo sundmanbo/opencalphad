@@ -1247,7 +1247,7 @@
             'set size ',F8.4', ',F8.4/&
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-        'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,28"'/&
+        'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
             'set key ',a/&
             'set linetype ',i2,' lc rgb "#000000" lw 2 pt 10'/&
             'set linetype ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
@@ -1270,7 +1270,7 @@
                'set size ',F8.4', ',F8.4/&
                'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,28"'/&
+          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
                'set key ',a/&
                'set style line ',i2,' lt ',i2,' lc rgb "#000000" lw 2 pt 10'/&
                'set style line ',i2,' lt ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
@@ -2281,14 +2281,14 @@
        write(21,131)trim(pltax(2)), 0.15*xmax, 0.37*xmax
 131    format('set label "',a,'" at ',F8.4,',',F8.4,' rotate by 60 '/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-         'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,28"')
+         'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"')
 ! we should also enforce same length of X and Y axis !!!
     else
 ! SQUARE DIAGRAM
        write(21,132)trim(pltax(2))
 132    format('set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-            'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,28"')
+            'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"')
     endif
     lz=graphopt%linetype
     write(21,133)lz,lz,lz,lz,lz,lz,lz,lz,lz,lz

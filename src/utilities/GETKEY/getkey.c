@@ -23,8 +23,9 @@
 #ifdef G77
 #include <termio.h>
 #else
-#include <sys/termio.h>
+#include <sys/termios.h>
 #endif
+/*  modified to sys/termios.h above */
 /*--------------------------*/
 #endif
 

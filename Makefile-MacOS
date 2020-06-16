@@ -139,7 +139,7 @@ pmon6.o:	src/userif/pmon6.F90
 	# use -Daqplt for aqua plot drivers (also smaller window)
 	# use -Dlixhlp for online help in Linux
 	# use -Dmachlp for online help in MacOS (browser)
-	$(FC) -c $(FCOPT) -Dqtplt -Dlixhlp src/userif/pmon6.F90
+	$(FC) -c $(FCOPT) -Dqtplt -Dmachlp src/userif/pmon6.F90
 
 liboctq.o:	./examples/TQ4lib/Cpp/liboctq.F90
 	$(FC) -c -g $(FCOPT) ./examples/TQ4lib/Cpp/liboctq.F90
@@ -151,8 +151,9 @@ liboctqcpp.o:	./examples/TQ4lib/Cpp/Matthias/liboctqcpp.cpp
 	$(CPP) -c -g $(FCOPT) ./examplesTQ4lib/Cpp/Matthias/liboctqcpp.cpp
 
 $(EXE): 
-	#$(FC) -o linkoc linkocdate.F90
-	#./linkoc
+	# Add date of linking to main program
+	$(FC) -o linkoc linkocdate.F90
+	./linkoc
 	# create library liboceq.a
 	ar sq libs/liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
 

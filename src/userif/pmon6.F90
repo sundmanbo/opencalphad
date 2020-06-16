@@ -611,7 +611,8 @@ contains
     htmlfile=' '
 #ifdef winhlp
 ! BROWSER FOR WINDOWS
-    browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
+!    browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
+    browser='C:\"Program Files\Mozilla Firefox"\firefox.exe '
 #elif lixhlp
 ! BROWSER FOR LINUX
     browser='/usr/bin/firefox '
@@ -652,6 +653,8 @@ contains
        call init_help(browser,htmlfile)
        if(.not.ochelp%htmlhelp) then
           write(kou,*)'Warning, no file "ochelp.html" at OCHOME or no browser'
+          write(kou,*)trim(browser)
+          write(kou,*)trim(htmlfile)
           htmlhelp=.FALSE.
        else
           write(kou,*)'Online help provided by your browser using ochelp.html'

@@ -3540,6 +3540,7 @@ CONTAINS
 !----- model variables <<<< these now treated differently
     stvix=cmix(2)/10
 ! stvnorm is normalization, 0, 1, 2, 3 or 4
+! 0=none; 1=per mole; 2=per mass; 3=per volume; 4=per formula unit
     stvnorm=mod(cmix(2),10)
     select case(stvix)
     case default
@@ -7696,7 +7697,7 @@ CONTAINS
  !   TYPE(meq_phase), pointer :: pmi
     TYPE(gtp_condition), pointer :: pcond
     integer iel,mph,jj,nterm,errall
-    double precision xxx,sumam
+    double precision xxx,sumam,summass,sumvol
     double precision, allocatable :: svar(:)
     character dum*128
 !
@@ -7726,7 +7727,7 @@ CONTAINS
        write(*,71)
        goto 1000
     endif
-! Currently only implemented H.T 
+! Currently only implemented H.T and HM.T
     if(.NOT.(svr2%statevarid.eq.1 .or. svr2%statevarid.eq.2)) then
        write(*,*)'Derivatives with respect to T and P only'
        gx%bmperr=4213; goto 1000
@@ -7789,10 +7790,12 @@ CONTAINS
        iel=0
        jj=1
        sumam=zero
+       summass=zero
+       sumvol=zero
 !       write(*,*)'MM Calculating H.T',svr1%argtyp,meqrec%nphase
 ! This "if" statement should be included in the loop below
        if(svr1%argtyp.eq.2) then
-! if argtyp=2 then just a single phase
+! if argtyp=2 then it is a value for a single phase
 !          write(*,*)'MM svr1%argtyp 1: ',svr1%argtyp,svr1%phase,svr1%compset
           fph: do mph=1,meqrec%nphase
 !             write(*,*)'fphloop: ',mph,meqrec%phr(mph)%iph,meqrec%phr(mph)%ics
@@ -7805,25 +7808,46 @@ CONTAINS
 66        if(mph.gt.meqrec%nphase) then
              gx%bmperr=4050; goto 1000
           endif
-! dummy statement to avoid some unknown error calculating Cp
+! dummy statement to avoid some strange unknown error calculating Cp
           write(dum,*)'MM svr1%argtyp 2: ',svr1%argtyp,mph,iel
           call meq_calc_phase_derivative(svr1,svr2,meqrec,mph,iel,&
                svar,jj,xxx,ceq)
           if(gx%bmperr.ne.0) goto 1000
 !          write(*,*)'MM HM(phase).T: ',xxx,meqrec%phr(mph)%curd%abnorm(1),&
 !               meqrec%phr(mph)%curd%amfu
-          if(svr1%norm.eq.1) then
+! normalized? svr1%norm>0
+          if(svr1%norm.ne.0) then
+             if(svr1%norm.eq.1) then
 ! xxx is HM for one formula unit.  if %norm=1 return HM.T 
-             value=xxx/meqrec%phr(mph)%curd%abnorm(1)
-          elseif(meqrec%phr(mph)%curd%amfu.eq.zero) then
-! elseif %amfu=0 return H.T=0
-             value=zero
+                value=xxx/meqrec%phr(mph)%curd%abnorm(1)
+             elseif(svr1%norm.eq.2) then
+! xxx is HW per mass HW.T
+                value=xxx/meqrec%phr(mph)%curd%abnorm(2)
+             elseif(svr1%norm.eq.3) then
+! norm=3 per volume HV.T
+                write(*,*)'Normalizing per volume not implemented: ',svr1%norm
+                gx%bmperr=4399; goto 1000
+             elseif(svr1%norm.eq.4) then
+! norm=4 per formula unit, HF.T
+                value=xxx
+             else
+! no other normallizing
+                write(*,*)'Unown normalizing: ',svr1%norm
+                gx%bmperr=4399; goto 1000
+             endif
           else
+! not normalized value for a single phase, if amount zero return zero
+             if(meqrec%phr(mph)%curd%amfu.eq.zero) then
+! elseif %amfu=0 return H.T=0
+                value=zero
+             else
 ! else returm HM.T*NP(alpha) ???
              value=xxx*meqrec%phr(mph)%curd%amfu/meqrec%phr(mph)%curd%abnorm(1)
+             endif
           endif
           goto 77
        endif
+! sum over all stable phases
        do mph=1,meqrec%nphase
 ! ignore phases with zero amount
           if(meqrec%phr(mph)%curd%amfu.gt.zero) then
@@ -7835,7 +7859,10 @@ CONTAINS
              call meq_calc_phase_derivative(svr1,svr2,meqrec,mph,iel,&
                   svar,jj,xxx,ceq)
              if(gx%bmperr.ne.0) goto 1000
-          sumam=sumam+meqrec%phr(mph)%curd%amfu*meqrec%phr(mph)%curd%abnorm(1)
+             sumam=sumam+&
+                  meqrec%phr(mph)%curd%amfu*meqrec%phr(mph)%curd%abnorm(1)
+             summass=summass+&
+                  meqrec%phr(mph)%curd%amfu*meqrec%phr(mph)%curd%abnorm(2)
              jj=jj+1
 ! this dummy write statement is to avoid SEGMENTATION FAULT when -O2
 ! The segmentation fault persists also in oc5P if this write removed!!
@@ -7851,6 +7878,13 @@ CONTAINS
 ! normallize with respect to number of moles of atoms
 !          write(*,*)'MM sumam: ',value,sumam
           value=value/sumam
+       elseif(svr1%norm.eq.2) then
+! xxx is HW per mass HW.T
+          value=value/summass
+       elseif(svr1%norm.ne.0) then
+! no other normallizing implemented
+          write(*,*)'Illegal normalizing: ',svr1%norm
+          gx%bmperr=4399; goto 1000
        endif
 77     continue
     elseif(svr1%statevarid.eq.17) then
