@@ -3267,7 +3267,7 @@ CONTAINS
     ochelp%latexfile=' '
 ! test that file exists
     inquire(file=browser,exist=logok)
-    write(*,*)'m4A: ',trim(browser),logok
+!    write(*,*)'m4A: ',trim(browser),logok
     if(.not.logok) then
 ! This is emergency use of explorer if no Firefox
 !    browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
@@ -3278,12 +3278,12 @@ CONTAINS
           kk=index(noquotes,'"')
        enddo
        inquire(file=noquotes,exist=logok)
-       write(*,*)'m4C: ',trim(noquotes),logok
+!       write(*,*)'m4C: ',trim(noquotes),logok
     endif
     allok: if(logok) then
        ochelp%browser=browser
        inquire(file=htmlfile,exist=logok)
-       write(*,*)'m4B: ',trim(htmlfile),logok
+!       write(*,*)'m4B: ',trim(htmlfile),logok
        if(logok) then
           helprec%okinit=1
           helprec%type='html'
