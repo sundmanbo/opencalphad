@@ -150,7 +150,7 @@ liboctqcpp.o:	./examples/TQ4lib/Cpp/Matthias/liboctqcpp.cpp
 
 $(EXE): 
 	# Add date of linking to main program
-	$(FC) -o linkoc linkocdate.F90
+	$(FC) -o linkoc src/linkocdate.F90
 	./linkoc
 	# create library liboceq.a
 	mkdir libs
