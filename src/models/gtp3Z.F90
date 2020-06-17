@@ -2255,9 +2255,15 @@
    bigloop: do ip=1,36
       ch1=lname1(ip:ip)
       if(ip.gt.1 .and. ch1.eq.' ') goto 900
-      if(ch1.eq.'-') ch1='_'
+! in species - has a special meaning of charge
+      if(ch1.eq.'-') then
+         if(ch1.eq.lname2(jp:jp)) goto 300
+         ch1='_'
+      endif
       if(ch1.eq.lname2(jp:jp)) goto 300
-      if(ch1.eq.'_' .or. ch1.eq.'-') then
+!      if(ch1.eq.'_' .or. ch1.eq.'-') then
+      if(ch1.eq.'_') then
+! we can abbreviate up to "_" in full name
 200       continue
          if(jp.eq.maxl) goto 1000
          jp=jp+1

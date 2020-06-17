@@ -1865,6 +1865,7 @@
       write(*,*)'3B Error ',gx%bmperr,' set calling enter_parameter, cleared!'
       gx%bmperr=0
    endif
+!   write(*,'(a,10i5)')'3B param: ',typty,fractyp,lokph,nsl,nint,lfun
 ! listfun used when calling this routine just to list a parameter
    listfun=0
    if(fractyp.eq.2) goto 50

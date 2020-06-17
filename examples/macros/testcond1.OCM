@@ -439,16 +439,17 @@ l m-p-i
 
 @&
 @$ Use MQ, the values are just made up
+@$ You must specify the sublattice with the diffusing constituent
 
-enter parameter mq&c(fcc,fe:c) 298.15 -1000+5*T; 6000 N me
+enter parameter mq&c#2(fcc,fe:c) 298.15 -1000+5*T; 6000 N me
 
-@$ It is correct that you get a warning here
-@$ because you have no addition handling these parameters
+@$ It is correct that you get a warning that
+@$ there is no addition handling these parameters
 @&
 
-enter parameter mq&c(fcc,cr:c) 298.15 -2000+7*T; 6000 N me
-enter parameter mq&c(fcc,fe:va) 298.15 -10000+3*T; 6000 N me
-enter parameter mq&c(fcc,cr:va) 298.15 -5000; 6000 N me
+enter parameter mq&c#2(fcc,cr:c) 298.15 -2000+7*T; 6000 N me
+enter parameter mq&c#2(fcc,fe:va) 298.15 -10000+3*T; 6000 N me
+enter parameter mq&c#2(fcc,cr:va) 298.15 -5000; 6000 N me
 
 list ph fcc data
 
@@ -456,7 +457,7 @@ list ph fcc data
 @$ Note there are 4 parameters called MQ&C
 @&
  
-enter symbol mobc = exp(mq&c(fcc)/rt);
+enter symbol mobc = exp(mq&c#2(fcc)/rt);
 
 l sym
 
@@ -491,9 +492,9 @@ cal sym *
 @$ DO NOT FORGET THE PHASE!
 
 list model-para-val
-mq&c(fcc)
+mq&c#2(fcc)
 
-debug symbol mq&C#2(fcc) -5.9030928E3
+debug symbol mq&c#2(fcc) -5.9030928E3
 @$ The value should be -5903.0928.  NOTE this is not an assessed value.
 @&
 @$ There is a command to calculate the equilibrium state of a single

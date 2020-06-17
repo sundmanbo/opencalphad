@@ -359,6 +359,7 @@
 ! for example a mobility like  MQ&FE+2#3 where FE+2#3 is a constinuent
 ! in sublattice 3
    lp1=index(parname,'(')
+!   write(*,*)'3D parname: ',trim(parname),lp1
    if(lp1.le.1) then
       gx%bmperr=4027; goto 1000
    endif
@@ -371,6 +372,7 @@
 ! note that elnam may contain sublattice specification like Fe+2#2
       elnam=name1(kel+1:)
       name1=name1(1:kel-1)
+!      write(*,*)'3D elnam: ',elnam
    endif
    kq=len_trim(name1)
 !   write(*,*)'3D: fractyp: ',kq,name1(1:kq)
@@ -415,23 +417,28 @@
          if(gx%bmperr.ne.0) then
             write(kou,*)'3D Unknown element ',elnam,&
                  ' in parameter type MQ, please reenter'
-            parname=' '; gx%bmperr=0; goto 10
+            goto 1000
+!            parname=' '; gx%bmperr=0; goto 10
          endif
          typty=100*typty+iel
       elseif(btest(propid(typty)%status,IDCONSUFFIX)) then
 ! to know the constituents we must know the phase but as we do not know 
 ! the phase name yet but check the species exists !!!
-!      write(*,*)'3D: conname: ',kel,lk3,typty,elnam
+!         write(*,*)'3D: conname: ',kel,lk3,typty,elnam
          call find_species_by_name(elnam,isp)
          if(gx%bmperr.ne.0) then
 ! This is not an error, the species may simply not be selected !!!
-!            write(kou,*)'Unknown species ',trim(elnam),&
-!                 ' in parameter type MQ, please reenter',gx%bmperr
-            parname=' '; gx%bmperr=0; goto 10
+            write(kou,*)'Unknown species ',trim(elnam),&
+                 ' in parameter type MQ, please reenter',gx%bmperr
+            goto 1000
+!            parname=' '; gx%bmperr=0; goto 10
          endif
 ! convert from index to location, loksp
          loksp=species(isp)
-! extract sublattice after #
+         if(lk3.eq.0) then
+! sublattice after # saved in lk3 above, if none (0) assume 1
+            lk3=1
+         endif
       else
          write(kou,*)'3D This model parameter identifier has no specifier'
          gx%bmperr=4168; goto 1000
@@ -445,7 +452,7 @@
          gx%bmperr=4169; goto 1000
       endif
    endif
-!
+! 4027?
 ! extract phase name and constituent array
    lp1=index(parname,'(')
    lp2=index(parname,',')
@@ -488,9 +495,12 @@
    funame(9:)=' '
 !   write(*,*)'3D funame 2: ',trim(funame)
 ! if the parameter symbol has a constituent specification check that now
-   if(isp.gt.0) then
+!   write(*,*)'3D lk3 and isp: ',lk3,isp
+   if(lk3.gt.0 .and. isp.gt.0) then
+! No check for elements ...
       k4=0
       do ll=1,phlista(lokph)%noofsubl
+! careful ll is double letter l, not 11 (eleven)
          if(lk3.eq.0 .or. lk3.eq.ll) then
             do kk=1,phlista(lokph)%nooffr(ll)
                k4=k4+1

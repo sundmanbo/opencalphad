@@ -18,12 +18,13 @@ PROGRAM pmain1
   character arginline(12)*64,arg*64,date*16
 !
 ! save the data of linking the program
-  call date_and_time(date)
+!  call date_and_time(date)
 !  write(*,*)'Stored linking date: ',date
-  linkdate='2020-06-16'
-! for example: linkdate='2020-06-16'
+! This line replaced by linkocdate to the date when compilin
+  linkdate='2020-06-17'
+! for example: linkdate='2020-06-17'
 ! this is the overall version identifier
-  version='  6.008 '
+  version='  6.009 '
 ! intvar and dblvar will eventually be used for allocations
   intvar(1)=30
   call init_gtp(intvar,dblvar)

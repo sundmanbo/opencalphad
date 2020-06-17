@@ -2417,7 +2417,10 @@ contains
           case(9) ! WORKING DIRECTORY
              write(kou,*)'Current working directory: ',trim(workingdir)
              write(kou,*)'To change please give full path'
-             call gparcx('New: ',cline,last,1,string,workingdir,&
+! try to set current working directory as input to allow editing
+             cline=workingdir
+             last=len_trim(cline)
+             call gparcx('New: ',cline,last,1,string,trim(workingdir),&
                   '?Set adv workdir')
              inquire(file=string,exist=logok)
              if(.not.logok) then
@@ -5370,17 +5373,22 @@ contains
              if(gx%bmperr.ne.0) gx%bmperr=0
              call capson(line)
              call find_svfun(name1,istv)
-             if(gx%bmperr.ne.0) goto 990
+             if(gx%bmperr.ne.0) then
+                write(*,*)'Error finding symbol'
+                stop
+             endif
              mode=1
              actual_arg=' '
              xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
-             if(gx%bmperr.ne.0) goto 990
+             if(gx%bmperr.ne.0) then
+                write(*,*)'Error calculating symbol'
+                stop
+             endif
              write(kou,2047)trim(name1),xxx
           endif
           xxz=1.0D-6
           if(abs(xxy).gt.1.0d0) xxz=xxz*abs(xxy)
           if(abs(xxx-xxy).gt.xxz) then
-!             write(*,'(a,4(1pe14.6))')'Values: ',xxx,xxy,xxz
              write(*,'(a,2(1pe12.4))')'Symbol value outside limit!',xxx,xxy
              stop
           else

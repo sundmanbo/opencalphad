@@ -10267,7 +10267,7 @@ CONTAINS
     write(lut,620)size(firstash%eqlista),mexp
 620 format(/'List of ',i5,' equilibria with ',i5,&
          ' experimental data values'/&
-         '  No Equil name      Weight Experiment $ calculated',19x,&
+         '  No Equil name      Weight Experiment $ calculated',18x,&
          'Error')
     j3=0
     allequil: do i1=1,size(firstash%eqlista)
@@ -10292,7 +10292,7 @@ CONTAINS
              j3=j3+1
              if(neq.gt.0) then
 !                write(lut,622)neq,name1(1:12),neweq%weight,line(1:40),errs(j3)
-                write(lut,622)neq,name1(1:15),neweq%weight,line(1:40),errs(j3)
+                write(lut,622)neq,name1(1:15),neweq%weight,line(1:39),errs(j3)
 622             format(i4,1x,a,2x,F5.2,1x,a,1x,1pe12.4)
                 neq=0
              else

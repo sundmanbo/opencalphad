@@ -15,6 +15,14 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2020.06.18 OC version 6.009: A sublte bug in my modified version of
+LMDIF fixed.  It only appeared on the Mac version.  Another subtle bug
+was found decoding constituent dependednt model-parameter-identifier
+such as MQ&O-2#2(C1,U+4:O-2,Va) where O-2, or rather any constituents
+with "-" could not be found because it was treated as a "_".  Some
+additional changes were made for interactive entering of such
+parameters.
+
 2020.06.16 OC version 6.008: I have changed to use the firefox browser
 for help on Windows.  This involved some tricky handling of the double
 quote needed to hide the space characters in the path when using the
@@ -29,8 +37,8 @@ suggested by Clement Introini.
 option when plotting.  When using the filebrowser, the extension .plt
 is added if missing.
 
-2020.05.07 OC version 6.005: Some confusion with subversion numbering
-version 6.004 and 6.005 same.
+2020.05.07 OC version 6.005: Due to some confusion with subversion
+numbering version 6.004 and 6.005 are the same.
 
 2020.05.02 OC version 6.004: The first update of version 6.  Guess
 what ... a small fix in mapping to handle invariants in isopleths ...

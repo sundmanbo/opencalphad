@@ -792,7 +792,7 @@
    call capson(symbol)
    isp=0
    do loksp=1,noofsp
-!     write(*,*)'find species 2: ',loksp,splista(loksp)%symbol
+!      write(*,*)'3A find species 2: ',symbol,splista(loksp)%symbol,loksp
       if(compare_abbrev(symbol,splista(loksp)%symbol)) then
          if(isp.eq.0) then
             isp=splista(loksp)%alphaindex
