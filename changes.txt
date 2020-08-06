@@ -15,11 +15,34 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
-2020.06.18 OC version 6.009: A sublte bug in my modified version of
+2020.08.06 OC version 6.010: Corona virus times and a long time
+without updates.  I have stared implementing the Kohler and Toop
+ternary extrapolation models.  This require a minor extention of the
+data structure which may cause some problems.  A new subcommand,
+TERNARY-EXTRAPOL has been added to the command AMEND PHASE.  This is a
+first step in adding the MQM model to OC but nothing works at the
+moment.
+
+The previously useless command SET ADVANCED WORKING-DIRECTORY has been
+modified to use the file browser.  This means you can use the browser
+to a directory you want to use and if you select a TDB file the
+working directory will be changed to the directory with this file.
+Nothing will happen with the TDB file.  The working directory is
+important because by default any ocgnu.plt files will be written
+there.  You can also change this by the "output" subcommand in PLOT.
+
+The code handling entering and listing of additions such as magnetic
+has been slightly modified.  For example if a phase had a
+disordered¨fraction set (i.e. a separate phase) in a TDB file but the
+ordered had not, in OC the ordered phase remained without this
+addition whereas in TC the ordered were automatically also magnetic.
+This is now corrected which required several minor modifications.
+
+2020.06.18 OC version 6.009: A subtle bug in my modified version of
 LMDIF fixed.  It only appeared on the Mac version.  Another subtle bug
-was found decoding constituent dependednt model-parameter-identifier
+was found decoding a constituent dependent model-parameter-identifier
 such as MQ&O-2#2(C1,U+4:O-2,Va) where O-2, or rather any constituents
-with "-" could not be found because it was treated as a "_".  Some
+with "-" could not be found because "-" was treated as a "_".  Some
 additional changes were made for interactive entering of such
 parameters.
 

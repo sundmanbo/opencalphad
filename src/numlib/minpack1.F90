@@ -889,14 +889,16 @@ contains
 !
     if (iflag .lt. 0) info = iflag
     iflag = 0
-!    write(*,*)'minpack: lmdif call fcn 4: ',n,m,info
-    if (nprint .gt. 0) call fcn(m,n,x,fvec,iflag)
+!    write(*,*)'minpack: lmdif call fcn 4: ',n,m,info,maxfev
+    if(maxfev.gt.0) then
+       if (nprint .gt. 0) call fcn(m,n,x,fvec,iflag)
 !    if (nprint .gt. 0) call calfun(m,n,x,fvec,iflag,-nfev)
-!    if (nprint .gt. 0) call fcn(m,n,x,fvec,iflag,-nfev)
+    else
 ! Add that calfun called once if maxfev=0 to calculate all errors
 !    if (maxfev .eq. 0) call calfun(m,n,x,fvec,1,0)
+       call fcn(m,n,x,fvec,1,0)
+    endif
 !    write(*,*)'minpack: lmdif call fcn 5: ',n,m,maxfev
-    if (maxfev .eq. 0) call fcn(m,n,x,fvec,1,0)
     return
 !
 !     last card of subroutine lmdif.

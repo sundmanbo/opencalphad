@@ -100,6 +100,8 @@
    double precision vals(6)
 ! this array has the sum of constituents up to and including current sublattice
    integer incffr(0:maxsubl)
+! Kohler-Toop binary excess model link
+   type(gtp_tooprec), pointer :: tooprec
 ! in local gz: gz%intlevel level of interaction, gz%intcon and gz%intlat are
 ! used also in cgint when calculating interactions.
    TYPE(gtp_parcalc) :: gz
@@ -737,7 +739,7 @@
 !               endif
             enddo emprop
 !------------------------------------------------------------------
-! take link to interaction records, use push and pop to save pyq etc
+! take link to first interaction records, use push and pop to save pyq etc
 ! pmq keeps track of the location in LASTPMQ and MAXPMQ
 ! for each interaction record in this binary interaction tree
             intrec=>endmemrec%intpointer
@@ -756,6 +758,14 @@
                     pyq,dpyq,d2pyq,moded,gz%nofc)
 ! intrec%order is initiated by palmtree to set a sequential number
                pmq=intrec%order
+! check if there is a Kohler-Toop link (NOT YET)
+!               write(*,*)'3X testing tooprec: ',associated(intrec%tooprec)
+               if(associated(intrec%tooprec)) then
+                  write(*,*)'3X Toop/Kohler model: ',associated(intrec%tooprec)
+                  tooprec=>intrec%tooprec
+               else
+                  nullify(tooprec)
+               endif
 !               write(*,155)'3X Pushed: ',pmq,gz%intlevel
 !-------------------------------------------------------------------
 ! come back here for another permutation of same paremeter (no push needed)
@@ -1103,7 +1113,9 @@
                   vals=zero
                   dvals=zero
                   d2vals=zero
-                  call cgint(lokph,proprec,moded,vals,dvals,d2vals,gz,ceq)
+!                  call cgint(lokph,proprec,moded,vals,dvals,d2vals,gz,ceq)
+                  call cgint(lokph,proprec,moded,&
+                       vals,dvals,d2vals,gz,tooprec,ceq)
                   if(gx%bmperr.ne.0) goto 1000
 !                  write(*,228)'3X val:',vals(1),(dvals(1,id),id=1,gz%nofc)
 ! G parameters (ipy=1) are divided by RT inside cgint
@@ -2126,7 +2138,7 @@
 
 !\addtotable subroutine cgint
 !\begin{verbatim}
- subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
+ subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,tooprec,ceq)
 ! calculates an excess parameter that can be composition dependent
 ! gz%yfrem are the site fractions in the end member record
 ! gz%yfrint are the site fractions in the interaction record(s)
@@ -2138,6 +2150,7 @@
    TYPE(gtp_parcalc) :: gz
    double precision vals(6),dvals(3,gz%nofc)
    TYPE(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_tooprec), pointer :: tooprec
 !\end{verbatim}
 ! temporary data like gz%intlevel, gz%nofc etc
    double precision d2vals(gz%nofc*(gz%nofc+1)/2),valtp(6)
@@ -2147,6 +2160,7 @@
    double precision ycat0,dcat1,dcat2,dyvan1,dyvan2
    double precision, parameter :: onethird=one/3.0D0,two=2.0D0
    logical ionicliq,iliqva,iliqneut,iliq3cat
+   TYPE(gtp_tooprec), pointer :: toopx
 ! zeroing 5 iq, and vals, dvals and d2vals
 !   write(*,*)'3X cgint 1:',gz%iq(1),gz%iq(2),gz%iq(3)
 ! why zero qz%iq, it has been set before calling ...
@@ -2211,7 +2225,16 @@
    endif
    intlev: if(gz%intlevel.eq.1) then
 !----------------------------------------------------------------------
-! plain binary Redlich Kister. gz%endcon can be wildcard, i.e. negative
+! plain binary Redlich Kister. 
+! check if Kohler-Toop, is there a link to a Kohler-Toop record?
+      if(associated(tooprec)) then
+! this is only for binary interaction parameters with Kohler or Toop models
+! copy tooprec as we must not change tooprec inside handle_toop
+         toopx=>tooprec
+         call handle_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
+         goto 1000
+      endif
+! gz%endcon can be wildcard, i.e. negative
 ! but for the moment give error message in that case
 ! A binary wildcard excess parameter means y_A ( 1 - y_A) * L_A*
 ! most naturally gz%intcon(1) would be negative
@@ -2577,6 +2600,28 @@
 1000 continue
    return
  end subroutine cgint
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine handle_toop
+! called from subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
+!\begin{verbatim}
+ subroutine handle_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
+! Handle a binary interaction that is in a Toop or Kohler model
+! toop is the link to the kohler-Toop record (not yet designed)
+   implicit none
+   integer moded,lokph
+   TYPE(gtp_property), pointer :: lokpty
+   TYPE(gtp_parcalc) :: gz
+   double precision vals(6),dvals(3,gz%nofc)
+   double precision d2vals(gz%nofc*(gz%nofc+1)/2)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_tooprec), pointer :: toopx
+!\end{verbatim}
+   write(*,*)'3X in handle_toop'
+1000 continue
+   return
+ end subroutine handle_toop
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

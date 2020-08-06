@@ -663,7 +663,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-Bits in PHASE record STATUS1 there are also bits in each phase_varres record!
 ! HID phase is hidden (not implemented)
 ! IMHID phase is implictly hidden (not implemented)
-! ID phase is ideal, substitutional and no iteraction
+! ID phase is ideal, substitutional and no interaction
 ! NOCV phase has no concentration variation (I am not sure it is set)
 ! HASP phase has at least one parameter entered
 ! FORD phase has 4 sublattice FCC ordering with parameter permutations
@@ -1091,7 +1091,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! phase record might be useful in other cases.
 ! noofpermut: number of permutations (for ordered phases: (Al:Fe) and (Fe:Al)
 ! phaselink: index of phase record
-! antalem: sequenial order of creation, useful to keep track of structure
+! antalem: sequenial order of creation, useful to keep track of structure ??
 ! propointer: link to properties for this endmember
 ! nextem: link to next endmember
 ! intponter: root of interaction tree of parameters
@@ -1141,10 +1141,25 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer status,antalint,order
      TYPE(gtp_property), pointer :: propointer
      TYPE(gtp_interaction), pointer :: nextlink,highlink
+     TYPE(gtp_tooprec), pointer :: tooprec
      integer, dimension(:), allocatable :: sublattice,fraclink,noofip
   END TYPE gtp_interaction
 ! allocated dynamically and linked from endmember records and other
 ! interaction records (in a binary tree)
+!\end{verbatim}
+!--------------------------------------------------------------------------
+!\begin{verbatim}
+! this constant must be incremented when a change is made in gtp_phasetuple
+  INTEGER, parameter :: gtp_tooprec_version=1
+  TYPE gtp_tooprec
+! this indicates that an binary interaction parameter has Kohler/Toop model
+! and which constituents are involved.  There can be several for each binary
+! this record is shared by 3 binary interactions with 3 separate nextlinks
+     type(gtp_tooprec), pointer :: next1,next2,next3
+! const1, const2 and const3 arranged alphabetically, toop=1,2,3 (0 if Kohler)
+! extra unused ...
+     integer toop,const1,const2,const3,extra
+  end type gtp_tooprec
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -1305,6 +1320,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !     type(gtp_tpfun_as_coeff), pointer :: nextcrec
   end type gtp_tpfun_as_coeff
 !
+!--------------------------------------------------------------------------
   INTEGER, parameter :: gtp_tpfun2dat_version=1
   TYPE gtp_tpfun2dat
 ! this is a temporary storage of TP functions converted to arrays of

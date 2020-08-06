@@ -1238,6 +1238,10 @@
 858 format('#set title "',a,' \n #',a,'" font "',a,',10" ')
 859 format('set title "',a,' \n ',a,'" font "',a,',10" ')
     lz=graphopt%linetype
+! replace _ and & in axis texts by "\_" and "\&"
+!    write(*,*)'Replacing _ and &: ',trim(pltax(2))
+    call replace_uwh(pltax(1))
+    call replace_uwh(pltax(2))
     if(isoplethplot) then
        write(21,8601)graphopt%xsize,graphopt%ysize,&
             trim(pltax(1)),trim(pltax(2)),trim(labelkey),&
@@ -2266,6 +2270,7 @@
        call replace_uwh(conditions)
        write(21,129)trim(title),trim(conditions),trim(graphopt%font)
     endif
+    call replace_uwh(pltax(1))
     write(21,130)graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(labelkey)
 128 format('#set title "',a,' \n #',a,'" font "',a,',10"')
@@ -2274,6 +2279,7 @@
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/&
          'set key ',a)
+    call replace_uwh(pltax(2))
     if(plotgt) then
 ! OC logo added by Catalina Pineda
 ! when Gibbs triangle the ylabel and logo must be placed carefully
@@ -3628,7 +3634,7 @@
     character*(*) applines(nofapl),color(*)
     integer appcol(*)
 !\end{verbatim}
-    integer i1,j1,k1,nols,ip,jp,found,oldls,newls
+  integer i1,j1,k1,nols,ip,jp,found,oldls,newls
     integer, parameter :: mofapl=100
     integer nyttls(nofapl)
     character endofline*(2),title*24
@@ -3841,7 +3847,7 @@
 !    write(*,*)'vix mm: ',vix,(ixpos(vix),vix=1,nix)
 1000 continue
     return
-  end 
+  end subroutine stvarix
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -3849,6 +3855,7 @@
 !\begin{verbatim}
   subroutine replace_uwh(text)
 ! replaces underscore by a hyphen for texts used in GNUPLOT
+! replaces ampersand, &, by @
     implicit none
     character*(*) text
 !\end{verbatim}
@@ -3860,9 +3867,15 @@
        if(jj.gt.0) text(jj:jj)='-'
        jj=index(text,'_')
     enddo
+    jj=-1
+    do while(jj.ne.0)
+! replace & by z in lid because & is treated strangely by GNUPLOT
+       if(jj.gt.0) text(jj:jj)='%'
+       jj=index(text,'&')
+    enddo
 !    write(*,*)'SMP2B text without "_": ',trim(text)
     return
-  end
+  end subroutine replace_uwh
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

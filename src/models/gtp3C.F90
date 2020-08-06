@@ -1623,11 +1623,19 @@
    integer, dimension(maxsubl) :: endm,ilist
    logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap
+! to list Kohler/toop ternaries
+   TYPE gtp_tooplist
+      type(gtp_tooplist), pointer :: nextoop
+      type(gtp_tooprec), pointer :: tooprec
+   end type gtp_tooplist
+   type(gtp_tooplist), allocatable, target :: tooplist
+   type(gtp_tooplist), pointer :: tooplistatop,tooptemp
 ! a smart way to have an array of pointers
    TYPE intrecarray 
       type(gtp_interaction), pointer :: p1
    end TYPE intrecarray
-   type(intrecarray), dimension(20) :: intrecstack
+   integer, parameter :: maxstack=20
+   type(intrecarray), dimension(maxstack) :: intrecstack
    type(gtp_property), pointer :: proprec
    type(gtp_interaction), pointer :: intrec
    type(gtp_endmember), pointer :: endmemrec
@@ -1663,6 +1671,8 @@
 ! this indicates if there is a disordered fraction set
       special(kkk:kkk)='D'; kkk=kkk+1
    endif
+! this is used to indicate if there are Toop/Kohler excess models
+   nullify(tooplistatop)
    lokcs=phlista(lokph)%linktocs(ics)
 !   write(*,*)'3C order: ',btest(firsteq%phase_varres(lokcs)%status2,CSORDER),&
 !        btest(phlista(lokph)%status1,PHSUBO),kkk
@@ -1911,7 +1921,44 @@
       nint=0
       intlist2: do while(associated(intrec))
          nint=nint+1
+         if(nint.gt.maxstack) then
+            write(*,*)'3C overflow in intrecstack 1'
+            gx%bmperr=4399; goto 1000
+         endif
          intrecstack(nint)%p1=>intrec
+         if(associated(intrec%tooprec)) then
+! we should collect all Toop/Kohöer tooprec and list them after the phase
+            write(*,*)'3C found a Toop/Kohler record'
+            if(.not.associated(tooplistatop)) then
+! create first tooplist record and set nextoop to point at itself
+               allocate(tooplist)
+               tooplistatop=>tooplist
+! A circular list, next point at itself ...
+               write(*,*)'3C set next to itself'
+               tooplistatop%nextoop=>tooplistatop
+               write(*,*)'3C set tooplist%tooprec to tooprec'
+               tooplist%tooprec=>intrec%tooprec
+               tooptemp=>tooplist
+               write(*,*)'3C toop/kohler 1: ',tooptemp%tooprec%const1,&
+                    tooptemp%tooprec%const2,tooptemp%tooprec%const3
+            else
+! we have already a tooplist record, save current next and allocate new next
+               tooptemp=>tooplistatop%nextoop
+               allocate(tooplist%nextoop)
+               tooplist%nextoop%tooprec=>intrec%tooprec
+               tooplist%nextoop=>tooptemp
+               tooplistatop=>tooptemp
+               write(*,*)'3C toop/kohler 2: ',tooptemp%tooprec%const1,&
+                    tooptemp%tooprec%const2,tooptemp%tooprec%const3
+            endif
+! list all records in tooplistatop ...
+            tooptemp=>tooplistatop%nextoop
+            do while(.not.associated(tooplistatop,tooptemp))
+               write(*,*)'3C toop/kohler 3: ',tooptemp%tooprec%const1,&
+                    tooptemp%tooprec%const2,tooptemp%tooprec%const3
+               tooptemp=>tooptemp%nextoop
+            enddo
+         endif
          lint(1,nint)=intrec%sublattice(1)
          kkk=intrec%fraclink(1)
          if(parlist.eq.2) then
@@ -2090,6 +2137,10 @@
       if(ocv()) write(*,*)'Jump back to list disordered',nsl,parlist
       goto 100
    endif
+! Check if there are toop/kohler ternaries
+   if(associated(tooplistatop)) then
+      write(*,*)'3C there are Toop/Kohler ternaries'
+   endif
 1000 continue
    return
  END subroutine list_phase_data
@@ -2117,7 +2168,8 @@
    TYPE intrecarray 
       type(gtp_interaction), pointer :: p1
    end TYPE intrecarray
-   type(intrecarray), dimension(20) :: intrecstack
+   integer, parameter :: maxstack=20
+   type(intrecarray), dimension(maxstack) :: intrecstack
    type(gtp_property), pointer :: proprec
    type(gtp_interaction), pointer :: intrec
    type(gtp_endmember), pointer :: endmemrec
@@ -2423,6 +2475,10 @@
       nint=0
       intlist2: do while(associated(intrec))
          nint=nint+1
+         if(nint.gt.maxstack) then
+            write(*,*)'3C overflow in intrecstack 2'
+            gx%bmperr=4399; goto 1000
+         endif
          intrecstack(nint)%p1=>intrec
          lint(1,nint)=intrec%sublattice(1)
          kkk=intrec%fraclink(1)

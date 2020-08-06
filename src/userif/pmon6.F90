@@ -93,6 +93,8 @@ contains
 ! graphics record for plot ranges, texts and defaults
     type(graphics_options) :: graphopt
     integer grunit
+! species for ternary extrapolation model
+    character xspecies(3)*24
 ! path to start directory stored inside metlib!!
 !    character macropath*128
 ! plot texts
@@ -308,7 +310,7 @@ contains
     character (len=16), dimension(ncamph) :: camph=&
          ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
          'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
-         '                ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
+         'TERNARY_EXTRAPOL','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
          '                ','GADDITION       ','AQUEUS_MODEL    ',&
          'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
          '                ','                ','QUIT            ']
@@ -657,7 +659,8 @@ contains
           write(kou,*)trim(htmlfile)
           htmlhelp=.FALSE.
        else
-          write(kou,*)'Online help provided by your browser using ochelp.html'
+          write(kou,*)'Online help by '//trim(browser)//&
+               ' and ochelp.html'
        endif
 ! default directory for databases
        ocbase=trim(ochome)//'/databases'
@@ -924,11 +927,12 @@ contains
           amendphase: SELECT CASE(kom3)
 ! subsubcommands to AMEND PHASE
 !         ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
-!         '                ','                ','DEFAULT_CONSTIT ',&
-!         '                ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
+!         'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
+!         'TERNARY_EXTRAPOL','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
 !         '                ','GADDITION       ','AQUEUS_MODEL    ',&
 !         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
 !         '                ','                ','QUIT            ']
+! old
 !....................................................
           CASE DEFAULT
              write(kou,*)'Amend phase subcommand error'
@@ -1120,7 +1124,35 @@ contains
 ! to change default constitution of any composition set give #comp.set.
              call ask_default_constitution(cline,last,iph,ics,ceq)
 !....................................................
-          case(7) ! moved
+          case(7) ! TERNARY-EXTRAPOL
+             dummy='Kohler'
+             do while(.true.)
+                call gparcdx('Ternary extrapolation (K, T or Q to quit)',&
+                     cline,last,1,ch1,dummy,'?Ternary extrapol')
+                dummy='Q'
+                if(ch1.eq.'Q') then
+                   goto 100
+                elseif(.not.(ch1.eq.'K' .or. ch1.eq.'T')) then
+                   write(kou,*)'Use K for Kohler or T for Toop or Q to Quit'
+                else
+                   if(ch1.eq.'T') then
+                      call gparcx('Toop constituent: ',cline,last,1,&
+                           xspecies(1),' ','?Ternary extrapol')
+                   else
+                      call gparcx('First constituent: ',cline,last,1,&
+                           xspecies(1),' ','?Ternary extrapol')
+                   endif
+                   call gparcx('Second constituent: ',cline,last,1,&
+                        xspecies(2),' ','?Ternary extrapol')
+                   call gparcx('Third constituent: ',cline,last,1,&
+                        xspecies(3),' ','?Ternary extrapol')
+! lokph is index of phase record, error checks inside subroutine
+! is is in gtp3H.F90
+                   call add_ternary_extrapol_model(lokph,ch1,xspecies)
+                   if(gx%bmperr.ne.0) goto 990
+                   write(*,*)'Not implemeneted yet'
+                endif
+             enddo
 !....................................................
 !\hypertarget{Amend FCC-permutations}{}
           case(8) ! amend phase ... FCC_PERMUTATIONS
@@ -2416,17 +2448,31 @@ contains
 !.................................................................
           case(9) ! WORKING DIRECTORY
              write(kou,*)'Current working directory: ',trim(workingdir)
-             write(kou,*)'To change please give full path'
+             write(kou,*)'To change please select a TDB file in the directory'
 ! try to set current working directory as input to allow editing
-             cline=workingdir
-             last=len_trim(cline)
-             call gparcx('New: ',cline,last,1,string,trim(workingdir),&
-                  '?Set adv workdir')
+!             cline=workingdir
+!             last=len_trim(cline)
+!             call gparcx('New: ',cline,last,1,string,trim(workingdir),&
+!                  '?Set adv workdir')
+! The promt here is never displayed ...
+             call gparfilex('Select new working directory',&
+                  cline,last,1,string,' ',1,'?Set adv workdir')
              inquire(file=string,exist=logok)
              if(.not.logok) then
-                write(*,*)'No such directory'
+!                write(*,*)'No such directory: ',trim(string)
+                write(*,*)'No such directory '
              elseif(trim(workingdir).ne.trim(string)) then
-                write(*,'(a,a)')'Working directory set to: ',trim(string)
+! strip away any file name (up to last / or \)
+                j4=len_trim(string)
+                ch1=string(j4:j4)
+!                write(*,*)'P6 wdir: ',trim(string),' ',ch1,j4 
+                do while(j4.gt.0 .and. .not.(ch1.eq.'/' .or. ch1.eq.'\'))
+                   j4=j4-1
+                   ch1=string(j4:j4)
+!                   write(*,*)'P6 wdir: ',trim(string),' ',ch1,j4 
+                enddo
+                string(j4:)=' '
+                write(*,'(a,a)')'New directory: ',trim(string)
                 workingdir=string
              endif
 !             write(*,*)'Cannot be changed'
@@ -2750,7 +2796,7 @@ contains
 !-------------------------------------------------------------
        case(11) ! set LOG_FILE
 ! tinyfiles_dialog has difficult returning a non-existant file name
-! the argument "-8" means a log file for output
+! the argument "-8" means open a log file for output
           maptopbug=.true.
           if(associated(maptop)) then
 !             write(*,*)'PMON maptop bug 1A?',associated(maptop)

@@ -2342,7 +2342,7 @@
 ! if g2val is positive we are in the amorphous region
 ! if g2val is negative we are in the liquid region
 ! The if statements here ensure expmg2 is between 1e-60 and 1e+60
-   write(*,'(a,6(1pe12.4))')'3H g2val: ',g2val,dg2dt,-g2val/rt
+!   write(*,'(a,6(1pe12.4))')'3H g2val: ',g2val,dg2dt,-g2val/rt
    if(-g2val/rt.gt.2.0D2) then
 ! LIQUID REGION exp(200) >> 1, thus d2g=ln(1+exp(g2val))=g2val
 ! and the derivatives are those above. DIVIDED BY RT?
@@ -2387,8 +2387,8 @@
         ((g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt)*expg2/&
         (rt*(one+expg2)**2))/rt
 700 continue
-   write(*,705)'3H 2SL: ',g2val/rt, dg2, dgfdt, dgfdt, d2g2dt2, tv,&
-        rt, expg2, dg2dt, msize, d2g2dt2*rt
+!   write(*,705)'3H 2SL: ',g2val/rt, dg2, dgfdt, dgfdt, d2g2dt2, tv,&
+!        rt, expg2, dg2dt, msize, d2g2dt2*rt
 705 format(a,6(1pe12.4)/8x,6(1pe12.4))
 ! THIS IS THE SUBROUTINE USED FOR 2STATE LIQUID
 ! This should be OK/ 2020.02.27
@@ -3002,14 +3002,16 @@
       chc='$ '
    endif
 !
-   if(.not.btest(lokadd%status,ADDHAVEPAR)) then
+!   if(.not.btest(lokadd%status,ADDHAVEPAR)) then
 ! skip additions with no parameters for this phase
+! REMOVED THIS because it creates confusion
+! If parameters added before addition specified then ADDHAVEPAR is not set
 !      write(*,*)chc,'3H No parameters for addition: ',&
 !           trim(additioname(lokadd%type))
-      goto 1000
+!      goto 1000
 !   else
 !      write(*,*)'3H status word for this addition: ',lokadd%status
-   endif
+!   endif
    addition: select case(lokadd%type)
    case default
       write(unit,*)'Unknown addtion type: ',phname,lokadd%type
@@ -3134,5 +3136,155 @@
    return
  end subroutine list_addition_values
 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine add_ternary_extrapol_model
+!\begin{verbatim} %-
+ subroutine add_ternary_extrapol_model(lokph,typ,species)
+! add a Toop or Kohler extrapolation model for a ternary subsystem to a phase
+! interactive or from database
+   implicit none
+   integer lokph
+   character typ*1,species(3)*24
+!\end{verbatim}
+   integer jj,kk,loksp,tint(3),toop,done
+   type(gtp_endmember), pointer :: endmem
+   type(gtp_interaction),pointer :: intrec
+   type(gtp_tooprec), allocatable, target :: tooprec
+!
+!   write(*,*)'In add_ternary_extrapol_model ',typ,lokph,' ',trim(species(1))
+   if(phlista(lokph)%noofsubl.gt.1) then
+      write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
+      gx%bmperr=4399; goto 1000
+   endif
+   if(associated(phlista(lokph)%disordered)) then
+      write(*,*)'3H Kohler/Toop not allowed for phases with disordered set'
+      gx%bmperr=4399; goto 1000
+   endif
+   if(.not.(typ.eq.'K' .or. typ.eq.'T')) then
+      write(*,*)'3H illegal extrapolation model: ',typ
+      gx%bmperr=4399; goto 1000
+   endif
+! find the 3 constituents in the same sublattice in the phase
+! they can be in any order
+   all3: do jj=1,3
+      call find_species_record_noabbr(species(jj),loksp)
+      if(gx%bmperr.ne.0) goto 1000
+! check if it is a constituent
+      isconst: do kk=1,size(phlista(lokph)%constitlist)
+!         write(*,'(a,5i5)')'3H constituent?',jj,kk,&
+!              phlista(lokph)%constitlist(kk),loksp
+         if(loksp.eq.phlista(lokph)%constitlist(kk)) then
+! I should check they are in the same sublattice ... but            
+            tint(jj)=kk; cycle all3
+         endif
+      enddo isconst
+! a constituent not found
+      write(*,*)'3H no such constituent: ',jj,species(jj)
+      gx%bmperr=4399; goto 1000
+   enddo all3
+   write(*,'(a,3i4)')'3H found constituents: ',tint
+! check no duplicate
+   if(tint(1).eq.tint(2) .or. tint(1).eq.tint(3) .or. tint(2).eq.tint(3)) then
+! we have now enough for a record: type and constituent indices ...
+      write(*,*)'3H Same element twice not allowed'
+      gx%bmperr=4399; goto 1000
+   endif
+! sort then in numerical order (clumsy but not time-critical)
+   toop=0
+   if(typ.eq.'T') toop=1
+   if(tint(1).gt.tint(2)) then
+      jj=tint(1); tint(1)=tint(2); tint(2)=jj
+      if(toop.eq.1) toop=2
+   endif
+! now 1 < 2
+   if(tint(2).gt.tint(3)) then
+      jj=tint(2); tint(2)=tint(3); tint(3)=jj
+      if(toop.eq.2) toop=3
+   endif
+! now 3 > (1,2)
+   if(tint(1).gt.tint(2)) then
+      jj=tint(1); tint(1)=tint(2); tint(2)=jj
+      if(toop.eq.1) toop=2
+   endif
+! now 1 < 2 < 3 ??
+   write(*,'(a,i4,": ",3i4)')'3H sorted constituents: ',toop,tint
+   allocate(tooprec)
+   tooprec%toop=toop
+   tooprec%const1=tint(1)
+   tooprec%const2=tint(2)
+   tooprec%const3=tint(3)
+   nullify(tooprec%next1); nullify(tooprec%next2); nullify(tooprec%next3)
+! now we have to find the interaction records ... suck
+! Some binary parameter may not have an interaction record.   
+! there must be a check if this ternary is not a duplicate, if so delete old
+   write(*,*)'3H no search for interaction records ... yet'
+! disordered fraction set not allowed
+   endmem=>phlista(lokph)%ordered
+! check if endmember contains lowest constituent index
+! REMEMBER we have a substitutional model, no sublattices
+   findem: do while(endmem%fraclinks(1,1).lt.tint(1))
+      endmem=>endmem%nextem;
+      if(associated(endmem)) then
+         cycle findem
+      else
+         write(*,*)'3H no endmember 1 for: ',lokph,tint(1)
+         gx%bmperr=4399; goto 1000
+      endif
+   enddo findem
+! as we already verified tint(1) is a constituent endmem should not be null ...
+   write(*,*)'3H Found endmember ',tint(1)
+   done=1
+   intrec=>endmem%intpointer
+! interaction is binary, can be tint(2) or tint(3), there is no order
+! a binary interaction parameter can be missing
+500 continue
+! There is only a single set of sites
+   if(intrec%fraclink(1).eq.tint(2)) then
+! interaction 1-2
+      done=done+1
+      write(*,*)'3H Found interaction ',tint(1),tint(2),done
+      intrec%tooprec=>tooprec
+   elseif(intrec%fraclink(1).eq.tint(3)) then
+! interaction 1-3
+      done=done+1
+      write(*,*)'3H Found interaction ',tint(1),tint(3),done
+      intrec%tooprec=>tooprec
+   endif
+   if(done.lt.3) then
+      intrec=>intrec%nextlink
+      if(associated(intrec)) goto 500
+   endif
+! it is no error if there is an interaction record missing   
+   if(done.eq.2) write(*,*)'3H An interaction in Toop/Kohler is zero',done
+! now search for endmember for tint(2)
+   findem2: do while(endmem%fraclinks(1,1).lt.tint(2))
+      endmem=>endmem%nextem;
+      if(associated(endmem)) then
+         cycle findem2
+      else
+         write(*,*)'3H no endmember 2 for: ',lokph,tint(2)
+         gx%bmperr=4399; goto 1000
+      endif
+   enddo findem2
+! as we already verified tint(2) is a constituent endmem should not be null ...
+   done=1
+   intrec=>endmem%intpointer
+! interaction is binary, can only be tint(3)
+! a binary interaction parameter can be missing
+   do while(associated(intrec))
+! interaction 2-3
+      if(intrec%fraclink(1).eq.tint(3)) then
+         write(*,*)'3H Found interaction ',tint(2),tint(3)
+         intrec%tooprec=>tooprec
+         goto 1000
+      else
+         intrec=>intrec%nextlink
+      endif
+   enddo
+1000 continue
+   return
+ end subroutine add_ternary_extrapol_model
+ 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

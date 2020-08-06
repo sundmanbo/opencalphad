@@ -1375,6 +1375,9 @@
    nullify(intrec%propointer)
    nullify(intrec%nextlink)
    nullify(intrec%highlink)
+! nullify Kohler-Toop link
+!   write(*,*)'3G nullifying tooprec pointer'
+   nullify(intrec%tooprec)
    intrec%status=0
    noofint=noofint+1
    intrec%antalint=noofint
@@ -1574,8 +1577,8 @@
       endif
    endif
    nsl=phlista(lokph)%noofsubl
-   if(ndl.le.0 .or. ndl.gt.nsl) then
-! ndl must be larger than 0 and lesser or equal to nsl
+   if(ndl.le.1 .or. ndl.gt.nsl) then
+! ndl must be larger than 2 and lesser or equal to nsl
       gx%bmperr=4076; goto 1000
    endif
 ! location of first composition set, there may be more
@@ -1662,6 +1665,13 @@
 ! one or 2 disordered sublattices
    nnn=1
    if(ndl.lt.nsl) nnn=2
+! try to allow more than one interstitial sublattice ... NO
+   if(nsl-ndl.gt.1) then
+      write(*,*)'3G *** Error max one sublattices outside the disordered set'
+      gx%bmperr=4399
+      goto 1000
+   endif
+!   write(*,'(a,10i5)')'3G disordered sublattices:',nsl,ndl,nnn,fsdata%latd
    allocate(fsdata%dsites(nnn))
    fsdata%ndd=nnn
    allocate(fsdata%nooffr(nnn))

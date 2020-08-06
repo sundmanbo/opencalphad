@@ -1034,7 +1034,10 @@ end function find_phasetuple_by_indices
       if(kcs.eq.0) then
 ! no composition set specified explicitly, all sets must be checked
          fcs=2; lcs=phlista(lokph)%noofcs
+!      elseif(kcs.eq.1) then
+!         fcs=1; lcs=1
       elseif(kcs.le.phlista(lokph)%noofcs) then
+! we shoud check pre and suffix ...
          fcs=max(2,kcs); lcs=kcs
       else
 ! this phase does not have a composition set kcs
@@ -1058,6 +1061,7 @@ end function find_phasetuple_by_indices
          endif
       endif
 ! if composition set specified check only that set, otherwise all from 2
+!      write(*,*)'3A first1: ',first1,fcs,lcs
       loop2: do jcs=fcs,lcs
          lokcs=phlista(lokph)%linktocs(jcs)
          csrec=>firsteq%phase_varres(lokcs)
@@ -1101,6 +1105,7 @@ end function find_phasetuple_by_indices
          endif
       enddo loop2
    enddo loop1
+!   write(*,*)'3A first1: ',first1
    if(first1.eq.0) then
 ! no phase found
       gx%bmperr=4050

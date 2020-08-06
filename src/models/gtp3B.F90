@@ -1953,6 +1953,7 @@
    lokcs=phlista(lokph)%linktocs(1)
    disfra=firsteq%phase_varres(lokcs)%disfra
 ! number of sublattices in the disordered set
+!   write(*,*)'3C disorered ',nsl,disfra%ndd
    if(nsl.ne.disfra%ndd) then
       gx%bmperr=4069; goto 1000
    endif

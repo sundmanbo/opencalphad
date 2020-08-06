@@ -7697,9 +7697,9 @@ CONTAINS
  !   TYPE(meq_phase), pointer :: pmi
     TYPE(gtp_condition), pointer :: pcond
     integer iel,mph,jj,nterm,errall
-    double precision xxx,sumam,summass,sumvol
+    double precision xxx,sumam,summass,sumvol,s298
     double precision, allocatable :: svar(:)
-    character dum*128
+    character dum*128,elsym*2
 !
     value=zero
 !    write(*,*)'MM meq_state_var_dot_derivative 1'
@@ -7763,9 +7763,21 @@ CONTAINS
        if(svr1%statevarid.ge.6 .and. svr1%statevarid.lt.15 .and. &
             svr1%argtyp.eq.2) then
 !          write(*,*)'MM Single stoichiometric phase stable',iel,svr1%argtyp
+! nothing done?
           continue
        else
-          value=svar(1)*ceq%rtn
+          if(svr1%norm.eq.2) then
+! it is HW.T ....! where is mass of the phase?  Which phase?  Which element?
+!             write(*,*)'MM single phase stable which phase?'
+             if(noel().eq.1) then
+                call get_element_data(1,elsym,dum(1:24),dum(25:48),summass,&
+                     xxx,s298)
+                if(gx%bmperr.ne.0) goto 1000
+             endif
+             value=svar(1)*ceq%rtn/summass
+          else
+             value=svar(1)*ceq%rtn
+          endif
           goto 1000
        endif
     endif
@@ -7786,7 +7798,7 @@ CONTAINS
 ! CCI already corrected
     elseif(svr1%statevarid.ge.6 .and. svr1%statevarid.lt.15) then
 ! This is derivatives of U, S, etc, H has svr1%statevarid=9, oldstv=40
-! TO BE DONE: implement H(phase).T and normalizing 
+! Partly DONE: implement H(phase).T and normalizing 
        iel=0
        jj=1
        sumam=zero
