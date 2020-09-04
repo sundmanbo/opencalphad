@@ -1,4 +1,3 @@
-!
 ! gtp3H included in gtp3.F90
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
@@ -7,16 +6,17 @@
 ! Additions have a unique number, given sequentially as implemented 
 ! These are all defined in gtp3.F90
 !  integer, public, parameter :: INDENMAGNETIC=1
-!  integer, public, parameter :: XIONGMAGNETIC=2
 !  integer, public, parameter :: DEBYECP=3
+!  integer, public, parameter :: XIONGMAGNETIC=2
 !  integer, public, parameter :: EINSTEINCP=4
-!  integer, public, parameter :: TWOSTATESMODEL1=5
+!  integer, public, parameter :: TWOSTATEMODEL1=5
 !  integer, public, parameter :: ELASTICMODEL1=6
 !  integer, public, parameter :: VOLMOD1=7
 !  integer, public, parameter :: UNUSED_CRYSTBREAKDOWNMOD=8
 !  integer, public, parameter :: SECONDEINSTEIN=9
 !  integer, public, parameter :: SCHOTTKYANOMALY=10
 !  integer, public, parameter :: DIFFCOEFS=11
+!  integer, public, parameter :: TWOSTATEMODEL2=12
 !------------------------------------
 ! For each addition XX there is a subroutine create_XX
 ! called from the add_addrecord
@@ -46,11 +46,11 @@
    case default
       write(kou,*)'No such addition type ',addrec%type,lokph
       gx%bmperr=4330
-! !
+! 1 indenmagnetic
    case(indenmagnetic) ! Inden magnetic 
       addrec%propval=zero
       call calc_magnetic_inden(moded,phres,addrec,lokph,mc,ceq)
-! 2
+! 2 Debye Cp
    case(debyecp) ! Debye Cp
       addrec%propval=zero
       call calc_debyecp(moded,phres,addrec,lokph,mc,ceq)
@@ -67,17 +67,19 @@
       addrec%propval=zero
       call calc_einsteincp(moded,phres,addrec,lokph,mc,ceq)
 !      gx%bmperr=4331
-! 5
+! 5  
+   case(twostatemodel1) ! Two state model with composition variable G2
+      addrec%propval=zero
+!      write(*,*)'3H selecting calc_twostate_model1: ',mc
+      call calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
+! changed below not to calculate G2 as a mixing parameter
+!      call calc_twostate_model2(moded,phres,addrec,lokph,mc,ceq)
+! 6 
    case(elasticmodel1) ! Elastic model !
       addrec%propval=zero
       call calc_elastica(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Elastic model not implemented yet'
       gx%bmperr=4399
-! 6
-   case(twostatemodel1) ! Two state model
-      addrec%propval=zero
-!      write(*,*)'3H selecting calc_twostate_model1: ',mc
-      call calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
 ! 7
    case(volmod1) ! Simple volume model depending on V0, VA and VB
       addrec%propval=zero
@@ -99,6 +101,13 @@
       addrec%propval=zero
       call calc_diffusion(moded,phres,addrec,lokph,mc,ceq)
 !      gx%bmperr=4333
+! 12  see also 5, twostatemodel1 !
+   case(twostatemodel2) ! Two state model with composition independent G2
+      addrec%propval=zero
+!      write(*,*)'3H selecting calc_twostate_model1: ',mc
+!      call calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
+! changed not to calculate G2 as a mixing parameter
+      call calc_twostate_model2(moded,phres,addrec,lokph,mc,ceq)
    end select addition
 1000 continue
    return
@@ -172,13 +181,26 @@
 ! 4
       call create_einsteincp(newadd)
 !-----------------------------------------
-   case(elasticmodel1) ! Elastic model 1
-! 5
-      call create_elastic_model_a(newadd)
-!-----------------------------------------
    case(twostatemodel1) ! Liquid 2 state model
+! 5
+! NEW set bit to allow endmember parameter modification! Question asked in PMON6
+!      write(*,*)'3H setting bit ph2state: ',PH2STATE
+!      phlista(lokph)%status1=ibset(phlista(lokph)%status1,PH2STATE)
+!      write(*,*)'3H extra "',extra,'"'
+      if(extra(1:1).eq.'N') then
+         phlista(lokph)%status1=ibset(phlista(lokph)%status1,PH2STATE)
+         write(*,*)'3H G2 is assumed to be composition independent'
+         call create_newtwostate_model1(newadd)
+! return that the addition type has changed ...
+         addtyp=twostatemodel2
+      else
+         phlista(lokph)%status1=ibclr(phlista(lokph)%status1,PH2STATE)
+         call create_twostate_model1(newadd)
+      endif
+!-----------------------------------------
+   case(elasticmodel1) ! Elastic model 1
 ! 6
-      call create_twostate_model1(newadd)
+      call create_elastic_model_a(newadd)
 !-----------------------------------------
    case(volmod1) ! Volume model 1
 ! 7
@@ -1429,8 +1451,9 @@
 !\end{verbatim}
    integer ith,noprop,extreme,j1
    double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1,fact
-!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
-   double precision gein,dgeindt,d2geindt2,msize
+!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2,theta
+   double precision gein,dgeindt,d2geindt2,msize,theta,test
+   double precision addphm(6)
    logical addpermole
 !
    noprop=phres%listprop(1)-1
@@ -1448,15 +1471,17 @@
       gx%bmperr=4399; goto 1000
    endif
 ! NOTE the parameter value is ln(thera)! take the exponential!
-! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
-! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
+! ln(thet) is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
+! G/RT = 1.5*THET/T + 3*LN(1-exp(-THET/T)) 
 ! NOTE ALL VALUES CALCULATED AS FOR G/RT
 ! kvot=theta/T
    if(phres%gval(1,ith).gt.1.0D2) then
       write(*,*)'3H Probably wrong value of THET, parameter should be ln(THET)'
+      write(*,*)'3H error in phase: ',trim(phlista(lokph)%name)
       gx%bmperr=4399; goto 1000
    endif
 ! The exp( ) because the parameter value is LN(THETA)   
+   theta=exp(phres%gval(1,ith))
    kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
 !   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
 !        phres%gval(3,1),phres%gval(4,1),kvot
@@ -1482,18 +1507,21 @@
       kvotexpkvotm1=kvot/(exp(kvot)-one)
       ln1mexpkvot=log(one-expmkvot)
    else
-! normal range of T and kvot
+! range of T and kvot where value varies, take care of composition derivatives
       extreme=0
       expmkvot=exp(-kvot)
       kvotexpkvotm1=kvot/(exp(kvot)-one)
       ln1mexpkvot=log(one-expmkvot)
+!      ln1mexpkvot=log(exp(kvot)-one)
    endif
-! kvot is +THETA/T; gein is integrated contribution to the Gibbs energy
+! kvot is +THETA/T; gein is integrated cp contribution to the Gibbs energy
+! gein is Einsten contribution/RT
    gein=1.5D0*kvot+3.0D0*ln1mexpkvot
 !   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
 !        kvotexpkvotm1
 ! first derivative wrt T taking care of overflow
    dgeindt=3.0D0*(ln1mexpkvot-kvotexpkvotm1)/ceq%tpval(1)
+! second derivative wrt T
 ! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
    if(extreme.eq.-1) then
 ! take care of overflow at low T, kvotexpkvotm1=expmkvot=0 set above
@@ -1501,13 +1529,7 @@
    else
       d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
    endif
-! first derivative for each constituent. The parameter value is ln(theta)
-! and we should divide by RT
-   fact=1.5D0*kvot+3.0D0*kvotexpkvotm1
-   do j1=1,mc
-      phres%dgval(1,j1,1)=phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith)
-   enddo
-! NOTE if addpermole bit set we have to multiply with derivatives of
+!   NOTE if addpermole bit set we have to multiply with derivatives of
 ! the size of the phase ...
    if(btest(addrec%status,ADDPERMOL)) then
       addpermole=.TRUE.; msize=phres%abnorm(1)
@@ -1516,6 +1538,42 @@
       addpermole=.FALSE.; msize=one
 !      write(*,'(a,i4,l2,1pe12.4)')'3H msize lowT: ',lokph,addpermole,msize
    endif
+! BEGIN NEW CODE ---------------------------------------------------------
+! wrong G^Ein/RT = gein = 1.5*THETA/T + 3*LN(exp(THETA/T) - 1) 
+! G^Ein/RT = gein = 1.5*THETA/T + 3*LN(1-exp(-THETA/T)) 
+! where z=ln(THETA); THETA=exp(z); z depend on composition; kvot=THETA/T
+! we have dz/dy_i etc in phres%dgval(1,i,ith); (note z does not depend on T)
+!         d2z/dy_idy_j in phres%d2gval(ixsym(i,j))
+!
+! wrong G^Ein = RT*(G^Ein/RT) = 1.5*R*T*kvot + 3*R*T*ln(exp(kvot) - 1); 
+!          kvot=THETA/T
+! G^Ein = 1.5*R*THETA + 3*R*T*ln(1-exp(-THETA/T)); THETA=exp(z(y_i))
+!
+! dG^Ein/dy_i=1.5*R*dTHETA/dy_i+3*R*exp(-THETA/T)/(1-exp(-THETA/T))*dTHETA/dy_i
+!     = (1.5+3*exp(-THETA/T)/(exp(-THETA/T)-1))*R*dTHETA/dy_i
+! Composition derivative of the Einstein function is
+! dEin/dy_i/RT = ((1.5+3*exp(-THETA/T)/(exp(-THETA/T)-1)/T)*dTHETA/dy_i
+! dTHETA/dy_i = exp(z)*dz/y_i = THETA*dz/dy_i
+! dEin/dy_i/RT = ((1.5+(3/T)*exp(-THETA/T)/(1-exp(-THETA/T)))*(THETA/T)*dz/dy_i
+! dTHETA/dy_i = exp(z)*dz/y_i = THETA*dz/y_i
+! REMEMBER kvot=THET/T; expmkvot=exp(-kvot); gasconstant R=globaldata%rgas
+! as I want NOTE expmkvot is exp(-kvot) !! NOW IT WORKS !!! SUCK
+   fact=1.5D0*(one+expmkvot)/(one-expmkvot)*kvot
+! the curve below better, correct shape ...
+!   write(*,77)'3H Einstein dE/dy',lokph,1,theta,phres%dgval(1,1,ith),fact,&
+!        phres%dgval(1,1,1),phres%dgval(1,1,1)+fact*phres%dgval(1,1,ith)
+77 format(a,2i2,5(1pe12.4))
+   do j1=1,mc
+!     write(*,77)'3H Einstein dE/dy',lokph,j1,theta,phres%dgval(1,j1,ith),fact,&
+!           phres%dgval(1,j1,1),phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith)
+      phres%dgval(1,j1,1)=msize*(phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith))
+!      test=test+fact*phres%dgval(1,j1,ith)
+   enddo
+! This seems a small efect, ignore second derivatives ...
+!
+! END NEW CODE ----------------------------------------------------------
+! debug value of G
+!   write(*,77)'3H Einstein theta',lokph,0,theta,gein,test,msize
 ! return the values in phres%gval(*,1)
    phres%gval(1,1)=phres%gval(1,1)+msize*gein
    phres%gval(2,1)=phres%gval(2,1)+msize*dgeindt
@@ -1532,10 +1590,91 @@
 !
 ! NOTE Missing implementation of derivatives wrt comp.dep of THET.
 ! the THET parameter cannot depend on T
+!   write(*,*)'3H calc_einsteincp not including composition dependence of thet'
+! addphm should be G^phys, dG^phys/dT, dG^phys/dP, d2G^phys/dT^2 etc
+   addphm=zero
+   addphm(1)=gein
+   addphm(2)=dgeindt
+   addphm(4)=d2geindt2
+   call add_size_derivatives(moded,phres,addphm,lokph,mc,ceq)
 !
 1000 continue
    return
  end subroutine calc_einsteincp
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine add_size_derivatives
+!\begin{verbatim}
+ subroutine add_size_derivatives(moded,phres,addphm,lokph,mc,ceq)
+! Many physical models are defined per mole of atoms, as the Gibbs energy
+! is calculate per mole formula unit this routine will handle the
+! additional derivatives needed when M*ADD(1 mole)
+! mc is number of constituent variables
+! addphm(1..6) is G, dG/dt, dG/dp, d2G/dt2, d2G/dtdp, d2G/dp2 for the addition
+   implicit none
+   integer moded,lokph,mc
+   type(gtp_phase_varres), pointer :: phres
+!   type(gtp_phase_add), pointer :: addrec
+   type(gtp_equilibrium_data), pointer :: ceq
+   double precision addphm(6)
+!\end{verbatim} %+
+   integer i1,i2,j1,j2,jxsym,k,s1,s2
+   double precision site1,site2
+! Moles of constituents per mole formula units is:
+! M = \sum_s a_s \sum_i y_si; dM/dy = a_s
+! what about disordered fraction sets? ignore .... UNFINISHED??
+! sites are in phres%sites
+! number of constituents in siblattice s is in phlista(lokph)%nooffr(s)
+   goto 1000
+   write(*,*)'3H inside add_size_derivatives',lokph,addphm(1)
+   s1=1
+   s2=1
+   site1=phres%sites(s1)
+   j1=1
+   do i1=1,mc
+!
+! G^phy_M = N*G^phy_m (already done)
+! dG^phy_M/dyi = (dN/dyi)*G^phy_m  + N*(dG^phy_m/dyi) ??
+! d2G/dyidyj = (dN/dyi)*(dGm/dyj)+(dN/dyj)*(dGm/dyi)+N*(d2Gm/dyidyj) ignore
+! dN/dyi = a_s for sublattice s with constituent i 
+! and d2N/dyidyj = 0
+!
+! I am not sure about this routine ....
+!
+! dGM/dyi = (dN/dyi)*Gm  (+N*(dGM/dyi) already done)
+      do k=1,3
+! this is dG/dy and d2G/dtdy and d2G/dpdy (k=1,2,3)
+         phres%dgval(k,i1,1)=phres%dgval(k,i1,1)+site1*addphm(k)
+      enddo
+      write(*,*)'3H addition to mu',i1,site1*addphm(1)
+!      write(*,*)'3H ignoring 2nd derivatives of size'
+!+      j2=1
+!+      site2=phres%sites(s2)
+!+      do i2=i1,mc
+! For the moment ignore all second derivatives !!
+! no second derivatives wrt same constituents twice
+!+        if(i2.gt.i1) then
+!+            site2=phres%sites(s2)
+!+            jxsym=kxsym(i1,i2)
+! d2G/dyidyj = (dN/dyi)*(dGm/dyj)+(dN/dyj)*(dGm/dyi) (+N*(d2Gm/dyidyj) done)
+!+            phres%d2gval(jxsym,1)=phres%d2gval(jxsym,1)+site1*site2*addphm(1)
+!+         endif
+!+         j2=j2+1
+!+         if(j2.gt.phlista(lokph)%nooffr(s2)) then
+!+            j2=1; s2=s2+1
+!+            if(s2.le.phlista(lokph)%noofsubl) site2=phres%sites(s2)
+!+         endif
+!+      enddo
+      j1=j1+1
+      if(j1.gt.phlista(lokph)%nooffr(s1)) then
+         j1=1; s1=s1+1
+         if(s1.le.phlista(lokph)%noofsubl) site1=phres%sites(s1)
+      endif
+   enddo
+1000 continue
+   return
+ end subroutine add_size_derivatives
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1901,7 +2040,7 @@
 ! The second is a term - RT*(1+exp(G2/RT))
 ! which represent the change from "solid like" to "liquid like"
 !-----------------------------
-! I am not sure what is is used for
+! I am not sure what this is used for
    addrecs=addrecs+1
    addrec%addrecno=addrecs
 ! property needed
@@ -1918,6 +2057,46 @@
 !   write(*,*)'Created two state liquid record'
    return
  end subroutine create_twostate_model1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine create_twostate_model1
+!\begin{verbatim}
+ subroutine create_newtwostate_model1(addrec)
+! newadd is location where pointer to new addition record should be stored
+   implicit none
+   type(gtp_phase_add), pointer :: addrec
+!\end{verbatim} %+
+   integer typty
+! this is bad programming as it cannot be deallocated but it will never be ...
+! maybe pointers can be deallocated?
+   allocate(addrec)
+! nullify pointer to next addition
+   nullify(addrec%nextadd)
+!-----------------------------
+! The model consists of two contributions
+! The first is the harmonic vibrations of an ideal amprthous phase
+!     this requires a THETA representing the Einstein T
+! The second is a term - RT*(1+exp(G2/RT))
+! which represent the change from "solid like" to "liquid like"
+!-----------------------------
+! I am not sure what this is used for
+   addrecs=addrecs+1
+   addrec%addrecno=addrecs
+! property needed G2 is not needed as composition independent
+   allocate(addrec%need_property(1))
+!   call need_propertyid('G2  ',typty)
+!   addrec%need_property(1)=typty
+   call need_propertyid('THETA  ',typty)
+   addrec%need_property(1)=typty
+! type of addition  this is 12
+   addrec%type=twostatemodel2
+! store zero.  Used to extract current value of this property
+   addrec%propval=zero
+1000 continue
+!   write(*,*)'Created two state liquid record ',twostatemodel2
+   return
+ end subroutine create_newtwostate_model1
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1960,6 +2139,8 @@
    double precision expmg2p1,msize
    logical addpermole
 ! This is Johns original model
+   write(*,*)'3H THIS VERSION OF TWOSTATE MODEL SHOULD NOT BE USED!'
+   stop
 ! number of properties calculatied
    noprop=phres%listprop(1)-1
 ! locate the THET and G2 property record 
@@ -2214,6 +2395,7 @@
    double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgfdt,d2g2dt2
    double precision expmg2p1,fact,g2sum,msize
    double precision, allocatable :: mux(:)
+   integer, save :: maxwarnings=0
 ! number of properties calculatied
    noprop=phres%listprop(1)-1
 ! locate the THET and G2 property record 
@@ -2241,13 +2423,16 @@
    enddo findix
    if(ith.eq.0) then
 !      write(*,*)'3H Cannot find value for amorphous THET'
-      write(*,*)'3H warning: no value for amorphous THET'
+      if(maxwarnings.lt.20) then
+         maxwarnings=maxwarnings+1
+         write(*,*)'3H twostatemodel1: no value for amorphous THET:',maxwarnings
+      endif
       gein=zero; dgeindt=zero; d2geindt2=zero
       goto 300
 !      gx%bmperr=4367; goto 1000
    endif
    if(ig2.eq.0) then
-      write(*,*)'3H Cannot find value for G2 two-state parameter'
+      write(*,*)'3H twostate_model1 Cannot find G2 two-state parameter'
       gx%bmperr=4367; goto 1000
    endif
 !----------------------------------
@@ -2304,6 +2489,12 @@
    else
       d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
    endif
+! Variable THETA
+   fact=1.5D0*(one+expmkvot)/(one-expmkvot)*kvot
+! the curve below better, correct shape ...
+   do jj=1,mc
+      phres%dgval(1,jj,1)=msize*(phres%dgval(1,jj,1)+fact*phres%dgval(1,jj,ith))
+   enddo
 !-------------------------- jump here if no THET variable
 ! return the values in phres%gval(*,1)
 300 continue
@@ -2317,9 +2508,8 @@
 70 format(a,F7.2,5(1pe12.4))
 71 format(a,i3,1x,F7.2,5(1pe12.4))
 !  thet cannot depend on T
-! any composition dependence of the eistein contribution?
-   
-
+! include the composition dependence of the eistein contribution?
+   write(*,*)'3H calc_twostate_model1 not including composition dependence thet'
 !----------------------------------------------------------------
 !-------------------------- two state part DIVIDE BY RT
 ! NOTE the values in phres%gval(1,ig2), phres%dgval(1,jj,ig2)
@@ -2504,6 +2694,288 @@
 1000 continue
    return
  end subroutine calc_twostate_model1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_twostate_model2
+!\begin{verbatim}
+ subroutine calc_twostate_model2(moded,phres,addrec,lokph,mc,ceq)
+! subroutine calc_twostate_model_nomix(moded,phres,addrec,lokph,mc,ceq)
+! moded is 0, 1 or 2 if no, first or 2nd order derivatives should be calculated
+! addrec is addition record
+!
+! IN THIS VERSION G2 is treated as a composition independent parameter 
+! NOTE Einstein THET should be composition dependent
+!
+! phres is phase_varres record
+! lokph is phase location
+! mc is number of constitution fractions
+! ceq is current equilibrium record
+   implicit none
+   integer moded,lokph,mc
+   TYPE(GTP_PHASE_ADD), pointer :: addrec
+   TYPE(GTP_PHASE_VARRES), pointer :: phres
+   TYPE(GTP_EQUILIBRIUM_DATA), pointer :: ceq
+!\end{verbatim} %+
+! two state model for extrapolating liquid to low T
+! DG = d(H-RT) + RT( dln(d)+(1-d)ln(1-d))
+! where d is "liquid like" atoms.  H is enthalpy to form defects
+! At equilibrium
+!
+! d = exp(-H/RT) / (1 + e(-H/RT) ) is the integrated Einstein Cp -H/R is THET
+!
+! G^liq - G^amorph = G^amorph - RT ln(1+exp(-DG_d/RT)
+! DG_d is the enthalpy of forming 1 mole of defects in the glassy state
+!
+!------------------------------
+! The value of Gd for the phase is calculated and added to G
+   integer jj,noprop,ig2,ith,extreme,jth,kth
+!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   double precision gein,dgeindt,d2geindt2
+   double precision xi,hump
+   double precision, parameter :: humpfact=5.0D0
+   logical addpermole
+!   double precision g2ein,dg2eindt,d2g2eindt2,theta2,dcpl
+   double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
+   double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgfdt,d2g2dt2
+   double precision expmg2p1,fact,g2sum,msize
+   double precision, allocatable :: mux(:)
+   integer, save :: maxwarnings=0
+! number of properties calculatied
+   noprop=phres%listprop(1)-1
+! locate the THET and G2 property record 
+   ig2=0
+   ith=0
+   jth=0
+! check if addition is per mole 
+   if(btest(addrec%status,ADDPERMOL)) then
+      addpermole=.TRUE.; msize=phres%abnorm(1)
+!      write(*,'(a,i4,l2,1pe12.4)')'3H msize 2-state: ',lokph,addpermole,msize
+   else
+      addpermole=.FALSE.; msize=one
+   endif
+   findix: do jj=2,noprop
+! start from 2 as phres%listprop(1) is always G
+      if(phres%listprop(jj).eq.addrec%need_property(1)) then
+! current value of THET are stored in phres%gval(1,ith)
+         ith=jj
+      endif
+   enddo findix
+   if(ith.eq.0) then
+!      write(*,*)'3H Cannot find value for amorphous THET'
+      if(maxwarnings.lt.20) then
+         maxwarnings=maxwarnings+1
+         write(*,*)'3H twostatemodel2: no value for amorphous THET:',maxwarnings
+      endif
+      gein=zero; dgeindt=zero; d2geindt2=zero
+      goto 300
+!      gx%bmperr=4367; goto 1000
+   endif
+!   write(*,*)'3H Using composition independent G2 values, THET=',&
+!        phres%gval(1,ith)
+!   if(ig2.eq.0) then
+!      write(*,*)'3H Cannot find value for G2 two-state parameter'
+!      gx%bmperr=4367; goto 1000
+!   endif
+!----------------------------------
+! for the moment the composition dependence is ignored
+!   write(*,19)'3H 2no1: ',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+!------ this THET part copied from calc_einstein
+! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
+! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
+! NOTE ALL VALUES CALCULATED AS FOR G/RT
+! kvot=theta/T
+! NOTE the stored value is ln(theta! !!!
+   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+!   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
+!        phres%gval(3,1),phres%gval(4,1),kvot
+! we should be careful with numeric overflow, for small T or large T
+! no risk for overflow for exp(-kvot)
+!   expmkvot=exp(-kvot)
+!   ln1mexpkvot=log(one-expmkvot)
+   if(kvot.gt.1.0D2) then
+! T is very small, kvot very large, exp(kvot) may cause overflow, 
+! exp(-kvot) is very small, ln(1-exp(-kvot)) is close to zero
+! exp(kvot) may cause overflow, kvot/(exp(kvot)-1)=
+! kvot*exp(-kvot)/(1-exp(-kvot)) = (1-kvot+kvot**2/2-...)/(1-kvot/2+...) = 1
+      extreme=-1
+      expmkvot=zero
+      ln1mexpkvot=zero
+      kvotexpkvotm1=zero
+   elseif(kvot.lt.1.0D-2) then
+! T is very big, kvot is very small, exp(-kvot) approch 1, 1-exp(-kvot)=kvot
+! exp(-kvot) is close unity, ln(1-exp(-kvot))=ln(1-(1-kvot+kvot**2/2+...)) =
+!            ln(kvot-kvot**2/2+...)=ln(kvot)
+! exp(kvot) is close to unity: exp(kvot)-1 = kvot+kvot**2/2+ ...
+      extreme=1
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   else
+! normal range of T and kvot
+      extreme=0
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   endif
+! 
+   gein=1.5D0*kvot+3.0D0*ln1mexpkvot
+!   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
+!        kvotexpkvotm1
+! first derivative wrt T taking care of overflow
+   dgeindt=3.0D0*(ln1mexpkvot-kvotexpkvotm1)/ceq%tpval(1)
+! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
+   if(extreme.eq.-1) then
+! take care of overflow at low T
+      d2geindt2=zero
+   else
+      d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
+   endif
+!-------------------------- jump here if no THET variable
+! return the values in phres%gval(*,1)
+300 continue
+   phres%gval(1,1)=phres%gval(1,1)+msize*gein
+   phres%gval(2,1)=phres%gval(2,1)+msize*dgeindt
+!   phres%gval(3,1)=phres%gval(3,1)
+   phres%gval(4,1)=phres%gval(4,1)+msize*d2geindt2
+!   phres%gval(5,1)=phres%gval(5,1)
+!   phres%gval(6,1)=phres%gval(6,1)
+!   write(*,71)'3H Cp E3: ',extreme,ceq%tpval(1),gein,dgeindt,d2geindt2
+70 format(a,F7.2,5(1pe12.4))
+71 format(a,i3,1x,F7.2,5(1pe12.4))
+!  thet can depend on T
+   fact=1.5D0*(one+expmkvot)/(one-expmkvot)*kvot
+   do jj=1,mc
+      phres%dgval(1,jj,1)=msize*(phres%dgval(1,jj,1)+fact*phres%dgval(1,jj,ith))
+   enddo
+! This seems a small efect, ignore second derivatives ...
+!----------------------------------------------------------------
+! skip the 2-state model as G2 included in the ^oG for the endmember
+!   goto 1000
+1000 continue
+   return
+ end subroutine calc_twostate_model2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_twostate_endmember
+!\begin{verbatim}
+ subroutine calc_twostate_model_endmember(proprec,g2values,ceq)
+! This calculated G2 (GD in some papers) for a pure endmember
+! No composition dependence
+! Value calculated here added to ^oG for the endmember
+! moded is 0, 1 or 2 if no, first or 2nd order derivatives should be calculated
+! phres is phase_varres record
+! lokph is phase location
+! ceq is current equilibrium record
+   implicit none
+   TYPE(gtp_property), pointer :: proprec
+   TYPE(GTP_EQUILIBRIUM_DATA), pointer :: ceq
+   double precision g2values(6)
+!\end{verbatim}
+   TYPE(gtp_property), pointer :: propg2
+   integer lokfun,typty
+   double precision tv,rt,rg,dg2,dgfdt,expg2,expmg2,expmg2p1
+   double precision g2val,dg2dt,d2g2dt2,vals(6)
+   g2values=zero
+! do not destroy the value of proprec!!
+   propg2=>proprec
+! At present %proptype 16 is G2 but can be changed anytime!!
+! However, it will always be called G2 and need_property('G2 ',typty)
+! will return is current index
+   call need_propertyid('G2  ',typty)
+!   write(*,*)'3H found G2 typty: ',typty
+   liq2state: do while(associated(propg2))
+! How to find addrec%need_property ....??
+!      if(phres%listprop(jl).eq.addrec%need_property(1)) then
+!         ilpx=jl
+!      write(*,*)'3H property: ',propg2%proptype
+      if(propg2%proptype.eq.typty) goto 77
+      propg2=>propg2%nextpr
+   enddo liq2state
+   write(*,*)'Missing liquid twostate parameter G2'
+   gx%bmperr=4399; goto 1000
+! found p   
+77 continue
+! calculate G2 value at current T for the endmember
+   lokfun=propg2%degreelink(0)
+   call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
+   if(gx%bmperr.ne.0) goto 1000
+!   write(*,'(a,3(1pe12.4))')'3H G2 endmember: ',vals(1),vals(2),vals(4)
+   g2val=vals(1)
+   dg2dt=vals(2)
+   d2g2dt2=vals(4)
+!   
+   rt=ceq%rtn
+   tv=ceq%tpval(1)
+   rg=globaldata%rgas
+! if g2val is positive we are in the amorphous region
+! if g2val is negative we are in the liquid region
+! The if statements here ensure expmg2 is between 1e-60 and 1e+60
+!   write(*,'(a,6(1pe12.4))')'3H g2val: ',g2val,dg2dt,-g2val/rt
+   if(-g2val/rt.gt.2.0D2) then
+! LIQUID REGION exp(200) >> 1, thus d2g=ln(1+exp(g2val))=g2val
+! and the derivatives are those above. DIVIDED BY RT?
+      dg2=g2val/rt
+      dgfdt=dg2dt/rt
+      d2g2dt2=d2g2dt2/rt
+      goto 700
+   elseif(-g2val/rt.lt.-2.0D2) then
+! AMORPHOUS REGION: exp(-200)=0; ln(1)=0 and everything is zero
+      dg2=zero
+      dg2dt=zero
+      d2g2dt2=zero
+      goto 700
+   else
+! intermediate T range, we have to calculate, exp( -200 to +200) is OK
+      expmg2=exp(-g2val/rt)
+      expg2=one/expmg2
+      expmg2p1=expmg2+one
+      dg2=log(expmg2p1)
+!      write(*,'(a,4(1pe12.4))')'3H intermed: ',g2val/rt,expmg2p1,dg2
+   endif
+!   write(*,19)'3H gval8: ',g2val/rt,expmg2,dg2
+!   write(*,19)'3H dg2: ',tv,g2val,expmg2,dg2
+!   write(*,19)'3H G2: ',tv,xi,g2val/rt,expmg2,dg2,dg2*rt
+! NOTE values added to phres%gval(*,1) must be divided by RT
+! G = G - RT*ln(1+exp(-g2/RT))
+! G
+!   phres%gval(1,1)=phres%gval(1,1)-dg2
+! (R*ln(1+g2val) + (g2/tv-dg2/dt)/(1+exp(-g2/RT)))/RT
+! G.T
+   dgfdt=(rg*dg2+(g2val/tv-dg2dt)/(expg2+one))/rt
+!   dgfdt=dg2+(g2val/tv-dg2dt)/(expg2+one)
+! G.P   is zero
+!-------------------------- tentative:
+! d2g2/dt2/(1+exp(g2/RT)+
+!   ((g2/tv)**2+(dg2/dt)**2-2*g2/tv*dg2/dt)*exp(g2/rt)/((1+exp(g2/RT)))**2/rt
+! G.T.T 
+! Fixed sign problem
+!   d2g2dt2=(phres%gval(4,ig2)/(one+expg2)-&
+   d2g2dt2=(d2g2dt2/(one+expg2)-&
+        ((g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt)*expg2/&
+        (rt*(one+expg2)**2))/rt
+700 continue
+! return these values to be added to ^oG for the endmember
+!   g2values(1)=-g2val/rt
+   g2values(1)=-dg2
+!   g2values(2)=-dg2dt
+   g2values(2)=-dgfdt
+   g2values(4)=d2g2dt2
+!   write(*,'(a,3(1pe12.4))')'3H g2values: ',g2values(1),g2values(2),g2values(4)
+! No P derivatives (yet)
+!   write(*,705)'3H 2SL: ',g2val/rt, dg2, dgfdt, dgfdt, d2g2dt2, tv,&
+!        rt, expg2, dg2dt, msize, d2g2dt2*rt
+705 format(a,6(1pe12.4)/8x,6(1pe12.4))
+! each endmember has its own value of G2
+!   phres%gval(1,1)=phres%gval(1,1)-msize*dg2
+!   phres%gval(2,1)=phres%gval(2,1)-msize*dgfdt
+!   phres%gval(4,1)=phres%gval(4,1)+msize*d2g2dt2
+! values of T, \xi, g, s and cp   
+!
+1000 continue
+   return
+ end subroutine calc_twostate_model_endmember
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -3073,8 +3545,8 @@
 !---------------------------------------------
    case(einsteincp) ! Einstein Cp model
       write(unit,400)chc
-400   format(a,'+ Einstein Cp model: 1.5R*THET(x) +',&
-           ' 3RT*ln(exp(exp(ln(THET(x)))/T)-1)')
+400   format(a,'+ Einstein Cp model: 1.5R*exp(THET(x)) +',&
+           ' 3RT*ln(1-exp(-exp(THET(x))/T))')
 !---------------------------------------------
    case(elasticmodel1) ! Elastic model 1
       write(unit,500)
@@ -3084,8 +3556,8 @@
    case(twostatemodel1) ! Liquid two state  model including Einstein
       write(unit,510)chc,chc
 510   format(a,' + Liquid 2 state model: G(liq)-RT*ln(1+exp(-G2(x,T)/RT))'/&
-           a,' + Einstein Cp model: 1.5R*THET(x) ',&
-           '+ 3RT*ln(exp(ln(THET(x))/T)-1)')
+           a,' + Einstein Cp model: 1.5R*exp(THET(x)) ',&
+           '+ 3RT*ln(1-exp(-exp(THET(x))/T))')
 !---------------------------------------------
    case(volmod1) ! Volume model 1
       write(unit,520)chc
@@ -3102,6 +3574,13 @@
    case(schottkyanomaly) ! Schottky Anomaly
       write(unit,550)chc
 550   format(a,'+ Schottky anomaly DSCH(x)*RT*ln(1+exp(-ln(TSCH(x))/T)) ')
+!---------------------------------------------
+   case(twostatemodel2) ! Liquid two state  model with fix G2 and Einstein
+      write(unit,511)chc,chc
+511   format(a,' + Liquid 2 state model: G(liq)-RT*ln(1+exp(-G2(T)/RT))'/&
+           a,' + Einstein Cp model: 1.5R*exp(THET(x)) ',&
+           '+ 3RT*ln(1-exp(exp(THET(x))/T))')
+!---------------------------------------------
    end select addition
 1000 continue
    return

@@ -453,7 +453,8 @@
 ! NEIN is the Einstein function
 ! MAX1 is 1.0 if argument is larger than 1.0, error if argument negative
 ! LOG is LOG10 and LN is the natural logarithm!!!
-   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','INTEIN','MAX1  '/
+   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','GEIN','MAX1  '/
+!   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','INTEIN','MAX1  '/
 !   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN ','MAX1  '/
 !   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN '/
 !   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','ABOVE ','BELOW '/
@@ -1434,7 +1435,7 @@
          endif
 ! now combine term1 and term2 using chain rule. link values are
 ! -1: LOG,   -2: LN,    -3: EXP, -4: ERF, only LN and EXP implemented below
-! -5: INTEIN, is the Einstein function, integrated as a Gibbs energy
+! -5: GEIN, is the Einstein function, integrated as a Gibbs energy
 !             the argument is the Einstein T
 ! -6: MAX1, if argument <0 ERROR, if >1 replace by 1
 !         write(*,'(a,5i4,1pe12.4)')'3Z intein5: ',ic,ipow,link,link3,link4,ff
@@ -1486,7 +1487,7 @@
             write(*,*)'Error function not implemented'
             stop 71
          elseif(unfun.eq.-5) then
-! INTEGRATED EINSTEIN: INTEIN = 1.5*R + 3*R*T*LN(EXP(THETA/T)+1), THETA=gg
+! INTEGRATED EINSTEIN: GEIN = 1.5*R*THETA + 3*R*T*LN(EXP(THETA/T)+1), THETA=gg
             if(dfdt.ne.zero) then
                write(*,*)'3Z GEIN must not be multiplied with T!'
                gx%bmperr=4399; goto 1000
@@ -1590,7 +1591,7 @@
 !\addtotable subroutine tpfun_geinstein
 !\begin{verbatim}
  subroutine tpfun_geinstein(tpval,gg,ff,dfdt,dfdp,d2fdt2,d2fdtdp,d2fdp2)
-! evaluates the integrated Einstein function (including 1.5*R) INTEIN
+! evaluates the integrated Einstein function (including 1.5*R) INTEIN/GEIN
 ! gg is the value of the Einstein THETA
 ! ff is a constant factor which should be multiplied with all terms
 ! ff is overwritten with the Einstein function (multiplied with ff in)
@@ -1600,7 +1601,8 @@
    double precision gg,ff,dfdt,dfdp,d2fdt2,d2fdtdp,d2fdp2
 !\end{verbatim}
    double precision kvot,kvotexpkvotm1,expmkvot,lnexpkvot,ww,rgas
-! return ff = 1.5*R + 3*R*T*LN(EXP(-gg/T) + 1) and derivatives
+! return ff = 1.5*R*gg + 3*R*T*LN(EXP(-gg/T) + 1) and derivatives
+! gg must be a constant >0
    rgas=globaldata%rgas
 !   write(*,*)'3Z in Einstein function',gg,tpval(1)
    ww=ff
@@ -1652,8 +1654,8 @@
    character ch1*1,cht*1,extsym*(lenfnsym),unary(nunary)*6
    TYPE(tpfun_expression), pointer :: exprot
 ! these should be the same as in ct1xfn !!! ??
-   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','INTEIN','MAX1  '/
-!   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','GEIN  ','MAX1  '/
+   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','GEIN  ','MAX1  '/
+!   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','INTEIN','MAX1  '/
 !
    if(.not.associated(exprot)) then
       string(ip:ip+2)='0; '
@@ -1905,7 +1907,7 @@
 ! return here for new expression in another range
 115 continue
    call gparcx('Give expression, end with ";":',cline,ip,6,line,';',&
-        '?ENTER tpun')
+        '?ENTER tpfun')
    if(buperr.ne.0) then
       buperr=0; line=';'
    endif

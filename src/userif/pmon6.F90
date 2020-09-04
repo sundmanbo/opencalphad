@@ -137,7 +137,7 @@ contains
 ! plot unit for experimental data used in enter many_equilibria
     integer :: plotdataunit(9)=0,plotunit0=0
 ! temporary integer variables in loops etc
-    integer i1,i2,j4,j2,iax,threads
+    integer i1,i2,j4,j2,iax,threads,modelx
 ! more temporary integers
     integer jp,kl,svss,language,last,leak,j3,tzcond
 ! and more temporary integers
@@ -949,6 +949,7 @@ contains
              amendphaseadd: SELECT CASE(kom4)
              case default
                 write(*,*)'No such addition'
+! Inden magnetism
              case(1) ! amend phase <name> magnetic contribution
                 idef=-3
 ! zero value of antiferromagnetic factor means Inden-Qing model
@@ -1005,18 +1006,29 @@ contains
                      ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
 !....................................................
              case(4) ! amend phase <name> addition twostate_liquid model
-                call add_addrecord(lokph,' ',twostatemodel1)
-                call gparcdx('Is the addition calculated for one mole atoms? ',&
-                     cline,last,1,ch1,'Y','?Add per formula unit')
-! The CP model calculates a molar Gibbs energy, must be multiplied with
-! the number of atoms in the phase. j2 set above to the addition type
-                if(ch1.eq.'Y' .or. ch1.eq.'y') then
-                   call setpermolebit(lokph,twostatemodel1)
-                endif
                 write(kou,667)
 667             format('This addition require THET parameters for the',&
                      ' Einstein T of the amorphous state'/'and G2 parameters',&
                      ' for the transition to the liquid state.')
+! NEW set bit to allow G2 to be composition independent
+                call gparcdx('Is G2 composition dependent? ',&
+                     cline,last,1,ch1,'N','?G2 composition dependent')
+! ensure ch1 is a captial letter!
+                call capson(ch1)
+! if ch1 is N then the addition record will have the twostatemodel2(=12) value
+!     and the PH2STATE in the phase record must be set also:
+!     phlista(lokph)%status1=ibset(phlista(lokph)%status1,PH2STATE)
+!     But as phlista is protected it is set inside add_addrecord
+                modelx=twostatemodel1
+! inside add_addrecord modelx can be changed to twostatemodel2 if G2 fixed
+                call add_addrecord(lokph,ch1,modelx)
+                call gparcdx('Is the addition calculated for one mole atoms?',&
+                     cline,last,1,ch1,'Y','?Add per formula unit')
+! The CP model calculates a molar Gibbs energy, must be multiplied with
+! the number of atoms in the phase.
+                if(ch1.eq.'Y' .or. ch1.eq.'y') then
+                   call setpermolebit(lokph,modelx)
+                endif
 !....................................................
              case(5) ! amend phase <name> addition Schottky anomaly
                 call add_addrecord(lokph,' ',schottkyanomaly)
@@ -1028,6 +1040,7 @@ contains
                 call add_addrecord(lokph,' ',volmod1)
                 write(*,*)'Added volume model 1'
 !....................................................
+! Einstein low T model
              case(7) ! amend phase <name> LowT_CP_model
                 call add_addrecord(lokph,' ',einsteincp)
                 write(*,*)'This addition requires the THET parameter'

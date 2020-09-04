@@ -137,8 +137,10 @@
    double precision, dimension(:,:), allocatable :: fhv
    double precision, dimension(:,:,:), allocatable :: dfhv
    double precision, dimension(:,:), allocatable :: d2fhv
+   double precision g2val(6)
 ! to handle parameters with wildcard constituent and other things
    logical wildc,nevertwice,first,chkperm,ionicliq,iliqsave,iliqva,iliqneut
+   logical liq2state
 ! debugging for partitioning and ordering
    integer idlist(9)
 ! calculate RT to normalize all Gibbs energies, ceq is current equilibrium
@@ -167,6 +169,7 @@
 ! local work arrays for products of Y and calculated parameters are allocated
    gz%nofc=phlista(lokph)%tnooffr
    nofc2=gz%nofc*(gz%nofc+1)/2
+!   write(*,*)'3X in calcginternal ',btest(phlista(lokph)%status1,PHLIQ2STATE)
 !   write(*,17)'3X calcg, ',lokph,gz%nofc,nofc2,size(cps%d2gval),cps%nprop,&
 !        cps%yfr(1)
 !17 format(a,5i4,1pe15.6)
@@ -627,6 +630,18 @@
 154         format(a,i5,4i4,'--------------------------------')
 155         format(a,i5,10i4)
             proprec=>endmemrec%propointer
+! for liquids with twostate models first calculate the g2 parameter
+            if(btest(phlista(lokph)%status1,PH2STATE)) then
+!               write(*,*)'3X Phase ',trim(phlista(lokph)%name),&
+!                    ' has PH2STATE bit set'
+               call calc_twostate_model_endmember(proprec,g2val,ceq)
+               if(gx%bmperr.ne.0) goto 1000
+!               write(*,'(a,6(1pe12.4))')'3X g2val:',g2val
+               liq2state=.true.
+            else
+               liq2state=.false.
+               g2val=zero
+            endif
             emprop: do while(associated(proprec))
                typty=proprec%proptype
                if(typty.ne.1) then
@@ -683,6 +698,13 @@
                prop1: if(ipy.eq.1) then
 ! property 1 i.e. Gibbs energy, should be divided by RT
                   vals=vals/rtg
+                  if(liq2state) then
+! if phase has liquid twostate model add g2val!!
+!                     write(*,'(a,6(1pe12.4))')'3X +g2val',&
+!                          vals(1),g2val(1),vals(1)+g2val(1),&
+!                          vals(4),g2val(4),vals(4)+g2val(4)
+                     vals=vals+g2val
+                  endif
                endif prop1
 !               write(*,*)'3X property type: ',typty,ipy,vals(1)
 !================ now we calculated the endmember parameter ============
@@ -1869,7 +1891,9 @@
    endif uniquac
 !................................
 ! calculate additions like magnetic contributions etc and add to G
-! Now also Einstein, 2-state liquid, volume ...
+! Now also Einstein, twostate liquid, volume ...
+! if liq2state is FALSE we should add that constribution
+! using composition dependent G2 parameters
    addrec=>phlista(lokph)%additions
 !   write(*,*)'3X check for first addrec: ',associated(addrec)
    additions: do while(associated(addrec))
@@ -1885,7 +1909,7 @@
       call addition_selector(addrec,moded,phres,lokph,gz%nofc,ceq)
       if(gx%bmperr.ne.0) goto 1000
 ! NOTE that the addition record is not in the dynamic data structure
-! but the values calculated are returned added to phres
+! but the values calculated are returned added to phres which is dynamic
 ! There is a temporary storage of results for listing only.
       addrec=>addrec%nextadd
 !      write(*,*)'3X check for next addrec: ',associated(addrec)

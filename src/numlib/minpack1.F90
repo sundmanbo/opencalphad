@@ -327,6 +327,8 @@ contains
 !    integer, parameter :: niter=0
 ! added as argumnet added to fcn and it may be incremented in fcn ...
     integer :: niter=0
+! missing external declaration
+    external fcn
 !    double precision dpmpar
 !    data zero /0.0d0/
 !
@@ -381,7 +383,7 @@ contains
 !    double precision x(n),fvec(m),diag(n),fjac(ldfjac,n),qtf(n), &
 !    double precision x(n),fvec(m),diag(n),fjac(ldfjac,n),qtf(n), &
 !         wa1(n),wa2(n),wa3(n),wa4(m)
-!    external fcn
+    external fcn
 !     **********
     double precision, dimension(:), allocatable :: diag,qtf,wa1,wa2,wa3,wa4
 !    double precision, dimension(:,:), allocatable :: fjac
@@ -2184,6 +2186,8 @@ contains
     integer n,ldfjac,iflag,ml,mu
     double precision epsfcn
     double precision x(n),fvec(n),fjac(ldfjac,n),wa1(n),wa2(n)
+! added external fcn
+    external fcn
 !     **********
 !
 !     subroutine fdjac1

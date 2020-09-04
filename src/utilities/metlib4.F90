@@ -3161,13 +3161,13 @@ CONTAINS
     integer last,jtyp
 !    EXTERNAL HELP
 !\end{verbatim}
-    CHARACTER SLIN*80
+    CHARACTER SLIN*256
     integer typ,typeahead,kk,iflag
     logical beware
     sval=' '
     slin=cdef
-!    write(*,10)'In gparfilex: ',typ,trim(cdef),trim(sval)
-10  format(a,i3,' "',a,'" "',a,'"')
+!    write(*,10)'M4 in gparfilex: ',typ,trim(cdef),trim(sval),trim(slin)
+10  format(a,i3,' "',a,'" "',a,'" "',a,'"')
 #ifdef tinyfd
 ! only if we use tinyfiledialogs, check if any character after last+1
     typeahead=last+1
@@ -3176,6 +3176,7 @@ CONTAINS
     beware=eolch(svar,typeahead)
 !    write(*,*)'M3 gparfile: ',kou,koud,last,eolch(svar,last)
     if(nopenpopup .or. kiu.ne.kiud .or. .not.beware) then
+       continue
 #endif
 ! If we are not connected to a terminal (reading a macro file) use line input
 ! Also if there are "type ahead" use the line input
@@ -3239,8 +3240,11 @@ CONTAINS
 300       continue
 !          write(*,*)'gparfilex: ',trim(sval),kk
        endif
+!       write(*,*)'M4 file: "',trim(sval),'"'
     endif
 #endif    
+! Can the rather odd ifdef/endif cause problems ???
+! if there is a segmentation fault it is after this write statement ... SUCK
 !    write(*,*)'M4 exit gparfilex: ',trim(sval)
 900 RETURN
   END SUBROUTINE GPARFILEX

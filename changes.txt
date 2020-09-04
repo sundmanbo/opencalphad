@@ -15,6 +15,20 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2020.08.06 OC version 6.011: Added an option to the liquid two-state
+model allowing a composition independent G2 parameter (called GD in
+Thermo-Calc).  The composition dependence created problems when mixing
+elements with very different G2 values such as Al-W.  The command
+AMEND PHASE LIQUID ADD TWOSTATE has an additional question if G2
+should be composition independent with default N.  If you answer Y the
+G2 parameter will be treated as composition dependent.  Composition
+dependent THET values (the Einstein temperature) is now implemented
+correctly.  It should also work to use THET parameters for phases when
+the number of atoms/formula unit varies (for example when C dissolves
+interstitially in FCC).
+
+Work on the Kohler/Toop implementation is continuing.
+
 2020.08.06 OC version 6.010: Corona virus times and a long time
 without updates.  I have stared implementing the Kohler and Toop
 ternary extrapolation models.  This require a minor extention of the

@@ -1301,6 +1301,7 @@
    character date*8,CHTD*1
 ! if not screen then ask for file name
 ! for screen output of file use /option= ...
+!   write(*,*)'3C In list_many_formats',ftyp 
    if(ftyp.ne.1) then
 !     call gparcdx('Output file: ',cline,last,1,fil,'database','?Output format')
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, -8=LOG
@@ -1308,15 +1309,16 @@
       text=' '
       call gparfilex('Output file: ',cline,last,1,fil,text,&
            -ftyp,'?Output format')
-! Segmentation fault between exit of GPARFILEX and this write statement
-      write(*,*)'3C back from gparcdx',ftyp,' "',trim(fil),'"'
+! Sometimes segmentation fault between the exit of GPARFILEX and this write
+!      write(*,*)'3C back from gpafilex',ftyp,' "',trim(fil),'"'
       ipos=len_trim(fil)
       if(ipos.le.0) then
          write(*,*)'No file name, using "database"'
          fil='database'
          ipos=8
       endif
-      write(*,*)'3C file name: ',trim(fil)
+! if there is a segmentation fault it is inside gparfilex  SUCK
+!      write(*,*)'3C file name: ',trim(fil)
 ! it is impossible to have a blank name here, check if there is an extension
       iph=index(fil,'.')
       if(iph.gt.0) then
@@ -1336,14 +1338,14 @@
             fil(ipos:)='.PDB'
          endif
       endif
-      write(*,*)'3C opening a new file',ftyp
+!      write(*,*)'3C opening a new file',ftyp
 ! check if file exists ... overwriting not allowed ...
       open(unit=31,file=fil,access='sequential',status='new',err=900)
       kousave=unit
       unit=31
    endif
    call date_and_time(date)
-   write(*,*)'3C select case: ',ftyp
+!   write(*,*)'3C select case: ',ftyp
    select case(ftyp) 
    case default
       write(kou,*)'No such format'

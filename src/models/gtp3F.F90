@@ -4214,11 +4214,12 @@
       istv=svflista(lrot)%formal_arguments(1,jt)
 !      write(*,*)'3F list_svfun: ',istv,js,jt
       if(istv.gt.-1000 .and. istv.lt.0) then
-! istv<-1000 means this is a parameter property identifier
+! istv<-1000 means this is a model_parameter_identifier
 ! function refer to another function (assuming never to have 1000 symbols ...
          symbols(js)=svflista(-istv)%name
       else
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
+! PROBABLE MY BUG 2020-08-31/BOS, not declared allocatable ... SUCK
          svr=>svr2
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
          if(gx%bmperr.ne.0) then
@@ -4230,6 +4231,7 @@
             write(*,*)'3F failed encode state variable'
             goto 1000
          endif
+!         write(*,*)'3F list_svfun: ',trim(symbols(js)),js,jt
          if(svflista(lrot)%formal_arguments(10,jt).ne.0) then
 ! a derivative!!!
 !            write(*,111)'3F A dot derivative of ',js,jt,symbols(js)
@@ -4480,7 +4482,9 @@
 ! evidently istv<1 can also mean this is a model parameter identifier
 ! how to know?  Here only when entering the symbol?
          if(istv.lt.-1000) then
-            write(*,*)'3F argument is model parameter identifier *** '
+            write(*,*)'3F model parameter identifier *** ',1000-istv
+            write(*,*)'3F allocated: ',size(svflista(lrot)%formal_arguments)
+            write(*,*)'3F not implemented, value set to zero'
             value=zero
          else
 ! if eqnoval nonzero it indicates from which equilibrium to get its value
@@ -4493,6 +4497,7 @@
          endif
       else
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
+! FOUND PROBABLE BUG 2020-08-31/BOS %formal_arguments never allocated ???
          svr=>svr2
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
          if(gx%bmperr.ne.0) goto 1000

@@ -664,7 +664,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! HID phase is hidden (not implemented)
 ! IMHID phase is implictly hidden (not implemented)
 ! ID phase is ideal, substitutional and no interaction
-! NOCV phase has no concentration variation (I am not sure it is set)
+! NOCV phase has no concentration variation (I am not sure it is used)
 ! HASP phase has at least one parameter entered
 ! FORD phase has 4 sublattice FCC ordering with parameter permutations
 ! BORD phase has 4 sublattice BCC ordering with parameter permutations
@@ -674,7 +674,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! LIQ phase is liquid (can be several but listed directly after gas)
 ! IONLIQ phase has ionic liquid model (I2SL)
 ! AQ1 phase has aqueous model (not implemented)
-! DILCE phase has dilute configigurational entropy (not implemented)
+! STATE elemental liquid twostate (2-state) model parameter
 ! QCE phase has quasichemical SRO configurational entropy (not implemented)
 ! CVMCE phase has some CVM ordering entropy (not implemented)
 ! EXCB phase need explicit charge balance (has ions)
@@ -684,22 +684,23 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! HELM parameters are for a Helmholz energy model (not implemented),
 ! PHNODGDY2 phase has model with no analytical 2nd derivatives
 ! not implemented ELMA phase has elastic model A (not implemented)
-! EECLIQ this is the condensed phase that should have highest entropy
+! EECLIQ this is the condensed phase (liquid) that should have highest entropy
 ! PHSUBO special use testing models DO NOT USE
-! EECLIQ this is the condensed phase that should have highest entropy
 ! PALM interaction records numbered by PALMTREE NEEDED FOR PERMUTATIONS !!!
 ! MULTI may be used with care
 ! BMAV Xion magnetic model with average Bohr magneton number
 ! UNIQUAC The UNIQUAC fluid model
+! DILCE phase has dilute configigurational entropy (not implemented)
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,    PHID=2,      PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,     PHBORD=6,    PHSORD=7, &     ! 
        PHMFS=8,     PHGAS=9,      PHLIQ=10,    PHIONLIQ=11, &  ! 
-       PHAQ1=12,    PHDILCE=13,   PHQCE=14,    PHCVMCE=15,&    ! 
-       PHEXCB=16,   PHXGRID=17,   PHFACTCE=18, PHNOCS=19,&   !
-       PHHELM=20,   PHNODGDY2=21, PHEECLIQ=22, PHSUBO=23,&   ! 
-       PHPALM=24,   PHMULTI=25,   PHBMAV=26,   PHUNIQUAC=27   !                  !
-! 
+       PHAQ1=12,    PH2STATE=13,   PHQCE=14,    PHCVMCE=15,&    ! 
+       PHEXCB=16,   PHXGRID=17,   PHFACTCE=18, PHNOCS=19,&     !
+       PHHELM=20,   PHNODGDY2=21, PHEECLIQ=22, PHSUBO=23,&     ! 
+       PHPALM=24,   PHMULTI=25,   PHBMAV=26,   PHUNIQUAC=27, & !
+       PHDILCE=28                                          !
+!
 !----------------------------------------------------------------
 !-Bits in PHASE_VARRES (constituent fraction) record STATUS2
 ! CSDFS is set if record is for disordred fraction set, then one must use
@@ -868,6 +869,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: SECONDEINSTEIN=9
   integer, public, parameter :: SCHOTTKYANOMALY=10
   integer, public, parameter :: DIFFCOEFS=11
+! with composition independent G2 parameter
+  integer, public, parameter :: TWOSTATEMODEL2=12
 ! name of additions:
   character(len=24) , public, dimension(12), parameter :: additioname=&
        ['Inden-Hillert magn model','Inden-Xiong magn model  ',&
@@ -1242,6 +1245,41 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! When the parameter is read the suffix symbol is translated to the
 ! current element or constituent index
   TYPE(gtp_propid), dimension(:), private, allocatable :: propid
+! This is the properties defined 2020-08-08/BoS defined in init_gtp
+!   1 G     T P                                   0 Energy
+!   2 TC    - P                                   2 Combined Curie/Neel T
+!   3 BMAG  - -                                   1 Average Bohr magneton numb
+!   4 CTA   - P                                   2 Curie temperature
+!   5 NTA   - P                                   2 Neel temperature
+!   6 IBM   - P &<constituent#sublattice>;       12 Individual Bohr magneton num
+!   7 THET  - P                                   2 Debye or Einstein temp
+!   8 V0    - -                                   1 Volume at T0, P0
+!   9 VA    T -                                   4 Thermal expansion
+!  10 VB    T P                                   0 Bulk modulus
+!  11 VC    T P                                   0 Alternative volume parameter
+!  12 VS    T P                                   0 Diffusion volume parameter
+!  13 MQ    T P &<constituent#sublattice>;       10 Mobility activation energy
+!  14 MF    T P &<constituent#sublattice>;       10 RT*ln(mobility freq.fact.)
+!  15 MG    T P &<constituent#sublattice>;       10 Magnetic mobility factor
+!  16 G2    T P                                   0 Liquid two state parameter
+!  17 THT2  - P                                   2 Smooth step function T
+!  18 DCP2  - P                                   2 Smooth step function value
+!  19 LPX   T P                                   0 Lattice param X axis
+!  20 LPY   T P                                   0 Lattice param Y axis
+!  21 LPZ   T P                                   0 Lattice param Z axis
+!  22 LPTH  T P                                   0 Lattice angle TH
+!  23 EC11  T P                                   0 Elastic const C11
+!  24 EC12  T P                                   0 Elastic const C12
+!  25 EC44  T P                                   0 Elastic const C44
+!  26 UQT   T P &<constituent#sublattice>;       10 UNIQUAC residual parameter
+!  27 RHO   T P                                   0 Electric resistivity
+!  28 VISC  T P                                   0 Viscosity
+!  29 LAMB  T P                                   0 Thermal conductivity
+!  30 HMVA  T P                                   0 Enthalpy of vacancy form.
+!  31 TSCH  - P                                   2 Schottky anomaly T
+!  32 CSCH  - P                                   2 Schottky anomaly Cp/R.
+!  33 NONE  T P
+!  
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -1527,6 +1565,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! THIS IS OLY USED FOR CONSTANTS, VALUES ARE ALSO STORED IN CEQ%SVFUNRES
      double precision svfv
 ! this array has identification of state variable (and other function) symbols 
+! It is allocated in various subroutines, maybe be allocatable? 2020-08-31/BoS
      integer, dimension(:,:), pointer :: formal_arguments
   end TYPE gtp_putfun_lista
 ! this is the global array with state variable functions, "symbols"
