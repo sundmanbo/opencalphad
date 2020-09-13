@@ -93,7 +93,7 @@ contains
 ! graphics record for plot ranges, texts and defaults
     type(graphics_options) :: graphopt
     integer grunit
-! species for ternary extrapolation model
+! species for ternary extrapolation method
     character xspecies(3)*24
 ! path to start directory stored inside metlib!!
 !    character macropath*128
@@ -566,6 +566,8 @@ contains
     stop_on_error=.false.
     logfil=0
     buperr=0
+! initiate the limit on number of equilibria saved during step/map
+    totalsavedceq=0
 !
 ! nopenpopup is declared in metlib3.F90 and dis/allow open popup windows
 ! it is initiated to FALSE, if user change it will not be reinitiated here
@@ -1113,7 +1115,7 @@ contains
              call gparcdx('Should ordered part cancel when disordered? ',&
                   cline,last,1,ch1,'N','?Amend phase disordfrac')
              if(buperr.ne.0) goto 990
-             if(ch1.eq.'N') then
+             if(ch1.eq.'N' .or. ch1.eq.'n') then
 ! like sigma which is never completely disordered
                 j4=0
              else
@@ -1123,6 +1125,16 @@ contains
              endif
              ch1='D'
              call add_fraction_set(iph,ch1,ndl,j4)
+! forgot to add the sites 
+             lokcs=phasetuple(iph)%lokvares
+             if(j4.eq.0) then
+                xxx=zero
+                do ll=1,ndl
+                   xxx=xxx+firsteq%phase_varres(lokcs)%sites(ll)
+                enddo
+                firsteq%phase_varres(lokcs)%disfra%fsites=xxx
+             endif
+!             write(*,*)'pmon6: ',ndl,xxx
              if(gx%bmperr.ne.0) goto 990
 !....................................................
           case(4) ! UNIQUAC model
@@ -1139,10 +1151,12 @@ contains
 !....................................................
           case(7) ! TERNARY-EXTRAPOL
              dummy='Kohler'
+             write(kou,*)'Beware!  This command is fragile.'
              do while(.true.)
                 call gparcdx('Ternary extrapolation (K, T or Q to quit)',&
                      cline,last,1,ch1,dummy,'?Ternary extrapol')
                 dummy='Q'
+                call capson(ch1)
                 if(ch1.eq.'Q') then
                    goto 100
                 elseif(.not.(ch1.eq.'K' .or. ch1.eq.'T')) then
@@ -1160,10 +1174,9 @@ contains
                    call gparcx('Third constituent: ',cline,last,1,&
                         xspecies(3),' ','?Ternary extrapol')
 ! lokph is index of phase record, error checks inside subroutine
-! is is in gtp3H.F90
-                   call add_ternary_extrapol_model(lokph,ch1,xspecies)
+! it is in gtp3H.F90
+                   call add_ternary_extrapol_method(lokph,ch1,xspecies)
                    if(gx%bmperr.ne.0) goto 990
-                   write(*,*)'Not implemeneted yet'
                 endif
              enddo
 !....................................................
@@ -2512,26 +2525,27 @@ contains
           case(11) ! SET ADVANCED EEC_METHOD
              call gparcdx('Turn on equi-entropy criterion (EEC)?',&
                   cline,last,1,ch1,'Y','?Set adv EEC')
-             if(ch1.eq.'Y') then
+             if(ch1.eq.'Y' .or. ch1.eq.'y') then
 !check if there is a phase with liquid but set!!
                 anyliq: do j4=1,noph()
                    if(test_phase_status_bit(j4,PHLIQ)) exit anyliq
                 enddo anyliq
+! if we have not found any liquid j4>noph() here !!
                 if(j4.gt.noph()) then
                    write(kou,*)'No liquid phase! Set bit 10 of liquid phase'
                    goto 100
                 endif
-                call gparrdx('Low T limit?',cline,last,xxx,1.0D3,&
+                call gparrdx('Low T limit (min 10)?',cline,last,xxx,1.0D3,&
                      '?Set adv EEC')
                 if(xxx.gt.1.0D1) then
 ! set_eec_check is in minimizer/matsmin.F90
-                   call set_eec_check(xxx)
-!                   globaldata%sysreal(1)=1.0D1
+!                   call set_eec_check(xxx)
+                   globaldata%sysreal(1)=xxx
                 endif
              else
-                write(*,*)'EEC method for solids turned off'
-                call set_eec_check(zero)
-!                globaldata%sysreal(1)=zero
+                write(*,*)'EEC method for solids turned off as answer not Y'
+!                call set_eec_check(zero)
+                globaldata%sysreal(1)=zero
              endif
 !.................................................................
           case(12) ! SET ADVANCED LEVEL
@@ -5176,6 +5190,8 @@ contains
        mexp=0
        updatemexp=.true.
        nvcoeff=0
+! initiate the limit on number of equilibria saved during step/map
+       totalsavedceq=0
 !       iexit=0
 !       iexit(2)=1
 !       write(*,*)'No Segmentation fault 4'
@@ -5693,6 +5709,8 @@ contains
              nullify(maptop)
              nullify(maptopsave)
              write(kou,*)'Previous results removed'
+! This is to keep trace of total number of saved equilibria
+             totalsavedceq=0
 ! delete equilibria associated with STEP/MAP
              call delete_equilibria('_MAP*',ceq)
              seqxyz=0
@@ -5836,6 +5854,8 @@ contains
 !             deallocate(maptop%saveceq)
              nullify(maptop)
              nullify(maptopsave)
+! This is to keep trace of total number of saved equilibria
+             totalsavedceq=0
 ! this removes all previous equilibria associated with STEP/MAP commands
 ! already done by delete_mapresults
 !             call delete_equilibria('_MAP*',ceq)
@@ -5876,6 +5896,12 @@ contains
        endif
 ! maptop is first nullified inside map_setup, then alloctated to return result
        call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
+       if(gx%bmperr.ne.0) then
+          write(kou,*)'Error return from MAP: ',gx%bmperr
+          gx%bmperr=0
+!       else
+!          write(*,*)'Map command finished without error'
+       endif
        if(.not.associated(maptop)) then
 ! if one has errors in map_setup maptop may not be initiated, if one
 ! has saved previous calculations in maptopsave restore those

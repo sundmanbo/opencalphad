@@ -2175,10 +2175,9 @@
 !         write(*,*)'3H found liquid delta-cp: ',dcpl
       endif
    enddo findix
-! ignore this error message
    if(ith.eq.0) then
 !      write(*,*)'3H Cannot find value for amorphous THET'
-      write(*,*)'3H warning no value for amorphous THET'
+      write(*,*)'3H warning no values for amorphous THET'
       gein=zero; dgeindt=zero; d2geindt2=zero
       goto 300
 !      gx%bmperr=4367; goto 1000
@@ -2425,7 +2424,7 @@
 !      write(*,*)'3H Cannot find value for amorphous THET'
       if(maxwarnings.lt.20) then
          maxwarnings=maxwarnings+1
-         write(*,*)'3H twostatemodel1: no value for amorphous THET:',maxwarnings
+         write(*,*)'3H twostatemodel1 no values for amorphous THET:',maxwarnings
       endif
       gein=zero; dgeindt=zero; d2geindt2=zero
       goto 300
@@ -2765,10 +2764,11 @@
 !      write(*,*)'3H Cannot find value for amorphous THET'
       if(maxwarnings.lt.20) then
          maxwarnings=maxwarnings+1
-         write(*,*)'3H twostatemodel2: no value for amorphous THET:',maxwarnings
+         write(*,*)'3H twostatemodel2 no values for amorphous THET:',maxwarnings
       endif
       gein=zero; dgeindt=zero; d2geindt2=zero
-      goto 300
+      goto 1000
+!      goto 300
 !      gx%bmperr=4367; goto 1000
    endif
 !   write(*,*)'3H Using composition independent G2 values, THET=',&
@@ -2831,6 +2831,12 @@
    else
       d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
    endif
+! second derivatives with respect to composition dependence of THET
+   fact=1.5D0*(one+expmkvot)/(one-expmkvot)*kvot
+   do jj=1,mc
+      phres%dgval(1,jj,1)=msize*(phres%dgval(1,jj,1)+fact*phres%dgval(1,jj,ith))
+   enddo
+! Ignore second derivatives as this seems a small efect, 
 !-------------------------- jump here if no THET variable
 ! return the values in phres%gval(*,1)
 300 continue
@@ -2843,12 +2849,6 @@
 !   write(*,71)'3H Cp E3: ',extreme,ceq%tpval(1),gein,dgeindt,d2geindt2
 70 format(a,F7.2,5(1pe12.4))
 71 format(a,i3,1x,F7.2,5(1pe12.4))
-!  thet can depend on T
-   fact=1.5D0*(one+expmkvot)/(one-expmkvot)*kvot
-   do jj=1,mc
-      phres%dgval(1,jj,1)=msize*(phres%dgval(1,jj,1)+fact*phres%dgval(1,jj,ith))
-   enddo
-! This seems a small efect, ignore second derivatives ...
 !----------------------------------------------------------------
 ! skip the 2-state model as G2 included in the ^oG for the endmember
 !   goto 1000
@@ -3617,10 +3617,10 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine add_ternary_extrapol_model
+!\addtotable subroutine add_ternary_extrapol_method
 !\begin{verbatim} %-
- subroutine add_ternary_extrapol_model(lokph,typ,species)
-! add a Toop or Kohler extrapolation model for a ternary subsystem to a phase
+ subroutine add_ternary_extrapol_method(lokph,typ,species)
+! add a Toop or Kohler extrapolation method for a ternary subsystem to a phase
 ! interactive or from database
    implicit none
    integer lokph
@@ -3630,8 +3630,10 @@
    type(gtp_endmember), pointer :: endmem
    type(gtp_interaction),pointer :: intrec
    type(gtp_tooprec), allocatable, target :: tooprec
+! this is incremented by 1 each time a record is created
+   integer, save ::uniqid=0
 !
-!   write(*,*)'In add_ternary_extrapol_model ',typ,lokph,' ',trim(species(1))
+!   write(*,*)'In add_ternary_extrapol_method ',typ,lokph,' ',trim(species(1))
    if(phlista(lokph)%noofsubl.gt.1) then
       write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
       gx%bmperr=4399; goto 1000
@@ -3641,7 +3643,7 @@
       gx%bmperr=4399; goto 1000
    endif
    if(.not.(typ.eq.'K' .or. typ.eq.'T')) then
-      write(*,*)'3H illegal extrapolation model: ',typ
+      write(*,*)'3H illegal extrapolation method: ',typ
       gx%bmperr=4399; goto 1000
    endif
 ! find the 3 constituents in the same sublattice in the phase
@@ -3662,7 +3664,7 @@
       write(*,*)'3H no such constituent: ',jj,species(jj)
       gx%bmperr=4399; goto 1000
    enddo all3
-   write(*,'(a,3i4)')'3H found constituents: ',tint
+!   write(*,'(a,3i4)')'3H found constituents: ',tint
 ! check no duplicate
    if(tint(1).eq.tint(2) .or. tint(1).eq.tint(3) .or. tint(2).eq.tint(3)) then
 ! we have now enough for a record: type and constituent indices ...
@@ -3687,17 +3689,20 @@
       if(toop.eq.1) toop=2
    endif
 ! now 1 < 2 < 3 ??
-   write(*,'(a,i4,": ",3i4)')'3H sorted constituents: ',toop,tint
+!   write(*,'(a,i4,": ",3i4)')'3H sorted constituents: ',toop,tint
    allocate(tooprec)
    tooprec%toop=toop
    tooprec%const1=tint(1)
    tooprec%const2=tint(2)
    tooprec%const3=tint(3)
-   nullify(tooprec%next1); nullify(tooprec%next2); nullify(tooprec%next3)
+   nullify(tooprec%next12); nullify(tooprec%next13); nullify(tooprec%next23)
+   tooprec%extra=0
+   uniqid=uniqid+1
+   tooprec%uniqid=uniqid
 ! now we have to find the interaction records ... suck
 ! Some binary parameter may not have an interaction record.   
 ! there must be a check if this ternary is not a duplicate, if so delete old
-   write(*,*)'3H no search for interaction records ... yet'
+!   write(*,*)'3H no search for interaction records ... yet'
 ! disordered fraction set not allowed
    endmem=>phlista(lokph)%ordered
 ! check if endmember contains lowest constituent index
@@ -3712,58 +3717,71 @@
       endif
    enddo findem
 ! as we already verified tint(1) is a constituent endmem should not be null ...
-   write(*,*)'3H Found endmember ',tint(1)
-   done=1
+!   write(*,*)'3H Found endmember ',tint(1)
+   done=0
    intrec=>endmem%intpointer
 ! interaction is binary, can be tint(2) or tint(3), there is no order
 ! a binary interaction parameter can be missing
-500 continue
+100 continue
 ! There is only a single set of sites
    if(intrec%fraclink(1).eq.tint(2)) then
 ! interaction 1-2
       done=done+1
-      write(*,*)'3H Found interaction ',tint(1),tint(2),done
+!      write(*,*)'3H Found interaction ',tint(1),tint(2),done
+! copy current tooprec link to tooprec%next12
+      tooprec%next12=>intrec%tooprec
       intrec%tooprec=>tooprec
    elseif(intrec%fraclink(1).eq.tint(3)) then
 ! interaction 1-3
       done=done+1
-      write(*,*)'3H Found interaction ',tint(1),tint(3),done
+!      write(*,*)'3H Found interaction ',tint(1),tint(3),done
+! copy current tooprec link to tooprec%next13
+      tooprec%next13=>intrec%tooprec
       intrec%tooprec=>tooprec
    endif
-   if(done.lt.3) then
+   if(done.lt.2) then
       intrec=>intrec%nextlink
-      if(associated(intrec)) goto 500
+      if(associated(intrec)) goto 100
    endif
 ! it is no error if there is an interaction record missing   
-   if(done.eq.2) write(*,*)'3H An interaction in Toop/Kohler is zero',done
+   if(done.lt.2) write(*,*)&
+        '3H A binary interaction 1-2 or 1-3 in a Toop/Kohler method is zero'
 ! now search for endmember for tint(2)
    findem2: do while(endmem%fraclinks(1,1).lt.tint(2))
       endmem=>endmem%nextem;
       if(associated(endmem)) then
          cycle findem2
       else
-         write(*,*)'3H no endmember 2 for: ',lokph,tint(2)
+         write(*,*)'3H no endmember for phase/element: ',lokph,tint(2)
          gx%bmperr=4399; goto 1000
       endif
    enddo findem2
-! as we already verified tint(2) is a constituent endmem should not be null ...
-   done=1
+! as we already verified tint(2) is a constituent endmem should exist
    intrec=>endmem%intpointer
 ! interaction is binary, can only be tint(3)
 ! a binary interaction parameter can be missing
    do while(associated(intrec))
 ! interaction 2-3
       if(intrec%fraclink(1).eq.tint(3)) then
-         write(*,*)'3H Found interaction ',tint(2),tint(3)
+!         write(*,*)'3H Found interaction ',tint(2),tint(3)
+! copy current tooprec link to tooprec%next12
+         tooprec%next23=>intrec%tooprec
          intrec%tooprec=>tooprec
-         goto 1000
+         goto 200
       else
          intrec=>intrec%nextlink
       endif
    enddo
+! Maybe something more?
+200 continue   
+   write(*,210)'3H Toop/Kohler record:',tooprec%uniqid,tooprec%toop,&
+        tooprec%const1,tooprec%const2,tooprec%const3,tooprec%extra,&
+        associated(tooprec%next12),associated(tooprec%next13),&
+        associated(tooprec%next23)
+210 format(a,6i4,3L2,' beware of duplicates')
 1000 continue
    return
- end subroutine add_ternary_extrapol_model
+ end subroutine add_ternary_extrapol_method
  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

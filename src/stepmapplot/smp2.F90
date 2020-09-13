@@ -313,8 +313,6 @@ MODULE ocsmp
 !
 ! fix status during mapping, normally 2 means fix (not used)
   integer, parameter :: MAPPHASEFIX=3
-! maximum number of saved equilibria during step/map
-  integer, parameter :: maxsavedceq=2000
 ! OS dependent values NOT BITS
 #ifdef notwin
   integer, parameter :: PLOTONWIN=0
@@ -333,6 +331,10 @@ MODULE ocsmp
   character (len=6) :: tielinecolor='7CFF40'
 ! for trace
   logical :: plottrace=.FALSE.
+! Using memory for stored equilibria to avoid memory crash
+! Totalsaved includes all equilibria saved during multiple map 
+  integer totalsavedceq
+  integer, parameter :: maxsavedceq=1999
 ! To warn that some calculated lines are excluded from plot
   integer :: lines_excluded=0
 ! save intial values of conditions for MAP, with 2 or more axis array needed

@@ -106,7 +106,8 @@
 ! used also in cgint when calculating interactions.
    TYPE(gtp_parcalc) :: gz
 ! disordered fraction set
-   TYPE(gtp_fraction_set) :: fracset,dislink
+!   TYPE(gtp_fraction_set) :: fracset,dislink
+   TYPE(gtp_fraction_set), pointer :: fracset,dislink
    TYPE(gtp_phase_varres), pointer :: phres,phpart,phmain
    TYPE(gtp_property), pointer :: proprec
    TYPE(gtp_endmember), pointer :: endmemrec
@@ -146,6 +147,7 @@
 ! calculate RT to normalize all Gibbs energies, ceq is current equilibrium
    rtg=globaldata%rgas*ceq%tpval(1)
    ceq%rtn=rtg
+!   write(*,*)'3X in calcg_internal: ',lokph
 !-----------------------
    chkperm=.false.
    already=0
@@ -284,6 +286,7 @@
       call config_entropy(moded,nsl,phlista(lokph)%nooffr,phres,gz%tpv(1))
    endif
    if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3X segmentation fault 10'
 !-------------------------------------------------------------------
 ! start BIG LOOP for all fraction variables and parameters
 ! there may be several different properties in addition to G like TC, MQ& etc
@@ -318,13 +321,16 @@
 !           fracset%totdis,phres%gval(1,1)
 7     format(a,i2,3(1x,l),i3,3(1pe12.4))
       fractype=fractype+1
+!      write(*,*)'3X segmentation fault 20',fractype
 ! return here for calculating with disordered fractions for same fraction type
 110 continue
 ! gz%nofc is number of fraction variables, msl is number of sublattices
 ! for this set of fractions!!! Ordering in FCC may have 5 sublattices with
 ! 4 participating in ordering and one interstitial.  The second fraction
 ! set may have 2 sublattices, 1 for the 4 ordering and one interstitial
-      fracset=phmain%disfra
+!      fracset=phmain%disfra
+      fracset=>phmain%disfra
+!      write(*,*)'3X segmentation fault 30',associated(fracset)
       ftype: if(fractype.eq.1) then
 !---------------------------------------------- ordered (or only) fraction set
          if(btest(phlista(lokph)%status1,PHMFS)) then
@@ -373,7 +379,7 @@
          deallocate(d2pyq)
          allocate(dpyq(gz%nofc))
          allocate(d2pyq(nofc2))
-!         if(ocv()) write(*,*)'3X Allocated dpyq 2'
+         if(ocv()) write(*,*)'3X Allocated dpyq 2'
          dpyq=zero
          deallocate(dvals)
          deallocate(d2vals)
@@ -382,16 +388,31 @@
          if(ocv()) write(*,*)'3X Allocated vals 2'
 ! the results will be stored in result arrays indicated by phres
 ! for the disordered fraction set phres must be set here and the arrays zeroed
-         dislink=cps%disfra
+!         dislink=cps%disfra
+         dislink=>cps%disfra
 !         write(*,*)'3X Calc internal disordred part 1A',dislink%fsites
          lokdiseq=dislink%varreslink
 !         write(*,*)'3X Calc internal disordred part 1B',lokdiseq
          phres=>ceq%phase_varres(lokdiseq)
+! Wow phres%gval etc not allocated !!
+         if(.not.allocated(phres%gval)) then
+            allocate(phres%gval(6,nprop))
+         endif
          phres%gval=zero
-!         write(*,*)'3X Calc internal disordred part 1c'
+!         write(*,*)'3X Calc internal disordred part 1c',&
+!              allocated(phres%dgval),gz%nofc
          if(moded.gt.0) then
+            if(.not.allocated(phres%dgval)) then
+               allocate(phres%dgval(3,gz%nofc,nprop))
+            endif
             phres%dgval=zero
             if(moded.gt.1) then
+               nofc2=gz%nofc*(gz%nofc+1)/2
+!               write(*,*)'3X segmentation fault 48: ',&
+!                    allocated(phres%d2gval),nofc2
+               if(.not.allocated(phres%d2gval)) then
+                  allocate(phres%d2gval(nofc2,nprop))
+               endif
                phres%d2gval=zero
             endif
          endif
@@ -445,7 +466,7 @@
 ! big loop for all permutation of fractions (ordering option F and B)
 ! including all interaction parameters linked from this endmember
 !
-!      write(*,*)'3X Config G 2: ',phres%gval(1,1)*rtg
+!      write(*,*)'3X Config G 2: ',associated(endmemrec)
       endmemloop: do while(associated(endmemrec))
 !
 ! The array maxpmq is used for interaction permutations.  It must be
@@ -455,7 +476,6 @@
          maxprec=0
          epermut=0
          sameint=0
-!         write(*,*)'3X: start endmember list',endmemrec%noofpermut
          empermut: do while(epermut.lt.endmemrec%noofpermut)
             epermut=epermut+1
 ! calculate py, calculate parameter, calculate contribution to G etc
@@ -713,6 +733,7 @@
 173            format(a,2i4,4(1pe12.4))
 ! multiply with py and derivatives. vals is composition independent
 !               write(*,*)'3X Config G 4B: ',vals(1)*rtg
+! segmentation fault between 64 and 65 ....
                noderz2: if(moded.gt.0) then
                   derloopz2: do id=1,gz%nofc
                      do itp=1,3
@@ -720,7 +741,6 @@
                              dpyq(id)*vals(itp)
                      enddo
                      if(moded.gt.1 .and. dpyq(id).gt.zero) then
-!                        jxsym=ixsym(id,id+1)
                         jxsym=kxsym(id,id+1)
                         do jd=id+1,gz%nofc
 ! trying to replace calls of ixsym ... OK here
@@ -728,9 +748,11 @@
                               write(*,*)'ISYM error 1',id,jd,ixsym(id,jd),jxsym
                               stop
                            endif
-!                           phres%d2gval(ixsym(id,jd),ipy)= &
-!                                phres%d2gval(ixsym(id,jd),ipy)+ &
-!                                d2pyq(ixsym(id,jd))*vals(1)
+!                           write(*,*)'3X segfault 64C',allocated(d2pyq),&
+!                                d2pyq(jxsym)
+!                           write(*,*)'3X segfault 64E',allocated(phres%d2gval)
+! phres%d2gval not allocated!!
+!                           write(*,*)'3X segfault 64F',phres%d2gval(jxsym,ipy)
                            phres%d2gval(jxsym,ipy)= &
                                 phres%d2gval(jxsym,ipy)+ &
                                 d2pyq(jxsym)*vals(1)
@@ -3566,7 +3588,7 @@
 !   double precision, parameter :: yminord=1.0D-10
    integer lokdis,is
 !
-!   write(*,*)'3X entering calc_disfrac'
+!   write(*,*)'3X entering calc_disfrac',lokph,lokcs
 ! this is the record with the ordered constitution
    phord=>ceq%phase_varres(lokcs)
 !   disrec=phord%disfra
@@ -3579,6 +3601,8 @@
 ! to find the varres record with disordered fractions use varreslink
 ! this is the index to the phase_varres record with the ordered fractions ???
    lokdis=ceq%phase_varres(lokcs)%disfra%varreslink
+!   write(*,*)'3X in calc_disfrac',lokph,lokdis,&
+!        associated(phord),associated(phdis)
 !   write(*,*)'3X Calc disfra: ',lokph,lokcs,lokdis
 !   phdis=>ceq%phase_varres(lokdis)
 !   call calc_disfrac2(ceq%phase_varres(lokcs)%disfra,&
@@ -3607,14 +3631,16 @@
    double precision, parameter :: yminord=1.0D-10
    integer lokdis,is
 !
-!   write(*,*)'3X entering calc_disfrac'
+!   write(*,*)'3X entering calc_disfrac2'
 !   disrec=phord%disfra
 !   lokdis=disrec%varreslink
 !   phdis=>disrec%phdapointer
 ! this is the record with the ordered constitution
 !   phord=>ceq%phase_varres(lokcs)
 ! this is a record within the ordered constitution record for disordered fracs
+!   write(*,*)'3X entering calc_disfrac2'
    disrec=>phord%disfra
+!   write(*,*)'3X in calc_disfrac2 B',associated(disrec),associated(phdis)
 ! to find the varres record with disordered fractions use varreslink
 ! this is the index to the phase_varres record with the ordered fractions ???
 !   lokdis=disrec%varreslink
@@ -3626,8 +3652,11 @@
 !   write(*,*)'3X calc_disfra ordered and disordered records: ',lokcs,lokdis
 !   write(*,*)'3X calc_disfra phase index via disordred record: ',phdis%phlink
 !   write(*,*)'3X calc_disfrac 1B'
+!   write(*,*)'3X in calc_disfra2c B1: ',associated(phdis%yfr)
+! Segmentation fault that phdis%yfr not always allocated !!!
+!   write(*,*)'3X in calc_disfra2c B1: ',allocated(phdis%yfr)
    phdis%yfr=zero
-!   write(*,*)'3X disfrac 1: ',disrec%tnoofyfr
+!   write(*,*)'3X in calc_disfra2c A1: ',disrec%tnoofyfr
    do is=1,disrec%tnoofyfr
       phdis%yfr(disrec%y2x(is))=&
            phdis%yfr(disrec%y2x(is))+disrec%dxidyj(is)*phord%yfr(is)
@@ -3635,7 +3664,7 @@
 !           disrec%dxidyj(is),phord%yfr(is)
 77    format(a,2i3,3(1pe12.4))
    enddo
-!   write(*,*)'3X calc_disfrac 2'
+!   write(*,*)'3X in calc_disfrac2 A2'
 ! check if phase is really ordered, meaning that the disordered fractions
 ! are equal to the ordered ones
    ordered=.false.
@@ -3643,7 +3672,7 @@
       if(abs(phdis%yfr(disrec%y2x(is))-&
            phord%yfr(is)).gt.yminord) ordered=.true.
    enddo
-!   write(*,*)'3X calc_disfrac 3'
+!   write(*,*)'3X calc_disfrac2 A3'
    if(.not.ordered) then
 ! if this bit set one will not calculate the ordered part of the phase
       phord%status2=ibclr(phord%status2,csorder)
@@ -3651,7 +3680,7 @@
 ! bit must be cleared as it might have been set at previous call
       phord%status2=ibset(phord%status2,csorder)
    endif
-!   write(*,*)'3X calc_disfrac 4: ',phord%status2
+!   write(*,*)'3X in calc_disfrac2 A4: ',phord%status2
 ! copy these to the phase_varres record that belongs to this fraction set
 ! a derivative dGD/dyj = sum_i dGD/dxi * dxidyj
 ! where dGD/dxi is dgval(1,y2x(j),1) and dxidyj is disrec%dxidyj(j)
@@ -4605,5 +4634,47 @@
 1000 continue
    return
  end subroutine save_phase_constitutions
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine calc_eec_gibbsenergy
+!\begin{verbatim}
+ subroutine calc_eec_gibbsenergy(phres,ceq)
+! calculate an ideal Gibbs energy with just configurational entropy
+! phres is pointer to phase_varres record for the phase
+! for a solid phase with higher entropy than the liquid
+! G = RT \sum_s a_s \sum_i y_si \ln(y_si)
+! dG/dy_si = RT a_s (1+ln(y_si))
+! d2G/dy_si^2 = RT a_s/y_si            all other 2nd derivatives zero   
+   implicit none
+   TYPE(gtp_phase_varres), pointer :: phres
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer lokph,sl,i1,i2,kk
+   double precision sconf,tval,as
+! this is the index of the phase in phlista with phase structure
+   lokph=phres%phlink
+! zero all second derivatives of G, the diagonal added below
+   kk=phlista(lokph)%tnooffr*(phlista(lokph)%tnooffr+1)/2
+   do i1=1,kk
+      phres%d2gval(1,i1)=zero
+   enddo
+   kk=0
+   sconf=zero
+   tval=ceq%tpval(1)
+   do sl=1,phlista(lokph)%noofsubl
+      as=phres%sites(sl)
+      do i1=1,phlista(lokph)%nooffr(sl)
+         kk=kk+1
+         sconf=sconf+as*phres%yfr(kk)
+         phres%dgval(1,kk,1)=as*(one+log(phres%yfr(kk)))
+         phres%dgval(2,kk,1)=phres%dgval(2,kk,1)/tval
+         phres%d2gval(kxsym(kk,kk),1)=as/phres%yfr(kk)
+      enddo
+   enddo
+! return values divided by RT
+   phres%gval(1,1)=sconf
+1000 continue
+ end subroutine calc_eec_gibbsenergy
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\

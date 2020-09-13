@@ -139,6 +139,9 @@ MODULE liboceqplus
      double precision tpmaxdelta(2)
 ! individual phase information
      type(meq_phase), dimension(:), allocatable :: phr
+! this is used for EEC, pointer to liquid phr record and highest liquid entropy
+     type(meq_phase), pointer :: pmiliq
+     double precision seecliq
 ! information about conditions should be stored here.  Note that conditions
 ! may change during STEP and MAP
   end TYPE meq_setup
@@ -175,14 +178,15 @@ MODULE liboceqplus
 ! as we need an array to store the calculated values of the experimental  
 ! properties in order to calculate the Relative Standarad Deviation (RSD)
   double precision, allocatable, dimension(:) :: calcexp
+! We cannot have EEC variabler here as it does bot work in parallel
 ! this is for EEC test
-  type(meq_phase), pointer :: pmiliq
+!  type(meq_phase), pointer :: pmiliq
 ! if several liquids check for largest S
-  type(meq_phase), pointer :: pmiliqsave
-  double precision liqentropy
+!  type(meq_phase), pointer :: pmiliqsave
+!  double precision eecliqentropy
 ! this is set TRUE when entering meq_onephase and false after one solid checked?
 ! it is now check for EEC
-  logical eecextrapol
+!  logical eecextrapol
 ! This is an (failed) attempt to limit Delta-T when having condition on y
   logical ycondTlimit
   double precision deltatycond
@@ -956,6 +960,7 @@ CONTAINS
 ! Now we calculate the equilibrium
 200 continue
 ! allocate phaseremoved to avoid same phase stable again and again
+!    write(*,*)'MM start interative minimizer',ceq%eqno
     if(allocated(ceq%phaseremoved)) deallocate(ceq%phaseremoved)
     ntup=nooftup()
     allocate(ceq%phaseremoved(2,ntup),stat=errall)
@@ -983,6 +988,7 @@ CONTAINS
     endif
 !--------------------------------------------------
 1000 continue
+!    write(*,*)'MM back from meq_phaseset'
     if(gx%bmperr.ne.0) then
 ! test if total number of models > 10; that can create converge problems
        saverr=gx%bmperr; gx%bmperr=0
@@ -1281,6 +1287,7 @@ CONTAINS
     mapx=0
     call meq_sameset(irem,iadd,mapx,meqrec,meqrec%phr,inmap,ceq)
     if(ocv()) write(*,*)'MM back from sameset ',irem,iadd,meqrec%noofits
+!    write(*,*)'MM back from meq_sameset ',irem,iadd,meqrec%noofits
     if(gx%bmperr.ne.0) then
        if(gx%bmperr.eq.4364) then
 !          write(*,*)'MM Two phases with same stoichiometry stable, to be fixed'
@@ -1979,7 +1986,7 @@ CONTAINS
 !
 !-$omp parallel do private(pmi) shared(meqrec)
 ! nullify liquid pointer
-    nullify(pmiliq)
+    nullify(meqrec%pmiliq)
     parallel: do mph=1,meqrec%nphase
        pmi=>phr(mph)
 ! this routine calculates G and derivatives, the phase matrix and inverts it.
@@ -2812,6 +2819,7 @@ CONTAINS
 !            (yarr(nj),nj=1,phr(jj)%ncc)
 !       write(*,114)'YARR: ',jj,phr(jj)%ics,(yarr(nj),nj=1,phr(jj)%ncc)
 !114       format(a,2i3,8(F7.4))
+!       write(*,*)'MM calling set_constitution 1:',phr(jj)%iph,phr(jj)%ics
        call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
        if(gx%bmperr.ne.0) goto 1000
 !  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -5369,6 +5377,9 @@ CONTAINS
 ! with given T, P and chemical potentials for the components 
 ! For ionic liquids the sites on the sublattices varies with composition
 ! THIS IS A FIRST VERSION WITHOUT ANY TRICKS FOR SPEED
+! this will check if EEC set and modify G for solid phases with higher entropy
+! pmi is pointer to a record in meq_phase, local to this thread
+! than the liquid
     implicit none
     TYPE(meq_phase), pointer :: pmi
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -5388,7 +5399,7 @@ CONTAINS
     double precision, dimension(maxspel) :: stoi
 ! testing lapacl+blas inverting symmetric matrix
     double precision, allocatable, dimension(:) :: lapack
-!    double precision spextra
+    double precision xxxx,yyyy
 ! minimal y, charge
     double precision, parameter :: ymin=1.0D-12,ymingas=1.0D-30,qeps=1.0D-30
 ! derivative of moles of component wrt y_ks
@@ -5401,12 +5412,12 @@ CONTAINS
     double precision, dimension(:,:), allocatable :: sumion
     character name*24
 !    logical nolapack
-!
-!    write(*,*)'in meq_onephase: '
+!    write(*,'(a,5i5)')'in meq_onephase: ',ceq%eqno,&
+!         pmi%iph,pmi%ics,meqrec%noofits
 ! set eecextrapol to TRUE when entering, 
 ! set to FALSE inside check_eec if phase has higher entropy than liquid
 ! I am no longer sure this is needed??
-    eecextrapol=.TRUE.
+!    eecextrapol=.TRUE.
 ! Maybe nolapack be removed??
 !    nolapack=.TRUE.
 !    nolapack=.FALSE.
@@ -5414,24 +5425,12 @@ CONTAINS
     ics=pmi%ics
     nrel=meqrec%nrel
 ! for each phase "pmi" set eeccheck=0 at first interation
+! THIS IS CURRNTLY NOT USED, will be added later
     if(meqrec%noofits.eq.1) then
        pmi%eeccheck=0
     elseif(meqrec%tpindep(1).or.meqrec%tpindep(2)) then
 ! if T or P not conditions set eeccheck=0 at each iteration
        pmi%eeccheck=0
-    endif
-    if(test_phase_status_bit(iph,PHLIQ)) then
-!       write(*,*)'MM Finding liquid 1: ',pmi%iph,pmi%ics,associated(pmiliq)
-       if(associated(pmiliq)) then
-! two liquids, we should use the one with highest molar entropy
-! HAve we already calculated the entropy??
-          pmiliqsave=>pmiliq
-          liqentropy=pmiliq%curd%gval(2,1)/pmiliq%curd%abnorm(1)
-!          write(*,*)'MM liquid miscibility: ',liqentropy,&
-!               pmi%curd%gval(2,1)/pmi%curd%abnorm(1)
-       endif
-       pmiliq=>pmi
-       pmi%eeccheck=1
     endif
 ! extract phase structure
 !    write(*,*)'MM calling get_phase_data: ',iph
@@ -5480,7 +5479,7 @@ CONTAINS
     enddo
     if(nochange.ne.0) then
 ! if constitution changed save it. qq will be updated automatically
-!       write(*,*)'mm Calling set_constitution'
+!       write(*,*)'MM calling set_constitution 2:',ceq%eqno,iph,ics
        call set_constitution(iph,ics,yarr,qq,ceq)
        if(gx%bmperr.ne.0) then
           write(*,*)'MM never error 17',iph,ics
@@ -5526,7 +5525,7 @@ CONTAINS
        endif
        pmi%invmat=zero
 !       write(*,*)'Allocated invmat: ',nd1,ncc
-! meqrec is not available in this routine but meqrec%nrel passed in call
+! meqrec is not available in this routine ?? but meqrec%nrel passed in call
        allocate(pmi%xmol(nrel),stat=errall)
        allocate(pmi%dxmol(nrel,ncc),stat=errall)
        if(errall.ne.0) then
@@ -5549,6 +5548,7 @@ CONTAINS
 !       write(*,*)'MM xdone: ',pmi%xdone,iph,nv
        if(pmi%xdone.eq.1) goto 90
 ! we must call set_constitution once to have correct abnorm etc
+!       write(*,*)'MM calling set_constitution 3: ',iph,ics
        call set_constitution(iph,ics,yarr,qq,ceq)
        qsum=zero
        dqsum=zero
@@ -5592,7 +5592,7 @@ CONTAINS
           write(*,88)'Stoichiometric phase with net charge: ',iph,ics,qsum
 88        format(a,2i4,2(1pe12.4))
        endif
-! meqrec is not available in this routine
+! meqrec is not available in this routine ??
        do iz=1,nrel
           pmi%sumxmol=pmi%sumxmol+pmi%xmol(iz)
           pmi%sumwmol=pmi%sumwmol+pmi%xmol(iz)*mass_of(iz,ceq)
@@ -5604,10 +5604,28 @@ CONTAINS
 ! lokcs is set inside this subroutine
        call calcg(iph,ics,2,lokcs,ceq)
        if (gx%bmperr.ne.0) then
-          write(*,91)'calcg error in meq_onephase ',iph,gx%bmperr,ceq%eqno
+!          write(*,91)'calcg error in meq_onephase ',iph,gx%bmperr,ceq%eqno
 91        format(a,3i5)
           goto 1000
        endif
+       eec1: if(globaldata%sysreal(1).gt.one) then
+! EEC check for stoichiometric phases
+! gval(1:6,1) are G, G.T, G.P, G.T.T, G.T.P, G.P.P
+          yyyy=zero
+          if(associated(meqrec%pmiliq)) then
+! NOTE gval(2,1) is dG/dT i.e. the negative of entropy!!
+!             write(*,*)'MM eec1A: DS',meqrec%seecliq,&
+!                  pmi%curd%gval(2,1)/pmi%curd%abnorm(1)
+             if(pmi%curd%gval(2,1)/pmi%curd%abnorm(1).lt.meqrec%seecliq) then
+! too high entropy, set G=1.0 (avoid 0.0 ...)
+                yyyy=pmi%curd%gval(1,1)
+                pmi%curd%gval(1,1)=one
+!                write(*,*)'MM eec1B: new G:',pmi%curd%gval(1,1),yyyy
+             endif
+          else
+!             write(*,*)'MM eec1 No liquid entropy for stoichiometric phase!'
+          endif
+       endif eec1
 ! set the inverted phase matrix to zero !!!
        pmi%invmat=zero
 !       do ik=1,ncc
@@ -5623,13 +5641,13 @@ CONTAINS
     pmi%sumwmol=zero
     pmi%xdone=-1
 !    if(phase_model(iph,ics,PHID,ceq)) then
-!    if(test_phase_status_bit(iph,PHID,ceq)) then
+!    write(*,*)'MM test ideal: ',test_phase_status_bit(iph,PHID)
     if(test_phase_status_bit(iph,PHID)) then
 !--------------------------------------------- ideal phase (subst, no excess)
 !       write(*,*)'Phase is ideal'
        if(test_phase_status_bit(iph,PHLIQ)) then
 !          write(*,*)'MM liquid ideal: ',pmi%iph,pmi%ics
-          pmiliq=>pmi
+          meqrec%pmiliq=>pmi
        endif
 ! special treatment of ideal phase (gas), sites assumed to be unity
 ! 1. Calculate M_i and dM_i/dy^s_k and the net charge charge Q and dQ/dy^s_k
@@ -5658,7 +5676,7 @@ CONTAINS
           enddo
           ncon=ncon+1
        enddo
-! meqrec is not available in this routine
+! meqrec is not available in this routine ??
        do ik=1,nrel
           pmi%sumxmol=pmi%sumxmol+pmi%xmol(ik)
 !          write(*,*)'sumwmol 2: ',pmi%xmol(ik),mass_of(ik,ceq)
@@ -5667,11 +5685,42 @@ CONTAINS
 ! now calculate G and all 1st and 2nd derivatives
 ! This can be speeded up as all 2nd derivatives of constituents are RT/y
 ! The calculated values are used also in other parts of the code 
-      call calcg(iph,ics,2,lokcs,ceq)
+       call calcg(iph,ics,2,lokcs,ceq)
        if(gx%bmperr.ne.0) then
           write(*,*)'Error calculating ideal gas',gx%bmperr,iph,ics
           goto 1000
        endif
+       eec2: if(globaldata%sysreal(1).gt.one) then
+! EEC check for ideal phases except gas
+! gval(1:6,1) are G, G.T, G.P, G.T.T, G.T.P, G.P.P
+          xxxx=pmi%curd%gval(2,1)/pmi%curd%abnorm(1)
+          if(test_phase_status_bit(iph,PHLIQ)) then
+             if(associated(meqrec%pmiliq)) then
+! this is a second liquid
+                if(xxxx.lt.meqrec%seecliq) then
+                   meqrec%pmiliq=>pmi
+                   meqrec%seecliq=xxxx
+                endif
+             else
+! this is the first (or maybe only) liquid composition set
+                meqrec%pmiliq=>pmi
+                meqrec%seecliq=xxxx
+             endif
+          elseif(.not.test_phase_status_bit(iph,PHGAS)) then
+             if(associated(meqrec%pmiliq)) then
+! NOTE gval(2,1) is dG/dT i.e. the negative of entropy!!
+                if(xxxx.lt.meqrec%seecliq) then
+! G is set to -RT*ideal entropy/RT
+!                   write(*,*)'MM eec2A: ',pmi%curd%gval(1,1)
+                   pmi%curd%gval(1,1)=-pmi%curd%gval(2,1)
+! no need to set other derivatives
+                endif
+             else
+                write(*,*)'MM eec2 no liquid entropy to test!'
+             endif
+          endif
+!          write(*,*)'MM eec2B: ',pmi%curd%gval(1,1)
+       endif eec2
 ! calculate phase matrix elements
 ! temporarely ignore that the phase matrix is symmetric
 ! ceq%phase_varres(lokcs)%...
@@ -5734,40 +5783,6 @@ CONTAINS
 73        format(1x,6(1pe12.4))
           gx%bmperr=4205; goto 1000
        endif
-!       write(*,*)'Value 1 of nolapsck: ',nolapack,.not.nolapack
-!       if(.not.nolapack) then
-! when nolapack=true this is skipped
-! call lapack routine to invert symmetric matrix
-!          do jk=1,neq
-!             write(*,18)'3Y 1A',jk,(pmat(ik,jk),ik=1,neq)
-!          enddo
-!          do jk=1,neq
-!             write(*,18)'3Y 2A',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
-!          enddo
-!          write(*,*)'We are using LAPACK!'
-!          call dpptrf('U',neq,lapack,info)
-!          if(info.ne.0) then
-!             write(*,*)'MM error in DPPTRF: ',info,neq,nd1
-!             gx%bmperr=4399; goto 1000
-!          else
-!             call dpptri('U',neq,lapack,info)
-!             write(*,*)'MM error in DPPTRI: ',info
-!             gx%bmperr=4399; goto 1000
-! result retuned in lapack, compare with pmi%invmat
-!             do jk=1,neq
-!                write(*,18)'3Y 1B :',jk,(pmi%invmat(ik,jk),ik=1,neq)
-!             enddo
-!             do jk=1,neq
-!                write(*,18)'3Y 2B :',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
-!             enddo
-!          endif
-!          stop
-!       endif
-!       do jk=1,neq
-!          write(*,18)'im: ',(pmi%invmat(ik,jk),ik=1,neq)
-!       enddo
-!       pmi%invmat=zero
-! maybe some common ending
        goto 900
     endif
 !---------------------------------------------- no analytical 2nd derivatives
@@ -5779,12 +5794,13 @@ CONTAINS
        gx%bmperr=4206; goto 1000
     endif
 !----------------------------------------------- ionic liquid phase
+!    write(*,*)'MM test I2SL: ',test_phase_status_bit(iph,PHIONLIQ)
     ionliq: if(test_phase_status_bit(iph,PHIONLIQ)) then
 !       write(*,*)'Warning; ionic liquid model not fully implemented'
 ! Calculate M_A and dM_A/dy_i taking into account that P and Q varies 
 !   call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
        if(test_phase_status_bit(iph,PHLIQ)) then
-          pmiliq=>pmi
+          meqrec%pmiliq=>pmi
 !          write(*,*)'MM liquid ionic: ',pmi%iph,pmi%ics
        endif
        pmi%ionliq=nkl(1)
@@ -5916,7 +5932,7 @@ CONTAINS
        icon=ncon
 !......................................... end handling P and Q variation
 261    continue
-! meqrec is not available in this routine
+! meqrec is not available in this routine ??
        do ik=1,nrel
           pmi%sumxmol=pmi%sumxmol+pmi%xmol(ik)
           pmi%sumwmol=pmi%sumwmol+pmi%xmol(ik)*mass_of(ik,ceq)
@@ -5928,12 +5944,30 @@ CONTAINS
           write(*,*)'MM Error calculating G 1: ',iph,ics,lokcs
           goto 1000
        endif
-! correction of second derivatives due to variation of P and Q
+! correction of I2SL second derivatives due to variation of P and Q
        if(meqrec%noofits.gt.1) then
 ! NOTE pmat is dimensioned pmat(nd1,nd2)
           call corriliq_d2gdyidyj(nkl,knr,ceq%cmuval,pmi,ncon,nd1,pmat,ceq)
           if(gx%bmperr.ne.0) goto 1000
        endif
+       eec3: if(globaldata%sysreal(1).gt.one) then
+! EEC check for ionic liquid phase (no need to test for PHLIQ)
+! gval(1:6,1) are G, G.T, G.P, G.T.T, G.T.P, G.P.P
+          xxxx=pmi%curd%gval(2,1)/pmi%curd%abnorm(1)
+          if(associated(meqrec%pmiliq)) then
+! we already have a liquid 
+             if(xxxx.gt.meqrec%seecliq) then
+! this liquid has higher entropy                
+                meqrec%pmiliq=>pmi
+                meqrec%seecliq=xxxx
+             endif
+          else
+! save link to liquid with higest entropy
+             meqrec%pmiliq=>pmi
+             meqrec%seecliq=xxxx
+          endif
+!          write(*,*)'MM eec3: ',meqrec%seecliq,associated(meqrec%pmiliq)
+       endif eec3
 !       write(*,17)'pots: ',(ceq%cmuval(ik),ik=1,3)
 !       do ll=1,nd1
 !          write(*,17)'cion: ',(pmat(ll,ik),ik=1,nd1)
@@ -5988,14 +6022,15 @@ CONTAINS
 ! For all other phases calculate G and all first and second derivatives
 ! for current composition
 300 continue
+!    write(*,*)'MM CEF phase',ceq%eqno
 ! Calculate M_i and dM_i/dy^s_k and the net charge charge Q and dQ/dy^s_k
 !   call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
 ! how to normalize xmol?  use qq(1)!!, it handels vacancies .... ????
 !    write(*,*)'MM Phase 1: ',pmi%iph,pmi%ics
-    if(test_phase_status_bit(iph,PHLIQ)) then
+!    if(test_phase_status_bit(iph,PHLIQ)) then
 !       write(*,*)'MM liquid other: ',pmi%iph,pmi%ics
-       pmiliq=>pmi
-    endif
+!       meqrec%pmiliq=>pmi
+!    endif
     sumsit=one
     pmi%xmol=zero
     pmi%dxmol=zero
@@ -6030,12 +6065,14 @@ CONTAINS
           enddo
        enddo constll
     enddo subll
-! meqrec is not available in this routine
+!    write(*,*)'MM segmentation fault test 1',nrel
+! meqrec is not available in this routine ??
     do ik=1,nrel
        pmi%sumxmol=pmi%sumxmol+pmi%xmol(ik)
 !       write(*,*)'sumwmol 3:',pmi%xmol(ik),mass_of(ik,ceq)
        pmi%sumwmol=pmi%sumwmol+pmi%xmol(ik)*mass_of(ik,ceq)
     enddo
+!    write(*,*)'MM segmentation fault test 2'
 !    write(*,92)'onephase 3: ',pmi%iph,nsl,pmi%xdone,pmi%sumxmol,qq(1)
 !92  format(a,3i3,6(1pe12.4))
 !    write(*,17)'Vacanies: ',qq
@@ -6045,27 +6082,59 @@ CONTAINS
 !       enddo
 ! now calculate G and all 1st and 2nd derivatives
 ! The calculated values are stored and used also in other parts of the code 
+!    write(*,*)'MM segmentation fault test 3',iph,ics
     call calcg(iph,ics,2,lokcs,ceq)
     if(gx%bmperr.ne.0) then
        write(*,11)'MM Error calculating G 2: ',iph,ics,lokcs,gx%bmperr
 11     format(a,5i5)
        goto 1000
     endif
+!    write(*,*)'MM segmentation fault 10',globaldata%sysreal(1)
+    eec4: if(globaldata%sysreal(1).gt.one) then
+! check of EEC for a CEF phase
+!       if(pmi%eeccheck.eq.0) then
+! This is first iteration or we have variable T or P
+       xxxx=pmi%curd%gval(2,1)/pmi%curd%abnorm(1)
+!       write(*,*)'MM eec4A: ',meqrec%noofits,associated(meqrec%pmiliq)
+       if(test_phase_status_bit(iph,PHLIQ)) then
+! This is a liquid phase
+          if(associated(meqrec%pmiliq)) then
+! We have several liquids, take the highest entropy (note xxx is -entropy!)
+             if(xxxx.lt.meqrec%seecliq) then
+                meqrec%pmiliq=>pmi
+                meqrec%seecliq=xxxx
+             endif
+!             write(*,*)'MM eec4B: second liquid'
+          else
+! this is the first (or maybe only) liquid composition set
+             meqrec%pmiliq=>pmi
+             meqrec%seecliq=xxxx
+          endif
+!          write(*,'(a,l2,5(1pe12.4))')'MM eec4C: liq:',&
+!               associated(meqrec%pmiliq),meqrec%seecliq,&
+!               pmi%curd%gval(2,1),pmi%curd%abnorm(1)
+       elseif(.not.test_phase_status_bit(iph,PHGAS)) then
+! this is a condensed phase which should have its entropy checked
+! NOTE gval(2,1) is dG/dT i.e. the negative of entropy!!
+          if(xxxx.lt.meqrec%seecliq) then
+!             write(*,*)'MM eec4D S(solid)>S(liquid)',-xxxx,-meqrec%seecliq
+! replace G and all derivates with a phase with just configurational entropy
+! in the pmi%curd%gval, pmi%curd%dgval and  pmi%curd%d2gval
+             yyyy=pmi%curd%gval(1,1)
+             call calc_eec_gibbsenergy(pmi%curd,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+          endif
+       endif
+!       write(*,'(a,5(1pe12.4))')'MM eec4F: ',pmi%curd%gval(1,1),yyyy,&
+!            -meqrec%seecliq,-xxxx
+!    else
+!       write(*,*)'MM no EEC'
+    endif eec4
 ! calculate phase matrix elements, first and second derivatives
-!    if(.not.nolapack) then
-!       if(pmi%chargebal.eq.1) then
-!          neq=ncon+ll+1
-!          allocate(lapack(neq*(neq+1)/2))
-!       else
-!          neq=ncon+ll
-!          allocate(lapack(neq*(neq+1)/2))
-!       endif
-!       lapack=zero
-!    endif
-! normally .not.nolapack is FALSE
-!    write(*,*)' What is .not.nolapack? ',.not.nolapack
+!    write(*,*)'MM segmentation fault 19'
     pmat=zero
     neq=ncon
+!    write(*,*)'MM segmentation fault 20'
 ! here we are calculating CEF models
     do ik=1,ncon
 ! OK       jxsym=ixsym(ik,ik); kxsym=0
@@ -6102,6 +6171,7 @@ CONTAINS
 !       write(*,17)'row2A: ',(pmat(ik,jj),jj=1,nd1)
     enddo
 ! Then set the sublattice elements
+!    write(*,*)'MM segmentation fault 20'
     kk=0
     do ll=1,nsl
        do ik=1,nkl(ll)
@@ -6141,6 +6211,7 @@ CONTAINS
 ! invert the phase matrix (using LAPACK+BLAS ... 50% faster than with Leo)
 ! removed 2nd argument
 !    call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
+!    write(*,*)'MM segmentation fault 30'
     call mdinv(nd1,pmat,pmi%invmat,neq,ierr)
     if(ierr.eq.0) then
        write(*,*)'MM Numeric problem 3, phase/set:',iph,ics
@@ -6169,60 +6240,14 @@ CONTAINS
 !       enddo
        gx%bmperr=4205; goto 1000
     endif
-!
-!    write(*,*)'Value 3 of nolapsck: ',nolapack,.not.nolapack
-!    if(.not.nolapack) then
-! call lapack routine to invert symmetric matrix
-!       do jk=1,neq
-!          write(*,18)'3Y 1A',jk,(pmat(ik,jk),ik=1,neq)
-!       enddo
-!       do jk=1,neq
-!          write(*,18)'3Y 2A',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
-!       enddo
-!       call dpptrf('U',neq,lapack,info)
-!       if(info.ne.0) then
-!          write(*,*)'MM error in DPPTRF: ',info,neq,nd1
-!          gx%bmperr=4399; goto 1000
-!       else
-!          call dpptri('U',neq,lapack,info)
-!          write(*,*)'MM error in DPPTRI: ',info
-!          gx%bmperr=4399; goto 1000
-!! result retuned in lapack, compare with pmi%invmat
-!          do jk=1,neq
-!             write(*,18)'3Y 1B :',jk,(pmi%invmat(ik,jk),ik=1,neq)
-!          enddo
-!          do jk=1,neq
-!             write(*,18)'3Y 2B :',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
-!          enddo
-!       endif
-!       stop
-!    endif
-!    write(33,*)'Inverted'
-!    do jk=1,nd1
-!       write(33,111)jk,(pmi%invmat(jk,ll),ll=1,nd1)
-!    enddo
-!    close(33)
-!    do i=1,neq
-!       write(*,17)'pinv: ',(pmi%invmat(i,j),j=1,neq)
-!    enddo
-! maybe some common ending
     goto 900
 !-------------------------------------------
 900 continue
-! Generation 3 check: tentative replace G if S^solid > S^liq
-!    write(*,*)'MM eec1: ',globaldata%sysreal(1),ceq%tpval(1),pmi%eeccheck
-    if(globaldata%sysreal(1).gt.one .and. &
-         ceq%tpval(1).gt.globaldata%sysreal(1)) then
-       if(pmi%eeccheck.eq.0) then
-          call check_eec(pmi,pmiliq,meqrec,ceq)
-!          write(*,*)'MM eec3: ',meqrec%noofits,meqrec%tpindep(1),&
-!               pmi%curd%phtupx,pmi%eeccheck
-       endif
-    endif
 !
     goto 1000
-!
+!--------------------------------------------
 1000 continue
+!    write(*,*)'MM exit meq_onephase'
     return
   end subroutine meq_onephase !ixsym
  
@@ -7566,7 +7591,7 @@ CONTAINS
     meqrec%dormlink=0
 ! This can be done in PARALLEL for all phases
 ! nullify liquid pointer
-    nullify(pmiliq)
+    nullify(meqrec%pmiliq)
     do mph=1,meqrec%nphase
 ! loop to calculte and invert the phase matrices
        pmi=>meqrec%phr(mph)
@@ -9136,6 +9161,7 @@ CONTAINS
 !    write(*,112)'YC: ',jj,(ycorr(nj),nj=1,phr(jj)%ncc)
 !    write(*,112)'YZ: ',meqrec%noofits,(yarr(nj),nj=1,phr(jj)%ncc)
 112 format(a,i3,8F8.5)
+!    write(*,*)'MM calling set_constitution 4: ',phr(jj)%iph,phr(jj)%ics
     call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -9370,6 +9396,7 @@ CONTAINS
 !    write(*,112)'YC: ',jj,(delta(nj),nj=1,phr(jj)%ncc)
 !    write(*,112)'YY: ',meqrec%noofits,converged,(yarr(nj),nj=1,phr(jj)%ncc)
 112 format(a,2i3,8F8.5)
+!    write(*,*)'MM calling set_constitution 5:',phr(jj)%iph,phr(jj)%ics
     call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !-------------------------- end of iteration
@@ -9788,27 +9815,27 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine set_eec_check
-!\begin{verbatim}
-  subroutine set_eec_check(tval)
+!-\addtotable subroutine set_eec_check
+!-\begin{verbatim}
+!  subroutine set_eec_check(tval)
 ! This set values for EEC check, called from user i/f or application software
 ! ceq is a datastructure with all relevant thermodynamic data
-    implicit none
-    double precision tval
-!\end{verbatim} %+
-    if(tval.gt.1.0D1) then
-       globaldata%sysreal(1)=tval
-    else
-       globaldata%sysreal(1)=zero
-    endif
-    return
-  end subroutine set_eec_check
+!    implicit none
+!    double precision tval
+!-\end{verbatim} %+
+!    if(tval.gt.1.0D1) then
+!       globaldata%sysreal(1)=tval
+!    else
+!       globaldata%sysreal(1)=zero
+!    endif
+!    return
+!  end subroutine set_eec_check
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine check_eec
 !\begin{verbatim}
-  subroutine check_eec(pmisol,pmiliq,meqrec,ceq)
+  subroutine check_eec_old(pmisol,pmiliq,meqrec,ceq)
 ! This checks EEC after calculating all phases if the solid phase has S > S^liq
 ! it is called if T>globaldata%sysreal(1) (set in user i/f)
 ! pmisol is pointer to solid data
@@ -9825,6 +9852,7 @@ CONTAINS
     save once
 ! check if T<globaldata%sysreal(1) already made
 ! Calculate:  -S^sol_m - (-S^liq_m):
+    write(*,*)'MM we should never call check_eec! '
     if(.not.associated(pmiliq)) then
        if(.not.associated(pmisol)) then
           write(*,*)'MM check_eec called without any phases!'
@@ -9864,7 +9892,7 @@ CONTAINS
 1000 continue
 !    write(*,*)'MM leaving check_eec'
     return
-  end subroutine check_eec
+  end subroutine check_eec_old
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

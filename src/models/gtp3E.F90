@@ -3431,6 +3431,11 @@
 !   call init_gtp(intv,dblv)
 ! after return firsteq must be initiated ... maybe it should be done here ??
 !
+! Problem when adding EEC, initialization does not work, why?
+! Maybe these need initiating?
+   globaldata%sysreal=zero
+   globaldata%sysparam=0
+!
 1000 continue
    return
  end subroutine new_gtp

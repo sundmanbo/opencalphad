@@ -907,9 +907,9 @@
    if(ceq%phase_varres(lokcs)%phstate.eq.PHDORM) then
       status='Dormant'
       kstat=4
-! skip dormant phases unless positive driving force
+! skip dormant phases unless once TRUE (positive driving force)
 !      if(ceq%phase_varres(lokcs)%dgm.le.mindgm) goto 1000
-      goto 1000
+      if(.not.once) goto 1000
    elseif(ceq%phase_varres(lokcs)%phstate.eq.PHSUS) then
 ! skip suspended phases
       status='Suspended'
@@ -1617,7 +1617,7 @@
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon,ftyp,prplink
-   character text*3000,phname*24,prop*32,funexpr*1024
+   character text*3000,phname*24,prop*32,funexpr*1024,toopsp(3)*24,ch1*1
    character special*8
 !   integer, dimension(2,3) :: lint
 ! ?? increased dimension of lint ??
@@ -1625,13 +1625,19 @@
    integer, dimension(maxsubl) :: endm,ilist
    logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap
-! to list Kohler/toop ternaries
-   TYPE gtp_tooplist
-      type(gtp_tooplist), pointer :: nextoop
-      type(gtp_tooprec), pointer :: tooprec
-   end type gtp_tooplist
-   type(gtp_tooplist), allocatable, target :: tooplist
-   type(gtp_tooplist), pointer :: tooplistatop,tooptemp
+!--------------
+! save all Kohler/Toop ternary records in a pointer array
+! a smart way to have an array of pointers
+   integer, parameter :: maxtoop=50
+! this all tooprecords, it will be initiated to 0 for each phase
+   integer tooptop,tooplink,tooplast,tooplevel
+   TYPE tooprecs
+! this is an array with a pointer to each tooprecords
+      type(gtp_tooprec), pointer :: p1
+   end TYPE tooprecs
+   type(tooprecs), dimension(maxtoop) :: tooparray
+   type(gtp_tooprec), pointer :: tooprec
+!---------------
 ! a smart way to have an array of pointers
    TYPE intrecarray 
       type(gtp_interaction), pointer :: p1
@@ -1644,6 +1650,8 @@
    TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_phase_add), pointer :: addrec
 !
+! toop/kohler methods
+   tooptop=0
 ! output on screen
    ftyp=1
    if(iph.lt.0 .or. iph.gt.noofph) then
@@ -1673,8 +1681,6 @@
 ! this indicates if there is a disordered fraction set
       special(kkk:kkk)='D'; kkk=kkk+1
    endif
-! this is used to indicate if there are Toop/Kohler excess models
-   nullify(tooplistatop)
    lokcs=phlista(lokph)%linktocs(ics)
 !   write(*,*)'3C order: ',btest(firsteq%phase_varres(lokcs)%status2,CSORDER),&
 !        btest(phlista(lokph)%status1,PHSUBO),kkk
@@ -1928,39 +1934,60 @@
             gx%bmperr=4399; goto 1000
          endif
          intrecstack(nint)%p1=>intrec
-         if(associated(intrec%tooprec)) then
-! we should collect all Toop/Kohöer tooprec and list them after the phase
-            write(*,*)'3C found a Toop/Kohler record'
-            if(.not.associated(tooplistatop)) then
-! create first tooplist record and set nextoop to point at itself
-               allocate(tooplist)
-               tooplistatop=>tooplist
-! A circular list, next point at itself ...
-               write(*,*)'3C set next to itself'
-               tooplistatop%nextoop=>tooplistatop
-               write(*,*)'3C set tooplist%tooprec to tooprec'
-               tooplist%tooprec=>intrec%tooprec
-               tooptemp=>tooplist
-               write(*,*)'3C toop/kohler 1: ',tooptemp%tooprec%const1,&
-                    tooptemp%tooprec%const2,tooptemp%tooprec%const3
-            else
-! we have already a tooplist record, save current next and allocate new next
-               tooptemp=>tooplistatop%nextoop
-               allocate(tooplist%nextoop)
-               tooplist%nextoop%tooprec=>intrec%tooprec
-               tooplist%nextoop=>tooptemp
-               tooplistatop=>tooptemp
-               write(*,*)'3C toop/kohler 2: ',tooptemp%tooprec%const1,&
-                    tooptemp%tooprec%const2,tooptemp%tooprec%const3
-            endif
-! list all records in tooplistatop ...
-            tooptemp=>tooplistatop%nextoop
-            do while(.not.associated(tooplistatop,tooptemp))
-               write(*,*)'3C toop/kohler 3: ',tooptemp%tooprec%const1,&
-                    tooptemp%tooprec%const2,tooptemp%tooprec%const3
-               tooptemp=>tooptemp%nextoop
+         toop: if(associated(intrec%tooprec)) then
+! Here we collect all Toop/Kohöer tooprec and to them after the phase
+            tooprec=>intrec%tooprec
+! tooplast is last tooprec that have had all links searched
+            tooplast=tooptop
+            tooplink=1
+107         continue
+!            write(*,210)'3C found toop record:',tooptop,tooprec%uniqid,&
+!                 tooprec%toop,tooprec%const1,tooprec%const2,tooprec%const3,&
+!                 tooprec%extra,associated(tooprec%next12),&
+!                 associated(tooprec%next13),associated(tooprec%next23)
+210         format(a,6i4,3l2)
+! check if already found
+            do kk=1,tooptop
+               if(tooparray(kk)%p1%uniqid.eq.tooprec%uniqid) then
+!                  write(*,*)'Skipping ',tooprec%uniqid
+                  goto 108
+               endif
             enddo
-         endif
+! a new tooprec, store it
+            tooptop=tooptop+1
+            tooparray(tooptop)%p1=>tooprec
+!          write(*,*)'3C Adding a tooprec',tooptop,tooparray(tooptop)%p1%uniqid
+            tooplevel=0
+! There are 3 links from each tooprecord, exact all records from these
+! when empty go back one step of the stored tooprecord
+! We do not have to go back further than tooplast.
+108         continue
+!            write(*,*)'3C tooprec links',tooplink,tooprec%uniqid
+            if(tooplink.eq.1 .and. associated(tooprec%next12)) then
+               tooprec=>tooprec%next12; goto 107
+            else
+               tooplink=2
+            endif
+            if(tooplink.eq.2 .and. associated(tooprec%next13)) then
+               tooprec=>tooprec%next13; goto 107
+            else
+               tooplink=3
+            endif
+            if(tooplink.eq.3 .and. associated(tooprec%next23)) then
+               tooprec=>tooprec%next23; goto 107
+            endif
+! we have exhausted all links of this tooprec, go back to previous stored
+! until we read tooplast
+!            write(*,*)'3C no nextlinks: ',tooptop,tooplast,tooplevel
+            tooplevel=tooplevel+1
+            if(tooptop-tooplevel.gt.tooplast) then
+!               write(*,*)'3C decreasing to ',tooptop-tooplevel,tooplast
+               tooprec=>tooparray(tooptop-tooplevel)%p1
+               tooplink=1
+               goto 108
+            endif
+! We have checked all links from the tooprecords back to listing of parameters
+         endif toop
          lint(1,nint)=intrec%sublattice(1)
          kkk=intrec%fraclink(1)
          if(parlist.eq.2) then
@@ -2064,8 +2091,7 @@
                   cycle degree
                endif
                call encode_constarr(text,nsl,endm,nint,lint,jdeg)
-               write(funexpr,300)prop(1:len_trim(prop)), &
-                    phname(1:len_trim(phname)),text(1:len_trim(text))
+               write(funexpr,300)trim(prop),trim(phname),trim(text)
 300            format(A,'(',A,',',A,') ')
                ip=len_trim(funexpr)+1
                call list_tpfun(proprec%degreelink(jdeg),1,funexpr(ip:))
@@ -2140,8 +2166,34 @@
       goto 100
    endif
 ! Check if there are toop/kohler ternaries
-   if(associated(tooplistatop)) then
-      write(*,*)'3C there are Toop/Kohler ternaries'
+   if(tooptop.gt.0) then
+      write(*,*)'3C Some ternaries have Toop/Kohler extrapolation methods.'
+      write(*,*)'3C Beware, the Toop/Kohler implementation is fragile.'
+      tooploop: do tooplink=1,tooptop
+         tooprec=>tooparray(tooplink)%p1
+!         write(*,*)'3C constitlist: ',(phlista(lokph)%constitlist(kk),kk=1,4)
+!         write(*,210)'3C all toop records:',tooprec%uniqid,tooprec%toop,&
+!              tooprec%const1,tooprec%const2,tooprec%const3,tooprec%extra,&
+!              associated(tooprec%next12),&
+!              associated(tooprec%next13),associated(tooprec%next23)
+         kk=phlista(lokph)%constitlist(tooprec%const1)
+         toopsp(1)=splista(kk)%symbol
+         kk=phlista(lokph)%constitlist(tooprec%const2)
+         toopsp(2)=splista(kk)%symbol
+         kk=phlista(lokph)%constitlist(tooprec%const3)
+         toopsp(3)=splista(kk)%symbol
+         ch1='K'
+         if(tooprec%toop.gt.1) then
+! For toop ch1 should be T and first constituent the Toop constituent
+            ch1='T'
+            prop=toopsp(1)
+            toopsp(1)=toopsp(tooprec%toop)
+            toopsp(tooprec%toop)=prop
+         endif
+         write(lut,820)trim(phname),ch1,(trim(toopsp(kk)),kk=1,3),&
+              tooprec%uniqid
+820      format('?? AMEND PHASE ',a,' TERNARY_EXTRAPOL ',a,3(1x,a),' ! ',i5)
+      enddo tooploop
    endif
 1000 continue
    return

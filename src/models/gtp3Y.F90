@@ -12,7 +12,7 @@
 !
 ! Starting rewriting 2017-02-01
 !
-! finds a set of phases that is a global start point for an equilibrium 
+! finds a set of phasey cons that is a global start point for an equilibrium 
 ! calculation at T and P values in tp and known mole fraction in xknown
 ! It is intentional that this routine is independent of current conditions
 ! It returns: nvsph stable phases, list of phases in iphl, amounts in aphl, 
@@ -67,7 +67,7 @@
 ! sort phases depending on number of gridpoints
    integer, dimension(:), allocatable :: gridpoints,phord,starttup
 ! pph is set to number of phases participating, some may be suspended
-   integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj,zz,errall
+   integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj,zz,errall,eecliq
 !
 !   write(*,*)'3Y in global_gridmin'
 !   nystph=0
@@ -125,15 +125,27 @@
       write(*,*)'3Y allocation error 1: ',errall
       gx%bmperr=4370; goto 1100
    endif
+   eecliq=0
+   if(globaldata%sysreal(1).gt.one) then
+! we must initiate EEC data for the liquid
+      sliqmin=zero; sliqmax=zero; gliqeec=zero
+   endif
+!   write(*,*)'3Y loop for all phases',nrph,globaldata%sysreal(1)
    ggloop: do iph=1,nrph
 ! include all phases with any composition set entered (but only once!)
       do ics=1,noofcs(iph)
 ! new: -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
-! ignore phases whith no composition set entered
+! ignore phases whith no entered composition sets
 ! If a phase+compset FIX one should never be here as conditions wrong
          if(test_phase_status(iph,ics,amount,ceq).gt.PHDORM) then
             pph=pph+1
             iphx(pph)=iph
+            if(eecliq.eq.0 .and. globaldata%sysreal(1).gt.one) then
+!               write(*,*)'3Y looking for liquid: ',pph,iph
+               if(btest(phlista(iph)%status1,PHLIQ)) then
+                  eecliq=phlista(iph)%alphaindex
+               endif
+            endif
             cycle ggloop
          endif
       enddo
@@ -161,10 +173,39 @@
 ! just to be sure
    nphl(0)=0
 !
-   if(globaldata%sysparam(1).gt.one) then
-! we must initiate EEC data for the liquid
-      sliqmin=zero; sliqmax=zero; gliqeec=zero
-   endif
+!------------------------------------------------------
+! For EEC we must always calculate the liquid phase first
+! it means its grid will be calculated twice because I do not want to change
+   eec: if(eecliq.gt.0) then
+! if eecliq=1 the liquid is first and this is not needed
+! ng should be set to number of remaining points, ny and yphl is not used
+      iv=1
+      ng=maxgrid
+! possible output on gridmap.dat
+!            if(lutbug.gt.0) then
+!               lokph=phases(iphx(zph))
+!               write(lutbug,16)trim(phlista(lokph)%name),zph,lokph,ng
+!16             format(/'Phase: ',a,3i7)
+!            endif
+!      write(*,*)'3Y calculate EEC data for liquid',eecliq,iphx(eecliq),iv,ng
+      if(btest(globaldata%status,GSOGRID)) then
+! The possibility to use the old grid tested
+         call generate_grid(0,eecliq,ng,nrel,&
+              xarr(1,iv),garr(iv),ny,yarr,gmax,ceq)
+      else
+         call generic_grid_generator(0,eecliq,ng,nrel,&
+              xarr(1,iv),garr(iv),ny,yarr,gmax,ceq)
+      endif
+      if(gx%bmperr.ne.0) then
+         write(*,*)'3Y grid error ',eecliq,gx%bmperr
+         exit eec
+      endif
+!      write(*,*)'3Y sliqmax: ',sliqmax
+   elseif(globaldata%sysreal(1).gt.one) then
+      write(*,*)'3Y EEC will not work because there is no liquid'
+   endif eec
+!
+!----------------------------------------------------------
    phloop: do zph=1,pph
 ! for phase iphx(zph) the gridpoints will be stored from position nphl(zph-1)+1
 ! ng should be set to number of remaining points, ny and yphl is not used
@@ -176,6 +217,7 @@
          write(lutbug,16)trim(phlista(lokph)%name),zph,lokph,ng
 16       format(/'Phase: ',a,3i7)
       endif
+!      write(*,*)'3Y gridgen ',zph,iv,ng
 ! this call will calculate gridpoints in phase zph, that may take time ...
 ! ng is set to remaining dimension of garr, on return the number of generated
 !    gridpoints, returned as xarr composition of these and
@@ -193,13 +235,13 @@
 !>>>>>>>> impportant end!
 !      write(*,*)'3Y grid done'
       if(gx%bmperr.ne.0) then
-         write(*,*)'3Y grid error ',zph,gx%bmperr
+         write(*,*)'3Y grid error ',iphx(zph),gx%bmperr
          exit phloop
       endif
-!      write(*,*)'3Y done generic_grid: ',zph,iphx(zph),ng
 ! nphl(zph) is last gridpoint in phase zph
       nphl(zph)=nphl(zph-1)+ng
    enddo phloop
+!----------------------------------------------------------
 ! if lutbug>0 close it
    if(lutbug.gt.0) then
       close(lutbug)
@@ -412,7 +454,7 @@
    call set_metastable_constitutions2(pph,nrel,nphl,iphx,xarr,garr,&
         nvsph,iphl,cmu,ceq)
    if(gx%bmperr.ne.0) goto 1000
-   write(*,*)'3Y Constitution of metastable phases set'
+!   write(*,*)'3Y Constitution of metastable phases set'
 ! maybe more composition sets needed
    do ie=1,nvsph
       icsl(ie)=0
@@ -523,30 +565,39 @@
       sum=sum+aphl(iph)
    enddo
    gmax=zero
+!   write(*,*)'3Y no segmentation fault 1'
 ! If there is a gas nvsph may be less than number of elements
    ceqstore: do iph=1,nvsph
+!      write(*,*)'3Y no segmentation fault 2',iph
       if(iphl(iph).lt.0) then
 ! this gripoint has no composition set because too many gridpoints in same phase
          starttup(iph)=0
          continue
+!         write(*,*)'3Y no segmentation fault 3',iph
       else
+!         write(*,*)'3Y segmentation fault 5',iph,iphl(iph),icsl(iph),j1
          call set_constitution(iphl(iph),icsl(iph),yphl(j1),qq,ceq)
          if(gx%bmperr.ne.0) goto 1000
+!         write(*,*)'3Y no segmentation fault 6',lokph,lokcs
          call get_phase_compset(iphl(iph),icsl(iph),lokph,lokcs)
          if(gx%bmperr.ne.0) goto 1000
+!         write(*,*)'3Y no segmentation fault 7'
 ! This is a bit quiestionable but seems to work
          amount=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
          gmax=gmax+amount
          aphl(iph)=amount
 1789     format(a,2i4,5(1pe12.4))
+!         write(*,*)'3Y no segmentation fault 8',lokcs,iph
          ceq%phase_varres(lokcs)%amfu=aphl(iph)
          ceq%phase_varres(lokcs)%phstate=PHENTSTAB
          starttup(iph)=ceq%phase_varres(lokcs)%phtupx
          j1=j1+nyphl(iph)
       endif
+!      write(*,*)'3Y no segmentation fault 9',iph,nvsph
    enddo ceqstore
 !-----------------------------------------------------------------------
 ! debug listing of tuples at gridpoints
+!   write(*,*)'3Y no segmentation fault 10'
 !   write(*,1411)(starttup(iph),iph=1,nvsph)
 !1411 format('3Y tupl:',18i4)
 !-----------------------------------------------------------------------
@@ -584,6 +635,7 @@
 !---------------------------------------
 !   write(*,*)'3Y gridpoints: ',nvsph,iph
 1000 continue
+!   write(*,*)'3Y no segmentation fault 20'
 !   write(*,*)'3Y at 1000: ',phlista(1)%noofcs
 ! restore tpval in ceq
    ceq%tpval=savetp
@@ -608,7 +660,6 @@
    endif
 1100 continue
    if(ocv()) write(*,*)'3Y leaving global_gridmin'
-!   write(*,*)'3Y leaving global_gridmin'
    return
  end subroutine global_gridmin
 
@@ -3517,7 +3568,7 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! ny just needed for debugging ...
-   integer i,lokres
+   integer i,lokres,lokph
    double precision qq(5),xmol(nrel),ytemp(maxconst),gg,ss
    TYPE(gtp_phase_varres), pointer :: varres
 ! set constitution and calculate G per mole atoms and composition
@@ -3530,14 +3581,19 @@
    if(gx%bmperr.ne.0) goto 1000
    call calc_phase_mol(iph,xmol,ceq)
    if(gx%bmperr.ne.0) goto 1000
+!-------------------------------------------------
    if(globaldata%sysreal(1).gt.one) then
 ! if eec check if this is the liquid and if so select the maximum S ??
       varres=>ceq%phase_varres(lokres)
+      lokph=varres%phlink
 ! value per mole component gres(2,1) is the -entropy NOTE ss is postive!!
       ss=-varres%gval(2,1)/qq(1)
       gg=varres%gval(1,1)
-      if(btest(phlista(iph)%status1,PHLIQ)) then
-!         write(*,*)'In calc_gridpoint liquid: ',ss
+! I do not understand why iph and lokph is not the same!!
+!      write(*,*)'3Y liqtest: ',iph,lokph
+      eecheck: if(btest(phlista(lokph)%status1,PHLIQ)) then
+!         write(*,*)'In calc_gridpoint liquid: ',sliqmax
+!         if(sliqmax.gt.zero) exit eecheck
 !         neecgrid=neecgrid+1
 ! note varres%gval(2,1) is -S !! Should we test max or min of liquid S ??
 !         write(*,*)'Determining sliqmax: ',ss,sliqmax
@@ -3562,16 +3618,16 @@
          endif
       else
          write(*,*)'3Y Gridminimizer has no Sliqmax for solid',iph
-      endif
+      endif eecheck
+! list EEC values
+!      write(*,11)'3Y EEC set: ',iph,xmol(1),ss,sliqmax,gg,varres%gval(1,1)
+11    format(a,i3,F8.4,5(1pe12.4))
    endif
-!    write(*,15)'3Y gd2: ',iph,lokres,qq(1),&
-!         ceq%phase_varres(lokres)%gval(1,1),(xmol(i),i=1,nrel)
-!15  format(a,2i4,2e12.4,2x,5(F9.5))
+!--------------------------------------
    do i=1,nrel
       xarr(i)=real(xmol(i))
    enddo
-!   if(qq(1).lt.2.0D-1) then
-! number of real atoms less than 20%, a gridpoint with just vacancies ....
+! handle special problems
    if(qq(1).lt.5.0D-1) then
 ! number of real atoms less than 50%, a gridpoint with mainly vacancies ....
 !      write(*,12)'3Y real atoms less than 0.5',lokres,qq(1),&
@@ -3583,7 +3639,7 @@
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! the gridpoint has net charge, qq(2), make gval more positive. 
 ! Note gval(1,1) is divided by RT so around -5<0
-! A better method is needed by combining charged gripoints!!!!
+! There is special grid generator combining charged gripoints!!!!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 !      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+20*qq(2)**2)
 !      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+5*qq(2)**2)
@@ -3599,10 +3655,6 @@
 !    read(*,20)ch1
 20  format(a)
 1000 continue
-! check for parallel
-!    jip=omp_get_thread_num()
-!    write(*,1010)jip,gval,gx%bmperr
-1010 format('3Y Thread ',i3,', gval: ',1pe15.6,', error: ',i6)
    return
  end subroutine calc_gridpoint
 
@@ -4701,7 +4753,7 @@
             if(gx%bmperr.ne.0) then
                phname='UNKNOWN'; gx%bmperr=0
             endif
-            write(*,830)'3Y merging:',jp,kp,gdf,aphl(jp),aphl(kp),trim(phname)
+!            write(*,830)'3Y merging:',jp,kp,gdf,aphl(jp),aphl(kp),trim(phname)
 830         format(a,2i4,3(1pe12.4),' in ',a)
 ! If merging use correct phase amounts
             npm=npm+1

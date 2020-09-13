@@ -2198,7 +2198,7 @@ end function find_phasetuple_by_indices
    double precision, allocatable :: compam(:),elam(:),iliqcats(:)
 !   TYPE(gtp_fraction_set), pointer :: disrec
    logical ionicliq
-!   write(*,*)'In set_constitution ...'
+!   write(*,*)'3A In set_constitution ...',ceq%eqno,iph,ics
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
@@ -2209,6 +2209,7 @@ end function find_phasetuple_by_indices
       ics=1
    endif
    lokcs=phlista(lokph)%linktocs(ics)
+!   write(*,*)'3A segmentation fault 1',iph,ics,lokcs
    ionicliq=btest(phlista(lokph)%status1,PHIONLIQ)
    if(ionicliq) then
 ! default values of i2slx
@@ -2229,6 +2230,7 @@ end function find_phasetuple_by_indices
          iliqcats=zero
       endif
    endif
+!   write(*,*)'3A segmentation fault 10',lokcs
    if(ocv()) write(*,8)'3Ay:',iph,ics,&
         (yfra(ic),ic=1,phlista(lokph)%tnooffr)
 8  format(a,2i2,6(1pe11.3))
@@ -2245,6 +2247,7 @@ end function find_phasetuple_by_indices
 ! - sum of fractions in each sublattice unity
 !      if(ocv()) write(*,*)'3A 2: ',ionicliq
       ic=0
+!      write(*,*)'3A segmentation fault 30',phlista(lokph)%noofsubl
       do ll=1,phlista(lokph)%noofsubl
 !         write(*,*)'3A sumy 2: ',ll,ic,phlista(lokph)%noofsubl
          asite=zero
@@ -2267,6 +2270,7 @@ end function find_phasetuple_by_indices
       enddo
 !--------
       ll=1; ml=0; asum=zero; bsum=zero; csum=zero; charge=zero
+!      write(*,*)'3A segmentation fault 40'
       if(ionicliq) then
 ! For ionic liquid we do not know the number of sites
          asite=one
@@ -2410,6 +2414,7 @@ end function find_phasetuple_by_indices
       enddo allcon
 !      write(*,33)'3A h:',lokcs,ll,asum,asite,spat
    endif nosuscon
+!   write(*,*)'3A NO segmentation fault 100'
 ! save charge, number of moles and mass of real atoms per formula unit
 !   write(*,33)'3A isum:',lokcs,0,charge,asum,bsum,asite,spat
    ceq%phase_varres(lokcs)%netcharge=charge
@@ -2430,6 +2435,7 @@ end function find_phasetuple_by_indices
          compam(zl)=comp1
          csum=csum+compam(zl)
       enddo
+!      write(*,*)'3A segmentation fault 200'
 !      write(*,277)'3A cpam: ',iph,csum,(compam(zl),zl=1,noofel)
 277   format(a,i3,6(1pe12.4))
 ! abnorm(3) is the number of moles of user defined components
@@ -2455,18 +2461,22 @@ end function find_phasetuple_by_indices
 !301 format(a,i3,6(1pe12.4))
 !      write(*,301)'3A y:  ',ic,ceq%phase_varres(lokcs)%yfr
 !   endif
+!   write(*,*)'3A NO segmentation fault 300'
    qq(1)=asum
    qq(2)=charge
    qq(3)=bsum
+!   write(*,*)'3A segmentation fault 301'
 ! set disordered fractions if any
    if(btest(phlista(lokph)%status1,phmfs)) then
 !now set disordered fractions if any
-!      write(*,*)'3A disordered fractions for: ',lokph,lokcs
+!      write(*,*)'3A call calc_disfrac for: ',lokph,lokcs
       call calc_disfrac(lokph,lokcs,ceq)
       if(gx%bmperr.ne.0) goto 1000
+!      write(*,*)'3A segmentation fault 311',lokph,lokcs
    endif
 314 format(a,8F8.3)
 1000 continue
+!   write(*,*)'3A no segmentation fault at exit'
 !   if(ionicliq) write(*,*)'3A s_c: ',phlista(lokph)%i2slx
    return
  end subroutine set_constitution

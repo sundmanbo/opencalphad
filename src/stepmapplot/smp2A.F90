@@ -212,6 +212,8 @@
 ! all threads stop.  
 ! If the node already exists the exit corresponing to the new line removed
 ! and the thread ends
+! initiate phfix, looking for crash it seems to be used before set ...
+    phfix=0
 ! If the node is new it is created and exits added and the thread ends.
     inactive=0
     nrestore=0
@@ -267,7 +269,7 @@
 ! because I checked only size(..) and not if it was allocated ...
     call save_constitutions(ceq,copyofconst)
 ! segmentation fault before this output ...
-!    write(*,*)'Stored: ',size(copyofconst)
+!    write(*,*)'called save_constitutions: ',size(copyofconst)
 305 continue
 ! to be able to handle problems copy the constitutions!!
 !    if(mapline%problems.gt.0) then
@@ -349,6 +351,7 @@
 !    write(*,*)'back from calceq7B'
 ! if all has gone well deallocate mapfix
     if(allocated(mapfix)) deallocate(mapfix)
+!    write(*,*)'SMP successfully deallocated mapfix'
 !--------------------------------
 ! limit the maximum change in T and P, should be small during step/map
     meqrec%tpmaxdelta(1)=2.0D1
@@ -388,7 +391,7 @@
 ! This is where most equilibrium calculations are made
 !--------------------------------------------------------------------------
 !
-!    write(*,*)'smp2A calling meq_sameset from map_doallines'
+!    write(*,*)'smp2A calling meq_sameset from map_doallines',ceq%tpval(1)
     call meq_sameset(irem,iadd,mapx,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
 !
 !--------------------------------------------------------------------------
@@ -1960,7 +1963,7 @@
     logical saveonfile
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval
-!    write(*,*)'In map_store',mapline%start%number_ofaxis,nax
+!    write(*,*)'In map_checkstep',mapline%start%number_ofaxis,nax
 !    do jj=1,nax
 !       axstv1=axarr(jj)%axcond(1)
 !       axstv=>axstv1
@@ -2005,8 +2008,8 @@
     character ch1*1
     logical saveonfile,testforspinodal
 ! pointer to last calculated (can be zero) and last free
-! store last calulated axis values in axarr(iax)%lastaxval
-!    write(*,*)'In map_store',mapline%start%number_ofaxis,nax
+! store last calulated axis values in axarr(iax)%lastaxval ALLOCATE
+!    write(*,*)'SMP in map_store',mapline%start%number_ofaxis,nax,totalsavedceq
 ! insert a test for spinodal at every iii equilibriia
     testforspinodal=.FALSE.
     if(globaldata%sysparam(2).gt.0) then
@@ -2114,6 +2117,12 @@
     mapline%last=place
     mapline%number_of_equilibria=mapline%number_of_equilibria+1
     if(mapline%first.eq.0) mapline%first=place
+! this counter is zeroed when starting a new map/step unless old saved kept
+    totalsavedceq=totalsavedceq+1
+    if(totalsavedceq.gt.maxsavedceq) then
+       write(kou,*)'SMP saved equilibria overflow ',totalsavedceq
+       gx%bmperr=4219
+    endif
     if(saveonfile) then
 ! We have to wind up all unfinished lines to continue step/map
 ! but this is not yet implemented
@@ -2123,6 +2132,8 @@
        gx%bmperr=4219
     endif
 1000 continue
+! nothing allocated?
+!    write(*,*)'SMP exit map_store',place
     return
   end subroutine map_store
 
@@ -6417,7 +6428,7 @@
           if(ip.gt.1) then
              write(kou,516)mapline%lineid,&
                   mapline%lineceq%tpval(1),phaseset(1:ip)
-516          format(/'Line: ',i3,' T=',F8.2,' with: ',a)
+516          format(/'New line: ',i3,' T=',F8.2,' with: ',a)
 !             write(*,507)' *** Phase fix: ',mapfix%fixph(1)%ixphase,&
 !                  mapfix%fixph(1)%compset,', entered: ',&
 !                  mapfix%stableph(1)%ixphase,&
@@ -6434,6 +6445,7 @@
                mapnode%linehead(nyline)%stableph(1)%compset
           mapfix%nstabph=0
        endif
+!       write(*,*)'SMP looking for segmentation fault'
 !-------------------------------------------------------------
     else
 ! For STEP we should set a small positive amount of a new stable phase
@@ -7599,8 +7611,7 @@
 !          write(*,*)'Calling findline:'
           call map_findline(maptop,axarr,mapfix,mapline)
           if(gx%bmperr.ne.0) goto 500
-!          write(*,*)'Back from map_findline 2'
-!          write(*,*)'We have a line'
+!          write(*,*)'Back from map_findline in STEP'
           ceq=>mapline%lineceq
           meqrec=>mapline%meqrec
 ! this is the first equilibrium along the line, create meqrec in step_separate

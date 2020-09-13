@@ -1314,6 +1314,7 @@
 !   write(*,*)'3B added compset: ',iph,icsno,noeq()
 !-------------------------------------------------------------------
 ! loop for all equilibria
+!   write(*,*)'3B allocate composition set in all equilibria',noeq()
    alleq: do leq=1,noeq()
 ! LOOP for all equilibria records to add this composition set to phase lokph
 ! lastcs is the previously last composition set, nyttcs is the new,
@@ -1351,7 +1352,7 @@
       neq%sites=peq%sites
       neq%abnorm=peq%abnorm
       neq%amfu=zero
-! copy quasichemical bonds!!
+! copy quasichemical bonds (if any)!!
       neq%qcbonds=peq%qcbonds
 !      write(*,311)'3B amfu: ',leq,iph,icsno,neq%amfu,neq%abnorm,peq%abnorm
 311   format(a,3i3,6(1pe12.4))
@@ -1360,8 +1361,10 @@
 ! NOTE: peq%yfr in firsteq is allocated maxconst=1000 as it is done
 ! before any elements entered!!! nz set above!!
 !      nz=size(peq%yfr)
+!      write(*,*)'3B allocate yfr: ',allocated(neq%yfr),nz,&
+!           btest(phlista(lokph)%status1,phmfs)
       if(.not.allocated(neq%yfr)) then
-!         write(*,*)'3B allocation 2: ',nz
+!         write(*,*)'3B allocate and copy yfr: ',nyttcs,nz
          allocate(neq%yfr(nz))
          neq%yfr=peq%yfr
       endif
@@ -1468,6 +1471,12 @@
          neq%status2=ibset(neq%status2,CSDLNK)
 ! set the link from ordered disfra record to the disordered phase_varres record
          neq%disfra%varreslink=nydis
+! allocate disordered fractions!!
+!         write(*,*)'3B allocate disordered yfr?',allocated(ndeq%yfr),nkk
+         if(.not.allocated(ndeq%yfr)) then
+            allocate(ndeq%yfr(nkk))
+         endif
+!         write(*,*)'3B allocated disordered yfr?',allocated(ndeq%yfr)
       endif disordered
    enddo alleq
 ! end threadprotected code <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< dpqdy
@@ -6259,12 +6268,17 @@
 !      novarres=csfree-1
 !      write(*,*)'3B deallocationg phase_varres'
       do ipv=1,novarres
-! can happen it is not allocated when previous errors
+! it can happen a phase_varres record is not allocated when previous errors
+! 
          if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%yfr)) cycle
          deallocate(eqlista(ieq)%phase_varres(ipv)%yfr)
+! with map 17 error here because not allocated, skip if not allocated
+         if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%constat)) cycle
          deallocate(eqlista(ieq)%phase_varres(ipv)%constat)
-         if(allocated(eqlista(ieq)%phase_varres(ipv)%mmyfr)) &
-              deallocate(eqlista(ieq)%phase_varres(ipv)%mmyfr)
+! skip also if this is not allocated
+         if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%mmyfr)) cycle
+! If all prevous allocated I hope these will not cause errors ....
+         deallocate(eqlista(ieq)%phase_varres(ipv)%mmyfr)
          deallocate(eqlista(ieq)%phase_varres(ipv)%sites)
          deallocate(eqlista(ieq)%phase_varres(ipv)%listprop)
          deallocate(eqlista(ieq)%phase_varres(ipv)%gval)

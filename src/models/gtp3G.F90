@@ -1586,6 +1586,7 @@
 ! disordered fractions already set
       gx%bmperr=4077; goto 1000
    endif
+!   write(*,*)'3G in add_fr: ',iph,id,ndl,totdis
 ! we must organise a constituent list for the disordered fractions by
 ! scanning the constituents in the current phlista(lokph)%constitlist
 ! we must also contruct the way site fractions should be added
@@ -1653,7 +1654,7 @@
 ! added fsites to handle the case when reading sigma etc from a TDB file
 ! as the TDB file format assumes 1 site.  Default is 1.0, changed externally
    fsdata%fsites=one
-!   write(*,*)'Set fsites: ',fsdata%fsites
+!   write(*,*)'3G Set fsites: ',fsdata%fsites,ndl,totdis,nnn
 !
 !   write(*,53)'add_fraction_set 3: ',nrj1,nrj2,nrj3,nrj4
    fsdata%latd=ndl
@@ -1756,6 +1757,7 @@
 !
    jj=0
    sum=fsdata%dsites(1)
+!   write(*,*)'3G sum: ',ndl,sum,fsdata%dsites
    do ll=1,nsl
       if(ll.gt.ndl) sum=fsdata%dsites(2)
 !      div=phlista(lokph)%sites(ll)/sum
@@ -1830,6 +1832,8 @@
    phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHMFS)
    phlista(lokph)%nooffs=2
 1000 continue
+!   write(*,*)'3G exit add_fraction_set: ',fsdata%fsites,nnn
+! NOTE fsdata&fsites updated in calling routine.  A bit strange but ...
    return
 ! nydis
  end subroutine add_fraction_set  ! no ceq

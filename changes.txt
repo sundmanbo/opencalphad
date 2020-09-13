@@ -15,6 +15,32 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2020.09.11 OC version 6.012: Several problems related to the EEC has
+been solved.  If a phase has higher entropy than the liquid (the EEC)
+the routine which calculate G and all its derivatives will replace the
+values of G and all its derivatives with respect to fractions with an
+ideal entroy expression with zero enthalpy.  This will ensure the
+phase is never stable but still allow it to have reasonable chemical
+potentials.  Just replacing the Gibbs energy with a high value created
+convergence problems.  But calculating and plotting Gibbs energy
+curves may still be difficult in a T and composition ranges where the
+EEC is active.
+
+I had a message from Ebert Alvares about problems assessing data for a
+sigma phase because OC crashed with segmentation fault.  Looking into
+this problem I found that when the sigma phase is modeled with a
+disordered fraction set, the links between this disordered set and the
+ordered phase was not set correctly when additional equilibrium
+records are created to assess experimental data.  This was the first
+time anyone had tried to assess such a phase and thus wanted to
+calculate equilibria in other equilibrium record than the first
+"default" one.  It took some time to find the error and actually there
+were two.  The initial bug was that no fraction records were allocated
+and the second that there were no result records allocated during the
+equilibrium calculation.  These problems have now be fixed.  I also
+found and fixed a bug entering a disordered fraction set
+interactively.  Feedback is important to find and fix such tings.
+
 2020.08.06 OC version 6.011: Added an option to the liquid two-state
 model allowing a composition independent G2 parameter (called GD in
 Thermo-Calc).  The composition dependence created problems when mixing
@@ -22,7 +48,7 @@ elements with very different G2 values such as Al-W.  The command
 AMEND PHASE LIQUID ADD TWOSTATE has an additional question if G2
 should be composition independent with default N.  If you answer Y the
 G2 parameter will be treated as composition dependent.  Composition
-dependent THET values (the Einstein temperature) is now implemented
+dependent THET value (the Einstein temperature) is now implemented
 correctly.  It should also work to use THET parameters for phases when
 the number of atoms/formula unit varies (for example when C dissolves
 interstitially in FCC).
