@@ -2287,6 +2287,7 @@
 ! allocate a dummy intlinks to avoid segmentation fault compiling with -lefence
             allocate(intlinks(1,1))
          endif
+! this subroutine is in gtp3G.F90
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
 ! phpalm needed to handle FCC and BCC permutations

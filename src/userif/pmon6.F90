@@ -84,6 +84,8 @@ contains
     double precision val(6)
 ! estimated chemical potentials after a grid minimization and TP for ref states
     double precision cmu(maxel),tpa(2)
+! the beginning of a sequential list of all ternary methods
+    type(gtp_tooprec), allocatable :: toop
 ! cpu time measurements
     double precision ending,starting
 !>>>> has to be reorganized ------------------------------------
@@ -1014,7 +1016,7 @@ contains
                      ' for the transition to the liquid state.')
 ! NEW set bit to allow G2 to be composition independent
                 call gparcdx('Is G2 composition dependent? ',&
-                     cline,last,1,ch1,'N','?G2 composition dependent')
+                     cline,last,1,ch1,'Y','?G2 composition dependent')
 ! ensure ch1 is a captial letter!
                 call capson(ch1)
 ! if ch1 is N then the addition record will have the twostatemodel2(=12) value
@@ -1024,7 +1026,7 @@ contains
                 modelx=twostatemodel1
 ! inside add_addrecord modelx can be changed to twostatemodel2 if G2 fixed
                 call add_addrecord(lokph,ch1,modelx)
-                call gparcdx('Is the addition calculated for one mole atoms?',&
+                call gparcdx('Is the addition calculated per mole atoms?',&
                      cline,last,1,ch1,'Y','?Add per formula unit')
 ! The CP model calculates a molar Gibbs energy, must be multiplied with
 ! the number of atoms in the phase.
@@ -1151,7 +1153,16 @@ contains
 !....................................................
           case(7) ! TERNARY-EXTRAPOL
              dummy='Kohler'
-             write(kou,*)'Beware!  This command is fragile.'
+! this command is illegal for ionic liquid and if phase has permutations 
+             call get_sublattice_number(iph,ndl,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             if(ndl.gt.1) then
+                write(*,*)'Toop/Kohler method not allowed with sublattices'
+                goto 100
+             endif
+             write(kou,677)
+677 format('Adding a ternary extrapolation method is fragile and',/&
+         'only limited tests for duplicate entries or other errors')
              do while(.true.)
                 call gparcdx('Ternary extrapolation (K, T or Q to quit)',&
                      cline,last,1,ch1,dummy,'?Ternary extrapol')
@@ -1173,9 +1184,10 @@ contains
                         xspecies(2),' ','?Ternary extrapol')
                    call gparcx('Third constituent: ',cline,last,1,&
                         xspecies(3),' ','?Ternary extrapol')
-! lokph is index of phase record, error checks inside subroutine
-! it is in gtp3H.F90
-                   call add_ternary_extrapol_method(lokph,ch1,xspecies)
+! lokph is index of phase record, some error checks inside subroutine
+! the routine is in gtp3H.F90.  toop argument to handle strange bug ...
+                   if(.not.allocated(toop)) allocate(toop)
+                   call add_ternary_extrapol_method(kou,lokph,ch1,toop,xspecies)
                    if(gx%bmperr.ne.0) goto 990
                 endif
              enddo
@@ -6329,7 +6341,8 @@ contains
 ! DO NOT USE tinyfiledialog here ...
           write(*,*)'To use file the browser give just a <'
           call gparcdx('Plot file',cline,last,1,plotfile,'ocgnu','?PLOT file')
-          if(plotfile(1:1).eq.'<') then
+! to avoid confusion abot use of > and <
+          if(plotfile(1:1).eq.'<' .or. plotfile(1:1).eq.'>') then
 ! use the file browser
              call gparfilex('File name: ',cline,last,1,plotfile,' ',-5,&
                   '?Plot file')

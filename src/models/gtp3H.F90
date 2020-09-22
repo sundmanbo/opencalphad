@@ -1557,6 +1557,9 @@
 ! dEin/dy_i/RT = ((1.5+(3/T)*exp(-THETA/T)/(1-exp(-THETA/T)))*(THETA/T)*dz/dy_i
 ! dTHETA/dy_i = exp(z)*dz/y_i = THETA*dz/y_i
 ! REMEMBER kvot=THET/T; expmkvot=exp(-kvot); gasconstant R=globaldata%rgas
+!
+! This is composition derivatives of THET
+!
 ! as I want NOTE expmkvot is exp(-kvot) !! NOW IT WORKS !!! SUCK
    fact=1.5D0*(one+expmkvot)/(one-expmkvot)*kvot
 ! the curve below better, correct shape ...
@@ -2342,13 +2345,14 @@
 !
 !   write(*,19)'3H 2st:',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
 ! save local values divided by RT?
-! CURRENTLY NOT USED
+! THIS ROUTINE CURRENTLY NOT USED <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 900 continue
    addrec%propval=zero
    addrec%propval(1)=msize*(gein-dg2)
    addrec%propval(2)=msize*(dgeindt-dgfdt)
    addrec%propval(4)=msize*(d2geindt2-d2g2dt2)
 1000 continue
+   write(*,*)'3H YOU ARE USING WRONG LIQUID TWOSTATE MODEL'
    return
  end subroutine calc_twostate_model_john
 
@@ -2357,6 +2361,7 @@
 !\addtotable subroutine calc_twostate_model1
 !\begin{verbatim}
  subroutine calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
+! this routine is used when G2 and THETA are composition dependent
 ! subroutine calc_twostate_modelny(moded,phres,addrec,lokph,mc,ceq)
 ! The routine _john works OK but I am testing a modification
 ! moded is 0, 1 or 2 if no, first or 2nd order derivatives should be calculated
@@ -2392,7 +2397,7 @@
 !   double precision g2ein,dg2eindt,d2g2eindt2,theta2,dcpl
    double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
    double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgfdt,d2g2dt2
-   double precision expmg2p1,fact,g2sum,msize
+   double precision expmg2p1,fact,g2sum,msize,fact2
    double precision, allocatable :: mux(:)
    integer, save :: maxwarnings=0
 ! number of properties calculatied
@@ -2488,7 +2493,7 @@
    else
       d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
    endif
-! Variable THETA
+! composition variable Variable THETA
    fact=1.5D0*(one+expmkvot)/(one-expmkvot)*kvot
 ! the curve below better, correct shape ...
    do jj=1,mc
@@ -2507,9 +2512,10 @@
 70 format(a,F7.2,5(1pe12.4))
 71 format(a,i3,1x,F7.2,5(1pe12.4))
 !  thet cannot depend on T
-! include the composition dependence of the eistein contribution?
-   write(*,*)'3H calc_twostate_model1 not including composition dependence thet'
+! include the composition dependence of the eistein contribution? DONE ABOVE
+! End of Einstein part
 !----------------------------------------------------------------
+!  write(*,*)'3H calc_twostate_model1 not including composition dependence thet'
 !-------------------------- two state part DIVIDE BY RT
 ! NOTE the values in phres%gval(1,ig2), phres%dgval(1,jj,ig2)
 !        are not divided by T.
@@ -2540,11 +2546,11 @@
       d2g2dt2=d2g2dt2/rt
       goto 700
    elseif(-g2val/rt.lt.-2.0D2) then
-! AMORPHOUS REGION: exp(-200)=0; ln(1)=0 and everything is zero
+! Low T AMORPHOUS REGION: exp(-200)=0; ln(1)=0 and everything is zero
       dg2=zero
       dg2dt=zero
       d2g2dt2=zero
-      goto 800
+      goto 900
    else
 ! intermediate T range, we have to calculate, exp( -200 to +200) is OK
       expmg2=exp(-g2val/rt)
@@ -2579,7 +2585,7 @@
 !   write(*,705)'3H 2SL: ',g2val/rt, dg2, dgfdt, dgfdt, d2g2dt2, tv,&
 !        rt, expg2, dg2dt, msize, d2g2dt2*rt
 705 format(a,6(1pe12.4)/8x,6(1pe12.4))
-! THIS IS THE SUBROUTINE USED FOR 2STATE LIQUID
+! THIS IS THE SUBROUTINE USED FOR 2STATE LIQUID with composition dependent GD
 ! This should be OK/ 2020.02.27
    phres%gval(1,1)=phres%gval(1,1)-msize*dg2
    phres%gval(2,1)=phres%gval(2,1)-msize*dgfdt
@@ -2588,7 +2594,18 @@
 !
 ! ADDING DERIVATIVES WITH RESPECT TO FRACTIONS !!!!!!!!!!!
 !
-!---------------------------------------------
+   fact=expmg2/(expmg2+one)/rt
+   fact2=(fact/rt)**2/expmg2*phres%gval(2,ig2)
+!   write(*,*)'3H calculating twostatemodel, wrong dg/dy?',fact2
+   do jj=1,mc
+      phres%dgval(1,jj,1)=phres%dgval(1,jj,1)+fact*phres%dgval(1,jj,ig2)
+! d2(G2)/dydT
+!      phres%dgval(1,jj,1)=phres%dgval(2,jj,1)-fact2*phres%dgval(1,jj,ig2)
+! ignore other 2nd derivatives
+   enddo
+   goto 900
+!============================================================
+!----------skipping old code below
 ! Searching for bug when entering G2 as a comp.dependent parameter rather
 ! than as a part of the pure element data. Liquid with: T=1950; x(v)=.5
 ! 1. OC exactly same as TC when G2 is part of pure elements:
@@ -2627,7 +2644,6 @@
 !---------------------------------------------
 ! COMPLETELY NONSCIENTIFIC ... ENGINEERING 
 !---------------------------------------------
-!   write(*,*)'3H calculating twostatemodel, missing dg/dy ...'
 ! the factor /rt because phres%dgval(1,jj,ig2) is not divided by RT
 !   fact=expmg2/(expmg2+one)/rt
 ! no RT?? No, activites zero
@@ -2684,14 +2700,18 @@
 ! G.T.P is zero
 ! G.P.P is zero
 !   write(*,19)'3H 2st:',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
-! save local values divided by RT?
+! jump here skipping old code above
+!============================================================
+! save Einstein and G2 values in addrec, multiply with RT?
 900 continue
    addrec%propval=zero
    addrec%propval(1)=msize*(gein-dg2)
    addrec%propval(2)=msize*(dgeindt-dgfdt)
    addrec%propval(4)=msize*(d2geindt2-d2g2dt2)
+!
 1000 continue
    return
+! this routine is used when G2 and THETA are composition dependent
  end subroutine calc_twostate_model1
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -2704,6 +2724,7 @@
 ! addrec is addition record
 !
 ! IN THIS VERSION G2 is treated as a composition independent parameter 
+!  thus this just handles the Einsten Cp
 ! NOTE Einstein THET should be composition dependent
 !
 ! phres is phase_varres record
@@ -2831,7 +2852,7 @@
    else
       d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
    endif
-! second derivatives with respect to composition dependence of THET
+! derivatives with respect to composition dependence of THET
    fact=1.5D0*(one+expmkvot)/(one-expmkvot)*kvot
    do jj=1,mc
       phres%dgval(1,jj,1)=msize*(phres%dgval(1,jj,1)+fact*phres%dgval(1,jj,ith))
@@ -3619,21 +3640,36 @@
 
 !\addtotable subroutine add_ternary_extrapol_method
 !\begin{verbatim} %-
- subroutine add_ternary_extrapol_method(lokph,typ,species)
+ subroutine add_ternary_extrapol_method(kou,lokph,typ,toophead,species)
 ! add a Toop or Kohler extrapolation method for a ternary subsystem to a phase
 ! interactive or from database
+! if kou>0 then the command is given interactivly and questions can be asked
    implicit none
-   integer lokph
+   integer kou,lokph
    character typ*1,species(3)*24
+! VERY DIFFICULT TO FIX: I must use an external sequental list for all tooprec
+! and allocate the "seq" pointer
+! oterwise the allocated tooprecord were destroyed in an arbitrary way ..
+   type(gtp_tooprec) :: toophead
 !\end{verbatim}
-   integer jj,kk,loksp,tint(3),toop,done
+   integer jj,kk,loksp,tint(3),toop,done,conix
    type(gtp_endmember), pointer :: endmem
-   type(gtp_interaction),pointer :: intrec
-   type(gtp_tooprec), allocatable, target :: tooprec
-! this is incremented by 1 each time a record is created
-   integer, save ::uniqid=0
+   type(gtp_interaction),pointer :: intrec12,intrec13,intrec23,intrec
+   type(gtp_interaction),pointer :: intrec1,intrec2
+   type(gtp_tooprec), allocatable, target :: newrec
+!   type(gtp_tooprec), pointer :: method,duplicate
+   type(gtp_tooprec), pointer :: duplicate,next
+   type(gtp_tooprec), pointer :: method
+   character dummy*24
+   logical checkdup
+! for debugging
+   integer nextmethod
+   integer aheremethod12, aheremethod13,aheremethod23
+! this is incremented by 1 each time a record is created in any phase
+!   integer, save ::uniqid=0
 !
-!   write(*,*)'In add_ternary_extrapol_method ',typ,lokph,' ',trim(species(1))
+   write(*,8)lokph,typ,trim(species(1)),trim(species(2)),trim(species(3))
+8  format('3H Add_ternary_extrapol_method ',i3,2x,a,': ',a,'-',a,'-',a)
    if(phlista(lokph)%noofsubl.gt.1) then
       write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
       gx%bmperr=4399; goto 1000
@@ -3656,7 +3692,7 @@
 !         write(*,'(a,5i5)')'3H constituent?',jj,kk,&
 !              phlista(lokph)%constitlist(kk),loksp
          if(loksp.eq.phlista(lokph)%constitlist(kk)) then
-! I should check they are in the same sublattice ... but            
+! I should check they are in the same sublattice ... but we have just one
             tint(jj)=kk; cycle all3
          endif
       enddo isconst
@@ -3665,122 +3701,405 @@
       gx%bmperr=4399; goto 1000
    enddo all3
 !   write(*,'(a,3i4)')'3H found constituents: ',tint
-! check no duplicate
    if(tint(1).eq.tint(2) .or. tint(1).eq.tint(3) .or. tint(2).eq.tint(3)) then
-! we have now enough for a record: type and constituent indices ...
-      write(*,*)'3H Same element twice not allowed'
+      write(*,*)'3H Same element twice, not a ternary!'
       gx%bmperr=4399; goto 1000
    endif
-! sort then in numerical order (clumsy but not time-critical)
+! sort constituents in numerical order (clumsy but not time-critical)
    toop=0
    if(typ.eq.'T') toop=1
+! if 1>2 change order
    if(tint(1).gt.tint(2)) then
       jj=tint(1); tint(1)=tint(2); tint(2)=jj
+      dummy=species(1); species(1)=species(2); species(2)=dummy
       if(toop.eq.1) toop=2
    endif
-! now 1 < 2
+! now 1 < 2, check if 2>3?
    if(tint(2).gt.tint(3)) then
       jj=tint(2); tint(2)=tint(3); tint(3)=jj
+      dummy=species(2); species(2)=species(3); species(3)=dummy
       if(toop.eq.2) toop=3
    endif
-! now 3 > (1,2)
+! now 3 > (1,2) check again if 1>2
    if(tint(1).gt.tint(2)) then
       jj=tint(1); tint(1)=tint(2); tint(2)=jj
+      dummy=species(1); species(1)=species(2); species(2)=dummy
       if(toop.eq.1) toop=2
    endif
-! now 1 < 2 < 3 ??
-!   write(*,'(a,i4,": ",3i4)')'3H sorted constituents: ',toop,tint
-   allocate(tooprec)
-   tooprec%toop=toop
-   tooprec%const1=tint(1)
-   tooprec%const2=tint(2)
-   tooprec%const3=tint(3)
-   nullify(tooprec%next12); nullify(tooprec%next13); nullify(tooprec%next23)
-   tooprec%extra=0
-   uniqid=uniqid+1
-   tooprec%uniqid=uniqid
+! now 1 < 2 < 3 and species in same order
 ! now we have to find the interaction records ... suck
-! Some binary parameter may not have an interaction record.   
-! there must be a check if this ternary is not a duplicate, if so delete old
-!   write(*,*)'3H no search for interaction records ... yet'
+! Some binary parameter in the ternary may not have an interaction record.   
+! there must be a check if this ternary is not a duplicate
 ! disordered fraction set not allowed
+! Try to give reasonable error messages
    endmem=>phlista(lokph)%ordered
-! check if endmember contains lowest constituent index
+   if(.not.associated(endmem)) then
+      write(*,*)'3H No endmembers or interaction in this phase!'
+      gx%bmperr=4399; goto 1000
+   endif
+! nullify pointers from binary interactions
+   nullify(intrec1); nullify(intrec2)
+   nullify(intrec12); nullify(intrec13); nullify(intrec23)
+! look for endmember with lowest constituent index (they are ordered that way)
 ! REMEMBER we have a substitutional model, no sublattices
-   findem: do while(endmem%fraclinks(1,1).lt.tint(1))
-      endmem=>endmem%nextem;
-      if(associated(endmem)) then
-         cycle findem
+! one may add a second sublattice with same constituent in all 3 endmembers
+   start: do conix=1,2
+      findem: do while(endmem%fraclinks(1,1).lt.tint(conix))
+         endmem=>endmem%nextem;
+         if(associated(endmem)) then
+            cycle findem
+         else
+            write(*,*)'3H no binary model parameters for this ternary!'
+            gx%bmperr=4399; goto 1000
+         endif
+      enddo findem
+      if(.not.associated(endmem)) exit start
+! we have found an endmember >=tint(conix)
+      if(endmem%fraclinks(1,1).eq.tint(conix)) then
+!         write(*,*)'3H Found endmember for ',species(conix)
+         if(conix.eq.1) then
+! interaction AB and AC are in same list of interactions, separate later
+!            write(*,*)'3H interaction record 1-2: set'
+            intrec1=>endmem%intpointer
+!            if(associated(intrec1%tooprec)) write(*,'(a,4i3)')'3H link 1 id:',&
+!                 intrec1%fraclink(1),intrec1%tooprec%uniqid
+         else
+!            write(*,*)'3H interaction record 2-3: set'
+            intrec2=>endmem%intpointer
+!            if(associated(intrec2%tooprec)) write(*,'(a,4i3)')'3H link 2 id:',&
+!                 intrec1%fraclink(1),intrec1%tooprec%uniqid
+         endif
       else
-         write(*,*)'3H no endmember 1 for: ',lokph,tint(1)
-         gx%bmperr=4399; goto 1000
+         write(*,*)'3H No endmember for ',species(conix)
       endif
-   enddo findem
-! as we already verified tint(1) is a constituent endmem should not be null ...
-!   write(*,*)'3H Found endmember ',tint(1)
-   done=0
-   intrec=>endmem%intpointer
-! interaction is binary, can be tint(2) or tint(3), there is no order
-! a binary interaction parameter can be missing
+   enddo start
+   if(.not.associated(intrec1) .and. .not.associated(intrec2)) then
+      write(*,*)'3H No interactions in the ternary A-B-C'
+      gx%bmperr=4399; goto 1000
+   endif
+!   if(associated(intrec1%tooprec)) write(*,'(a,4i3)')'3H link 3 id:',&
+!        intrec1%fraclink(1),intrec1%tooprec%uniqid
+!   if(associated(intrec2%tooprec)) write(*,'(a,4i3)')'3H link 4 id:',&
+!        intrec2%fraclink(1),intrec2%tooprec%uniqid
+! We have set intrec1 to first interaction record of A and B
+! Look for interaction record AB, AC and BC in these interaction lists
+!--------------------------------------
+! we have a link to an interaction record for tint(1) or tint(2)
 100 continue
-! There is only a single set of sites
-   if(intrec%fraclink(1).eq.tint(2)) then
-! interaction 1-2
-      done=done+1
-!      write(*,*)'3H Found interaction ',tint(1),tint(2),done
-! copy current tooprec link to tooprec%next12
-      tooprec%next12=>intrec%tooprec
-      intrec%tooprec=>tooprec
-   elseif(intrec%fraclink(1).eq.tint(3)) then
-! interaction 1-3
-      done=done+1
-!      write(*,*)'3H Found interaction ',tint(1),tint(3),done
-! copy current tooprec link to tooprec%next13
-      tooprec%next13=>intrec%tooprec
-      intrec%tooprec=>tooprec
-   endif
-   if(done.lt.2) then
+! there is no order of the interaction constituent
+! one or two binary interaction parameter can be missing but not all three!!
+! Remember: there is only a single set of sites
+!   checkdup=.TRUE.
+! skip check for duplicates
+!   checkdup=.FALSE.
+! We look for interaction records 1-2, 1-3 and 1-3
+!   write(*,*)'3H intrec: ',associated(intrec1),associated(intrec2)
+   intrec=>intrec1
+   done=tint(1)
+!   if(associated(intrec%tooprec)) write(*,'(a,4i3)')'3H link 5 id:',&
+!        intrec%fraclink(1),intrec%tooprec%uniqid
+! Jump back here for next interaction list. note intrec13 set from intrec1
+200 continue
+   intwith1: do while(associated(intrec))
+!      if(associated(intrec%tooprec)) write(*,'(a,4i3)')'3H link 6 id:',&
+!           done,intrec%fraclink(1),intrec%tooprec%uniqid
+! The endmember record is either tint(1) or tint(2)
+      if(intrec%fraclink(1).eq.tint(2)) then
+! In this case the endmember record must be tint(1)
+         intrec12=>intrec
+!         write(*,*)'3H Found interaction 1-2: ',trim(species(1)),'-',&
+!              trim(species(2)),associated(intrec12%tooprec)
+      elseif(intrec%fraclink(1).eq.tint(3)) then
+! The endmember record can be tint(1) or tint(2)
+         if(done.eq.tint(1)) then
+            intrec13=>intrec
+!            write(*,*)'3H Found interaction 1-3: ',trim(species(1)),'-',&
+!                 trim(species(3)),associated(intrec13%tooprec)
+         else
+            intrec23=>intrec
+!            write(*,*)'3H Found interaction 2-3: ',trim(species(2)),'-',&
+!                 trim(species(3)),associated(intrec23%tooprec)
+            exit intwith1
+         endif
+      endif
       intrec=>intrec%nextlink
-      if(associated(intrec)) goto 100
+   enddo intwith1
+   if(done.eq.tint(1)) then
+ ! we have searched the whole ternary list from intrec12 and intrec13?
+     done=tint(2); intrec=>intrec2; goto 200
    endif
-! it is no error if there is an interaction record missing   
-   if(done.lt.2) write(*,*)&
-        '3H A binary interaction 1-2 or 1-3 in a Toop/Kohler method is zero'
-! now search for endmember for tint(2)
-   findem2: do while(endmem%fraclinks(1,1).lt.tint(2))
-      endmem=>endmem%nextem;
-      if(associated(endmem)) then
-         cycle findem2
-      else
-         write(*,*)'3H no endmember for phase/element: ',lokph,tint(2)
-         gx%bmperr=4399; goto 1000
+!--------------------------------------------------------------
+! This seems to work: have a global list of tooprecords and allocate the 
+! toophead%seq record to use when linking together the ternaries.
+! This sequential list of tooprecord is not used for anything.
+! We have not really linked the method yet, only found the binaries where we
+! should find the records to set the links to the tooprecord.
+! we have now links from the 3 binary interaction records (same may be null)
+! Link the new record from these and copy the previos method records to
+! the new method record.
+   allocate(toophead%seq)
+   method=>toophead%seq
+   method%toop=toop
+   method%const1=tint(1)
+   method%const2=tint(2)
+   method%const3=tint(3)
+   nullify(method%next12); nullify(method%next13); nullify(method%next23)
+   method%extra=0
+   uniqid=uniqid+1
+   method%uniqid=uniqid
+! problem to insert this record in the structure ...
+! seach the end of all lists of methods to add the new one
+!   write(*,97)uniqid,toop,tint,(trim(species(jj)),jj=1,3),&
+!        associated(intrec12),associated(intrec13),associated(intrec23)
+97 format('3H created method record: ',2i3,2x,3i3," : ",a,1x,a,1x,a,2x,3l2)
+!=====================================================================
+! search for the last tooprec for each binary and check for duplicates
+! if no tooprec records then link from intrec12%tooprec
+! New method A-B-C, we have found interaction records (if null no binary param)
+! intrec12: a list with methods A-B-X, A-X-B or X-A-B. Duplicate if A-B-C exist
+!               next links can be A-B-X, A-X-B or X-A-B 
+! intrec13: a list with methods A-C-X or A-X-C
+! intrec23: a list with methods B-C-X and B-X-C
+   if(.not.associated(intrec12)) then
+! There is no binary interaction record, no place to store a link
+!      write(*,103)trim(species(1)),trim(species(2))
+103   format('3H No interaction record',a,'-',a)
+   else
+!---------------------------------------------------------------- A-B
+! Linking from binary A-B
+      duplicate=>intrec12%tooprec
+      nextmethod=0
+!      write(*,105)' 1-2 ',associated(duplicate),nextmethod,&
+!           trim(species(1)),trim(species(2))
+105   format('3H linking ',a,l2,i2,': ',a,'-',a)
+      if(associated(duplicate)) then
+! The constituents in each method records are always ordered alphabetically
+! %const1<%const2<%const3 X<Y<Z and tint(1)<tint(2)<tint(3), A<B<C
+! X can be %const1 or %const2 and Y can be %const2 or %const3
+! Check also for duplicates
+         next12: do while(associated(duplicate))
+! save link to duplicate
+            next=>duplicate
+!            write(*,107)'3H The intrec12 list: ',trim(species(1)),&
+!                 trim(species(2)),trim(species(3)),duplicate%uniqid,&
+!                 tint(1),tint(2),&
+!                 duplicate%const1,duplicate%const2,duplicate%const3,next%uniqid
+107         format(a,a,'-',a,' with ',a,i3,3x,2i3,2x,3i3,5x,i3)
+! In this method A<B can be any combination of %const1<%const2<%const3
+! BUT THE THEY ARE ALL IN INCREASING ORDER 
+! %const1 can be less than tint(1) but if so %const2 must be equal to tint(1)
+! we also have to check if the new is a duplicate and which next link to follow
+            if(duplicate%const1.eq.tint(1)) then
+! When %const1=tint(1) then tint(2) can be %const2 or %const3
+               if(duplicate%const2.eq.tint(2)) then
+! Method A-B-X, Check if this is a duplicate
+                  if(duplicate%const3.eq.tint(3)) then
+                     write(*,*)'3H found duplicate 1'; goto 1100
+                  endif
+! The A-B is the first binay, use the first link, %cont3 is not tint(3)
+                  nextmethod=1
+                  duplicate=>duplicate%next12
+               elseif(duplicate%const3.eq.tint(2)) then
+! Method A-X-B with A-B as the second binary, X cannot be tint(3) as higher
+                  nextmethod=2
+                  duplicate=>duplicate%next13
+               else
+! ERROR as no binary A-B in this method 
+                  write(*,*)'3H exit 1'
+                  goto 1200
+                  exit next12
+               endif
+            elseif(duplicate%const2.eq.tint(1) .and.&
+                 duplicate%const3.eq.tint(2)) then
+! Metod X-A-B with A-B as the third binary, X cannot be tint(3)
+               nextmethod=3
+               duplicate=>duplicate%next23
+!               write(*,*)'3H take next23 link ',associated(duplicate)
+            else
+!               write(*,130)duplicate%uniqid,&
+!                    duplicate%const2,tint(2),duplicate%const3,tint(3)
+130            format('3H not found? ',i3,5x,2i4,2x,2i4)
+! ERROR as no binary A-B in this method 
+               write(*,*)'3H exit 2'
+               goto 1200
+               exit next12
+            endif
+            write(*,*)'3H loop duplicate: ',associated(next),nextmethod
+         enddo next12
       endif
-   enddo findem2
-! as we already verified tint(2) is a constituent endmem should exist
-   intrec=>endmem%intpointer
-! interaction is binary, can only be tint(3)
-! a binary interaction parameter can be missing
-   do while(associated(intrec))
-! interaction 2-3
-      if(intrec%fraclink(1).eq.tint(3)) then
-!         write(*,*)'3H Found interaction ',tint(2),tint(3)
-! copy current tooprec link to tooprec%next12
-         tooprec%next23=>intrec%tooprec
-         intrec%tooprec=>tooprec
-         goto 200
+! we come here at the end of the list of methods including the A-B binary
+! This is the first method for the binary A-B, note duplicate is null!
+      if(nextmethod.eq.0) then
+         intrec12%tooprec=>method
+!         write(*,120)trim(species(1)),trim(species(2))
+120      format('3H New method linked from interacion: ',a,'-'a)
       else
-         intrec=>intrec%nextlink
+! insert the correct link, note duplicate is null !!
+         if(nextmethod.eq.1) next%next12=>method
+         if(nextmethod.eq.2) next%next13=>method
+         if(nextmethod.eq.3) next%next23=>method
+!         write(*,121)next%uniqid,nextmethod,next%const1,next%const2,next%const3
+121      format('3H New method linked 1B:',i3,2x,i3,2x,3i3)
       endif
-   enddo
-! Maybe something more?
-200 continue   
-   write(*,210)'3H Toop/Kohler record:',tooprec%uniqid,tooprec%toop,&
-        tooprec%const1,tooprec%const2,tooprec%const3,tooprec%extra,&
-        associated(tooprec%next12),associated(tooprec%next13),&
-        associated(tooprec%next23)
-210 format(a,6i4,3L2,' beware of duplicates')
+   endif
+!   write(*,*)'3H linked method for 1-2'
+!----------------------------------------------- A-C, tint(1)-tint(3)
+! A method here X<Y<Z can have A-C as any binary
+   if(.not.associated(intrec13)) then
+!      write(*,103)trim(species(1)),trim(species(3))
+   else
+      duplicate=>intrec13%tooprec
+      nextmethod=0
+!      write(*,105)' 1-3 ',associated(duplicate),nextmethod,&
+!           trim(species(1)),trim(species(3))
+      if(associated(duplicate)) then
+! The constituents in each method records are always ordered alphabetically
+! %const1<%const2<%const3 X<Y<Z and tint(1)<tint(2)<tint(3), A<B<C
+! X can be %const1 or %const2 and Y can be %const2 or %const3
+! Check also for duplicates
+         next13: do while(associated(duplicate))
+            next=>duplicate
+!            write(*,107)'3H The intrec13 list: ',trim(species(1)),&
+!                 trim(species(2)),trim(species(3)),duplicate%uniqid
+! In this method A<B can be any combination of %const1<%const2<%const3
+! BUT THE THEY ARE ALL IN INCREASING ORDER 
+! %const1 can be less than tint(1) but if so %const2 must be equal to tint(1)
+! we also have to check if this is duplicate or which next link to follow
+            if(tint(1).eq.duplicate%const1) then
+! When %const1=tint(1) tint(3) must be %cont3
+               if(duplicate%const2.eq.tint(3)) then
+! Method A-C-X, no duplicate as tint(2)<tint(3) 
+!                  if(duplicate%const3.eq.tint(3)) write(*,*)'3H duplicate 1'
+!                  if(tint(2).eq.duplicate%const3) goto 1100
+! The A-C is the first binary, use the first link
+                  nextmethod=1
+                  duplicate=>duplicate%next12
+               elseif(duplicate%const3.eq.tint(3)) then
+! Method A-X-C, no duplicate possible
+                  nextmethod=2
+                  duplicate=>duplicate%next13
+               else
+! Error as there is no A-C binary
+                  write(*,*)'3H exit 3'  
+                  goto 1200
+                  exit next13
+               endif
+            elseif(duplicate%const2.eq.tint(1) .and.&
+                 duplicate%const3.eq.tint(2)) then
+               nextmethod=3
+               duplicate=>duplicate%next23
+            else
+! No A-C in this method, it does no fit in this list!
+               write(*,*)'3H exit 4'
+               goto 1200
+               exit next13
+            endif
+         enddo next13
+      endif
+! we come here at the end of the list of methods including the A-B binary
+! This is the first method for the binary A-B
+      if(nextmethod.eq.0) then
+         intrec13%tooprec=>method
+!         write(*,120)trim(species(1)),trim(species(3))
+      else
+! insert the correct link
+         if(nextmethod.eq.1) next%next12=>method
+         if(nextmethod.eq.2) next%next13=>method
+         if(nextmethod.eq.3) next%next23=>method
+!         write(*,121)next%uniqid,nextmethod,next%const1,next%const2,next%const3
+      endif
+   endif
+!   write(*,*)'3H linked method for 1-3'
+!----------------------------------------------- B-C list
+   if(.not.associated(intrec23)) then
+!      write(*,103)trim(species(2)),trim(species(3))
+   else
+      duplicate=>intrec23%tooprec
+      nextmethod=0
+!      write(*,105)' 2-3 ',associated(duplicate),nextmethod,&
+!           trim(species(2)),trim(species(3))
+      if(associated(duplicate)) then
+! The constituents in each method records are always ordered alphabetically
+! %const1<%const2<%const3 X<Y<Z and tint(1)<tint(2)<tint(3), A<B<C
+! X can be %const1 or %const2 and Y can be %const2 or %const3
+! Check also for duplicates
+         next23: do while(associated(duplicate))
+            next=>duplicate
+!            write(*,107)'3H The intrec23 list: ',trim(species(1)),&
+!                 trim(species(2)),trim(species(3)),duplicate%uniqid
+! In this method A<B can be any combination of %const1<%const2<%const3
+! BUT THE THEY ARE ALL IN INCREASING ORDER 
+! %const1 can be less than tint(1) but if so %const2 must be equal to tint(1)
+! we also have to check if this is duplicate or which next link to follow
+            if(duplicate%const1.eq.tint(1)) then
+               if(duplicate%const2.eq.tint(2)) then
+! Method A-C-X, Check if this is a duplicate is redundant 
+                  if(duplicate%const3.eq.tint(3)) write(*,*)'3H duplicate 2'
+                  if(tint(3).eq.duplicate%const3) goto 1100
+! The A-C is the first binay, use the first link
+                  nextmethod=1
+                  duplicate=>duplicate%next12
+               elseif(tint(3).eq.duplicate%const3) then
+! Method B-X-C Check for duplicate is redundant as tint(2)<tint(3)=%const3
+!               if(tint(2).eq.duplicate%const3) goto 1100
+! The A-C is the second binary, use the second link
+                  nextmethod=2
+                  duplicate=>duplicate%next13
+               else
+                  write(*,*)'3H exit 5'
+                  goto 1200
+                  exit next23
+               endif
+            elseif(tint(1).eq.duplicate%const2 .and.&
+                 tint(2).eq.duplicate%const3) then
+! Method X-A-C, duplicate check probably redundant
+               if(duplicate%const1.eq.tint(1)) write(*,*)'3H duplicate 3'
+               if(tint(1).eq.duplicate%const1) goto 1100
+               nextmethod=3
+               duplicate=>duplicate%next23
+            else
+! No A-C in this method does no fit in this list!
+               write(*,*)'3H exit 6'
+               goto 1200
+               exit next23
+            endif
+         enddo next23
+      endif
+! we come here at the end of the list of methods including the A-B binary
+! This is the first method for the binary A-B
+      if(nextmethod.eq.0) then
+         intrec23%tooprec=>method
+!         write(*,120)trim(species(2)),trim(species(3))
+      else
+! insert the correct link
+         if(nextmethod.eq.1) next%next12=>method
+         if(nextmethod.eq.2) next%next13=>method
+         if(nextmethod.eq.3) next%next23=>method
+!         write(*,121)next%uniqid,nextmethod,next%const1,next%const2,next%const3
+      endif
+   endif
+!   write(*,*)'3H linked method for 2-3'
+!===================================================================
+! Puuuuuuuuuuuuuuuuuhhhhhhhhhhhhhhhhhhhh
+!   write(*,510)'3H Toop/Kohler record:',method%uniqid,method%toop,&
+!        method%const1,method%const2,method%const3,method%extra,&
+!        associated(method%next12),associated(method%next13),&
+!        associated(method%next23)
+510 format(a,6i4,3L2)
 1000 continue
    return
+! Error: Found duplicate method
+1100 continue
+   write(*,1110)duplicate%uniqid,duplicate%const1,duplicate%const2,&
+        duplicate%const3,tint(1),tint(2),tint(3)
+1110 format('3H Error found duplicate method ',i3,5x,3i3,5x,3i3)
+   gx%bmperr=4399; goto 1000
+! Error: Trying to enter a method with wrong set of constituents
+1200 continue
+   write(*,1210)trim(species(1)),trim(species(2)),trim(species(3)),tint,&
+        duplicate%const1,duplicate%const2,duplicate%const3
+1210 format('3H Error: ternary system with ',a,'-',a,'-',a,': ',3i3,&
+          ' does not fit method: ',3i3)
  end subroutine add_ternary_extrapol_method
  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

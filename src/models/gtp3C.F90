@@ -1629,7 +1629,7 @@
 ! save all Kohler/Toop ternary records in a pointer array
 ! a smart way to have an array of pointers
    integer, parameter :: maxtoop=50
-! this all tooprecords, it will be initiated to 0 for each phase
+! this all tooprecords, tooptop will be initiated to 0 for each phase
    integer tooptop,tooplink,tooplast,tooplevel
    TYPE tooprecs
 ! this is an array with a pointer to each tooprecords
@@ -1935,21 +1935,25 @@
          endif
          intrecstack(nint)%p1=>intrec
          toop: if(associated(intrec%tooprec)) then
-! Here we collect all Toop/Kohöer tooprec and to them after the phase
+! Here we collect all Toop/Kohler tooprec and list them after the phase
+!            write(*,*)'3C Found tooprecord',intrec%tooprec%uniqid
+!            exit toop
             tooprec=>intrec%tooprec
 ! tooplast is last tooprec that have had all links searched
             tooplast=tooptop
             tooplink=1
 107         continue
-!            write(*,210)'3C found toop record:',tooptop,tooprec%uniqid,&
+!            write(*,210)'3C found toop record:',tooplink,tooptop,&
+!                 tooprec%uniqid,&
 !                 tooprec%toop,tooprec%const1,tooprec%const2,tooprec%const3,&
 !                 tooprec%extra,associated(tooprec%next12),&
 !                 associated(tooprec%next13),associated(tooprec%next23)
-210         format(a,6i4,3l2)
+210         format(a,4i4,2x,3i3,2x,i5,' links: ',3l2)
 ! check if already found
             do kk=1,tooptop
                if(tooparray(kk)%p1%uniqid.eq.tooprec%uniqid) then
-!                  write(*,*)'Skipping ',tooprec%uniqid
+!                  write(*,*)'3C already found ',tooprec%uniqid
+                  tooplink=tooplink+1
                   goto 108
                endif
             enddo
@@ -1963,15 +1967,19 @@
 ! We do not have to go back further than tooplast.
 108         continue
 !            write(*,*)'3C tooprec links',tooplink,tooprec%uniqid
-            if(tooplink.eq.1 .and. associated(tooprec%next12)) then
-               tooprec=>tooprec%next12; goto 107
-            else
-               tooplink=2
+            if(tooplink.eq.1) then
+               if(associated(tooprec%next12)) then
+                  tooprec=>tooprec%next12; goto 107
+               else
+                  tooplink=2
+               endif
             endif
-            if(tooplink.eq.2 .and. associated(tooprec%next13)) then
-               tooprec=>tooprec%next13; goto 107
-            else
-               tooplink=3
+            if(tooplink.eq.2) then
+               if(associated(tooprec%next13)) then
+                  tooprec=>tooprec%next13; goto 107
+               else
+                  tooplink=3
+               endif
             endif
             if(tooplink.eq.3 .and. associated(tooprec%next23)) then
                tooprec=>tooprec%next23; goto 107
@@ -1986,7 +1994,8 @@
                tooplink=1
                goto 108
             endif
-! We have checked all links from the tooprecords back to listing of parameters
+! We have checked all tooprecords linked from this binary
+! Back to listing of parameters
          endif toop
          lint(1,nint)=intrec%sublattice(1)
          kkk=intrec%fraclink(1)
@@ -2167,12 +2176,14 @@
    endif
 ! Check if there are toop/kohler ternaries
    if(tooptop.gt.0) then
-      write(*,*)'3C Some ternaries have Toop/Kohler extrapolation methods.'
-      write(*,*)'3C Beware, the Toop/Kohler implementation is fragile.'
+      write(*,'(a)')'3C Some ternaries have Toop/Kohler extrapolation methods.'
+!      goto 1000
+!      write(*,*)'3C Beware, the Toop/Kohler implementation is fragile.'
       tooploop: do tooplink=1,tooptop
          tooprec=>tooparray(tooplink)%p1
 !         write(*,*)'3C constitlist: ',(phlista(lokph)%constitlist(kk),kk=1,4)
-!         write(*,210)'3C all toop records:',tooprec%uniqid,tooprec%toop,&
+!         write(*,210)'3C all toop records:',tooplink,tooprec%uniqid,&
+!              tooprec%toop,&
 !              tooprec%const1,tooprec%const2,tooprec%const3,tooprec%extra,&
 !              associated(tooprec%next12),&
 !              associated(tooprec%next13),associated(tooprec%next23)

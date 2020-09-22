@@ -105,7 +105,6 @@ plot
 w%(n)
 prefcc
 position off
-
 title step 7 fig 4
 
 @&
@@ -136,6 +135,7 @@ w%(n)
 T
 title step 7 fig 6
 render
+
 @&
 
 set inter

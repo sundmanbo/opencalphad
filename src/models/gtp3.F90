@@ -1,4 +1,3 @@
-!
 !***************************************************************
 ! General Thermodynamic Package (GTP)
 ! for thermodynamic modelling and calculations
@@ -664,7 +663,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! HID phase is hidden (not implemented)
 ! IMHID phase is implictly hidden (not implemented)
 ! ID phase is ideal, substitutional and no interaction
-! NOCV phase has no concentration variation (I am not sure it is used)
+! NOCV phase has no concentration variation (I am not sure it is set or used)
 ! HASP phase has at least one parameter entered
 ! FORD phase has 4 sublattice FCC ordering with parameter permutations
 ! BORD phase has 4 sublattice BCC ordering with parameter permutations
@@ -674,7 +673,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! LIQ phase is liquid (can be several but listed directly after gas)
 ! IONLIQ phase has ionic liquid model (I2SL)
 ! AQ1 phase has aqueous model (not implemented)
-! STATE elemental liquid twostate (2-state) model parameter
+! STATE elemental liquid twostate (2-state) model parameter UNUSED?
 ! QCE phase has quasichemical SRO configurational entropy (not implemented)
 ! CVMCE phase has some CVM ordering entropy (not implemented)
 ! EXCB phase need explicit charge balance (has ions)
@@ -1162,18 +1161,21 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! several gtp_tooprec records for each ternary system this record is involed.
 ! The binary fractions multiplied with the parameters will be calculated
 ! using this list of ternaries indicated by this list, see the documentation.
-! Note each gtp_tooprec will be part of 3 lists for binary interactions
-! indicated by the 3 constituents in the gtp_tooprec record.
-! next12 is the next link for the 2 (alphaetically) first constituents,
-! next13 is the next link for first and third constituents
-! next23 is the next link for the second and third constituents
-     type(gtp_tooprec), pointer :: next12,next13,next23
 ! const1, const2 and const3 are the constituents in alphabetical order
 ! (which is also the numerical order). 
 ! toop is 0 if Kohler extrapolation, if 1, 2 or 3 it indicates the Toop element 
 ! extra is used when listing data
 ! uniqid is a unique identification of the record, used for debugging
      integer toop,const1,const2,const3,extra,uniqid
+! Each gtp_tooprec is part of 3 lists for binary interactions
+! indicated by the 3 constituents in the gtp_tooprec record.
+! next12 is the next link for the 2 (alphaetically) first constituents,
+! next13 is the next link for first and third constituents
+! next23 is the next link for the second and third constituents
+! seq is a sequential link in the order the records created (try to fix bug)
+     type(gtp_tooprec), pointer :: next12,next13,next23,seq
+! this is very useful to obtain information in the calc_toop subroutine
+     type(gtp_phase_varres), pointer :: phres
   end type gtp_tooprec
 !\end{verbatim}
 !-----------------------------------------------------------------
@@ -1823,7 +1825,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! for binary RK+Muggianu iq(3)=iq(4)=iq(5)=0
 ! for ternary Muggianu in same sublattice iq(4)=iq(5)=0
 ! for reciprocal composition dependent iq(5)=0
-! for Toop, Kohler and simular iq(5) non-zero (not implemented)
+! 2020/BoS not used: Toop, Kohler and simular iq(5) non-zero (not implemented) 
      integer :: iq(5)
 ! fraction variables in endmember (why +2?) and interaction
      double precision :: yfrem(maxsubl+2),yfrint(maxinter)
@@ -2011,6 +2013,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, parameter :: mundefmpi=10
   integer nundefmpi
   character undefmpi(mundefmpi)*4
+! this is set zero by new_gtp and incremented each time a Toop record
+! is created in any phase
+   integer uniqid
 !\end{verbatim}
 
 ! undocumented CPU time measuring in calcg_internal

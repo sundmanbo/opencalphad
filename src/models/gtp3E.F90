@@ -3435,6 +3435,8 @@
 ! Maybe these need initiating?
    globaldata%sysreal=zero
    globaldata%sysparam=0
+! initiate Toop/Kohler record counter
+   uniqid=0
 !
 1000 continue
    return

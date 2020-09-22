@@ -805,8 +805,16 @@
 ! check if there is a Kohler-Toop link (NOT YET)
 !               write(*,*)'3X testing tooprec: ',associated(intrec%tooprec)
                if(associated(intrec%tooprec)) then
-                  write(*,*)'3X Toop/Kohler model: ',associated(intrec%tooprec)
+!                  write(*,*)'3X Toop/Kohler model: ',&
+!                       associated(intrec%tooprec),chkperm,gz%intlevel
                   tooprec=>intrec%tooprec
+                  if(chkperm) then
+                     write(*,*)'3X Toop/Kohler and permutations illegal'
+                     gx%bmperr=4399; goto 1000
+                  endif
+! we need this additional information inside calc_toop
+! I find it very elegant just to include a pointer to the phase_varres record!
+                  tooprec%phres=>cps
                else
                   nullify(tooprec)
                endif
@@ -1151,6 +1159,7 @@
 !               write(*,228)'3X d2py:',d2pyq
 219               format(a,6(1pe12.4))
 !..............................
+! Here we finally calculate the interaction parameter .... SUCK
                intprop: do while(associated(proprec))
 ! calculate interaction parameter, can depend on composition
 ! maybe faster to zero here than inside cgint ??
@@ -2223,7 +2232,9 @@
 !   write(*,*)'3X in cgint',lokph
    if(lokpty%degree.eq.0) then
 !----------------------------------------------------------------------
-! no composition dependence
+! Easy: no composition dependence.  This applies also to Toop/Kohler parameters
+      if(associated(tooprec)) &
+           write(*,*)'3X Toop/Kohler binary parameter constant'
       lfun=lokpty%degreelink(0)
       call eval_tpfun(lfun,gz%tpv,vals,ceq%eq_tpres)
       if(gx%bmperr.ne.0) goto 1000
@@ -2272,14 +2283,6 @@
    intlev: if(gz%intlevel.eq.1) then
 !----------------------------------------------------------------------
 ! plain binary Redlich Kister. 
-! check if Kohler-Toop, is there a link to a Kohler-Toop record?
-      if(associated(tooprec)) then
-! this is only for binary interaction parameters with Kohler or Toop models
-! copy tooprec as we must not change tooprec inside handle_toop
-         toopx=>tooprec
-         call handle_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
-         goto 1000
-      endif
 ! gz%endcon can be wildcard, i.e. negative
 ! but for the moment give error message in that case
 ! A binary wildcard excess parameter means y_A ( 1 - y_A) * L_A*
@@ -2290,6 +2293,17 @@
 ! composition dependent wildcard interaction not implemented
 ! y(1-y) ( L0 + (2y-1) L1 + (2y-1)**2 L2 + ....) ??
          gx%bmperr=4031; goto 1000
+      endif
+      if(associated(tooprec)) then
+! This is a Kohler-Toop method parameter
+! only for binary interaction parameters with Kohler or Toop models
+! copy tooprec as we must not change tooprec inside calc_toop
+! Toop/Kohler require recalculating the binary compostion used to
+! describe the composition dependence of the parameter.  If it is 
+! not composition dependent we never come here as we exit 50 lines above
+         toopx=>tooprec
+         call calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
+         goto 1000
       endif
 ! endmember fraction minus interaction fraction
       dx0=gz%yfrem(gz%intlat(1))-gz%yfrint(1)
@@ -2649,12 +2663,13 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\addtotable subroutine handle_toop
+!\addtotable subroutine calc_toop
 ! called from subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
 !\begin{verbatim}
- subroutine handle_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
+ subroutine calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
 ! Handle a binary interaction that is in a Toop or Kohler model
-! toop is the link to the kohler-Toop record (not yet designed)
+! toop is the link to the kohler-Toop record
+! We come here only if the parameter is composition dependent using RK series
    implicit none
    integer moded,lokph
    TYPE(gtp_property), pointer :: lokpty
@@ -2664,10 +2679,151 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_tooprec), pointer :: toopx
 !\end{verbatim}
-   write(*,*)'3X in handle_toop'
+! we need to save this pointer from toopx
+   TYPE(gtp_phase_varres), pointer :: phres
+! fraction values to be used in RK series
+   double precision x12,x21,sigma,dxrk
+   integer, allocatable, dimension(:) :: dsigma, dx12, dx21
+! ternary fraction index
+   integer jj(3),j1,j2,j3,link,count,toopconst,limit
+! The first part here is to modify the fractions to be used in the RK series
+! the gz record has information which elements involved
+! gz%iq(1) and gz%iq(2) are index of the binary constituents
+! We must also handle first and second derivatives wrt all fractions.
+! we come here from a binary interaction recird but we may have to follow
+! links to several other toopx records with other third elements.
+! Use the phres passed on via toopx%phres if there are more toopx records
+   phres=>toopx%phres
+!
+   write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
+10 format('3X in calc_toop with binary; degree:',2i3,'; ',i2,2x,20('*'))
+   limit=size(phres%yfr)
+   allocate(dsigma(limit))
+   allocate(dx12(limit))
+   allocate(dx21(limit))
+! max number of binaries ...
+   limit=limit*(limit-1)
+   dsigma=0; dx12=0; dx21=0
+   sigma=one
+   x12=phres%yfr(gz%iq(1))
+   x21=phres%yfr(gz%iq(2))
+   dx12(gz%iq(1))=1
+   dx21(gz%iq(2))=1
+! This is the RK Muggianu fraction difference
+   dxrk=x12-x21
+   count=0
+!-----------------------------------------------------------------
+! See gtp documentation, Appendix A for the algorithm used here
+!-----------------------------------------------------------------
+   method: do while(associated(toopx))
+! we may have several Toop/Kohler ternary methods for this binary
+      count=count+1
+      if(count.gt.limit) then
+! something wrong in the data structure, eternal loop!
+         write(*,*)'3X data structure error 1 in calc_toop',count
+         gx%bmperr=4399; goto 1000
+      endif
+! in the toopx record there are indices of the fractions needed   
+!     integer toop,const1,const2,const3,extra,uniqid
+! Note const1 < const2 < const3; toop is 1, 2 or 3
+      jj(1)=toopx%const1
+      jj(2)=toopx%const2
+      jj(3)=toopx%const3
+      toopconst=0
+      if(toopx%toop.gt.0) toopconst=jj(toopx%toop)
+      write(*,30)count,toopconst,jj,toopx%uniqid
+30    format('3X Ternary method record:',i2,', T/K: ',i1,5x,3i3,', ID: ',i2)
+! we have to figure out which constituent is neither gx%iq(1) or iq(2)
+! and we have find the idex for thr next toopx record (if any).
+! The toopx record is linked from all 3 binaries and there can be links from
+! this record that must be followed.  The constituents are in increasing order 
+! Could this be simplified using select case ??
+      ett: if(jj(1).eq.gz%iq(1)) then
+         tva: if(jj(2).eq.gz%iq(2)) then
+!---------------------------------------------------------------
+! we are dealing with the binary: 1-2, any link to next is next12
+!            link=1
+            toopx=>toopx%next12
+            if(toopconst.eq.0) then
+! the binary 1-2 is a Kohler extrapolation ftom 3
+               sigma=sigma-phres%yfr(jj(3))
+               dsigma(jj(3))=-1
+            elseif(toopconst.eq.jj(1)) then
+! constituent 1 is a Toop element in 1-2-3
+               x21=x21+phres%yfr(jj(3))
+               dx21(jj(3))=1
+            elseif(toopconst.eq.jj(2)) then
+! constituent 2 is a Toop element in 1-2-3
+               x12=x12+phres%yfr(jj(3))
+               dx12(jj(3))=1
+            endif
+! if toopconst.eq.jj(3) do nothing
+         elseif(jj(3).eq.gz%iq(2)) then
+!---------------------------------------------------------------
+! we are dealing with the binary: 1-3, any link to next is next13
+!            link=2
+            toopx=>toopx%next13
+            if(toopconst.eq.0) then
+! the binary 1-3 is a Kohler extrapolation ftom 2
+               sigma=sigma-phres%yfr(jj(2))
+               dsigma(jj(2))=-1
+            elseif(toopconst.eq.jj(1)) then
+! constituent 1 is a Toop element in 1-2-3
+               x21=x21+phres%yfr(jj(2))
+               dx21(jj(2))=1
+            elseif(toopconst.eq.jj(3)) then
+! constituent 2 is a Toop element in 1-2-3
+               x12=x12+phres%yfr(jj(2))
+               dx12(jj(2))=1
+            endif
+! if toopconst.eq.jj(2) do nothing
+         else
+! something wrong in the data structure
+            write(*,*)'3X data structure error 2 in calc_toop'
+            gx%bmperr=4399; exit method
+         endif tva
+      elseif(jj(2).eq.gz%iq(1)) then
+!---------------------------------------------------------------
+! we are dealing with the binary: 2-3, any link is next23
+!         link=3
+         toopx=>toopx%next23
+         if(toopconst.eq.0) then
+! the binary 2-3 is a Kohler extrapolation ftom 1
+            sigma=sigma-phres%yfr(jj(1))
+            dsigma(jj(1))=-1
+         elseif(toopconst.eq.jj(2)) then
+! constituent 2 is a Toop element in 1-2-3
+            x21=x21+phres%yfr(jj(1))
+            dx21(jj(1))=1
+         elseif(toopconst.eq.jj(3)) then
+! constituent 3 is a Toop element in 1-2-3
+            x12=x12+phres%yfr(jj(1))
+            dx12(jj(1))=1
+         endif
+! if toopconst.eq.jj(1) do nothing
+      else
+! something wrong in the data structure
+         write(*,*)'3X data structure error 3 in calc_toop'
+         gx%bmperr=4399; exit method
+      endif ett
+!-----------------------------------------------------
+! if toopx associated here extract information from that ternary method
+! if toopx not associated exit here
+   enddo method
+! when we come here when we calculated x12, x21 and sigma
+   write(*,50)'3X done:   ',x12,x21,sigma,(x12-x21)/sigma,dxrk
+50 format(a,9F8.4)
+51 format(a,9i8)
+   write(*,50)'3X yfr:    ',phres%yfr
+   write(*,51)'3X dsigma: ',dsigma
+   write(*,51)'3X dx12:   ',dx12
+   write(*,51)'3X dx21:   ',dx21
+! Now we use (x12-x21)/sigma in the RK series ...   
+! derivatives of fractions in dx12, dx21 and dsigma
+!
 1000 continue
    return
- end subroutine handle_toop
+ end subroutine calc_toop
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

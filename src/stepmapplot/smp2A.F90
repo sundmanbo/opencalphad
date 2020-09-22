@@ -2120,7 +2120,10 @@
 ! this counter is zeroed when starting a new map/step unless old saved kept
     totalsavedceq=totalsavedceq+1
     if(totalsavedceq.gt.maxsavedceq) then
-       write(kou,*)'SMP saved equilibria overflow ',totalsavedceq
+       write(kou,202)totalsavedceq
+202    format(78('*')/'SMP saved equilibria overflow ',i5&
+            ' and save on file is not implemented.'/&
+            'Use smaller increments or reinitiate before STEP or MAP'/78('*')/)
        gx%bmperr=4219
     endif
     if(saveonfile) then
