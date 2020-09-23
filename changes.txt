@@ -15,6 +15,13 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2020.09.23 OC version 6.014: Interaction with users always provides
+information of bugs.  Thanks Romain and Christine for testing a system
+with an ionic liquid model without any vacancies which exposed a long
+time bug calculating its Gibbs energy.  Clement had also discovered
+that the keyword DATABASE_INFO must not be abbreviated DATA_INFO in
+TDB files ...
+
 2020.09.22 OC version 6.013: A new version of TINYFILESDIALOGS
 provided by by Guillaume Vareille because the previous generated a lot
 of warnings when compiled with gcc-9.2 using MinGW32.  Please give

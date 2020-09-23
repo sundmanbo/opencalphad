@@ -18,6 +18,7 @@
    integer iph,ics,moded,lokres
 !\end{verbatim}
    integer jcs,lokcs,lokph
+!   write(*,*)'3X in calcg',iph,ics,moded
    if(gx%bmperr.ne.0) then
       write(*,*)'3X Error code set when calling calcg: ',gx%bmperr
       goto 1000
@@ -48,6 +49,7 @@
 !   endif
 ! Find fraction record this composition set
    lokcs=phlista(lokph)%linktocs(ics)
+!   write(*,*)'3X calcg: ',lokcs
 !-----
 !   mcs=1
 !   lokcs=phlista(lokph)%cslink
@@ -135,9 +137,9 @@
    double precision, allocatable, dimension(:,:) :: gclust
 ! storage for calculated Flopry Huggins volume parameters
    integer, dimension(:), allocatable :: fhlista
-   double precision, dimension(:,:), allocatable :: fhv
-   double precision, dimension(:,:,:), allocatable :: dfhv
-   double precision, dimension(:,:), allocatable :: d2fhv
+!   double precision, dimension(:,:), allocatable :: fhv
+!   double precision, dimension(:,:,:), allocatable :: dfhv
+!   double precision, dimension(:,:), allocatable :: d2fhv
    double precision g2val(6)
 ! to handle parameters with wildcard constituent and other things
    logical wildc,nevertwice,first,chkperm,ionicliq,iliqsave,iliqva,iliqneut
@@ -1078,13 +1080,17 @@
                      d2pyq(ixsym(ic,id))=dpyq(id)
 ! ........ this is the first derivative, must be exact NO CHANGE 17.12.06/BoS
 ! ic is the constituent index of the interaction
+!                     write(*,314)'3X this dpyq1:',id,ic,jonva,ixsym(id,jonva)
+314                  format(a,4i4)
                      if(dpyq(id).ne.zero) then
                         dpyq(id)=dpyq(id)*ymult
 !                        write(*,216)'3X this dpyq1:',id,ic,dpyq(id),ymult
-                     elseif(d2pyq(ixsym(id,jonva)).ne.zero) then
+                     elseif(jonva.gt.0) then
+                        if(d2pyq(ixsym(id,jonva)).ne.zero) then
 ! this is adding more first order derivatives ???
-                        dpyq(id)=dpyq(jonva)*ymult
+                           dpyq(id)=dpyq(jonva)*ymult
 !                        write(*,216)'3X this dpyq2:',id,jonva,dpyq(id),ymult
+                        endif
                      endif
                      if(id.eq.phlista(lokph)%i2slx(1) .and. &
                           gz%intlat(gz%intlevel).eq.1) then
@@ -1099,7 +1105,9 @@
                   enddo iliqloop1
 ! This is a special 2nd derivative wrt Va twice
 !                  d2pyq(ixsym(jonva,jonva))=dpyq(jonva)/yionva
-                  d2pyq(kxsym(jonva,jonva))=dpyq(jonva)/yionva
+                  if(jonva.gt.0) then
+                     d2pyq(kxsym(jonva,jonva))=dpyq(jonva)/yionva
+                  endif
 !                  write(*,216)'3X all dpyq:',gz%intlevel,ic,dpyq
 !                  write(*,216)'3X all d2pyq:',gz%intlevel,ic,d2pyq
 ! END SPECIAL FOR IONIC LIQUID
@@ -1224,10 +1232,10 @@
                      enddo iloop3
 !                     write(*,211)'3X Interactions: ',gz%iq,jonva
 211                  format(a,5i3,5x,i3)
-                     if(jonva.gt.0) then
+!                     if(jonva.gt.0) then
 !                        write(*,212)jonva,phres%dgval(1,jonva,1)*rtg
 212                     format('3X with va: ',i3,6(1pe12.4))
-                     endif
+!                     endif
 !...............................
 ! below contribution to derivatives from composition dependent parameters
 ! the values of gz%iq represent interacting constituents and are set in cgint
@@ -1676,6 +1684,7 @@
       endif disord
 ! WE CAN JUMP HERE WITHOUT CALCULATING THE ORDERED PART AS DISORDERED
 400   continue
+!      write(*,*)'3X calcg_internal at label 400'
    enddo fractyp
 !   norfc=phlista(lokph)%tnooffr
 ! 4SL FCC all correct here
@@ -1890,7 +1899,7 @@
 ! properties that affect the Gibbs energy indirectly like Curie T etc
 ! The label here just a label, there is no explict jump here
 500 continue
-!   write(*,69)'3X d2G/dy2C:',norfc,(phres%d2gval(ixsym(j1,j1),1),j1=1,norfc)
+!   write(*,69)'3Xa d2G/dy2C:',norfc,(phres%d2gval(ixsym(j1,j1),1),j1=1,norfc)
    if(btest(phmain%status2,CSADDG)) then
 ! we have an constant addition to G, at present just a constant /RT
       if(allocated(phmain%addg)) then
@@ -1964,17 +1973,19 @@
 !297   format(a)
    endif
 ! 4SL all correct here also!
-!   write(*,69)'3X d2G/dy2F:',norfc,(phres%d2gval(ixsym(j1,j1),1),j1=1,norfc)
+!   write(*,69)'3Xb d2G/dy2F:',norfc,(phres%d2gval(ixsym(j1,j1),1),j1=1,norfc)
 ! running out of memory??
-   deallocate(dpyq)
-   deallocate(d2pyq)
-   deallocate(dvals)
-   deallocate(d2vals)
-   if(allocated(fhv)) then
-      deallocate(fhv)
-      deallocate(dfhv)
-      deallocate(d2fhv)
-   endif
+! these are locally allocated, should be deallocated automatically
+! Segmentation fault if I do not write ... but ... reason somewhere else
+!   write(*,*)'3X deallocate dpyq?',allocated(dpyq)
+   if(allocated(dpyq)) deallocate(dpyq)
+!   write(*,*)'3X deallocate d2pyq?',allocated(d2pyq)
+   if(allocated(d2pyq)) deallocate(d2pyq)
+!   write(*,*)'3X deallocate dvals?',allocated(dvals)
+   if(allocated(dvals)) deallocate(dvals)
+!   write(*,*)'3X deallocate d2vals?',allocated(d2vals)
+   if(allocated(d2vals)) deallocate(d2vals)
+!   write(*,*)'3X calcg_internal all deallocated'
 !   if(size(phres%yfr).gt.2) then
 ! debug cqc:
 !      write(*,480)'3X dg/dt/RT: 2: ',qcmodel,phres%yfr(3),&
