@@ -15,6 +15,8 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2020.10.26 OC version 6.014: Just testing uploading from new PC
+
 2020.09.23 OC version 6.014: Interaction with users always provides
 information of bugs.  Thanks Romain and Christine for testing a system
 with an ionic liquid model without any vacancies which exposed a long
