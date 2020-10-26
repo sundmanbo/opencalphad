@@ -6095,7 +6095,7 @@
            ellista(ep)%alphaindex,ellista(ep)%splink,&
            ceq%complist(cp)%mass,mass_of(cp,ceq),&
            ellista(ep)%mass,splista(sp)%mass
-100   format(3i3,2x,a,2x,a,2i2,3x,4(1pe12.4))
+100   format(3i3,2x,a2,2x,a2,2i3,3x,4(1pe12.4))
    enddo
    write(*,*)
    return

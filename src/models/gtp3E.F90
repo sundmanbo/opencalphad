@@ -3852,7 +3852,7 @@
 ! lint(1,*) is sublattice, lint(2,*) is species
    double precision stoik(10),xsl,xxx
    integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv,rewindx
-   integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx
+   integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx,idum,jdum
    logical onlyfun,nophase,ionliq,notent
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics,ndisph
@@ -3861,6 +3861,7 @@
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
 !   character*24 disph(20)
    integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz,dismag
+   integer enteredpar
    type(gtp_phase_add), pointer :: addrec
    logical warning,dbcheck
 ! set to TRUE if element present in database
@@ -3869,6 +3870,7 @@
    logical silent,thisphaserejected
 !  mmyfr noofph
 ! if warning is true at the end pause before listing bibliography
+!   write(*,*)'3E readtdb',allocated(seltdbph),nselph
    nsl=0
    dbcheck=.FALSE.
    warning=.FALSE.
@@ -3877,6 +3879,7 @@
    nytypedef=0
    totalpar=0
    notusedpar=0
+   enteredpar=0
 ! this counts number of undefined/unused model-parameter-identifiers
    nundefmpi=0
    if(btest(globaldata%status,GSSILENT)) then
@@ -4196,6 +4199,23 @@
             goto 100
          endif
       enddo
+! SELECTED_PHASES
+! if seltdbph is allocated check if this phase selected when dodis=0
+      if(dodis.eq.0 .and. allocated(seltdbph) .and. nselph.gt.0) then
+!         write(*,*)'3E Calling isabbr: ',trim(name1),nselph
+         jt=isabbr(name1,seltdbph,nselph)
+!         write(*,*)'3E return from isabbr: ',jt
+         if(jt.eq.0) then
+!            write(*,*)'3E not selected phase: ',trim(name1)
+            thisphaserejected=.TRUE.
+            nophase=.true.
+            goto 100
+         else
+            write(*,'(a,a,a,a)')'3E Phase ',trim(name1),' fits selection ',&
+                 trim(seltdbph(jt))
+         endif
+      endif
+! end elected phases
       thisphaserejected=.false.
 !      write(*,*)'3E nophase set to false, phase: ',name1
       ip=ip+1
@@ -4225,7 +4245,7 @@
                        ((typedefaction(jt).eq.-1 .or. &
                           typedefaction(jt).eq.-3))) then
                      dismag=typedefaction(jt)
-                     write(*,*)'3E disordered part is magnetic',dismag
+!                     write(*,*)'3E disordered part is magnetic',dismag
                      exit dmag
                   endif
                enddo
@@ -4248,8 +4268,8 @@
 !                  write(*,*)'3E check "',trim(ordpartph(jt)),'" and "',&
 !                       trim(phreject(zz)),'"'
                   if(ordpartph(jt).eq.phreject(zz)) then
-                     write(*,*)'3E keep ',trim(name1),' because ',&
-                          trim(phreject(zz)),' is rejected'
+                     write(*,'(a,a,a,a,a)')'3E Keeping ',trim(name1),&
+                          ' because phase ',trim(phreject(zz)),' is rejected'
                      goto 310
                   endif
                enddo
@@ -4356,6 +4376,9 @@
       endif
       nophase=.true.
       condis1: if(dodis.eq.1) then
+! searchin why sigma in TAFID does not have c disordered fraction set
+!         write(*,*)'3E sigma 17:',trim(longline),thisdis
+!         write(*,*)'3E sigma 17:',thisdis
          if(thisdis.eq.0) goto 100
 ! we skip the constituent line and go directly to create disordered fractions
          goto 395
@@ -4453,20 +4476,27 @@
 !
 ! THE CODE HERE IS A MESS .... NEW PDB FORMAT NEEDED
 !
+!    write(*,*)'3E sigma4 label 395 add disordered fraction set: ',dodis,nphrej
       condis2: if(dodis.eq.1) then
 ! if we have a disordered part do not enter the phase, add disordered fracs!
 ! the ordered phase name is ordpart(thisdis)
+!         write(*,*)'3E sigma19: ',trim(ordpartph(disparttc)),disparttc,&
+!              trim(ordpartph(thisdis)),thisdis
          do jt=1,nphrej
-            if(ordpartph(disparttc).eq.phreject(jt)) then
-!               write(*,*)'3E ordered part is rejected, keep disordered'
+!            if(ordpartph(disparttc).eq.phreject(jt)) then
+! why disparttc?
+            if(ordpartph(thisdis).eq.phreject(jt)) then
+               write(*,'(a,a,a)')'3E ordered part ',trim(phreject(jt)),&
+                    ' is rejected, keep disordered part '
                goto 100
             endif
          enddo
+!         write(*,*)'3E sigma20: ',trim(ordpartph(thisdis))
          call find_phase_by_name(ordpartph(thisdis),iph,ics)
          if(gx%bmperr.ne.0) then
 ! NOTE THE ORDERED PHASE MAY NOT BE ENTERED DUE TO COMPONENTS!!
             if(.not.silent) write(kou,396)trim(ordpartph(thisdis))
-396         format('3E because ordered part ',a,' has been rejected')
+396         format('3E and disordered part ',a,' has not been selected')
             warning=.TRUE.
             gx%bmperr=0
             goto 100
@@ -4486,7 +4516,7 @@
                   if(addrec%type.eq.XIONGMAGNETIC) goto 798
                   addrec=>addrec%nextadd
                enddo
-               write(*,*)'3E adding magnetic model to ordered phase'
+!               write(*,*)'3E adding magnetic model to ordered phase'
 ! ordered not magnetic, set the same as disordered               
                if(dismag.eq.-1) then
 ! Inden magnetic for BCC
@@ -4499,6 +4529,7 @@
          endif
 798      continue
 ! we are creating the phase, there is only one composition set, iph is ordered
+!         write(*,*)'3E sigma18: get_phase_compset'
          call get_phase_compset(iph,1,lokph,lokcs)
          if(gx%bmperr.ne.0) goto 1000
 ! ch1 is suffix for parameters, always D
@@ -4595,7 +4626,10 @@
          gx%bmperr=4311; goto 1000
       endif
 !      if(dodis.eq.1) write(*,*)'Reading disordered parameters'
-      totalpar=totalpar+1
+!      write(*,*)'3E found parameter: ',totalpar,dodis,nl
+! count parameter only when dodis=0
+!      if(dodis.eq.1) totalpar=totalpar+1
+      if(dodis.eq.0) totalpar=totalpar+1
       ip=nextc
       funname=longline(ip:)
 ! problem with default low T limit, can be ,, directly after parameter )
@@ -4897,28 +4931,42 @@
               lrot,refx)
          if(ocv()) write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr
 !         write(*,407)'Entered parameter: ',lokph,typty,gx%bmperr
-407      format(a,3i5)
          if(gx%bmperr.ne.0) then
 ! error entering parameter, not fatal
 !            if(dodis.eq.1 .and. .not.silent) &
 !                 write(*,408)'3E parameter warning:',gx%bmperr,nl,&
 !                 funname(1:40)
 !408         format(a,i6,' line ',i5,': ',a)
-            if(.not.(gx%bmperr.ne.4096 .or. gx%bmperr.ne.4066)) goto 1000
-! ignore error 4096 meaning "no such constituent" or "... in a sublattice"
+!            if(.not.(gx%bmperr.ne.4096 .or. gx%bmperr.ne.4066)) then
+!               goto 1000
+! Error 4096 means "no such constituent" and 4066 "... in a sublattice"
+! Error 4154 means no reference but the parameter has been entered
+            if(gx%bmperr.eq.4096 .or. gx%bmperr.eq.4066 .or. &
+                 gx%bmperr.eq.4154) then
+! this means the user has not selected this component or forgot reference
 !            write(*,*)'readtdb entparerr: ',gx%bmperr,' >',&
 !                 funname(1:len_trim(funname))
-! error 4154 means missing reference
-            if(gx%bmperr.ne.4154 .and. .not.silent) then
-               write(*,409)gx%bmperr,nl
-409            format('3E WARNING ',i6,', around line: ',i7,&
-                    ', continuing')
-               warning=.TRUE.
+! error 4154 means missing reference but the parameter is entered
+               if(gx%bmperr.eq.4154 .and. .not.silent) then
+                  write(*,409)gx%bmperr,nl
+409               format('3E Parameter reference missing ',i6,&
+                       ', around line: ',i7,', continuing')
+                  warning=.TRUE.
+               endif
+            else
+! Other errors than 4096, 4066 and 4154 are fatal
+               goto 1000
             endif
             gx%bmperr=0
+!         else
          endif
+         enteredpar=enteredpar+1
+!         write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr,enteredpar
+407      format(a,4i5)
       endif
-      if(gx%bmperr.ne.0 .and. .not.silent) write(*,*)'3E error 1: ',gx%bmperr
+! there cannot be any error when we come here ...
+!      if(gx%bmperr.ne.0 .and. .not.silent) &
+!           write(*,*)'3E parameter function error: ',gx%bmperr
       goto 100
 !------------------------------------------------------------------
 ! this is end of PARAMETER keyword
@@ -4976,6 +5024,7 @@
          else
             km=index(longline,' DIS_PART ')
             never=1
+!            write(*,*)'3E sigma1: ',trim(longline),km,never
             if(km.eq.0) then
 ! Allow for NEVER_DIS ...
                km=index(longline,' NEVER')
@@ -4984,6 +5033,7 @@
                   never=-1
                endif
             endif
+!            write(*,*)'3E sigma2: ',trim(longline),km,never
             if(km.gt.0) then
 ! disordered part, either DIS_PART or NEVER_DIS several checks
                disparttc=disparttc+1
@@ -5038,6 +5088,7 @@
 84             continue
             else
                km=index(longline,' NEVER ')
+!               write(*,*)'3E sigma3: ',trim(longline),km
                if(km.gt.0) then
 ! this is for disordered SIGMA etc.
                   write(*,*)'3E Not yet implemented NEVER'
@@ -5309,6 +5360,10 @@
 ! We have now read all
 !--------------------------------------------------------
 1000 continue
+!   write(*,1111)totalpar,totalpar-notusedpar
+!   write(*,1111)totalpar,enteredpar,notusedpar
+   write(*,1111)totalpar,enteredpar
+1111 format(/'Out of ',i5,' model parameters ',i5,' have been entered'/)
    if(warning) then
 1001  continue
       write(*,*)
@@ -5368,10 +5423,9 @@
 ! nonzero multiuse will prompt a warning in the monitor
    firsteq%multiuse=0
    if(gx%bmperr.eq.0 .and. warning) firsteq%multiuse=-1
-   write(*,1111)totalpar,totalpar-notusedpar
-1111  format(/'Out of ',i5,' model parameters ',i5,' have been selected')
    return
-!------------------------------------------------------
+!--------------------------------------------------------------------------
+! errors and rewinds
 1010 continue
    if(.not.silent) write(kou,*)'I/O error opening file: ',gx%bmperr
    return
@@ -5567,7 +5621,7 @@
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics
 ! disparttc and dispartph to handle phases with disordered parts
    integer nofunent,disparttc,dodis,jl,nd1,thisdis
-   integer excessmodel,modelcode,noofadds,noofdet,permut
+   integer excessmodel,modelcode,noofadds,noofdet,permut,enteredpar
    character*24 dispartph(5),ordpartph(5)
    integer add(10),allel,cbug,rewindx,orddistyp(5)
    character modelname*72
@@ -5619,6 +5673,7 @@
    nfail=0
    nrefs=0
    nooftypedefs=0
+   enteredpar=0
 ! nophase set false after reading a PHASE keyword, 
 ! expecting next keyword to be CONSTITUENT
    nophase=.TRUE.
@@ -6553,6 +6608,7 @@
               funname(1:len_trim(funname)),' around line: ',nl
          goto 1000
       else
+! THIS IS IN READPDB
 !         if(dodis.eq.1) write(*,*)'We are here 2'
          call enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
               lrot,refx)
@@ -6574,6 +6630,8 @@
             gx%bmperr=0
 !         elseif(dodis.eq.1) then
 !            write(*,*)'Disordered parameter should be entered ok'
+         else
+            enteredpar=enteredpar+1
          endif
       endif
       if(gx%bmperr.ne.0 .and. .not.silent) write(*,*)'3E error 1: ',gx%bmperr

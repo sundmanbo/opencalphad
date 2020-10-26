@@ -194,12 +194,18 @@ MODULE liboceqplus
   type(gtp_equilibrium_data), pointer :: tzceq
   type(gtp_condition), pointer :: tzcond
   integer tzph1,tzph2
+! To prevent calculating a dot derivative at a given equilibrium
+  integer :: special_circumstances=0
 !\end{verbatim}
 !
 !--------------------------------------------------------------
 !
 ! declared as part of phase_varres to be used in parallel
 !  integer, dimension (:,:), allocatable :: phaseremoved
+! debug output indicator
+! mmdotder indicate dot derivative calculation, phase set may be different
+! from the static memory
+  integer :: mmdebug=0,mmdotder=0
 !--------------------------------------------------------------
 !
 ! IMPORTANT
@@ -5424,6 +5430,7 @@ CONTAINS
     iph=pmi%iph
     ics=pmi%ics
     nrel=meqrec%nrel
+!    if(mmdebug.ne.0) write(*,*)'MM meq_onephase 10: ',iph,ics
 ! for each phase "pmi" set eeccheck=0 at first interation
 ! THIS IS CURRNTLY NOT USED, will be added later
     if(meqrec%noofits.eq.1) then
@@ -5434,7 +5441,16 @@ CONTAINS
     endif
 ! extract phase structure
 !    write(*,*)'MM calling get_phase_data: ',iph
+!    if(mmdebug.ne.0) then
+!       write(*,*)'MM meq_onephase 12: ',iph,ics
+!       gtpdebug=1
+!    endif
+! get_phase_data modified to ignore nonexisting composition sets
     call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
+!    if(mmdebug.ne.0) then
+!       write(*,*)'MM meq_onephase 13: ',iph,ics,nsl,gx%bmperr
+!       gtpdebug=0
+!    endif
     if(gx%bmperr.ne.0) then
 ! handling of parallel by openMP
 !$       if(.TRUE.) then
@@ -5451,6 +5467,7 @@ CONTAINS
 ! make sure all fractions >ymin and sums in all sublattices are equal to unity
     nochange=0
     ncc=0
+!    if(mmdebug.ne.0) write(*,*)'MM meq_onephase 20: ',nsl,ncc
     do ll=1,nsl
        ysum=zero
        ncl=ncc
@@ -5488,6 +5505,7 @@ CONTAINS
           goto 1000
        endif
     endif
+!    if(mmdebug.ne.0) write(*,*)'MM meq_onephase 30: '
     if(test_phase_status_bit(iph,PHEXCB)) then
 ! If external charge balance phase matrix has one more line+column
        pmi%chargebal=1
@@ -5546,6 +5564,7 @@ CONTAINS
 ! pmi%xmol and save it for all future iterations
 ! It must also be saved in curd%abnorm(1) ?? done in set_constitution ??
 !       write(*,*)'MM xdone: ',pmi%xdone,iph,nv
+!       if(mmdebug.ne.0) write(*,*)'MM meq_onephase 40: '
        if(pmi%xdone.eq.1) goto 90
 ! we must call set_constitution once to have correct abnorm etc
 !       write(*,*)'MM calling set_constitution 3: ',iph,ics
@@ -5608,6 +5627,7 @@ CONTAINS
 91        format(a,3i5)
           goto 1000
        endif
+!       if(mmdebug.ne.0) write(*,*)'MM meq_onephase 45: '
        eec1: if(globaldata%sysreal(1).gt.one) then
 ! EEC check for stoichiometric phases
 ! gval(1:6,1) are G, G.T, G.P, G.T.T, G.T.P, G.P.P
@@ -5649,6 +5669,7 @@ CONTAINS
 !          write(*,*)'MM liquid ideal: ',pmi%iph,pmi%ics
           meqrec%pmiliq=>pmi
        endif
+!       if(mmdebug.ne.0) write(*,*)'MM meq_onephase 50: ideal'
 ! special treatment of ideal phase (gas), sites assumed to be unity
 ! 1. Calculate M_i and dM_i/dy^s_k and the net charge charge Q and dQ/dy^s_k
        pmi%xmol=zero
@@ -5803,6 +5824,7 @@ CONTAINS
           meqrec%pmiliq=>pmi
 !          write(*,*)'MM liquid ionic: ',pmi%iph,pmi%ics
        endif
+!       if(mmdebug.ne.0) write(*,*)'MM meq_onephase 55: '
        pmi%ionliq=nkl(1)
        pmi%xmol=zero
        pmi%dxmol=zero
@@ -5888,6 +5910,7 @@ CONTAINS
 ! M_A = P*M'_A + Q*M"_A           M'_A and M"_A are in sumion(A,1:2))
 ! P=\sum_j (-v_j)y_j + Qy_Va      j is anion
 ! Q=\sum_i v_iy_i                 i is cation
+!       if(mmdebug.ne.0) write(*,*)'MM meq_onephase 60: '
        icon=0
        do ik=1,nkl(1)
           icon=icon+1
@@ -6031,6 +6054,7 @@ CONTAINS
 !       write(*,*)'MM liquid other: ',pmi%iph,pmi%ics
 !       meqrec%pmiliq=>pmi
 !    endif
+!    if(mmdebug.ne.0) write(*,*)'MM meq_onephase 70: '
     sumsit=one
     pmi%xmol=zero
     pmi%dxmol=zero
@@ -6089,6 +6113,7 @@ CONTAINS
 11     format(a,5i5)
        goto 1000
     endif
+!    if(mmdebug.ne.0) write(*,*)'MM meq_onephase 80: '
 !    write(*,*)'MM segmentation fault 10',globaldata%sysreal(1)
     eec4: if(globaldata%sysreal(1).gt.one) then
 ! check of EEC for a CEF phase
@@ -6244,6 +6269,7 @@ CONTAINS
 !-------------------------------------------
 900 continue
 !
+!    if(mmdebug.ne.0) write(*,*)'MM meq_onephase exit: '
     goto 1000
 !--------------------------------------------
 1000 continue
@@ -7237,19 +7263,20 @@ CONTAINS
    character encoded*64,actual_arg(2)*16
    integer lrot,mode,olderr
 !
-!   write(*,*)'In meq_get_state_varofun: ',statevar(1:16)
+!   write(*,*)'In meq_get_state_varofun: ',trim(statevar)
 ! if not derivative this will work
    call get_state_var_value(statevar,value,encoded,ceq)
 !   write(*,*)'MM meq_get_state_varofun: ',gx%bmperr,value
    if(gx%bmperr.ne.0) then
-! if error try using meq_evaluate_svfun try calling meq_evaluate_svfun
-!      write(*,*)'In meq_get_state_varofun 2: ',trim(statevar),gx%bmperr
+! if error try using meq_evaluate_svfun
       olderr=gx%bmperr
       gx%bmperr=0
       encoded=statevar
       call capson(encoded)
 !      call find_svfun(encoded,lrot,ceq)
       call find_svfun(encoded,lrot)
+!      write(*,*)'In meq_get_state_varofun 2: ',&
+!           trim(statevar),lrot,gx%bmperr,olderr
       if(gx%bmperr.ne.0) then
 ! if error here return previous error code
 !         write(*,*)'In meq_get_state_varofun 3: ',gx%bmperr
@@ -7258,11 +7285,15 @@ CONTAINS
       else
          mode=1
          actual_arg=' '
+! segmentation fault in this routine call from smp2B for a Cp value
+! after shifting to a new maptop record (several STEP/MAP)
          value=meq_evaluate_svfun(lrot,actual_arg,mode,ceq)
       endif
-   else
-      dummy=encoded
    endif
+! return calculated state variable symbol and always set special_circumstances=0
+   dummy=encoded
+! always reset to zero
+   special_circumstances=0
 1000 continue
    return
  end subroutine meq_get_state_varorfun_value
@@ -7286,7 +7317,7 @@ CONTAINS
    double precision argval(20)
    type(gtp_state_variable), target :: tsvr,tsvr2
    type(gtp_state_variable), pointer :: svr,svr2
-   integer jv,jt,istv,ieq,nsvfun
+   integer jv,jt,istv,ieq,nsvfun,ii
    double precision value
 !
 ! modified here to handle symbols that can be used as conditions
@@ -7297,7 +7328,7 @@ CONTAINS
    ieq=0
    istv=0
 ! FIRST ALL SYMBOLS ARE EVALUATED HERE
-!   write(*,*)'in meq_evaluate_svfun 1 ',lrot,mode,svflista(lrot)%narg
+!   write(*,*)'MM meq_evaluate_svfun 1 ',lrot,mode,svflista(lrot)%narg
 ! locate function
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
       gx%bmperr=4140; goto 1000
@@ -7319,7 +7350,7 @@ CONTAINS
 100 continue
       jt=jt+1
       istv=svflista(lrot)%formal_arguments(1,jt)
-!      write(*,*)'in meq_evaluate_svfun 3A',jt,istv
+!      write(*,*)'MM meq_evaluate_svfun 3A',jt,istv
       if(istv.gt.-1000 .and. istv.lt.0) then
 ! istv values between -1000 and -1 are (negative) indices to functions
 ! istv values less than -1000 are parameter identication symbols
@@ -7342,20 +7373,28 @@ CONTAINS
          if(gx%bmperr.ne.0) goto 1000
          if(svflista(lrot)%formal_arguments(10,jt).eq.0) then
 ! get state variable or symbol value ... NOTE writing a TYPE wariable !!!
-!            write(*,*)'In meq_evaluate_svfun 3D: ',svr
+!            write(*,*)'MM meq_evaluate_svfun 3D: ',svr
             call state_variable_val(svr,value,ceq)
 ! error check at the end of if...
          else
+! if special_circumstances=1 return with error code (supress a value to plot)
+            if(special_circumstances.eq.1) then
+!               write(*,*)'MM special_circumstances: ',special_circumstances
+! error code 4373 means value supressed due to special_circumstances
+               gx%bmperr=4373; goto 1000
+            endif
 ! state variable derivative, the denominator is the next variable
             jt=jt+1
             svr2=>tsvr2
+!            write(*,*)'MM meq_evaluate_svfun 3W: ',jt,svr
             call make_stvrec(svr2,svflista(lrot)%formal_arguments(1:10,jt))
-!            write(*,77)'meq_eval: ',&
+!            write(*,77)'MM meq_eval: ',jt,&
 !                 (svflista(lrot)%formal_arguments(ii,jt),ii=1,10)
-! This routine need access to the subroutines in the minimizer
-!            call meq_state_var_value_derivative(svr,svr2,value,ceq)
+77          format(a,i2,':',20i5)
+! This routine need access to subroutines in the minimizer !!!
             call meq_state_var_dot_derivative(svr,svr2,value,ceq)
             if(gx%bmperr.ne.0) goto 1000
+!            write(*,*)'MM back from meq_state_var_dot_derivative',value
          endif
       endif
       if(gx%bmperr.ne.0) goto 1000
@@ -7432,19 +7471,6 @@ CONTAINS
          ceq%svfunres(lrot)=value
       endif
    endif modeval
-! save value in current equilibrium or that
-!   ieq=svflista(lrot)%eqnoval
-!   write(*,389)'MM meq_evaluate_svfun 77:',lrot,ieq,ceq%eqno,istv,value
-!389 format(a,4i5,1pe12.4)
-!   if(ceq%eqno.eq.ieq) then
-! evaluated this is current equilibrium
-!      write(*,*)'MM meq_evaluate_svfun 79:',lrot,ieq,istv,value
-!      ceq%svfunres(lrot)=value
-!   else
-! ??      eqlista(ieq)%svfunres(-istv)=value
-!      eqlista(ieq)%svfunres(-istv)=value
-!   else
-!   endif
 1000 continue
    meq_evaluate_svfun=value
    return
@@ -7469,7 +7495,7 @@ CONTAINS
     double precision, allocatable :: smat(:,:)
     double precision xxx
 !
-!    write(*,*)'MM Entering initiate_meqrec 1'
+!    if(mmdebug.ne.0) write(*,*)'MM Entering initiate_meqrec 1'
 ! NOTE svar must be allocated!!
 !    svar=zero
 !    write(*,*)'MM Entering initiate_meqrec 2'
@@ -7502,6 +7528,9 @@ CONTAINS
 ! this returns total number of phases including composition sets
 !    call sumofphcs(meqrec%nphase,ceq)
 !    meqrec%nphase=totalphcs(ceq)
+! if we are calculating a dot_derivative the number of phases in the dynamic
+! memory may be different from that in the static memory!!
+!    if(mmdotder.ne.0) write(*,*)'MM inititate_meqrec, mmdotder nonzero!'
     meqrec%nphase=nonsusphcs(ceq)
     if(gx%bmperr.ne.0) goto 1000
     allocate(meqrec%phr(meqrec%nphase),stat=errall)
@@ -7513,12 +7542,25 @@ CONTAINS
     meqrec%tpindep=.FALSE.
     mph=0
     ztableph1=0
+!    if(mmdebug.ne.0) write(*,*)'MM initiate_meqrec 20:',noph()
 ! loop for all phases, we must set values of phase number etc
 ! meqrec%phr is later called "pmi"
     meqrec%nstph=0
     do iph=1,noph()
        do ics=1,noofcs(iph)
-          kst=test_phase_status(iph,ics,xxx,ceq)
+          call get_phase_compset(iph,ics,lokph,lokcs)
+          if(mmdotder.ne.0) then
+! test if composition set exists!! lokcs is always nonzero
+! but if the sites are not allocated the composition set does not exist
+             if(allocated(ceq%phase_varres(lokcs)%sites)) then
+                kst=test_phase_status(iph,ics,xxx,ceq)
+             else
+!                write(*,*)'MM composition set does not exist!'
+                kst=PHSUS
+             endif
+          else
+             kst=test_phase_status(iph,ics,xxx,ceq)
+          endif
 !          meqrec%nv=meqrec%nv+1
           if(kst.ge.PHDORM) then
              mph=mph+1
@@ -7532,7 +7574,7 @@ CONTAINS
              meqrec%phr(mph)%i2sly=0
              if(test_phase_status_bit(iph,PHIONLIQ)) meqrec%phr(mph)%ionliq=1
 ! set link to calculated values of G etc.
-             call get_phase_compset(iph,ics,lokph,lokcs)
+!             call get_phase_compset(iph,ics,lokph,lokcs)
              meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
              if(kst.ge.PHENTSTAB) then
 ! this phase has the stable bit set
@@ -7555,6 +7597,7 @@ CONTAINS
           endif
        enddo
     enddo
+!    if(mmdebug.ne.0) write(*,*)'MM initiate_meqrec 30:'
     if(ztableph1.eq.1) then
 ! if there is a single stable phase, does it have fixed composition?
 !       write(*,*)'MM a single stable phase',ztableph2
@@ -7592,18 +7635,20 @@ CONTAINS
 ! This can be done in PARALLEL for all phases
 ! nullify liquid pointer
     nullify(meqrec%pmiliq)
+!    if(mmdebug.ne.0) write(*,*)'MM initiate_meqrec 40:',meqrec%nphase
     do mph=1,meqrec%nphase
 ! loop to calculte and invert the phase matrices
        pmi=>meqrec%phr(mph)
 !       write(*,*)'Inverting phase matrix ',mph
 ! This will calculate all G, dG/dZ1 and d2G/dZ1dZ2 and the inverted phase matrix
-!       write(*,*)'calling meq_onephase: ',mph
+!       if(mmdebug.ne.0) write(*,*)'MM calling meq_onephase: ',mph
        call meq_onephase(meqrec,pmi,ceq)
        if(gx%bmperr.ne.0) then
           write(*,*)'Error calculating phase matrix'
           gx%bmperr=4199; goto 1000
        endif
     enddo
+!    if(mmdebug.ne.0) write(*,*)'MM initiate_meqrec 41:'
 ! now we will solve a modified phase matrix and calculate svar
 ! copy part of it from ceq%savesmat, copy also any fix mu and phase
 ! no problem to allocate as meqrec just allocated
@@ -7614,6 +7659,7 @@ CONTAINS
           meqrec%mufixel(mph)=ceq%fixmu(mph)
        enddo
     endif
+!    if(mmdebug.ne.0) write(*,*)'MM initiate_meqrec 42:'
     if(ceq%nfixph.gt.0) then
        meqrec%nfixph=ceq%nfixph
        allocate(meqrec%fixph(2,meqrec%nfixph),stat=errall)
@@ -7626,6 +7672,7 @@ CONTAINS
     nz1=abs(ceq%sysmatdim)+1
     allocate(smat(nz1,nz1+1),stat=errall)
     smat=zero
+!    if(mmdebug.ne.0) write(*,*)'MM initiate_meqrec 43:'
     allocate(svar(nz1),stat=errall)
     if(errall.ne.0) then
        write(*,*)'MM Allocation error 47: ',errall
@@ -7642,6 +7689,7 @@ CONTAINS
 !       write(*,86)(smat(jel,nz2),nz2=1,nz1+1)
 !    enddo
 !86  format(6(1pe12.4))
+!    if(mmdebug.ne.0) write(*,*)'MM initiate_meqrec 44:'
     tcol=0
     pcol=0
 ! dncol is number of variable potentials (including T or P if variable)
@@ -7658,7 +7706,7 @@ CONTAINS
        gx%bmperr=4213; goto 1000
     endif
 !-------------------------------------------------------------------
-!    write(*,854)'dncol mm: ',tcol,pcol,dncol,converged,nz1
+!    if(mmdebug.ne.0) write(*,854)'dncol mm: ',tcol,pcol,dncol,converged,nz1
 854 format(a,10i5)
     call setup_equilmatrix(meqrec,meqrec%phr,nz1,smat,tcol,pcol,&
          dncol,converged,ceq)
@@ -7675,7 +7723,7 @@ CONTAINS
        smat(mph,nz1)=-meqrec%phr(jel)%curd%gval(2,1)
     enddo
 ! this is the line for Delta T or Delta P, all terms zero except last
-    
+!    if(mmdebug.ne.0) write(*,*)'MM initiate_meqrec 48:'
     smat(nz1,nz1)=one
     smat(nz1,nz2)=one
 ! check matrix and rhs
@@ -7683,8 +7731,9 @@ CONTAINS
 !    do jel=1,nz1
 !       write(*,89)jel,(smat(jel,nz2),nz2=1,nz1+1)
 !    enddo
-89  format('q ',i2,6(1pe12.4))
+89  format('MM qq: ',i2,6(1pe12.4))
 ! solve equil matrix 
+!    if(mmdebug.ne.0) write(*,*)'MM initiate_meqrec 50:',nz1
     call lingld(nz1,nz1+1,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
        write(*,*)'MM initiate_meqrec: error in lingld',ierr,nz1,ceq%eqno
@@ -7710,6 +7759,9 @@ CONTAINS
 ! check that svr2 2 is a condition
 ! value is calculated value
 ! ceq is current equilibrium
+! NOTE that when plotting after a STEP/MAP the number of phases in the
+! dynamic memory (ceq) may be different that the static memory
+! this is indicated by setting mmdotder nonzero
 !
     implicit none
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -7726,6 +7778,9 @@ CONTAINS
     double precision, allocatable :: svar(:)
     character dum*128,elsym*2
 !
+! this indicate that the number of phases in ceq may be different from
+! the static number of phases
+    mmdotder=1
     value=zero
 !    write(*,*)'MM meq_state_var_dot_derivative 1'
 !    if(svr2%statevarid.ne.1) then
@@ -7776,8 +7831,13 @@ CONTAINS
 88  format(a,2i4)
 ! indicate this is not an iteration by setting iteration number to -1
     meqrec%noofits=-1
+! looking for segmentation fault from CP calculation when plotting
+!    mmdebug=1
+! initiate_meqrec will ignore nonexisting compostion sets
     call initiate_meqrec(svr2,svar,meqrec,ceq)
     if(gx%bmperr.ne.0) goto 1000
+!    write(*,*)'MM back from initiate_meqrec in meq_state_var_dot_derivative'
+!    mmdebug=0
 !   addremloop
     iel=size(svar)
 !    write(*,18)(svar(jj),jj=1,iel)
@@ -7951,6 +8011,9 @@ CONTAINS
 ! This if statement added trying to avoid spurious error (caused by -O2??)
 !       write(dum,*)'MM exit meq_state_var_value_derivative',value
 !    endif
+! reset mmdotder to zero
+!    write(*,*)'MM exit meq_state_var_dotderivative'
+    mmdotder=0
     return
   end subroutine meq_state_var_dot_derivative
 

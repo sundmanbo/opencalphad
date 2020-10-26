@@ -2049,6 +2049,7 @@ end function find_phasetuple_by_indices
    else
       lokph=phases(iph)
    endif
+!   if(gtpdebug.ne.0) write(*,*)'3A get_phase_data 1: ',iph,ics,lokph
    nsl=phlista(lokph)%noofsubl
    if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
       gx%bmperr=4072; goto 1000
@@ -2062,6 +2063,7 @@ end function find_phasetuple_by_indices
       gx%bmperr=4072
       goto 1000
    endif
+!   if(gtpdebug.ne.0) write(*,*)'3A get_phase_data 10: ',lokcs
 !   lokcs=phlista(lokph)%cslink
 !   jcs=ics-1
 !   do while(jcs.gt.0)
@@ -2078,8 +2080,21 @@ end function find_phasetuple_by_indices
    kkk=0
    if(.not.btest(ceq%phase_varres(lokcs)%status2,CSCONSUS)) then
 ! CSCONSUS set if a constituent is suspended ... not implemented yet
+!      if(gtpdebug.ne.0) write(*,*)'3A get_phase_data 20: ',lokph,nsl
       sublat: do ll=1,nsl
          nkl(ll)=phlista(lokph)%nooffr(ll)
+!         if(gtpdebug.ne.0) then
+!            write(*,*)'3A get_phase_data 21: ',lokcs,ll,nkl(ll),&
+!                 allocated(ceq%phase_varres(lokcs)%sites),&
+!                 size(ceq%phase_varres(lokcs)%sites)
+!         endif
+         if(.not.allocated(ceq%phase_varres(lokcs)%sites)) then
+! This can happen for plotting when different dynamic ceq
+! have different number of composition sets
+            write(*,777)trim(phlista(lokph)%name),ics
+777         format('3A site array for phase: ',a,' set ',i2,' not allocated')
+            gx%bmperr=4399; goto 1000
+         endif
 ! we get strange error "index 1 or array ceq above bound of 0"
          if(size(ceq%phase_varres(lokcs)%sites).lt.1) then
 !            write(*,*)'Strange error when step: ',iph,ics,lokcs,ll
@@ -2091,8 +2106,11 @@ end function find_phasetuple_by_indices
 ! I do not now how to check for a lower boundary ... 
 17       format(a,10i6)
          sites(ll)=ceq%phase_varres(lokcs)%sites(ll)
+!         if(gtpdebug.ne.0) write(*,*)'3A get_phase_data 25: ',sites(ll)
          ql=zero
          vl=zero
+!         if(gtpdebug.ne.0) write(*,*)'3A get_phase_data 30: ',&
+!              ll,nkl(ll),sites(ll)
          const: do jj=1,nkl(ll)
             kkk=kkk+1
             loksp=phlista(lokph)%constitlist(kkk)
@@ -2110,6 +2128,7 @@ end function find_phasetuple_by_indices
          vsum=vsum+sites(ll)*(one-vl)
          qsum=qsum+sites(ll)*ql
       enddo sublat
+!      if(gtpdebug.ne.0) write(*,*)'3A get_phase_data 40: ',vsum
       qq(1)=vsum
       qq(2)=qsum
 !      write(*,*)'get_phase_data: ',qq(1),qq(2)
@@ -2120,6 +2139,7 @@ end function find_phasetuple_by_indices
    endif
 !
 1000 continue
+!   if(gtpdebug.ne.0) write(*,*)'3A get_phase_data exit: ',iph,ics
    return
  end subroutine get_phase_data
 
@@ -2919,5 +2939,34 @@ end function find_phasetuple_by_indices
     return
   end subroutine suspend_somephases
 
- !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine delete_unstable_compsets
+!\begin{verbatim}
+  subroutine delete_unstable_compsets(lokph,ceq)
+! This was added to explictly delete unstable composition sets with AUTO set
+! Compsets will be shifted down if a stable compset is after an unstable
+! See subroutine TOTO_AFTER in gtp3Y.F90
+!
+    implicit none
+    integer lokph
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer ii,iph,lokcs
+    write(*,*)'3A delete unstable compsets for phase: ',&
+         trim(phlista(lokph)%name),phlista(lokph)%noofcs
+! the first composition sets cannot be deleted even if unstable
+    do ii=phlista(lokph)%noofcs,2,-1
+       lokcs=phlista(lokph)%linktocs(ii)
+       write(*,100)ii,btest(ceq%phase_varres(lokcs)%status2,CSAUTO),&
+            btest(ceq%phase_varres(lokcs)%status2,CSTEMPAR)
+100    format('3A compset: ',i2,' bits: ',2l2)
+    enddo
+!    call remove_composition_set(iph,.FALSE.)
+    write(*,*)'Not implemented yet'
+1000 continue
+    return
+  end subroutine delete_unstable_compsets
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

@@ -15,7 +15,38 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
-2020.10.26 OC version 6.014: Just testing uploading from new PC
+2020.10.26 OC version 6.015: In SMP2A I sudenly got a division by zero
+error in the Fortran "mod" function using gfortran 10.2.0.  If the second
+argument of "mod" is 0 this means a division by zero.  The part of the
+code where the error occured is very old and it was my own fault as I
+checked if the argument was 0 and used the mod in the same IF
+statment.  In Fortran there is no guarantee the arguments of an IF
+statement are tested in the order they are written.  Now I test for 0
+in a separate IF before using mod.
+
+Still working with the Toop/Kohler excess method.  The data structure
+works but the numerics are not correct but it can wait because I am
+enjoying a vacation in Bretagne and writing a paper trying to explain
+how the STEP and MAP procedures work in OC for multicomponent systems.
+
+I added a new READ option SELECTED_PHASES which allows the user to
+specify a subset of phases to be read from a TDB file.  I also
+corrected counting the number of parameters entered.  I have also
+introduced a check that the elements selected by the user really exist
+in the database.
+
+A problem plotting a "dot derivatve" such as H.T (heat capacity) from
+a step/map calculation created a segmentation fault when the number of
+composition sets are different for equilibria in different regions
+(because new sets can be created when needed).  To calculate a dot
+derivate OC must setup a matrix for each equilibrium which has been
+calculated and in the "dynamic" memory of such an equilibria one may
+have less composition sets than in the "static" memory.  OC will now
+ignore "non-existant" composition sets (which anyway would never
+contribute) when calculating a dot derivative.
+
+The length of some character variables used for reading files has been
+extended.
 
 2020.09.23 OC version 6.014: Interaction with users always provides
 information of bugs.  Thanks Romain and Christine for testing a system
@@ -24,25 +55,26 @@ time bug calculating its Gibbs energy.  Clement had also discovered
 that the keyword DATABASE_INFO must not be abbreviated DATA_INFO in
 TDB files ...
 
-2020.09.22 OC version 6.013: A new version of TINYFILESDIALOGS
-provided by by Guillaume Vareille because the previous generated a lot
-of warnings when compiled with gcc-9.2 using MinGW32.  Please give
-feedback if there are any problems.
+2020.09.22 OC version 6.013: A new version of the file browser
+TINYFILEDIALOGS has been provided by by Guillaume Vareille because
+the previous generated a lot of warnings when compiled with gcc-9.2
+using MinGW32.  Please give feedback if there are any problems.
 
 The datastructure needed for using the Toop/Kohler method for ternary
-extrapolations is now working but testing is still needed.  More
+extrapolations is now working but testing is still needed.  A few more
 errors calculating with the new unary models have been fixed.
 
-2020.09.11 OC version 6.012: Several problems related to the EEC has
-been solved.  If a phase has higher entropy than the liquid (the EEC)
-the routine which calculate G and all its derivatives during an
-equilibrium calculation will replace the values of G and all its
-derivatives with respect to fractions with an ideal entroy expression
-with zero enthalpy.  This will ensure the phase is never stable but
-still allow it to have reasonable chemical potentials.  Just replacing
-the Gibbs energy with a high value created convergence problems.  But
-calculating and plotting Gibbs energy curves may still be difficult in
-a T and composition ranges where the EEC is active.
+2020.09.11 OC version 6.012: Several problems related to the
+Equi-Entropy Criterion (EEC) has been solved.  If a phase has higher
+entropy than the liquid (the EEC) the routine which calculate G and
+all its derivatives during an equilibrium calculation will replace the
+values of G and all its derivatives with respect to fractions with an
+ideal entroy expression with zero enthalpy.  This will ensure the
+phase is never stable but still allow it to have reasonable chemical
+potentials.  Just replacing the Gibbs energy with a high value created
+convergence problems.  But calculating and plotting Gibbs energy
+curves may still be difficult in a T and composition ranges where the
+EEC is active.
 
 I had a message from Ebert Alvares about problems assessing data for a
 sigma phase because OC crashed with segmentation fault.  Looking into
@@ -174,7 +206,7 @@ which phases to exchange.  As always step and map are fragile and may
 require several startpoints to be complete.
 
 ****************************************
-* This is a prerelease of OC version 6 *
+* This is a prerelease of OC version 6 * 2020
 ****************************************
 
 2020.03.15 OC version 6.000: Note the linkpara and Makefiles are
@@ -1146,7 +1178,7 @@ write DAT files for FactSage, command line editing on Linux and many
 other things it is time to release a new version.  Most of the
 documentation has not been updated.
 
-********************************************************************
+******************************************************************** 2018
 
 2018.02.02 OC version 4.044: By popular demand the SHOW command has
 now been implemented.  It combines 3 commands, "LIST STATE_VARIABLE",
@@ -1745,7 +1777,7 @@ things to fix.
 2016.07.13 I have decided that this update is now a prerelease of OC
 version 4.
 
-***********************************************************************
+********************************************************************** 2016
 
 2016.07.10 With a lot of help from Jacques Lechelle and others the
 mapping now seems to work much better, also the multicomponent
@@ -1836,3 +1868,6 @@ Modified slightly the listing of many equilibria.  Empty lines in the
 enter_many_equil command and TAB characters in the row lines are accepted.
 
 Start documenting OC incremental updates ...
+
+Before this I had a worklog (as PDF)
+

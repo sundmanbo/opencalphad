@@ -572,7 +572,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Error allocating data, no free memory                           ',&
        'Nonlinear equation solver HYBRD1 error                          ',&
        'Error from DGETRS/F generating isopleth invariant exits         ',&
-       '                                                                ',&
+       'Supressed value due to special circumstances                    ',&
        '                                                                ',&
        '5                                                               ',&
        '                                                                ',&
@@ -2016,8 +2016,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this is set zero by new_gtp and incremented each time a Toop record
 ! is created in any phase
    integer uniqid
+! this is to allow select_phases from database files
+   integer nselph
+   character (len=24), allocatable, dimension(:) :: seltdbph
 !\end{verbatim}
 
+! undocumented debug indicator
+   integer :: gtpdebug=0
 ! undocumented CPU time measuring in calcg_internal
   double precision zputime(21)
 

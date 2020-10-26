@@ -404,16 +404,25 @@
 ! we come back here if iadd was 0 but removed as 
 3000 continue
 ! new global check for stable and metastable phases
+!    write(*,*)'SMP error 6A:',mapline%number_of_equilibria,&
+!         maptop%globalcheckinterval
     phasecheck: if(gx%bmperr.eq.0 .and. iadd.eq.0 .and. irem.eq.0) then
-       if(maptop%globalcheckinterval.gt.0 .and. &
-         mod(mapline%number_of_equilibria,maptop%globalcheckinterval).eq.0) then
+!       write(*,*)'SMP error 6B:',mapline%number_of_equilibria,&
+!            maptop%globalcheckinterval
+!       if(maptop%globalcheckinterval.le.0) then
+!        write(*,*)'SMP maptop%globalcheckinterval:',maptop%globalcheckinterval
+!          maptop%globalcheckinterval=10
+!       endif
+       checkinterval: if(maptop%globalcheckinterval.gt.0) then
+          if(mod(mapline%number_of_equilibria,maptop%globalcheckinterval).eq.0)&
+               then
 ! this may set error code if equilibrium should be recalculated
 ! and it may change constitutions of metastable phases
-          write(*,'(a,i5)')'SMP check_all_phases at equilibrium: ',&
-               mapline%number_of_equilibria
-          jj=0
-          call check_all_phases(jj,ceq)
-          if(gx%bmperr.ne.0) then
+!          write(*,'(a,i5)')'SMP check_all_phases at equilibrium: ',&
+!               mapline%number_of_equilibria
+             jj=0
+             call check_all_phases(jj,ceq)
+             if(gx%bmperr.ne.0) then
 !             if(associated(mapline%lineceq,ceq)) then
 ! This is true and dangerous but I will be careful programming ...
 !                write(*,*)'SMP ceq is same as mapline%lineceq'
@@ -421,29 +430,30 @@
 !                write(*,*)'SMP ceq is NOT same as mapline%lineceq'
 !             endif
 !             call get_phase_compset(iph,ics,lokph,lokres)
-             if(gx%bmperr.eq.4366) then
+                if(gx%bmperr.eq.4366) then
 ! terminate line and call gridminimizer
-                write(*,*)'SMP check_all_phases require gridminimizer',jj
-                gx%bmperr=0
-                call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
-                if(gx%bmperr.eq.0) goto 321
-             elseif(gx%bmperr.eq.4365) then
-                write(*,*)'SMP check_all_phases error, call map_halfstep:',jj
-                gx%bmperr=0
+                   write(*,*)'SMP check_all_phases require gridminimizer',jj
+                   gx%bmperr=0
+                   call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
+                   if(gx%bmperr.eq.0) goto 321
+                elseif(gx%bmperr.eq.4365) then
+                   write(*,*)'SMP check_all_phases error, call map_halfstep:',jj
+                   gx%bmperr=0
 ! we have to convert jj=iph*10+ics to index in mapline%meqrec%phr
 ! Check if constitution is the one se in check_all_phases
 !                write(*,95)(yarr(ii),ii=1,jj)
 !95              format('3Y gridy: ',10(F7.4))
-                
-                call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
-                if(gx%bmperr.eq.0) goto 321
-             endif
+                   call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
+                   if(gx%bmperr.eq.0) goto 321
+                endif
 ! otherwise ignore any errors
-             gx%bmperr=0
+                gx%bmperr=0
+             endif
           endif
-       endif
+       endif checkinterval
     endif phasecheck
 !------------------------------------------------------------------
+!    write(*,*)'SMP looking for error 7:'
     sameseterror: if(gx%bmperr.ne.0) then
 !       write(*,*)'Error in meq_sameset called from smp',gx%bmperr
 ! if error 4359 (slow convergence), 4204 (too many its) take smaller step ...
@@ -6328,7 +6338,7 @@
 ! along the tieline with 30% of the fix phase
 ! Now we must change a condition ...
           call locate_condition(axarr(activax)%seqz,pcond,mapline%lineceq)
-          write(*,*)'Located condition',activax
+!          write(*,*)'SMP2A Located condition',activax
           svrrec=>pcond%statvar(1)
 ! NOTE: If we change fix/entered phase we must change axvals/axvals2
           svrtarget=svrrec
@@ -7611,10 +7621,10 @@
 ! find a stored line to calculate
 ! in this subroutine we have only one axis variable
 200       continue
-!          write(*,*)'Calling findline:'
+          write(*,*)'Calling findline:'
           call map_findline(maptop,axarr,mapfix,mapline)
           if(gx%bmperr.ne.0) goto 500
-!          write(*,*)'Back from map_findline in STEP'
+          write(*,*)'Back from map_findline in STEP',associated(mapline)
           ceq=>mapline%lineceq
           meqrec=>mapline%meqrec
 ! this is the first equilibrium along the line, create meqrec in step_separate
@@ -7623,7 +7633,9 @@
 !             if(stsphcs(jk).eq.-2) write(*,*)'SS phase ',jk,' dormant B'
 !             if(stsphcs(jk).ge.0) write(*,*)'SS phase ',jk,' stable B'
 !          enddo
+          write(*,*)'smp2A calling calceq7'
           call calceq7(mode,meqrec,mapfix,ceq)
+          write(*,*)'smp2A back from calceq7',gx%bmperr
           if(gx%bmperr.ne.0) then
 ! error 4187 is to set T or P less than 0.1
              if(gx%bmperr.eq.4187) then

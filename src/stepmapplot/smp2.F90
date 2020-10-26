@@ -288,7 +288,7 @@ MODULE ocsmp
      character labelkey*48, font*32
 ! filename is file to write the GNUPLOT command and data file
 ! appendfile is a file name that will be appended unless empty
-     character filename*128,appendfile*128
+     character filename*256,appendfile*256
 ! gnuplot terminals and keys, gnuselterm is selected terminal type (1..8)
      integer gnutermsel,gnutermax
      character*80 gnuterminal(8)

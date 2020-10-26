@@ -59,7 +59,7 @@ contains
     logical :: htmlhelp=.FALSE.
 !    logical :: htmlhelp=.TRUE.
 ! element symbol and array of element symbols for database use
-    character elsym*2,ellist(maxel)*2
+    character elsym*2,ellist(maxel)*2,elbase(maxel)*2
 ! more texts for various purposes
     character text*72,string*256,ch1*1,chz*1,selection*27,funstring*1024
     character axplot(2)*24,axplotdef(2)*24,quest*20
@@ -71,7 +71,8 @@ contains
 ! separate file names for remembering and providing a default
     character ocmfile*128,ocufile*128,tdbfile*128,ocdfile*128,filename*128
 ! home for OC and default directory for databases
-    character ochome*64,ocbase*64
+!    character ochome*64,ocbase*64, change suggested by Chunhui
+    character ochome*128,ocbase*128
 ! prefix and suffix for composition sets
     character prefix*4,suffix*4
 ! element mass
@@ -97,7 +98,7 @@ contains
     integer grunit
 ! species for ternary extrapolation method
     character xspecies(3)*24
-! path to start directory stored inside metlib!!
+! path to start directory declared inside metlib!!
 !    character macropath*128
 ! plot texts
 !    type(graphics_textlabel), allocatable, target :: textlabel
@@ -139,7 +140,7 @@ contains
 ! plot unit for experimental data used in enter many_equilibria
     integer :: plotdataunit(9)=0,plotunit0=0
 ! temporary integer variables in loops etc
-    integer i1,i2,j4,j2,iax,threads,modelx
+    integer i1,i2,j4,j5,j2,iax,threads,modelx
 ! more temporary integers
     integer jp,kl,svss,language,last,leak,j3,tzcond
 ! and more temporary integers
@@ -202,7 +203,7 @@ contains
     type(gtp_phase_add), pointer :: addrec
 !
     character actual_arg(2)*16
-    character cline*128,option*80,aline*128,plotfile*128,eqname*24
+    character cline*128,option*80,aline*128,plotfile*256,eqname*24
 ! variable phase tuple
     type(gtp_phasetuple), pointer :: phtup
 !----------------------------------------------------------------
@@ -290,7 +291,7 @@ contains
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
         ['UNFORMATTED     ','TDB             ','QUIT            ',&
-         'DIRECT          ','PDB             ','                ']
+         'DIRECT          ','PDB             ','SELECTED_PHASES ']
 !-------------------
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
@@ -313,7 +314,7 @@ contains
          ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
          'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
          'TERNARY_EXTRAPOL','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
-         '                ','GADDITION       ','AQUEUS_MODEL    ',&
+         'REMOVE_COMPSETS ','GADDITION       ','AQUEUS_MODEL    ',&
          'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
          '                ','                ','QUIT            ']
 !-------------------
@@ -933,7 +934,7 @@ contains
 !         ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
 !         'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
 !         'TERNARY_EXTRAPOL','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
-!         '                ','GADDITION       ','AQUEUS_MODEL    ',&
+!         'REMOVE_COMPSETS ','GADDITION       ','AQUEUS_MODEL    ',&
 !         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
 !         '                ','                ','QUIT            ']
 ! old
@@ -1199,10 +1200,12 @@ contains
 !....................................................
 !\hypertarget{Amend BCC-permutations}{}
           case(9) ! amend phase ... BCC_PERMUTATIONS
-                if(check_minimal_ford(lokph)) goto 100
-                call set_phase_status_bit(lokph,PHBORD)
+             if(check_minimal_ford(lokph)) goto 100
+             call set_phase_status_bit(lokph,PHBORD)
 !....................................................
-          case(10) ! moved
+          case(10) ! amend phase <...> remove_compsets
+             write(*,*)'PMON: delete unstable composition sets'
+             call delete_unstable_compsets(lokph,ceq)
 !....................................................
           case(11) ! AMEND PHASE ... GADDITION
 ! add a constant term to G, value in J/FU
@@ -4341,13 +4344,13 @@ contains
              if(eqlista(iel)%weight.gt.zero) then
 ! always list equilibria with weight>0
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1),eqlista(iel)%weight,text(1:32)
+                     eqlista(iel)%tpval(1),eqlista(iel)%weight,trim(text)
 6203            format(i4,1x,a2,1x,a,1x,F8.2,1x,F5.2,1x,a)
              elseif(iel.eq.1 .or. kom2.eq.11) then
 ! for kom2=11 list all equilibria without including weight
 ! NOTE all equilibria outside "range" (default and step/map) has weight= -1.0
                 write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1),text(1:32)
+                     eqlista(iel)%tpval(1),trim(text)
 6202            format(i4,1x,a2,1x,a,1x,F8.2,7x,a)
              elseif(eqlista(iel)%weight.eq.zero) then
                 jp=jp+1
@@ -4711,7 +4714,7 @@ contains
 !=================================================================
 ! READ subcommand
 !        ['UNFORMATTED     ','TDB             ','QUIT            ',&
-!         'DIRECT          ','                ','                ']
+!         'DIRECT          ','PDB             ','SELECTED_PHASES ']
     case(8)
 ! disable continue optimization
 !       iexit=0
@@ -4796,7 +4799,8 @@ contains
           endif
 ! this call checks the file exists and returns the elements
 ! it also lists the DATABASE_INFO text
-          call checkdb2(tdbfile,'.tdb',jp,ellist)
+!          call checkdb2(tdbfile,'.tdb',jp,ellist)
+          call checkdb2(tdbfile,'.tdb',jp,elbase)
           if(gx%bmperr.ne.0) then
              write(kou,*)'No database with this name'
              tdbfile=' '
@@ -4806,7 +4810,9 @@ contains
              tdbfile=' '
              goto 100
           endif
-          write(kou,8203)jp,(ellist(kl),kl=1,jp)
+!          write(kou,8203)jp,(ellist(kl),kl=1,jp)
+          j4=jp
+          write(kou,8203)jp,(elbase(kl),kl=1,j4)
 8203      format('Database has ',i2,' elements: ',18(a,1x)/(1x,28(1x,a)))
           ellist='  '
           write(kou,8205)
@@ -4830,6 +4836,15 @@ contains
                 write(kou,*)'Max number of elements selected: ',size(ellist)
              else
                 ll=last
+! Check if element exist
+                elcheck: do j5=1,j4
+                   if(ellist(jp-1).eq.elbase(j5)) exit elcheck
+                enddo elcheck
+! if we come here with j4>j5 then ellist(jp) is not in elbase(1..j4)
+                if(j5.gt.j4) then
+                   jp=jp-1
+                   write(kou,'(a,i3,1x,a)')'No such element: ',jp,ellist(jp)
+                endif
                 if(eolch(cline,last)) then
 ! if empty line list current selection and prompt for more
                    write(*,8220)jp-1,(ellist(iel),iel=1,jp-1)
@@ -4931,8 +4946,166 @@ contains
           call list_bibliography(' ',kou)
           write(kou,*)
 !-----------------------------------------------------------
-       case(6) ! read ??
-          write(*,*)'Nothing yet'
+       case(6) ! read SELECTED_PHASES
+! Ask if TDB or PDB
+          call gparcdx('Database format: ',&
+               cline,last,1,name1,'TDB','?READ SEL_PHASE')
+          call capson(name1)
+          if(name1(1:4).ne.'TDB ') then
+             write(*,*)'Only TDB files currently implemented'
+             goto 100
+          endif
+! the first part copied from READ TDB
+          if(tdbfile(1:1).ne.' ') then
+! set previous tdbfil as default
+             text=tdbfile
+             call gparcdx('File name: ',cline,last,1,tdbfile,text,'?READ TDB')
+          else
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, 8=LOG
+! negative is for write, 0 read without filter, -100 write without filter
+             call gparfilex('File name: ',cline,last,1,tdbfile,' ',1,&
+                  '?READ TDB')
+          endif
+! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
+!          write(*,*)'PMON tdbfile: ',trim(tdbfile)
+! check for replacement of OCBASE probably redundant now ...
+          name1=tdbfile(1:7)
+          call capson(name1)
+          if(name1(1:7).eq.'OCBASE/' .or. name1(1:8).eq.'OCBASE\ ') then
+             tdbfile=trim(ocbase)//tdbfile(7:)
+             write(*,*)'database file: ',trim(tdbfile)
+          endif
+! this call checks the file exists and returns the elements
+! it also lists the DATABASE_INFO text
+!          call checkdb2(tdbfile,'.tdb',jp,ellist)
+          call checkdb2(tdbfile,'.tdb',jp,elbase)
+          if(gx%bmperr.ne.0) then
+             write(kou,*)'No database with this name'
+             tdbfile=' '
+             goto 990
+          elseif(jp.eq.0) then
+             write(kou,*)'No elements in the database'
+             tdbfile=' '
+             goto 100
+          endif
+!          write(kou,8203)jp,(ellist(kl),kl=1,jp)
+          j4=jp
+          write(kou,8203)jp,(elbase(kl),kl=1,j4)
+!8203      format('Database has ',i2,' elements: ',18(a,1x)/(1x,28(1x,a)))
+          ellist='  '
+          write(kou,8205)
+!8205      format('Give the elements to select, finish with empty line')
+          jp=1
+          selection='Select elements /all/:'
+8219      continue
+          call gparcx(selection,cline,last,1,ellist(jp),' ','?READ TDB')
+          if(jp.eq.1 .and. cline(1:4).eq.'all ') then
+! this is if someone actually types "all".  If he types "ALL" that will be AL
+             jp=0
+          elseif(cline(1:1).eq.'q' .or. cline(1:1).eq.'Q' .or.&
+               cline(1:4).eq.'NONE') then
+! if user regets selection he can quit
+             write(*,*)'Quitting, nothing selected'
+             goto 100
+          elseif(ellist(jp).ne.'  ') then
+             call capson(ellist(jp))
+             jp=jp+1
+             if(jp.gt.size(ellist)) then
+                write(kou,*)'Max number of elements selected: ',size(ellist)
+             else
+                ll=last
+! Check if element exist
+                elcheck2: do j5=1,j4
+                   if(ellist(jp-1).eq.elbase(j5)) exit elcheck2
+                enddo elcheck2
+! if we come here with j4>j5 then ellist(jp) is not in elbase(1..j4)
+                if(j5.gt.j4) then
+                   jp=jp-1
+                   write(kou,'(a,i3,1x,a)')'No such element: ',jp,ellist(jp)
+                endif
+                if(eolch(cline,last)) then
+! if empty line list current selection and prompt for more
+                   write(*,8220)jp-1,(ellist(iel),iel=1,jp-1)
+                else
+! we must reset position in cline if there is more ...
+                   last=ll
+                endif
+                selection='Select elements /no more/:'
+                goto 8219
+             endif
+          else
+             jp=jp-1
+          endif
+          if(jp.eq.0) then
+             write(kou,*)'All elements selected'
+          else
+             write(*,8220)jp,(ellist(iel),iel=1,jp)
+!8220         format('Selected ',i2,' elements: ',20(a,1x))
+          endif
+! SPECIAL SELECT_PHASES
+! ask for phses to be selected, max 100
+          allocate(seltdbph(100))
+          j4=0
+          selection='Select phase(s) /all/:'
+          selph: do while (.TRUE.)
+             call gparcdx(selection,&
+                  cline,last,1,line,' ','?READ SEL_PHASE LIST')
+             if(line(1:1).eq.' ') exit selph
+             selection='Select more phase(s):'
+! There is at least one phase name in line
+             j2=1
+             phname: do while(.not.eolch(line,j2))
+                j4=j4+1
+                if(j4.gt.100) then
+                   write(*,*)'Max 100 phases can be selected'
+                   exit selph
+                endif
+                j2=j2-1
+! getext increments i2 by 1 at each call.  A space or , between each name
+!                write(*,*)'pmon 1:',trim(line),j2,j4
+                call getext(line,j2,1,seltdbph(j4),' ',i1)
+                call capson(seltdbph(j4))
+!                write(*,*)'pmon 2:',seltdbph(j4),i1
+             enddo phname
+          enddo selph
+! nselph is a global variabel
+          nselph=j4
+          if(nselph.gt.0) then
+             write(*,*)nselph,' phase abbreviations specified '
+          else
+             write(*,*)'No phase specified, all will be read'
+          endif
+!          do j2=1,j4,3
+!             write(*,'(a,1x,a,1x,a)')(trim(seltdbph(j2+i1)),i1=0,2)
+!          enddo
+! Finally read the TDB file
+! if seltdbph is allocated only those phase will be inlcuded
+          call readtdb(tdbfile,jp,ellist)
+          deallocate(seltdbph)
+          if(gx%bmperr.ne.0) then
+! inside readtdb any "buperr" will be set as gx%bmperr
+             write(kou,*)'There were errors reading the TDB file', gx%bmperr
+             if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+                write(kou,*)bmperrmess(gx%bmperr)
+             endif
+             write(kou,*)'Please correct these before continuing'
+! ignore any type ahead
+             last=len(cline)
+             call gparcdx('Do you want to continue anyway?',&
+                  cline,last,1,ch1,'N','?READ TDB error')
+             if(ch1.ne.'Y') then
+                stop 'Good luck fixing the TDB file'
+             endif
+          endif
+! also list the bibliography
+          write(kou,*)
+          call list_bibliography(' ',kou)
+          write(kou,*)
+          if(firsteq%multiuse.ne.0) then
+             write(*,8221)
+!8221         format(/' *** There were warnings from reading the database'/&
+!                 ' *** If you run a macro file please scroll back and check!'/)
+          endif
        end SELECT read
 !=================================================================
 ! SAVE in various formats (NOT MACRO and LATEX, use LIST DATA)
@@ -5786,7 +5959,7 @@ contains
           elseif(associated(maptopsave)) then
 ! THIS ERROR WITH LOST CALCULATONS MAY BE THERE FOR STEP SEPERATE AND MAP
 !             write(*,*)'PM linking previous results'
-             write(kou,*)'Set link to previous step results'
+             write(kou,'(a)')'Link set to previous step/map results.'
              maptop%plotlink=>maptopsave
           endif
 ! debugging: last maptop/line used
@@ -5816,7 +5989,7 @@ contains
                 nullify(maptopsave)
              endif
           elseif(associated(maptopsave)) then
-             write(kou,*)'Set link to previous step results'
+             write(kou,'(a)')'Link set to previous map/step results'
              maptop%plotlink=>maptopsave
           endif
 ! set default yaxis as GM(*)
@@ -5923,7 +6096,7 @@ contains
              nullify(maptopsave)
           endif
        elseif(associated(maptopsave)) then
-          write(kou,*)'Setting link to previous map results'
+          write(kou,'(a)')'Link set to previous map results'
           maptop%plotlink=>maptopsave
           nullify(maptopsave)
        endif
@@ -6060,7 +6233,7 @@ contains
 ! first argument is the number of plot axis, always 2 at present
        jp=2
        if(associated(maptopsave)) then
-          write(kou,*)'We link to maptopsave'
+          write(kou,'(a)')'Link set to maptopsave'
           maptop%plotlink=>maptopsave
 !       else
 !          write(*,*)'There is no maptopsave'
@@ -6119,7 +6292,6 @@ contains
              endif
           endif
           graphopt%filename=' '
-!          write(*,*)' >>>>>>>>>>>>> ',trim(plotfile)
           graphopt%filename=plotfile
 !          write(*,*)'PMON6 tieline_inplane: ',maptop%tieline_inplane,&
 !               graphopt%status
@@ -6357,13 +6529,20 @@ contains
           once=.false.
           if(plotfile(1:2).eq.'./') then
 ! save in macro directory if iumaclevl>0, else in current working directory
+!             write(*,*)'PMON1: ',trim(plotfile),len_trim(plotfile)
+!             write(*,*)'PMON2: ',trim(macropath(iumaclevl)),&
+!                  len_trim(macropath(iumaclevl)),iumaclevl
              if(iumaclevl.gt.0) then
 ! we are executing a macro, skip the ./
-                plotfile=trim(macropath(iumaclevl))//plotfile(3:)
+                aline=plotfile(3:)
+                plotfile=trim(macropath(iumaclevl))//aline
              else
 ! running interactivly prefix with working directory (default?)
-                plotfile=trim(workingdir)//plotfile(2:)
+                aline=plotfile(2:)
+                plotfile=trim(workingdir)//aline
              endif
+! trouble passing on ling file names ....
+!             write(*,*)'PMON3: ',trim(aline)
              write(*,*)'PMON working directory: ',trim(workingdir)
              write(*,*)'Saving on file: ',trim(plotfile)
              once=.true.

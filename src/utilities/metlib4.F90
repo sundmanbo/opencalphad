@@ -212,7 +212,7 @@ MODULE METLIB
 ! logical nopopup
   logical :: NOPENPOPUP=.FALSE.
 ! character for PATH to macro file in order to open files inside macro
-    character macropath(5)*128
+    character macropath(5)*256
 ! the working directory
     character workingdir*256
 ! for macros
@@ -1552,6 +1552,67 @@ CONTAINS
 1000 continue
     return
   end subroutine cwricend
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+  
+!\addtotable logical function isabbr
+!\begin{verbatim}
+  INTEGER FUNCTION ISABBR(LONG,SHORT,NC)
+! This is for comparing user provided phase names with database phase names
+! LONG is a phase name read from database file
+! SHORT is an array with abbreviated phase names that should be selected
+! Seach array SHORT for any that is an abbreviation of LONG
+! Abbreviations between each _ allowed
+! NOTE: Any - (minus) in SHORT should have been converted to _
+    implicit none
+    integer nc
+    CHARACTER LONG*(*),SHORT(NC)*(*)
+!\end{verbatim} %
+    character chs
+    integer j1,k1,k2,ltrim,fit,slen
+    fit=0
+    ltrim=len_trim(long)
+!    write(*,*)'M4 ISABBR ***********: ',trim(long),nc,ltrim
+! loop to compare LONG with all abbreviations in short
+    find: do k1=1,nc
+       slen=len_trim(short(k1))
+       j1=1
+!       write(*,*)'M4 abbr: ',trim(short(k1)),slen
+       letter: do k2=1,slen
+! this is a loop for all characters in short
+          chs=short(k1)(k2:k2)
+          uscore: if(chs.eq.'-' .or. chs.eq.'_') then
+!             write(*,*)'M4 Found "-" in short, skipping to "-" in long',j1
+             long1: do j1=j1,ltrim
+                if(long(j1:j1).eq.'-' .or. long(j1:j1).eq.'_') exit long1
+             enddo long1
+!             write(*,*)'M4 Looking for "-": ',j1,ltrim
+             j1=j1+1
+! there is no _ or - in long, skip this abbreviation
+             if(j1.gt.ltrim) cycle find
+! found a - in long, compare letter after - in short and long
+             cycle letter
+          endif uscore
+! accept if next character in short is blank (also if first!)
+          if(k2.gt.1 .and. chs.eq.' ') then
+             fit=k1; exit find
+          endif
+! compare letter in short(k1)(k2:k2) with long(j1:j1)
+!          write(*,*)'M4 Letter: "',chs,'" and "',long(j1:j1),k2,j1
+          if(chs.ne.long(j1:j1)) cycle find
+          j1=j1+1
+       enddo letter
+! accept as all slen letters in SHORT match corresponding leters in LONG
+       fit=k1
+       exit find
+    enddo find
+1000 continue
+!    if(fit.gt.0) then
+!       write(*,*)'Accept abbreviation ',trim(short(fit)),' for ',trim(long),fit
+!    endif
+    isabbr=fit
+    return
+  end FUNCTION ISABBR
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 !

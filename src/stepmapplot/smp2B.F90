@@ -26,7 +26,7 @@
 !\end{verbatim} %+
 ! local variables set from graphopt
 !    character pltax(2)*64,filename*64,pform*32
-    character pltax(2)*64,filename*64
+    character pltax(2)*64,filename*128
 !
     type(map_ceqresults), pointer :: results
     TYPE(gtp_equilibrium_data), pointer :: curceq
@@ -34,9 +34,9 @@
     type(map_line), pointer :: mapline
     logical wildcard
 !    integer, parameter :: mofapl=100
-    character ch1*1,gnuplotline*256,pfd*64,pfc*64
+    character ch1*1,gnuplotline*256,pfd*128,pfc*256
 !    character pfh*64,dummy*24,applines(mofapl)*128,appline*128
-    character pfh*64,dummy*24
+    character pfh*128,dummy*24
     double precision, dimension(:,:), allocatable :: anp
     double precision, dimension(:), allocatable :: xax,yyy
 ! save isopleth invariants in special array, max 50 invariants
@@ -66,6 +66,8 @@
     character deftitle*128,labelkey*64
     logical overflow,first,last,novalues,selectph,varofun,moretops,isopleth
     logical, allocatable, dimension(:) ::  nevernone
+! dot derivatives should not be calcuated at first point of a range
+    logical skipdotder
 ! textlabels
     type(graphics_textlabel), pointer :: textlabel
 ! line identification (title)
@@ -96,7 +98,7 @@
 ! for isopleths this value determine the line color
     fixphasecolor=1
 
-!    write(*,*)' ocplot2 >> plot file: ',trim(filename)
+!    write(*,*)'In ocplot2: ',trim(filename)
 !    pform=graphopt%pform
 ! continue as before ...
     if(index(pltax(1),'*').gt.0 .and. index(pltax(2),'*').gt.0) then
@@ -320,6 +322,8 @@
        mapline=>localtop%linehead(line)
 ! initiate novalues to false for each line
        novalues=.false.
+! skip first point if dot derivative
+       skipdotder=.TRUE.
 ! We have a segmentation fault sfter this in oc4P when running map11.OCM
 ! at the end of running all macros.  
 !       write(*,*)'In ocplot2, looking for segmentation fault 3'
@@ -444,8 +448,15 @@
              if(allocated(linzero)) linzero=0
           endif
 ! no wildcards allowed on this axis
-!          write(*,*)'In ocplot2, segmentation fault 4Ay1',nr,nv
           statevar=pltax(notanp)
+!          write(*,'(a,a,3i4,1pe12.4)')'In ocplot2, segmentation fault 4Ay1: ',&
+!               trim(statevar),nr,nv,notanp,curceq%tpval(1)
+          if(skipdotder) then
+! If skipdotder and this is a dot derivative return error code to skip value
+!             write(*,*)'smp2B skipping point A: ',trim(statevar),nv
+!             skipdotder=.FALSE.; special_circumstances=1
+             special_circumstances=1
+          endif
           call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
 !          write(*,*)'SMP axis variable 1: ',trim(encoded1),value
           if(gx%bmperr.ne.0) then
@@ -624,13 +635,25 @@
 ! I HAVE HAD PROBLEMS WITH NEGATIVE CP HERE 
 ! try skipping this value (below) if last equilibrium on the line 
 !             varofun=.TRUE.
-!             write(*,*)'SMP: calling meq_get_state_varofun ',trim(statevar)
+! segmentation fault if I plot Cp after shifting  to a NEW MAPTOP record
+!             write(*,'(a,F8.2,a,a)')'SMP meq_get_state_varofun 7: T=',&
+!                  curceq%tpval(1),' axis: ',trim(statevar)
+! encoded1 not set correctly for dot derivative !!
+!             encoded1='dummy'
 ! there is a segmentation fault in this call
+! segmentation fault if maptop changed (several map/step commands)
+             if(skipdotder) then
+! return error code if calculating a derivative at first point of line
+!                write(*,*)'smp2B skipping point B: ',trim(statevar),nv
+                skipdotder=.FALSE.; special_circumstances=1
+             endif
              call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
-!             write(*,*)'SMP axis variable 2: ',statevar(1:3),value
+! encoded1 here is wrong?? not Cp when it should be, also when no error
+!             write(*,*)'SMP axis value 7: ',trim(encoded1),value
              if(gx%bmperr.ne.0) then
 ! SECOND Skipping
-                write(*,212)'SMP Skipping a point, error evaluating: ',&
+                if(gx%bmperr.ne.4373) &
+                     write(*,212)'SMP Skipping a point, error evaluating: ',&
                      statevar(1:10),curceq%tpval(1),nv,nr
                 nv=nv-1; goto 215
              endif
@@ -665,8 +688,10 @@
           nr=curceq%nexteq
           if(nr.gt.0) then
              if(results%savedceq(nr)%nexteq.eq.0) then
-!                write(*,*)'We have found last equilibria along the line: ',last
+!                write(*,*)'We have found last equilibria along the line: ',nr
                 last=.TRUE.
+! skipdotder=TRUE means skip dot derivatives at first equilibrium in next line
+                skipdotder=.TRUE.
              endif
           endif
 !>>>>>>>>>>>>>>>>>>>>>>>>>> starting a line
@@ -734,6 +759,11 @@
 !-------------------
 ! axis without wildcard
                    statevar=pltax(notanp)
+                   if(skipdotder) then
+! skip calculating a derivative if this is first point of a region
+!                      write(*,*)'smp2B skipping point C: ',trim(statevar),nv
+                      skipdotder=.FALSE.; special_circumstances=1
+                   endif
                    call meq_get_state_varorfun_value(statevar,value,&
                         encoded1,curceq)
 !                   write(*,*)'SMP axis variable 3: ',encoded1(1:3),value
@@ -1158,8 +1188,8 @@
     integer, parameter :: mofapl=100
 ! ltf1 is a LineTypeoFfset for current plot when appending a plot, 0 default
     integer appfiletyp,lz,ltf1
-    character pfc*64,pfh*64,backslash*2,appline*128
-    character applines(mofapl)*128,gnuplotline*128,labelkey*64,rotate*16
+    character pfc*128,pfh*128,backslash*2,appline*128
+    character applines(mofapl)*128,gnuplotline*256,labelkey*64,rotate*16
     character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
     logical isoplethplot
 ! write the gnuplot command file with data appended
@@ -1251,7 +1281,8 @@
             'set size ',F8.4', ',F8.4/&
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-        'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
+!        'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
+        'set label "~O{.0  C}" at screen 0.02, 0.03 font "Garamond Bold,20"'/&
             'set key ',a/&
             'set linetype ',i2,' lc rgb "#000000" lw 2 pt 10'/&
             'set linetype ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
@@ -1274,7 +1305,8 @@
                'set size ',F8.4', ',F8.4/&
                'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
+!          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
+        'set label "~O{.0  C}" at screen 0.02, 0.03 font "Garamond Bold,20"'/&
                'set key ',a/&
                'set style line ',i2,' lt ',i2,' lc rgb "#000000" lw 2 pt 10'/&
                'set style line ',i2,' lt ',i2,' lc rgb "#4169E1" lw 2 pt 6'/&
@@ -2121,8 +2153,9 @@
     integer, parameter :: maxcolor=200,mofapl=100
     integer ii,jj,kk,jph,offset,n1,nofapl,ltf2
     type(graphics_textlabel), pointer :: textlabel
-    character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64,backslash*2
-    character labelkey*64,applines(mofapl)*128,appline*128,pfc*80,pfh*80
+    character gnuplotline*256,date*12,mdate*12,title*128
+    character deftitle*64,backslash*2
+    character labelkey*64,applines(mofapl)*128,appline*128,pfc*128,pfh*128
     integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
     integer done(maxcolor),foundinv,fcolor,k3
     character color(maxcolor)*24,rotate*16,labelfont*32,linespoints*12
@@ -2287,14 +2320,16 @@
        write(21,131)trim(pltax(2)), 0.15*xmax, 0.37*xmax
 131    format('set label "',a,'" at ',F8.4,',',F8.4,' rotate by 60 '/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-         'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"')
+         'set label "~O{.0  C}" at screen 0.02, 0.03 font "Garamond Bold,20"')
+!         'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"')
 ! we should also enforce same length of X and Y axis !!!
     else
 ! SQUARE DIAGRAM
        write(21,132)trim(pltax(2))
 132    format('set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
-            'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"')
+         'set label "~O{.0  C}" at screen 0.02, 0.03 font "Garamond Bold,20"')
+!        'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"')
     endif
     lz=graphopt%linetype
     write(21,133)lz,lz,lz,lz,lz,lz,lz,lz,lz,lz
