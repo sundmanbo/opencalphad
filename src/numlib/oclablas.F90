@@ -23772,6 +23772,6 @@ CONTAINS
 ! DNRM2
 ! 
 !
-END MODULE OCLABLAS
+end module oclablas
 
 

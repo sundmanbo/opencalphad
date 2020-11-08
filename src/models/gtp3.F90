@@ -573,7 +573,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Nonlinear equation solver HYBRD1 error                          ',&
        'Error from DGETRS/F generating isopleth invariant exits         ',&
        'Supressed value due to special circumstances                    ',&
-       '                                                                ',&
+       'Mobility parameters must not have wildcard constituents         ',&
        '5                                                               ',&
        '                                                                ',&
        '                                                                ',&
@@ -2019,6 +2019,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this is to allow select_phases from database files
    integer nselph
    character (len=24), allocatable, dimension(:) :: seltdbph
+! This is to indicate mobility parameters, no wildcared fractions allowed
+   integer nowildcard(3)
 !\end{verbatim}
 
 ! undocumented debug indicator

@@ -15,7 +15,7 @@ PROGRAM pmain1
 ! these will be used later for dimensioning things and efaul
   integer i,narg,intvar(10)
   double precision dblvar(10)
-  character arginline(12)*64,arg*64,date*16
+  character arginline(4)*256,arg*64,date*16
 !
 ! save the data of linking the program
 !  call date_and_time(date)
@@ -24,7 +24,7 @@ PROGRAM pmain1
   linkdate=date(1:4)//'-'//date(5:6)//'-'//date(7:8)
 ! for example: linkdate='2019-11-27'
 ! this is the overall version identifier
-  version='  6.015 '
+  version='  6.016 '
 ! intvar and dblvar will eventually be used for allocations
   intvar(1)=30
   call init_gtp(intvar,dblvar)
@@ -34,9 +34,9 @@ PROGRAM pmain1
 ! extract arguments from the line of invocation
 ! at present just a macro file name
    narg=iargc()
-  if(narg.gt.12) then
-     write(*,*)'OC accepts max 12 inline arguments'
-     narg=12
+  if(narg.gt.4) then
+     write(*,*)'OC accepts max 4 inline arguments'
+     narg=4
 !  else
 !     write(*,*)'Inline arguments: ',narg
   endif

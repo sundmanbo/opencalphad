@@ -93,6 +93,8 @@ getkey.o:
 	# CYGWIN >> 
 	#$(C) -c $(FCOPT) -DCYGWIN src/utilities/GETKEY/getkey.c
 
+# If you have not uncommented any getkey.c line above COMMENT next line
+# and also remove the -Dlixed option for the metlib4.F90
 M_getkey.o:
 	$(FC) -c $(FCOPT) src/utilities/GETKEY/M_getkey.F90
 
@@ -106,7 +108,8 @@ ftinyopen.o:
 	$(FC) -c $(FCOPT) src/utilities/TINYFILEDIALOGS/ftinyopen.F90
 
 metlib4.o:	src/utilities/metlib4.F90
-	# lixed for command line editing, tinyfd for open files
+	# lixed for command line editing,
+	# tinyfd for open files
 	# lixhlp for browser help on Linux and MacOS
 	$(FC) -c $(FCOPT) -Dlixed -Dtinyfd -Dlixhlp src/utilities/metlib4.F90
 
@@ -153,7 +156,7 @@ $(EXE):
 	$(FC) -o linkoc src/linkocdate.F90
 	./linkoc
 	# create library liboceq.a
-	mkdir libs
+	mkdir -p libs
 	ar sq libs/liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
 
 	# If getkey.o is undefined below

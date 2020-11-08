@@ -143,7 +143,8 @@
    double precision g2val(6)
 ! to handle parameters with wildcard constituent and other things
    logical wildc,nevertwice,first,chkperm,ionicliq,iliqsave,iliqva,iliqneut
-   logical liq2state
+! mobility parameters must not have wildcard constituents
+   logical liq2state,wildmob
 ! debugging for partitioning and ordering
    integer idlist(9)
 ! calculate RT to normalize all Gibbs energies, ceq is current equilibrium
@@ -491,6 +492,7 @@
                endif
             endif
 !-----------------------------------------------------
+            wildmob=.FALSE.
             pyqloop: do ll=1,msl
                id=endmemrec%fraclinks(ll,epermut)
 ! debugging 4SL with wildcards
@@ -500,6 +502,7 @@
 ! id negative means wildcard, independent of the fraction in this sublattice
                if(id.lt.0) then
                   gz%yfrem(ll)=one
+                  wildmob=.TRUE.
                else
                   gz%yfrem(ll)=phres%yfr(id)
                   if(gz%yfrem(ll).lt.bmpymin) gz%yfrem(ll)=bmpymin
@@ -615,8 +618,9 @@
 !                        do iw=incffr(lm)+1,incffr(lm)
 !                           d2pyq(ixsym(id1,iw))=dpyq(id1)
 !                        enddo
-! This should be zero!! /170324/BoS
+! This derivative should be zero!! /170324/BoS
                         continue
+                        wildmob=.TRUE.
                      endif
                   else
 ! wildcard in sublattice ll, real component in lm
@@ -635,6 +639,7 @@
 !                        enddo
 ! I think this should be zero too!! /170324/BoS
                      endif
+                     wildmob=.TRUE.
                   endif
                enddo d2pyloop2
             enddo d2pyqloop1
@@ -668,6 +673,18 @@
                typty=proprec%proptype
                if(typty.ne.1) then
 ! if property different from 1 (=G) find where to store it, use phmain link
+! First check if the parameter is a mobility and there are wildcrds
+                  if(wildmob) then
+! nowildcard(1..3) set in gtp_init in gtp3A.F90 for mobility parameters
+! typty is indicator*100 + constituent index
+                     do qz=1,3
+                        if(typty/100.eq.nowildcard(qz)) then
+                           write(*,*)&
+                                '3X mobilities must not have wildcards',lokph
+                           gx%bmperr=4374; goto 1000
+                        endif
+                     enddo
+                  endif
                   do qz=2,lprop-1
                      if(phmain%listprop(qz).eq.typty) goto 170
                   enddo
@@ -984,6 +1001,7 @@
                      gx%bmperr=4341; goto 1000
                   endif
                   wildc=.TRUE.
+                  wildmob=.TRUE.
 !                  write(*,*)'3X wildcard found!'
                   ymult=gz%yfrint(gz%intlevel)*(one-gz%yfrint(gz%intlevel))
                endif
@@ -1113,7 +1131,7 @@
 ! END SPECIAL FOR IONIC LIQUID
 !---------------------------------------------------------------------
                endif cationintandva
-! we must check if any endmember is wildcard like L(*:A,B)
+! we must check if any endmember is wildcard like L(phase,*:A,B)
 ! Hopefully this works also for ionic liquid interaction between neutrals
                do ll=1,msl
                   if(ll.ne.intlat) then
@@ -1182,6 +1200,18 @@
 ! G parameters (ipy=1) are divided by RT inside cgint
                   typty=proprec%proptype
                   if(typty.ne.1) then
+! check if magnetic and wildcard ...
+                     if(wildmob) then
+! nowildcard(1..3) set in gtp_init in gtp3A.F90 for mobility parameters
+! typty is indicator*100 + constituent index
+                        do qz=1,3
+                           if(typty/100.eq.nowildcard(qz)) then
+                              write(*,*)&
+                                   '3X mobilities must not have wildcards',lokph
+                              gx%bmperr=4374; goto 1000
+                           endif
+                        enddo
+                     endif
 ! other properties than 1 (G) must be stored in different gval(*,ipy) etc
                      do qz=2,lprop-1
                         if(phmain%listprop(qz).eq.typty) goto 250
@@ -2244,8 +2274,8 @@
    if(lokpty%degree.eq.0) then
 !----------------------------------------------------------------------
 ! Easy: no composition dependence.  This applies also to Toop/Kohler parameters
-      if(associated(tooprec)) &
-           write(*,*)'3X Toop/Kohler binary parameter constant'
+!      if(associated(tooprec)) &
+!           write(*,*)'3X Toop/Kohler binary parameter constant'
       lfun=lokpty%degreelink(0)
       call eval_tpfun(lfun,gz%tpv,vals,ceq%eq_tpres)
       if(gx%bmperr.ne.0) goto 1000
@@ -2293,7 +2323,7 @@
    endif
    intlev: if(gz%intlevel.eq.1) then
 !----------------------------------------------------------------------
-! plain binary Redlich Kister. 
+! plain binary Redlich Kister or Toop/Kohler method
 ! gz%endcon can be wildcard, i.e. negative
 ! but for the moment give error message in that case
 ! A binary wildcard excess parameter means y_A ( 1 - y_A) * L_A*
@@ -2313,6 +2343,7 @@
 ! describe the composition dependence of the parameter.  If it is 
 ! not composition dependent we never come here as we exit 50 lines above
          toopx=>tooprec
+! copy tooprec to toopx as toopx will be changed inside calc_toop
          call calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
          goto 1000
       endif
@@ -2696,7 +2727,10 @@
    double precision x12,x21,sigma,dxrk
    integer, allocatable, dimension(:) :: dsigma, dx12, dx21
 ! ternary fraction index
-   integer jj(3),j1,j2,j3,link,count,toopconst,limit
+   integer jj(3),j1,j2,j3,link,count,toopconst,limit,jdeg,lfun,nyfr
+! for the RK calculation with Toop/Kohler fractions!
+   double precision valtp(6)
+   double precision dx,dx0,dx1,dx2,dxi,dxj,fff,rtg
 ! The first part here is to modify the fractions to be used in the RK series
 ! the gz record has information which elements involved
 ! gz%iq(1) and gz%iq(2) are index of the binary constituents
@@ -2708,13 +2742,29 @@
 !
    write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
 10 format('3X in calc_toop with binary; degree:',2i3,'; ',i2,2x,20('*'))
-   limit=size(phres%yfr)
-   allocate(dsigma(limit))
-   allocate(dx12(limit))
-   allocate(dx21(limit))
+! note vals, dvals and d2vals hare zero here
+   if(lokpty%degree.eq.0) then
+! quick exit if no composition dependence
+      lfun=lokpty%degreelink(0)
+      call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
+      if(gx%bmperr.ne.0) goto 1000
+      if(lokpty%proptype.eq.1) then
+         valtp=valtp/rtg
+      endif
+! this is multiplied with y_i y_j (and derivatives) at the return
+      vals=vals+valtp
+      goto 1000
+   endif
+! We have to calculate the reduced fractions
+   nyfr=size(phres%yfr)
+   allocate(dsigma(nyfr))
+   allocate(dx12(nyfr))
+   allocate(dx21(nyfr))
 ! max number of binaries ...
-   limit=limit*(limit-1)
-   dsigma=0; dx12=0; dx21=0
+   limit=nyfr*(nyfr-1)
+! initially dsigma is set to 1, i.e. derivatives with respect to all
+! constituents.  Those subtracted will be set to zero
+   dsigma=one; dx12=0; dx21=0
    sigma=one
    x12=phres%yfr(gz%iq(1))
    x21=phres%yfr(gz%iq(2))
@@ -2757,8 +2807,9 @@
             toopx=>toopx%next12
             if(toopconst.eq.0) then
 ! the binary 1-2 is a Kohler extrapolation ftom 3
+! There is no derivative in dsigma with respect to this constituent
                sigma=sigma-phres%yfr(jj(3))
-               dsigma(jj(3))=-1
+               dsigma(jj(3))=0
             elseif(toopconst.eq.jj(1)) then
 ! constituent 1 is a Toop element in 1-2-3
                x21=x21+phres%yfr(jj(3))
@@ -2776,8 +2827,9 @@
             toopx=>toopx%next13
             if(toopconst.eq.0) then
 ! the binary 1-3 is a Kohler extrapolation ftom 2
+! There is no derivative in dsigma with respect to this constituent
                sigma=sigma-phres%yfr(jj(2))
-               dsigma(jj(2))=-1
+               dsigma(jj(2))=0
             elseif(toopconst.eq.jj(1)) then
 ! constituent 1 is a Toop element in 1-2-3
                x21=x21+phres%yfr(jj(2))
@@ -2789,7 +2841,7 @@
             endif
 ! if toopconst.eq.jj(2) do nothing
          else
-! something wrong in the data structure
+! something is wrong in the data structure
             write(*,*)'3X data structure error 2 in calc_toop'
             gx%bmperr=4399; exit method
          endif tva
@@ -2800,8 +2852,9 @@
          toopx=>toopx%next23
          if(toopconst.eq.0) then
 ! the binary 2-3 is a Kohler extrapolation ftom 1
+! There is no derivative in dsigma with respect to this constituent
             sigma=sigma-phres%yfr(jj(1))
-            dsigma(jj(1))=-1
+            dsigma(jj(1))=0
          elseif(toopconst.eq.jj(2)) then
 ! constituent 2 is a Toop element in 1-2-3
             x21=x21+phres%yfr(jj(1))
@@ -2831,8 +2884,54 @@
    write(*,51)'3X dx21:   ',dx21
 ! Now we use (x12-x21)/sigma in the RK series ...   
 ! derivatives of fractions in dx12, dx21 and dsigma
-!
+   dx0=(x12-x21)/sigma
+   rtg=globaldata%rgas*ceq%tpval(1)
+   dx=one
+   dx1=zero
+   dx2=zero
+   RK: do jdeg=0,lokpty%degree
+      lfun=lokpty%degreelink(jdeg)
+      call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
+      if(gx%bmperr.ne.0) goto 1000
+      if(lokpty%proptype.eq.1) then
+         valtp=valtp/rtg
+      endif
+! the integral property values
+      vals=vals+dx*valtp
+      write(*,71)'3X toop: ',jdeg,gz%iq(1),gz%iq(2),nyfr,vals(1),dx,valtp(1)
+71    format(a,4i2,6(1pe12.4))
+      dercal1:if(moded.gt.0) then
+         if(jdeg.gt.0) then
+            ktloop1: do j1=1,nyfr
+! derivatives with respect to all constituents!!
+! dxij, dxji and dsigma non-zero for the relevant constituents!
+! This must be exact!!!
+               fff=(dx12(j1)-dx21(j1)-dx0*dsigma(j1)/sigma)
+               write(*,8)'3Y fff 1:',j1,dx12(j1),dx12(j1),dsigma(j1),dx0,dx1,dx2
+8              format(a,4i4,3(1pe12.4))
+               dvals(1,j1)=dvals(1,j1)+fff*dx1*valtp(1)
+               dvals(2,j1)=dvals(2,j1)+fff*dx1*valtp(2)
+               dvals(3,j1)=dvals(3,j1)+fff*dx1*valtp(3)
+               dercal2: if(moded.gt.1) then
+                  ktloop2: do j2=j1,nyfr
+! 2nd derivatives wrt j1 and j2 using dx12(), dx21() and dsigma()
+! This need only to be approximate ...
+                     fff=dsigma(j1)*(-dx12(j2)+dx21(j2)+dx0*dsigma(j2))/sigma**2
+                     write(*,8)'3Y fff 2:',j1,j2,9,0,fff
+                     d2vals(ixsym(j1,j2))=d2vals(ixsym(j1,j2))+fff*dx2*valtp(1)
+                  enddo ktloop2
+               endif dercal2
+            enddo ktloop1
+         endif
+      endif dercal1
+      dx2=(jdeg+1)*dx1
+      dx1=(jdeg+1)*dx0
+      dx=dx*dx0
+   enddo RK
+!      
 1000 continue
+! Normally only derivatives wrt gz%iq(1) and gz%gq(2) but with Kohler/Toop
+! there can be derivatives wrt any constituent in the same sublattice
    return
  end subroutine calc_toop
 

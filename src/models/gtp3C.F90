@@ -224,13 +224,14 @@
 
 !\addtotable subroutine list_sorted_phases
 !\begin{verbatim}
- subroutine list_sorted_phases(unit,ceq)
+ subroutine list_sorted_phases(unit,mode,ceq)
 ! short list with one line for each phase
 ! suspended phases merged into one line
 ! stable first, then entered ordered in driving force order, then dormant
 ! also in driving force order.  Only 10 of each, the others lumped together
+! if mode not zero include status bits
    implicit none
-   integer unit
+   integer unit, mode
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer jl,jk,ics,lokph,lokcs,kp,ndorm,nsusp,nent,nstab,iph,jph,shbest
@@ -339,110 +340,208 @@
       enddo csloop
    enddo phloop
 ! we have now sorted stable, entered and dormant phases
-   write(unit,10)
-10 format(/'List of stable and entered phases'/ &
-        '  No tup Name',22x,'Mol.comp. Comp/FU   dGm/RT  Status1  Status2')
+   selmode: if(mode.eq.0) then
+! This listing does not include the status bits, maybe add some information?
+      write(unit,10)
+10    format(/'List of stable and entered phases'/ &
+           '  No tup Name',22x,'Mol.comp. Comp/FU   dGm/RT')
 !        '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
-! come back here for dormant phases
-200 continue
-   jph=0
-   entlist: do iph=1,nent
-      trailer=' '
-      lokcs=entph(iph)
-      csrec=>ceq%phase_varres(lokcs)
-      lokph=csrec%phlink
-      phname=phlista(lokph)%name
+! come back here for dormant phases ??
+      jph=0
+      entlist: do iph=1,nent
+         trailer=' '
+         lokcs=entph(iph)
+         csrec=>ceq%phase_varres(lokcs)
+         lokph=csrec%phlink
+         phname=phlista(lokph)%name
 ! how do I to know composition set number???  
 ! Aha!! in phasetuple(phase_varres(lokcs)%phtupx)%compset
-      if(phlista(lokph)%noofcs.gt.1) then
-         ics=phasetuple(ceq%phase_varres(lokcs)%phtupx)%compset
-         chs=char(ichar('0')+ics)
-         kp=len_trim(csrec%prefix)
-         if(kp.gt.0) then
-            csname=csrec%prefix(1:kp)//'_'//phname
+         if(phlista(lokph)%noofcs.gt.1) then
+            ics=phasetuple(ceq%phase_varres(lokcs)%phtupx)%compset
+            chs=char(ichar('0')+ics)
+            kp=len_trim(csrec%prefix)
+            if(kp.gt.0) then
+               csname=csrec%prefix(1:kp)//'_'//phname
+            else
+               csname=phname
+            endif
+            kp=len_trim(csrec%suffix)
+            if(kp.gt.0) csname=&
+                 csname(1:len_trim(csname))//'_'//csrec%suffix(1:kp)
+            csname=csname(1:len_trim(csname))//'#'//chs//trailer
          else
             csname=phname
          endif
-         kp=len_trim(csrec%suffix)
-         if(kp.gt.0) csname=csname(1:len_trim(csname))//'_'//csrec%suffix(1:kp)
-         csname=csname(1:len_trim(csname))//'#'//chs//trailer
-      else
-         csname=phname
-      endif
 ! phase names for composition sets can be larger than 24, remove middle part
-      jl=len_trim(csname)
-      if(jl.gt.24) then
-         csname=csname(1:12)//'..'//csname(jl-9:jl)
+         jl=len_trim(csname)
+         if(jl.gt.24) then
+            csname=csname(1:12)//'..'//csname(jl-9:jl)
+         endif
+         ch1='X'
+         write(unit,112)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
+              csrec%amfu*csrec%abnorm(1),&
+              csrec%abnorm(1),csrec%dgm
+112      format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2)
+         if(csrec%dgm.lt.zero) then
+            jph=jph+1
+            if(jph.gt.10) then
+               write(unit,*)' ... remaining phases further from stability'
+               exit entlist
+            endif
+         endif
+      enddo entlist
+      if(shbest.gt.0) then
+         call get_phasetup_name(shbest,phname)
+         write(*,117)trim(phname)
+117      format(' *** WARNING: unstable phase with positive driving force: ',a)
       endif
-      ch1='X'
-      write(unit,112)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
-           csrec%amfu*csrec%abnorm(1),&
-           csrec%abnorm(1),csrec%dgm,phlista(lokph)%status1,&
-           ceq%phase_varres(lokcs)%status2,ch1
-112   format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2,2(0p,z8),a1)
-!            write(unit,111)jk,csrec%phtupx,csname, &
-!                 csrec%abnorm(1),csrec%dgm,&
-!                 phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2,ch1
-!111         format(2i4,1x,a24,'       0.0',1x,0PF8.2,1PE10.2,2(0p,z8),a1)
-      if(csrec%dgm.lt.zero) then
+      if(ndorm.eq.0) goto 400
+      write(unit,210)
+210   format(/'List of dormant phases'/ &
+         '  No tup Name',22x,'Mol.comp.  Comp/FU  dGm/RT')
+      jph=0
+      dorlist1: do iph=1,ndorm
+         trailer=' '
+         lokcs=dorph(iph)
+         csrec=>ceq%phase_varres(lokcs)
+         lokph=csrec%phlink
+         phname=phlista(lokph)%name
+! how do I to know composition set number???  
+! Aha!! in phasetuple(phase_varres(lokcs)%phtupx)%compset
+         if(phlista(lokph)%noofcs.gt.1) then
+            ics=phasetuple(ceq%phase_varres(lokcs)%phtupx)%compset
+            chs=char(ichar('0')+ics)
+            kp=len_trim(csrec%prefix)
+            if(kp.gt.0) then
+               csname=csrec%prefix(1:kp)//'_'//phname
+            else
+               csname=phname
+            endif
+            kp=len_trim(csrec%suffix)
+            if(kp.gt.0) csname=&
+                 csname(1:len_trim(csname))//'_'//csrec%suffix(1:kp)
+            csname=csname(1:len_trim(csname))//'#'//chs//trailer
+         else
+            csname=phname
+         endif
+! phase names for composition sets can be larger than 24, remove middle part
+         jl=len_trim(csname)
+         if(jl.gt.24) then
+            csname=csname(1:12)//'..'//csname(jl-9:jl)
+         endif
+         ch1='D'
+         write(unit,112)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
+              csrec%amfu*csrec%abnorm(1),&
+              csrec%abnorm(1),csrec%dgm
          jph=jph+1
          if(jph.gt.10) then
-            write(unit,*)' ... remaining phases further from stability'
-            exit entlist
+            write(unit,*)' ... other phases further from stability'
+            exit dorlist1
          endif
-      endif
-   enddo entlist
-   if(shbest.gt.0) then
-      call get_phasetup_name(shbest,phname)
-      write(*,117)trim(phname)
-117   format(' *** WARNING: unstable phase with positive driving force: ',a)
-   endif
-!
-   if(ndorm.eq.0) goto 400
-   write(unit,210)
-210 format(/'List of dormant phases'/ &
-         '  No tup Name',22x,'Mol.comp.  Comp/FU  dGm/RT   Status1 Status2')
-!         '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
-   jph=0
-   dorlist: do iph=1,ndorm
-      trailer=' '
-      lokcs=dorph(iph)
-      csrec=>ceq%phase_varres(lokcs)
-      lokph=csrec%phlink
-      phname=phlista(lokph)%name
+      enddo dorlist1
+   else
+! This is the old listing including status bits      
+      write(unit,30)
+30    format(/'List of stable and entered phases'/ &
+           '  No tup Name',22x,'Mol.comp. Comp/FU   dGm/RT  Status1  Status2')
+!        '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
+! come back here for dormant phases
+      jph=0
+      entlist2: do iph=1,nent
+         trailer=' '
+         lokcs=entph(iph)
+         csrec=>ceq%phase_varres(lokcs)
+         lokph=csrec%phlink
+         phname=phlista(lokph)%name
 ! how do I to know composition set number???  
 ! Aha!! in phasetuple(phase_varres(lokcs)%phtupx)%compset
-      if(phlista(lokph)%noofcs.gt.1) then
-         ics=phasetuple(ceq%phase_varres(lokcs)%phtupx)%compset
-         chs=char(ichar('0')+ics)
-         kp=len_trim(csrec%prefix)
-         if(kp.gt.0) then
-            csname=csrec%prefix(1:kp)//'_'//phname
+         if(phlista(lokph)%noofcs.gt.1) then
+            ics=phasetuple(ceq%phase_varres(lokcs)%phtupx)%compset
+            chs=char(ichar('0')+ics)
+            kp=len_trim(csrec%prefix)
+            if(kp.gt.0) then
+               csname=csrec%prefix(1:kp)//'_'//phname
+            else
+               csname=phname
+            endif
+            kp=len_trim(csrec%suffix)
+            if(kp.gt.0) csname=&
+                 csname(1:len_trim(csname))//'_'//csrec%suffix(1:kp)
+            csname=csname(1:len_trim(csname))//'#'//chs//trailer
          else
             csname=phname
          endif
-         kp=len_trim(csrec%suffix)
-         if(kp.gt.0) csname=csname(1:len_trim(csname))//'_'//csrec%suffix(1:kp)
-         csname=csname(1:len_trim(csname))//'#'//chs//trailer
-      else
-         csname=phname
-      endif
 ! phase names for composition sets can be larger than 24, remove middle part
-      jl=len_trim(csname)
-      if(jl.gt.24) then
-         csname=csname(1:12)//'..'//csname(jl-9:jl)
+         jl=len_trim(csname)
+         if(jl.gt.24) then
+            csname=csname(1:12)//'..'//csname(jl-9:jl)
+         endif
+         ch1='X'
+         write(unit,412)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
+              csrec%amfu*csrec%abnorm(1),&
+              csrec%abnorm(1),csrec%dgm,phlista(lokph)%status1,&
+              ceq%phase_varres(lokcs)%status2,ch1
+412   format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2,2(0p,z8),a1)
+         if(csrec%dgm.lt.zero) then
+            jph=jph+1
+            if(jph.gt.10) then
+               write(unit,*)' ... remaining phases further from stability'
+               exit entlist2
+            endif
+         endif
+      enddo entlist2
+      if(shbest.gt.0) then
+         call get_phasetup_name(shbest,phname)
+         write(*,117)trim(phname)
       endif
-      ch1='D'
-      write(unit,112)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
-           csrec%amfu*csrec%abnorm(1),&
-           csrec%abnorm(1),csrec%dgm,phlista(lokph)%status1,&
-           ceq%phase_varres(lokcs)%status2,ch1
-      jph=jph+1
-      if(jph.gt.10) then
-         write(unit,*)' ... other phases further from stability'
-         exit dorlist
-      endif
-   enddo dorlist
+!
+      if(ndorm.eq.0) goto 400
+      write(unit,211)
+211   format(/'List of dormant phases'/ &
+         '  No tup Name',22x,'Mol.comp.  Comp/FU  dGm/RT   Status1 Status2')
+      jph=0
+      dorlist: do iph=1,ndorm
+         trailer=' '
+         lokcs=dorph(iph)
+         csrec=>ceq%phase_varres(lokcs)
+         lokph=csrec%phlink
+         phname=phlista(lokph)%name
+! how do I to know composition set number???  
+! Aha!! in phasetuple(phase_varres(lokcs)%phtupx)%compset
+         if(phlista(lokph)%noofcs.gt.1) then
+            ics=phasetuple(ceq%phase_varres(lokcs)%phtupx)%compset
+            chs=char(ichar('0')+ics)
+            kp=len_trim(csrec%prefix)
+            if(kp.gt.0) then
+               csname=csrec%prefix(1:kp)//'_'//phname
+            else
+               csname=phname
+            endif
+            kp=len_trim(csrec%suffix)
+            if(kp.gt.0) csname=&
+                 csname(1:len_trim(csname))//'_'//csrec%suffix(1:kp)
+            csname=csname(1:len_trim(csname))//'#'//chs//trailer
+         else
+            csname=phname
+         endif
+! phase names for composition sets can be larger than 24, remove middle part
+         jl=len_trim(csname)
+         if(jl.gt.24) then
+            csname=csname(1:12)//'..'//csname(jl-9:jl)
+         endif
+         ch1='D'
+         write(unit,113)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
+              csrec%amfu*csrec%abnorm(1),&
+              csrec%abnorm(1),csrec%dgm,phlista(lokph)%status1,&
+              ceq%phase_varres(lokcs)%status2,ch1
+113      format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2,2(0p,z8),a1)
+         jph=jph+1
+         if(jph.gt.10) then
+            write(unit,*)' ... other phases further from stability'
+            exit dorlist
+         endif
+      enddo dorlist
+   endif selmode
 ! list suspended phases without composition set numbers
 400 continue
    if(nsusp.gt.1) then
@@ -1625,6 +1724,8 @@
    integer, dimension(maxsubl) :: endm,ilist
    logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap
+! possible different gadditions for each composition sets
+!   double precision gadd(9)
 !--------------
 ! save all Kohler/Toop ternary records in a pointer array
 ! a smart way to have an array of pointers
@@ -1726,11 +1827,16 @@
       addrec=>addrec%nextadd
    enddo lastadd
 60 continue
-! A fixed addition?
-   if(btest(firsteq%phase_varres(lokcs)%status2,CSADDG)) then
-      write(lut,'(a,1pe14.6)')'  + Addition to G in J/FU: ',&
-           firsteq%phase_varres(lokcs)%addg(1)
-   endif
+! A fixed addition? gadd Can be different for each composition set !!!
+   do ll=1,phlista(lokph)%noofcs
+      lokcs=phlista(lokph)%linktocs(ll)
+      if(btest(firsteq%phase_varres(lokcs)%status2,CSADDG)) then
+! if no addition then addg is not allocated!
+!         if(allocated(firsteq%phase_varres(lokcs)%addg)) then
+         write(lut,33)ll,firsteq%phase_varres(lokcs)%addg(1)
+33       format('  + Addition to G in composition set ',i2,': ',1pe14.6,' J/FU')
+      endif
+   enddo
 ! parameters for end members using site fractions
    if(btest(phlista(lokph)%status1,PHMFS)) then
       subref=.FALSE.
@@ -2201,9 +2307,15 @@
             toopsp(1)=toopsp(tooprec%toop)
             toopsp(tooprec%toop)=prop
          endif
-         write(lut,820)trim(phname),ch1,(trim(toopsp(kk)),kk=1,3),&
-              tooprec%uniqid
-820      format('?? AMEND PHASE ',a,' TERNARY_EXTRAPOL ',a,3(1x,a),' ! ',i5)
+         if(ch1.eq.'K') then
+            write(lut,820)trim(phname),'Kohler',(trim(toopsp(kk)),kk=1,3),&
+                 tooprec%uniqid
+820         format('AMEND PHASE ',a,' TERNARY_EXTRAPOL ',a,3(1x,a),' ! ',i5)
+         else
+            write(lut,820)trim(phname),'Toop',(trim(toopsp(kk)),kk=1,3),&
+                 tooprec%uniqid
+         endif
+            
       enddo tooploop
    endif
 1000 continue

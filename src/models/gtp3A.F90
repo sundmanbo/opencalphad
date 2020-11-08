@@ -248,6 +248,8 @@
    propid(npid)%status=0
 ! MQ is specific for a constituent
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+! indicate this parameter must not have wildcard constituents
+   nowildcard(1)=npid
 ! in subroutine equilph1e we use the index of MQ to find mobility values
    mqindex=npid*100
 !.......................................
@@ -258,6 +260,8 @@
    propid(npid)%status=0
 ! MF is specific for a constituent
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+! indicate this parameter must not have wildcard constituents
+   nowildcard(2)=npid
 !.......................................
 ! Magnetic mobility factor 15
    npid=npid+1
@@ -266,6 +270,8 @@
    propid(npid)%status=0
 ! MG is specific for a constituent
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+! indicate this parameter must not have wildcard constituents
+   nowildcard(3)=npid
 !....................................... 13 fd 11
 ! Liquid two-state model     16
    npid=npid+1

@@ -48,7 +48,7 @@ contains
 !
 ! linkdat is date when program was linked
 ! argline and narg are inline arguments
-    character linkdate*(*),version*(*),argline(*)*64
+    character linkdate*(*),version*(*),argline(*)*(*)
     integer narg
 ! various symbols and texts, version 6
     character :: ocprompt*8='--->OC6:'
@@ -203,7 +203,8 @@ contains
     type(gtp_phase_add), pointer :: addrec
 !
     character actual_arg(2)*16
-    character cline*128,option*80,aline*128,plotfile*256,eqname*24
+!    character cline*128,option*80,aline*128,plotfile*256,eqname*24
+    character cline*256,option*80,aline*128,plotfile*256,eqname*24
 ! variable phase tuple
     type(gtp_phasetuple), pointer :: phtup
 !----------------------------------------------------------------
@@ -314,7 +315,7 @@ contains
          ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
          'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
          'TERNARY_EXTRAPOL','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
-         'REMOVE_COMPSETS ','GADDITION       ','AQUEUS_MODEL    ',&
+         'REMOVE_COMPSETS ','                ','AQUEUS_MODEL    ',&
          'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
          '                ','                ','QUIT            ']
 !-------------------
@@ -934,7 +935,7 @@ contains
 !         ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
 !         'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
 !         'TERNARY_EXTRAPOL','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
-!         'REMOVE_COMPSETS ','GADDITION       ','AQUEUS_MODEL    ',&
+!         'REMOVE_COMPSETS ','                ','AQUEUS_MODEL    ',&
 !         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
 !         '                ','                ','QUIT            ']
 ! old
@@ -994,12 +995,14 @@ contains
                 goto 100
 !....................................................
              case(3) ! amend phase ... addition gaddition
-! this is the same as the command amend phase ... gaddition !!!
-                lokcs=phasetuple(iph)%lokvares
+! different additions can be added for different composition sets
+                call get_phase_compset(iph,ics,lokph,lokcs)
+                if(gx%bmperr.ne.0) goto 100
                 if(allocated(ceq%phase_varres(lokcs)%addg)) then
                    xxy=ceq%phase_varres(lokcs)%addg(1)
                 else
 ! maybe we will use more terms later ....
+                   xxy=zero
                    allocate(ceq%phase_varres(lokcs)%addg(1))
                 endif
 !\hypertarget{Amend phase Gaddition}{}
@@ -1209,21 +1212,27 @@ contains
 !....................................................
           case(11) ! AMEND PHASE ... GADDITION
 ! add a constant term to G, value in J/FU
-! This is the same as AMEND PHASE ... ADDITION GADDITION
-             lokcs=phasetuple(iph)%lokvares
-             if(allocated(ceq%phase_varres(lokcs)%addg)) then
-                xxy=ceq%phase_varres(lokcs)%addg(1)
-             else
+! This is replaced by AMEND PHASE ... ADDITION GADDITION
+             write(*,*)'Please use ... addition gaddition'
+             goto 100
+!             j4=phasetuple(iph)%lokvares
+!             call get_phase_compset(iph,ics,lokph,lokcs)
+!             if(gx%bmperr) goto 100
+!             write(*,*)'Pmon ',iph,ics,lokcs,j4
+!             lokcs=phasetuple(iph)%lokvares
+!             if(allocated(ceq%phase_varres(lokcs)%addg)) then
+!                xxy=ceq%phase_varres(lokcs)%addg(1)
+!             else
 ! maybe we will use more terms later ....
-                allocate(ceq%phase_varres(lokcs)%addg(1))
-             endif
+!                allocate(ceq%phase_varres(lokcs)%addg(1))
+!             endif
 !\hypertarget{Amend phase Gaddition}{}
-             call gparrdx('Addition to G in J/FU (formula units): ',&
-                  cline,last,xxx,xxy,'?Amend gaddition')
-             ceq%phase_varres(lokcs)%addg(1)=xxx
+!             call gparrdx('Addition to G in J/FU (formula units): ',&
+!                  cline,last,xxx,xxy,'?Amend gaddition')
+!             ceq%phase_varres(lokcs)%addg(1)=xxx
 ! set bit that this should be calculated
-             ceq%phase_varres(lokcs)%status2=&
-                  ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
+!             ceq%phase_varres(lokcs)%status2=&
+!                  ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
 !....................................................
           case(12) ! amend phase ... aqueous model
              write(*,*)'Not implemented yet'
@@ -1449,6 +1458,9 @@ contains
 !          write(*,*)'Not implemented yet'
 !-------------------------
        case(13) ! amend OPTIMIZING_COEFF, (rescale or recover)
+          if(.not.allocated(firstash%eqlista)) then
+             write(*,*)'No assessment record allocated'; goto 100
+          endif
           call gparcdx('Should the coefficients be rescaled?',&
                cline,last,1,ch1,'N','?Amend optim coeff')
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
@@ -3470,6 +3482,7 @@ contains
 !          write(*,*)'Not implemeneted yet'
 !-------------------------
        case(23) ! set fixed_coefficient
+          if(.not.allocated(firstash%eqlista)) goto 100
           if(.not.btest(firstash%status,AHCOEF)) then
              write(kou,*)'No optimizing coefficients'
              goto 100
@@ -4032,6 +4045,7 @@ contains
           if(kom2.eq.20) then
              ch1='C'
           else
+! note D is a hidden option including the status bits
              call gparcdx('Option (A/C/M/P)',cline,last,1,ch1,chshort,&
                   '?List short')
              call capson(ch1)
@@ -4050,11 +4064,18 @@ contains
              call list_all_species(lut)
              call list_all_phases(lut,ceq)
 !....................................................................
-          elseif(ch1.eq.'P') then
+          elseif(ch1.eq.'D') then
 ! just the phases
 ! P phases sorted: stable/ unstable in driving force order/ dormant the same
              chshort='P'
-             call list_sorted_phases(lut,ceq)
+             call list_sorted_phases(lut,1,ceq)
+             if(btest(ceq%status,EQFAIL)) write(lut,6305)'above'
+!....................................................................
+          elseif(ch1.eq.'P') then
+! just the phases without status bits
+! P phases sorted: stable/ unstable in driving force order/ dormant the same
+             chshort='P'
+             call list_sorted_phases(lut,0,ceq)
              if(btest(ceq%status,EQFAIL)) write(lut,6305)'above'
           elseif(ch1.eq.'C') then
 !....................................................................

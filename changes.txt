@@ -15,6 +15,22 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2020.11.08 OC version 6.016: After consulting Guillaume Vareille about
+problems opening a new file for writing a small modification in
+tinyopen.F90 has been made.  Any inline argument provided when
+starting OC has also been extended to 256 characters to cater for long
+file paths.  The output from "list short p" do not longer include the
+status bits, a hidden option "list short d" mimics the old version.
+Maybe I will add some other useful information instead.
+
+The command AMEND PHASE name#set ADDITION GADDITION allows to shift a
+Gibbs energy of the phase "name#set" by a constant value.  This can be
+used to represent a nucleation energy for example.  From this version
+of OC one can set a different GADDITION value for each composition set
+of the phase.  This simplifies when one want to simulate nucleation of
+an FCC carbide from austenite because they represent differenc
+composition sets of FCC.
+
 2020.10.26 OC version 6.015: In SMP2A I sudenly got a division by zero
 error in the Fortran "mod" function using gfortran 10.2.0.  If the second
 argument of "mod" is 0 this means a division by zero.  The part of the
@@ -31,19 +47,24 @@ how the STEP and MAP procedures work in OC for multicomponent systems.
 
 I added a new READ option SELECTED_PHASES which allows the user to
 specify a subset of phases to be read from a TDB file.  I also
-corrected counting the number of parameters entered.  I have also
-introduced a check that the elements selected by the user really exist
-in the database.
+corrected counting the number of parameters read from the file.  I
+have also introduced a check that the elements selected by the user
+really exist in the database.
 
 A problem plotting a "dot derivatve" such as H.T (heat capacity) from
 a step/map calculation created a segmentation fault when the number of
 composition sets are different for equilibria in different regions
-(because new sets can be created when needed).  To calculate a dot
-derivate OC must setup a matrix for each equilibrium which has been
-calculated and in the "dynamic" memory of such an equilibria one may
-have less composition sets than in the "static" memory.  OC will now
-ignore "non-existant" composition sets (which anyway would never
-contribute) when calculating a dot derivative.
+(because new sets can be created when needed during step/map).  To
+calculate a dot derivate OC must create a matrix for each equilibrium
+which has been calculated and in the "dynamic" memory of such an
+equilibrium one may have less composition sets than in the "static"
+memory (because the number of composition sets in the "static" memory
+reflects the last calculation made).  OC will now ignore non-existant
+composition sets in the "dynamic" memory (which anyway would never
+contribute) when calculating a dot derivative.  Normally a
+non-existant composition set would be a serious error but the plot
+routine use a global variable¨"special_circumstances" to indicate this
+calculation is for plotting.
 
 The length of some character variables used for reading files has been
 extended.

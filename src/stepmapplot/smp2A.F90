@@ -5913,7 +5913,7 @@
 ! all calculations below are made at fixed T with different fix phases
 ! afterwards we check that the amount of nodefix is still zero (or very small)
 ! total number of phases at nodepoint is stabph+2
-    call list_sorted_phases(kou,thisceq)
+    call list_sorted_phases(kou,0,thisceq)
     write(*,*)'SMP above listing for initial set of stable phases',gx%bmperr
     loop: do ii=1,stabph+2
        unused: if(invph(4,ii).eq.0 .and. invph(5,ii).eq.0) then
@@ -5924,7 +5924,7 @@
 50        continue
 ! restore inital amounts and constitutions 1 copies from eqcopy to thisceq
           call save_phase_constitutions(1,thisceq,eqcopy)
-          call list_sorted_phases(kou,thisceq)
+          call list_sorted_phases(kou,0,thisceq)
           write(*,76)trim(phname3),ii,thisceq%tpval(1),gx%bmperr
 76        format(/'SMP find_inv ******** testing as fixed: ',a,i4,F10.2,i7)
 ! set ii fix with zero amount
@@ -5940,13 +5940,13 @@
                   trim(phname3),gx%bmperr
              gx%bmperr=0
              call list_conditions(kou,thisceq)
-             call list_sorted_phases(kou,thisceq)
+             call list_sorted_phases(kou,0,thisceq)
 ! remove this phase as fix and continue loop
              goto 120
           endif
 ! debug listing
           call list_conditions(kou,thisceq)
-          call list_sorted_phases(kou,thisceq)
+          call list_sorted_phases(kou,0,thisceq)
           write(*,*)'SMP find_inv: phases AFTER calculations',gx%bmperr
           jj=0
           zeroam=0
@@ -6006,7 +6006,7 @@
                   thisceq%tpval(1)
 114          format('SMP find_inv **** success BUT IGNORED: ',a,2i4,F10.2)
           else
-             call list_sorted_phases(kou,thisceq)
+             call list_sorted_phases(kou,0,thisceq)
              write(*,113)trim(phname3),trim(phname1)//' nor '//trim(phname2)
 113          format('SMP Skipping ',a,' as neither ',a,' has zero amount')
           endif
@@ -7621,10 +7621,10 @@
 ! find a stored line to calculate
 ! in this subroutine we have only one axis variable
 200       continue
-          write(*,*)'Calling findline:'
+!          write(*,*)'Calling findline:'
           call map_findline(maptop,axarr,mapfix,mapline)
           if(gx%bmperr.ne.0) goto 500
-          write(*,*)'Back from map_findline in STEP',associated(mapline)
+!          write(*,*)'Back from map_findline in STEP',associated(mapline)
           ceq=>mapline%lineceq
           meqrec=>mapline%meqrec
 ! this is the first equilibrium along the line, create meqrec in step_separate
@@ -7633,9 +7633,9 @@
 !             if(stsphcs(jk).eq.-2) write(*,*)'SS phase ',jk,' dormant B'
 !             if(stsphcs(jk).ge.0) write(*,*)'SS phase ',jk,' stable B'
 !          enddo
-          write(*,*)'smp2A calling calceq7'
+!          write(*,*)'smp2A calling calceq7 for first point'
           call calceq7(mode,meqrec,mapfix,ceq)
-          write(*,*)'smp2A back from calceq7',gx%bmperr
+!          write(*,*)'smp2A back from calceq7',gx%bmperr
           if(gx%bmperr.ne.0) then
 ! error 4187 is to set T or P less than 0.1
              if(gx%bmperr.eq.4187) then
