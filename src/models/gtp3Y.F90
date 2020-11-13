@@ -1521,7 +1521,7 @@
    enddo iiloop
 800 continue
    if(mode.gt.0) then
-      write(*,*)'3Y could not find gridpoint ',mode,' in phase ',iph,ng
+      write(*,*)'3Y Could not find gridpoint ',mode,' in phase ',iph,ng
       gx%bmperr=4399
    else
       ngg=ng
@@ -5193,7 +5193,8 @@
    ii=1
    loop2: do ifri=1,pph
       ngg=maxgrid-ii
-!         write(*,*)'3Y calling generic_grid 2: ',iph,ngg
+!      write(*,10)'3Y calling generic_grid 2: ',ifri,iphx(ifri),ngg,pph
+10    format(a,2i5,2i10,5i5)
 !>>>>>>> important: changes here must be made also in global_gridmin
       if(btest(globaldata%status,GSOGRID)) then
 ! The possibility to use the old grid tested
@@ -5204,6 +5205,7 @@
               garr(ii),ny,yarr,gmax,pceq)
       endif
 !>>>>>>>> impportant end!
+!      write(*,*)'3Y Back from grid generator: ',ifri,iphx(ifri),ngg
       if(gx%bmperr.ne.0) goto 1000
       kphl(ifri)=kphl(ifri-1)+ngg
       ii=kphl(ifri)+1
@@ -5212,9 +5214,11 @@
 !   write(*,11)'3Y gpc:',(kphl(iph),iph=1,nrph)
 11 format(a,10i7/(7x,10i7))
 !   write(*,*)'3Y Calculated ',sumng,' gridpoints for check.',kphl(0)
+! We have calculated sumng gripoints in pph phases
 ! check if any gridpoint is below the G surface defined by cmuval
    iph=0
    nyfas=0
+   iphz=0
    loop4: do ifri=1,sumng
 ! keep track of the phase the gridpoint belongs to
       if(ifri.gt.nyfas) then
@@ -5233,14 +5237,15 @@
       if(abs(sumx-1.0E0).gt.1.0E-4) then
          cycle loop4
       endif
-!      write(*,75)'3Y check: ',ifri,iph,garr(ifri),gmax,garr(ifri)-gmax
+!      write(*,75)'3Y check: ',ifri,iphx(iph),garr(ifri),gmax,garr(ifri)-gmax
 75    format(a,i6,i4,5(1pe12.4))
       dgtest=gmax-dble(garr(ifri))
-      stableornot: if(dgtest.gt.1.0D-7*abs(gmax)) then
+      stableornot: if(dgtest.gt.1.0D-4*abs(gmax)) then
+!      stableornot: if(dgtest.gt.1.0D-7*abs(gmax)) then
 !      if(dgtest.gt.dgmax) then
 !------------------------------------------------------------------
 !         write(*,76)'3Y gridpoint below G surface: ',ifri,iph,iphx(iph),&
-!              dgtest,dgmax
+!              dgtest,1.0D-4*dgmax
 76       format(a,i7,2i4,2(1pe12.4))
 ! if the phase is stoichiometric and stable this is a rounding off problem
 ! find the phase record using the phase tuple
@@ -5260,22 +5265,23 @@
          if(dgtest.lt.dgmax) cycle loop4
          dgmax=dgtest
 ! This gridpoint is the currently lowest below the current G plane
-!         write(kou,77)ifri,iph,iphx(iph),trim(phlista(phases(iph))%name)
-77       format('3Y found a stable gridpoint: ',3i5,2x,a)
+!         write(kou,77)ifri,iph,iphx(iph),trim(phlista(phases(iphx(iph)))%name)
+77       format('3Y found a stable gridpoint: ',3i5,' in ',a)
          global=.FALSE.
          gpz=ifri
-         iphz=iph
+!         iphz=iph
+         iphz=iphx(iph)
          nggz=kphl(iph-1)
 !         write(*,*)'3Y saving most stable gp: ',gpz,iphz
       endif stableornot
 !      if(ifri.eq.sumng) write(*,*)'OK ',ifri
    enddo loop4
 ! no gridpoint below current G surface
-!   write(*,*)'3Y Still OK?'
+!   write(*,*)'3Y finished loop4',iphz,global
    goto 1000
 ! Found gridpoint below gmax, if mode=/=1 just return error message
 500 continue
-!   write(*,*)'3Y Sorry I have not yet implemented automatic recalculation!'
+   write(*,*)'3Y Sorry I have not yet implemented automatic recalculation!'
    if(mode.eq.1) then
 ! Here we try to recalculate the equilibrium with a new phase stable
       continue
@@ -5285,6 +5291,7 @@
 !
 1000 continue
 !1010 continue
+!   write(*,*)'3Y global_equil_check label 1000',global,gx%bmperr
 ! set the error code here so we can finish this routine
    if(.not.global) then
 !      write(*,1011)'3Y most stable gridpoint: ',gpz,nggz,iphz,dgmax

@@ -7213,7 +7213,7 @@
    character phcharged(50)*24
    integer phchargedx(50),nnn,noelel,donotincrement
 ! this is to check we have correct number of endmembers
-   integer end1mem,end2mem
+   integer end1mem,end2mem,lineb
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
    type(gtp_endmember), pointer :: endmember,nextcation,samecation
    double precision, allocatable, dimension(:) :: constcomp,constcompiliq
@@ -7223,6 +7223,8 @@
    TYPE(gtp_phase_add), pointer :: addrec
 ! These are to handle problems ....
    integer warnings,decimals,missend(9),thisend(9),www,xnooffr(0:9)
+! indices for excess parameters
+   integer exix(500),lastix,firstix
 ! we must probably create a stack for excess parameters
    type intstack
       type(gtp_interaction), pointer :: intlink
@@ -8436,6 +8438,7 @@
          endif
       endif
 !      if(phlista(lokph)%noofsubl.gt.1) then
+!      lastix=0
       if(nsubl.gt.1) then
 ! A very strange output of integers representing endmembers
          jp=1
@@ -8451,8 +8454,8 @@
          enddo
 !         write(*,278)'3C mult2: ',jp,(mult(ip),ip=1,phlista(lokph)%noofsubl)
 278      format(a,10i4)
-!         do isubl=1,phlista(lokph)%noofsubl
          do isubl=1,nsubl
+            lastix=0
             text=' '
             ip=3
             k1=0
@@ -8461,6 +8464,9 @@
                k1=k1+1
                i3=0
 292            continue
+                  lastix=lastix+1
+                  exix(lastix)=k1
+! the use of text here will be made redundant
                   call wriint(text,ip,k1)
                   ip=ip+3
                   i2=i2+1
@@ -8475,12 +8481,33 @@
                endif
             if(i2.lt.jp) goto 290
 ! According to Markus Piro one should have 19 values per line, 18*4+3=75
-            isp=1
-            do while(len_trim(text(isp:))-76.gt.0)
-               write(lut,99)trim(text(isp:isp+74))
-               isp=isp+75
+! New code using i4 format
+            lineb=1
+            firstix=1
+            do while(lastix.gt.lineb)
+               lineb=min(firstix+18,lastix)
+               write(*,*)'3E firstix: ',firstix,lineb
+               write(lut,'(19i4)')(exix(isp),isp=firstix,lineb)
+               firstix=lineb+1
             enddo
-            if(len_trim(text(isp:)).gt.0) write(lut,99)trim(text(isp:))
+! output below is wrong and removed redunant
+!            isp=1
+!            do while(len_trim(text(isp:))-76.gt.0)
+! Corrected 2020-11-12 with the help from Max Poschmann and Markus Piro
+!            do while(len_trim(text(isp:))-76.gt.0)
+!               write(lut,99)trim(text(isp:isp+74))
+!               isp=isp+75
+!               lineb=75
+!               do while(text(isp+lineb:isp+lineb).ne.' ')
+! increment lineb until we find a space
+!                  lineb=lineb+1
+!               enddo
+!               write(*,*)'3E linebreak: "',text(isp+lineb-1:isp+lineb-1),&
+!                    '" and "',text(isp+lineb:isp+lineb),'"',lineb
+!               write(lut,99)trim(text(isp:isp+lineb-1))
+!               isp=isp+lineb
+!            enddo
+!            if(len_trim(text(isp:)).gt.0) write(lut,99)trim(text(isp:))
          enddo
       endif
 !...................... repeat loop for excess parameters

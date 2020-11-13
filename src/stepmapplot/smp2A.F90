@@ -7953,6 +7953,8 @@
     graphopt%gnutermsel=1
 ! plot linetype default 1
     graphopt%linetype=1
+! no plot symbols
+    graphopt%linewp=0
 ! axis tics size etc
     graphopt%textonaxis=0
 ! do not reset plotend if set

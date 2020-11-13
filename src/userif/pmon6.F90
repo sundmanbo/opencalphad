@@ -6869,14 +6869,20 @@ contains
 !...............................................
 ! PLOT EXTRA LINE_TYPE
           case(4)
-             write(*,'(a/a/a)')'Default 1 restore normal line types:',&
-                  '0 means dashed lines,',&
-                  '>1 means symbol at each calculated point'
+             j4=last
+             if(eolch(cline,j4)) then
+! write this only if the lime is empty
+                write(*,22300)
+22300           format('Default 1 restore normal line types:',/&
+                     ' 0 means dashed lines,'/,' 1 means full line',/&
+                     '>1 means symbol at each calculated point')
+             endif
              call gparidx('Line type?',cline,last,iz,1,'?PLOT line symbols')
              if(iz.eq.0) then
                 graphopt%linetype=0
              elseif(iz.gt.1) then
-                graphopt%linetype=iz
+!                graphopt%linetype=iz
+                graphopt%linewp=iz
              else
                 graphopt%linetype=1
              endif

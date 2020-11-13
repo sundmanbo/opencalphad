@@ -206,6 +206,8 @@ MODULE liboceqplus
 ! mmdotder indicate dot derivative calculation, phase set may be different
 ! from the static memory
   integer :: mmdebug=0,mmdotder=0
+! warning using B=value as condition
+  logical bwarning
 !--------------------------------------------------------------
 !
 ! IMPORTANT
@@ -261,8 +263,8 @@ CONTAINS
        if(.not.btest(globaldata%status,GSSILENT)) &
             write(*,1010)meqrec%noofits,&
             finish2-starting,endoftime-starttid,gtot
-1010   format('Equilibrium result: ',i4,' its, ',&
-            1pe12.4,' s, ',i6,' cc, GS=',1pe15.7,' J/mol')
+1010   format('Equilibrium result:',i4,' its, ',&
+            1pe11.4,' s, ',i6,' cc, GS=',1pe15.7,' J/mol')
 ! Here we have now an equilibrium calculated.  Do a cleanup of the structure
 ! for phases with several compsets the call below shifts the stable one
 ! to the lowest compset number unless the default constitution fits another
@@ -415,6 +417,8 @@ CONTAINS
     ntup=nooftup()
 !    write(*,*)'MM in calceq7',ntup
     ycond=.FALSE.
+! this will be set to false when warning shown once for each calculation
+    bwarning=.TRUE.
 !    if(btest(meqrec%status,MMSTEPINV)) then
 ! this is the problem with map7? only bit 0 and 1 are used!!
 !       write(*,'(a,z8)')'MM warning **** eqcalc7 meqrec%status: ',&
@@ -4821,6 +4825,15 @@ CONTAINS
        if(stvnorm.eq.0) then
           if(cmix(3).eq.0) then
 ! condition is B=fix
+             if(bwarning) then
+                write(*,491)
+491             format(' *** WARNING, using B=value as condition can disable',&
+                     ' the gridminimizer'/&
+                     ' and cause convergence problem. Use N=value instead.')
+! Issue this message only once for each calculation
+                bwarning=.FALSE.
+             endif
+!             write(*,*)'MM condition B=fix: ',stvnorm,cmix(3)
              sel=0; sph=0
           elseif(cmix(4).eq.0) then
 ! condition is B(A)=fix
@@ -4844,6 +4857,8 @@ CONTAINS
           endif
           xcol=zero
           totam=zero
+!          write(*,222)'MM xcol 1',totam,xcol
+222       format(a,10(1pe11.3))
 ! notf keeps track on entered non-fixed phases with variable amount
           notf=0
 ! not used          zval=zero
@@ -4921,6 +4936,7 @@ CONTAINS
 ! right hand side (rhs) contribution is
 ! - BP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij
                 xcol(nz2)=xcol(nz2)-pham*mag*mass_of(ie,ceq)
+!                write(*,222)'MM xcol 2',totam,xcol
              enddo ballel
 ! sum of mass in phase will be multiplied with delta-phase_amount
 !             write(*,202)'sumxmol mm:  ',sel,pham,pmi%sumxmol,pmi%sumwmol
@@ -4930,6 +4946,7 @@ CONTAINS
                 totam=totam+pham*pmi%sumwmol
              endif
           enddo ballph
+!          write(*,222)'MM xcol 3',totam,xcol
 !......debug
           if(.not.allocated(xxmm)) then
 ! this call returns the current fractions and total amounts.  We need
@@ -4978,6 +4995,7 @@ CONTAINS
                 endif
              endif
           endif
+!          write(*,222)'MM xcol 3',totam,xcol
           if(vbug) then
              if(sel.eq.0) then
                 write(*,363)'Condition B=fix',0,0,0,cvalue,totam
@@ -4985,6 +5003,8 @@ CONTAINS
                 write(*,363)'Condition B(a)=fix',sel,0,0,cvalue,totam
              endif
           endif
+!          write(*,223)'MM smat 1',nrow,(smat(nrow,ncol),ncol=1,nz2)
+223       format(a,i2,10(1pe11.3))
        elseif(stvnorm.ne.2) then
 ! only normallizing of B with respect to mass (W) is allowed
           write(*,*)'Allowed normallizing with W only',stvix,stvnorm,cmix(2)

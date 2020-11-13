@@ -15,21 +15,32 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
-2020.11.08 OC version 6.016: After consulting Guillaume Vareille about
-problems opening a new file for writing a small modification in
-tinyopen.F90 has been made.  Any inline argument provided when
-starting OC has also been extended to 256 characters to cater for long
-file paths.  The output from "list short p" do not longer include the
-status bits, a hidden option "list short d" mimics the old version.
-Maybe I will add some other useful information instead.
+2020.11.13 OC version 6.017: The facility to write thermodynamic data
+in the FactSage DAT file format has been improved and has been tested
+for a fairly complex 21 component system.
+
+GNUPLOT is a very nice software but also very complex and not until
+now I have finaly figured out how to plot lines with symbols.  In OC
+the PLOT subcommand "EXTRA LINE-TYPE 2" plots a symbol at each
+calculated point along each line.  "EXTRA LINE 0" means dotted line, 1
+is normal without symbols.  It is used in step1 and map18 macro files.
+
+2020.11.08 OC version 6.016: Any inline argument provided when
+starting OC has been extended to 256 characters to cater for long file
+paths.  The output from "list short p" do not longer include the
+status bits, I will add some other useful information instead.  A
+hidden option "list short d" mimics the old version.  After consulting
+Guillaume Vareille about problems opening a new file for writing a
+small modification in tinyopen.c has been made.
 
 The command AMEND PHASE name#set ADDITION GADDITION allows to shift a
 Gibbs energy of the phase "name#set" by a constant value.  This can be
 used to represent a nucleation energy for example.  From this version
 of OC one can set a different GADDITION value for each composition set
-of the phase.  This simplifies when one want to simulate nucleation of
-an FCC carbide from austenite because they represent differenc
-composition sets of FCC.
+of the phase.  This simplifies when one wants to simulate nucleation
+of an cubic carbide (MC) from austenite because they represent
+different composition sets of the same FCC phase.  And Joe Biden is
+called as as president-elect in USA.
 
 2020.10.26 OC version 6.015: In SMP2A I sudenly got a division by zero
 error in the Fortran "mod" function using gfortran 10.2.0.  If the second
@@ -53,7 +64,7 @@ really exist in the database.
 
 A problem plotting a "dot derivatve" such as H.T (heat capacity) from
 a step/map calculation created a segmentation fault when the number of
-composition sets are different for equilibria in different regions
+composition sets are not the same for equilibria in different regions
 (because new sets can be created when needed during step/map).  To
 calculate a dot derivate OC must create a matrix for each equilibrium
 which has been calculated and in the "dynamic" memory of such an

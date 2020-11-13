@@ -1187,7 +1187,8 @@
     integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk,nofapl
     integer, parameter :: mofapl=100
 ! ltf1 is a LineTypeoFfset for current plot when appending a plot, 0 default
-    integer appfiletyp,lz,ltf1
+! linewp is plotting with points along the line
+    integer appfiletyp,lz,ltf1,linewp
     character pfc*128,pfh*128,backslash*2,appline*128
     character applines(mofapl)*128,gnuplotline*256,labelkey*64,rotate*16
     character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
@@ -1629,14 +1630,27 @@
 !3800   format('plot $',a,' using 2:3:4 with lines lc variable notitle')
 !    elseif(anpax.eq.1) then
 ! here we use npx for both isopleths and others!
-    if(anpax.eq.1) then
-       write(21,3900)npx+2,trim(tablename),ltf1
-3900   format('plot for [i=3:',i2,'] $',a,' using i:2',&
-            ' with lines ls (i-2+',i2,') title columnheader(i)') 
+    if(graphopt%linewp.eq.0) then
+       if(anpax.eq.1) then
+          write(21,3900)npx+2,trim(tablename),ltf1
+3900      format('plot for [i=3:',i2,'] $',a,' using i:2',&
+               ' with lines ls (i-2+',i2,') title columnheader(i)') 
+       else
+          write(21,3910)npx+2,trim(tablename),ltf1
+3910      format('plot for [i=3:',i2,'] $',a,' using 2:i',&
+               ' with lines ls (i-2+',i2,') title columnheader(i)') 
+       endif
     else
-       write(21,3910)npx+2,trim(tablename),ltf1
-3910   format('plot for [i=3:',i2,'] $',a,' using 2:i',&
-            ' with lines ls (i-2+',i2,') title columnheader(i)') 
+! plot line with points
+       if(anpax.eq.1) then
+          write(21,3600)npx+2,trim(tablename),ltf1
+3600      format('plot for [i=3:',i2,'] $',a,' using i:2',&
+               ' with lp ls (i-2+',i2,') title columnheader(i)') 
+       else
+          write(21,3610)npx+2,trim(tablename),ltf1
+3610      format('plot for [i=3:',i2,'] $',a,' using 2:i',&
+               ' with lp ls (i-2+',i2,') title columnheader(i)') 
+       endif
     endif
 ! plot command from appfil
     if(appfil.gt.0) then
@@ -1769,7 +1783,7 @@
     type(gtp_equilibrium_data), pointer :: curceq
     type(map_ceqresults), pointer :: results
     integer ii,jj,point,plotp,lines,eqindex,lasteq,nooftups,lokcs,jph,same,kk
-    integer, parameter :: maxval=2000,mazval=100
+    integer, parameter :: maxval=4000,mazval=100
     double precision, allocatable :: xval(:,:),yval(:,:),zval(:,:),tieline(:,:)
     integer offset,nofeq,sumpp,last,nofinv,ntieline,mtieline,noftielineblocks
     double precision xxx,yyy
@@ -2723,7 +2737,6 @@
 !----------------------
     backslash=',\'
 ! empty line before the plot command
-!    write(*,*)'lines: ',same,nofinv
     write(21,*)
 ! here we should start from the value in graphopt%linett
     ii=0
@@ -2734,11 +2747,13 @@
 ! if graphopt%linestyle=0 use lines, otherwise linespoints
 ! this never worked ...
 !    if(graphopt%linestyle.eq.0) then
-    linespoints='lines'
-    if(graphopt%linetype.gt.1) then
+    linespoints='lines ls'
+    if(graphopt%linewp.gt.1) then
 ! this should add a symbol at each calculated line but it does not work (yet)
-       linespoints='linespoints'
+!       linespoints='lp lt '
+       linespoints='lp ls '
     endif
+!    write(*,*)'SMP2B plotting lines: ',trim(linespoints),graphopt%linewp
     done=0
 !    noofmono=0
 ! Here we write all plot "-" using ... and subsequent "" using ...
@@ -2784,7 +2799,8 @@
              endif
              naptitle=naptitle+1
              apptitles(naptitle)=lcolor(ii)
-309          format('plot "-" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
+!309          format('plot "-" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
+309          format('plot "-" using 1:2 with ',a,1x,i2,' title "',a,'"',a)
              done(lcolor(1))=1
           else
 ! all lines except the first plotted here
@@ -2805,7 +2821,7 @@
                 if(lcolor(ii).eq.11) then
                    if(kk.eq.1) then
 ! first time plotting an invariant use thick lines
-                      write(21,320)'lines',monovariantborder,backslash
+                      write(21,320)'lines ls',monovariantborder,backslash
 ! save the index of the last monovariant to add title!
                       xmonovariant=jj
 !                      write(*,*)'SMP monovariant 2: ',xmonovariant
@@ -2825,11 +2841,11 @@
                 elseif(lcolor(ii).eq.12) then
 ! tie-line, if kk==2 and xtieline==jj add label
                    if(kk.eq.1) then
-                      write(21,320)'lines',fcolor,backslash
+                      write(21,320)'lines ls',fcolor,backslash
                       xtieline=jj
 !                      write(*,*)'SMP xtieline 2: ',xtieline
                    elseif(xtieline.ne.jj) then
-                      write(21,320)'lines',fcolor,backslash
+                      write(21,320)'lines ls',fcolor,backslash
                    else
                       write(21,299)'lines',fcolor,trim(color(12)),backslash
 299                   format('"" using 1:2 with ',a,' ls ',i2,&
@@ -2838,15 +2854,17 @@
                    endif
                 else
 ! normal line with no title
+!                   write(*,320)trim(linespoints),fcolor,backslash
                    write(21,320)trim(linespoints),fcolor,backslash
                 endif
-320             format('"" using 1:2 with ',a,' ls ',i2,' notitle ',a)
+!320             format('"" using 1:2 with ',a,' ls ',i2,' notitle ',a)
+320             format('"" using 1:2 with ',a,1x,i2,' notitle ',a)
              else 
 ! we have a new line withou title
                 if(fcolor.eq.11) then
                    if(kk.eq.1) then
 ! first time plotting a monovariant use thick lines
-                      write(21,320)'lines',monovariantborder,backslash
+                      write(21,320)'lines ls',monovariantborder,backslash
                       xmonovariant=jj
 !                      write(*,*)'SMP monovariant 3: ',xmonovariant
                    else
@@ -2868,17 +2886,17 @@
 ! this is a tie-line without title
                    if(kk.eq.1) then
 ! if kk=1 no not add title, just keep track of last tie-line
-                      write(21,320)'lines',fcolor,backslash
+                      write(21,320)'lines ls',fcolor,backslash
                       xtieline=jj
 !                      write(*,*)'SMP xtieline 3: ',xtieline
                    else
 ! if kk=2 add title if xtieline=jj
                       if(jj.eq.xtieline) then
-                         write(21,331)'lines',fcolor,&
+                         write(21,331)'lines ls',fcolor,&
                               trim(color(lcolor(ii))),backslash
 !                         write(*,*)'SMP xtieline 4:',jj,xtieline
                       else
-                         write(21,320)'lines',fcolor,backslash
+                         write(21,320)'lines ls',fcolor,backslash
                       endif
                    endif
                 else
@@ -2888,7 +2906,8 @@
                 endif
                 naptitle=naptitle+1
                 apptitles(naptitle)=lcolor(ii)
-331             format('"" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
+!331             format('"" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
+331             format('"" using 1:2 with ',a,1x,i2,' title "',a,'"',a)
                 done(lcolor(ii))=1
              endif cone
           endif
@@ -3400,10 +3419,10 @@
 ! list all mapnodes for this step/map command
 100 continue
 !    mapnode=>localtop
-    write(kou,101)mapnode%seqx,mapnode%noofstph,mapnode%savednodeceq,&
-         mapnode%status,mapnode%lines
-101 format(' Mapnode: ',i5,' with ',i2,' phases, ceq saved ',i5,&
-         ', status ',z8,', lines exit: ',i2)
+    write(kou,101)mapnode%seqx,mapnode%nodeceq%tpval(1),mapnode%noofstph,&
+         mapnode%savednodeceq,mapnode%status,mapnode%lines
+101 format(' Mapnode: ',i5,' at T=',F10.2,' with ',i2,' phases, ceq saved ',&
+         i5,', status ',z8,', lines exit: ',i2)
     do kl=1,mapnode%lines
        if(.not.associated(mapnode%linehead(kl)%end)) then
           if(mapnode%linehead(kl)%termerr.gt.0) then
@@ -3567,8 +3586,10 @@
        goto 900
     endif
     status=' '
-    write(kou,101)mapnode%seqx,mapnode%noofstph,mapnode%savednodeceq
-101 format(' Mapnode: ',i5,' with ',i2,' stable phases, ceq saved in ',i5)
+    write(kou,102)mapnode%seqx,mapnode%nodeceq%tpval(1),&
+         mapnode%noofstph,mapnode%savednodeceq
+102 format(' Mapnode: ',i5,' at T=',F10.2,' with ',i2,&
+         ' stable phases, ceq saved in ',i5)
     write(*,*)'Number of exit lines: ',mapnode%lines
     lineloop: do kl=1,mapnode%lines
        if(mapnode%linehead(kl)%number_of_equilibria.eq.0) then

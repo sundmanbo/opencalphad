@@ -277,9 +277,11 @@ MODULE ocsmp
      integer :: labeldefaults(3),linett=1,tielines=0
 ! plotlabel(1) is heading, 2 is x-axis text, 3 is y-axis text 
      character*64, dimension(3) :: plotlabels
-! linetype is 0 for dashed lines, 1 for full lines >1 not yet defined
+! linetype is 0 for dashed lines, 1 for full lines
 !     integer linestyle
      integer linetype
+! if linepoints >0 plot a symbol at each linewp point
+     integer :: linewp=0
 ! if true plot a triangular diagram (isothermal section)
      logical gibbstriangle
 ! the set key command in GNUPLOT specifies where the line id is written

@@ -66,7 +66,9 @@ scale y
 n
 500
 750
+extra line 2
 text .5 680 .8 0
+
 
 
 @$ A nice diagram but the step length control is not very good

@@ -1,4 +1,6 @@
+
 new Y
+
 @$ ==========================================================
 @$
 @$
@@ -132,6 +134,8 @@ title step 1 fig 2
 font
 garamond
 16
+@$ Add symbols on lines
+extra line 2
 render
 
 
