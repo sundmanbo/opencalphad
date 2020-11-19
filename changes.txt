@@ -15,6 +15,9 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2020.11.19 OC version 6.018: Some more fixes for the TDB2DAT
+facilities.
+
 2020.11.13 OC version 6.017: The facility to write thermodynamic data
 in the FactSage DAT file format has been improved and has been tested
 for a fairly complex 21 component system.
@@ -22,8 +25,12 @@ for a fairly complex 21 component system.
 GNUPLOT is a very nice software but also very complex and not until
 now I have finaly figured out how to plot lines with symbols.  In OC
 the PLOT subcommand "EXTRA LINE-TYPE 2" plots a symbol at each
-calculated point along each line.  "EXTRA LINE 0" means dotted line, 1
-is normal without symbols.  It is used in step1 and map18 macro files.
+calculated point along each line.  "EXTRA LINE 0" gives a dotted line,
+1 a full line without symbols.  A number higher n>2 means every every
+(n-1)th calculated point has a symbol.  See the macro files step1 and
+map18 for an example.  By giving the command twice, once with n=0 and
+once n>1 one will dashed lines with sysmbols, to have full lines back
+one must use n=1.
 
 2020.11.08 OC version 6.016: Any inline argument provided when
 starting OC has been extended to 256 characters to cater for long file

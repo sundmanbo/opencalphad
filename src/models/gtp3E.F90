@@ -8486,7 +8486,7 @@
             firstix=1
             do while(lastix.gt.lineb)
                lineb=min(firstix+18,lastix)
-               write(*,*)'3E firstix: ',firstix,lineb
+!               write(*,*)'3E firstix: ',firstix,lineb
                write(lut,'(19i4)')(exix(isp),isp=firstix,lineb)
                firstix=lineb+1
             enddo

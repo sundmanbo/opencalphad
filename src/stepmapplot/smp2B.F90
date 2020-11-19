@@ -1630,8 +1630,9 @@
 !3800   format('plot $',a,' using 2:3:4 with lines lc variable notitle')
 !    elseif(anpax.eq.1) then
 ! here we use npx for both isopleths and others!
-    if(graphopt%linewp.eq.0) then
+    if(graphopt%linewp.le.1) then
        if(anpax.eq.1) then
+! linewp=0 is dashed and =1 is line without point
           write(21,3900)npx+2,trim(tablename),ltf1
 3900      format('plot for [i=3:',i2,'] $',a,' using i:2',&
                ' with lines ls (i-2+',i2,') title columnheader(i)') 
@@ -1641,17 +1642,18 @@
                ' with lines ls (i-2+',i2,') title columnheader(i)') 
        endif
     else
-! plot line with points
+! plot line with points at every linewp-1 calculated point
        if(anpax.eq.1) then
-          write(21,3600)npx+2,trim(tablename),ltf1
+          write(21,3600)npx+2,trim(tablename),ltf1,graphopt%linewp-1
 3600      format('plot for [i=3:',i2,'] $',a,' using i:2',&
-               ' with lp ls (i-2+',i2,') title columnheader(i)') 
+               ' with lp ls (i-2+',i2,') pi ',i3,' title columnheader(i)') 
        else
-          write(21,3610)npx+2,trim(tablename),ltf1
+          write(21,3610)npx+2,trim(tablename),ltf1,graphopt%linewp-1
 3610      format('plot for [i=3:',i2,'] $',a,' using 2:i',&
-               ' with lp ls (i-2+',i2,') title columnheader(i)') 
+               ' with lp ls (i-2+',i2,') pi ',i3,' title columnheader(i)') 
        endif
     endif
+    write(*,*)'SMP2 linespoint increment 1:',graphopt%linewp-1
 ! plot command from appfil
     if(appfil.gt.0) then
 ! try to avoid overlapping keys ...
@@ -2169,6 +2171,8 @@
     type(graphics_textlabel), pointer :: textlabel
     character gnuplotline*256,date*12,mdate*12,title*128
     character deftitle*64,backslash*2
+! pointincremet emergy fix
+    character piincrement*8
     character labelkey*64,applines(mofapl)*128,appline*128,pfc*128,pfh*128
     integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
     integer done(maxcolor),foundinv,fcolor,k3
@@ -2748,11 +2752,14 @@
 ! this never worked ...
 !    if(graphopt%linestyle.eq.0) then
     linespoints='lines ls'
+    piincrement=' '
     if(graphopt%linewp.gt.1) then
 ! this should add a symbol at each calculated line but it does not work (yet)
 !       linespoints='lp lt '
        linespoints='lp ls '
+       write(piincrement,'(" pi ",i3,1x)')graphopt%linewp-1
     endif
+!    write(*,*)'smp2B linesplot increment 2: "',piincrement,'"',graphopt%linewp
 !    write(*,*)'SMP2B plotting lines: ',trim(linespoints),graphopt%linewp
     done=0
 !    noofmono=0
@@ -2795,12 +2802,12 @@
 !                write(*,*)'SMP2B ocplot3B 1: ',ii,'"',linespoints,'"'
 !                write(*,*)'SMP2B ocplot3B 2: ',lcolor(ii),color(lcolor(ii))
                 write(21,309)trim(linespoints),lcolor(ii),&
-                     trim(color(lcolor(ii))),backslash
+                     trim(piincrement),trim(color(lcolor(ii))),backslash
              endif
              naptitle=naptitle+1
              apptitles(naptitle)=lcolor(ii)
 !309          format('plot "-" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
-309          format('plot "-" using 1:2 with ',a,1x,i2,' title "',a,'"',a)
+309          format('plot "-" using 1:2 with ',a,1x,i2,1x,a,' title "',a,'"',a)
              done(lcolor(1))=1
           else
 ! all lines except the first plotted here
@@ -2821,7 +2828,7 @@
                 if(lcolor(ii).eq.11) then
                    if(kk.eq.1) then
 ! first time plotting an invariant use thick lines
-                      write(21,320)'lines ls',monovariantborder,backslash
+                      write(21,320)'lines ls',monovariantborder,' ',backslash
 ! save the index of the last monovariant to add title!
                       xmonovariant=jj
 !                      write(*,*)'SMP monovariant 2: ',xmonovariant
@@ -2841,11 +2848,11 @@
                 elseif(lcolor(ii).eq.12) then
 ! tie-line, if kk==2 and xtieline==jj add label
                    if(kk.eq.1) then
-                      write(21,320)'lines ls',fcolor,backslash
+                      write(21,320)'lines ls',fcolor,' ',backslash
                       xtieline=jj
 !                      write(*,*)'SMP xtieline 2: ',xtieline
                    elseif(xtieline.ne.jj) then
-                      write(21,320)'lines ls',fcolor,backslash
+                      write(21,320)'lines ls',fcolor,' ',backslash
                    else
                       write(21,299)'lines',fcolor,trim(color(12)),backslash
 299                   format('"" using 1:2 with ',a,' ls ',i2,&
@@ -2855,16 +2862,17 @@
                 else
 ! normal line with no title
 !                   write(*,320)trim(linespoints),fcolor,backslash
-                   write(21,320)trim(linespoints),fcolor,backslash
+                   write(21,320)trim(linespoints),fcolor,&
+                        trim(piincrement),backslash
                 endif
 !320             format('"" using 1:2 with ',a,' ls ',i2,' notitle ',a)
-320             format('"" using 1:2 with ',a,1x,i2,' notitle ',a)
+320             format('"" using 1:2 with ',a,1x,i2,1x,a,' notitle ',a)
              else 
 ! we have a new line withou title
                 if(fcolor.eq.11) then
                    if(kk.eq.1) then
 ! first time plotting a monovariant use thick lines
-                      write(21,320)'lines ls',monovariantborder,backslash
+                      write(21,320)'lines ls',monovariantborder,' ',backslash
                       xmonovariant=jj
 !                      write(*,*)'SMP monovariant 3: ',xmonovariant
                    else
@@ -2886,7 +2894,7 @@
 ! this is a tie-line without title
                    if(kk.eq.1) then
 ! if kk=1 no not add title, just keep track of last tie-line
-                      write(21,320)'lines ls',fcolor,backslash
+                      write(21,320)'lines ls',fcolor,' ',backslash
                       xtieline=jj
 !                      write(*,*)'SMP xtieline 3: ',xtieline
                    else
@@ -2896,18 +2904,18 @@
                               trim(color(lcolor(ii))),backslash
 !                         write(*,*)'SMP xtieline 4:',jj,xtieline
                       else
-                         write(21,320)'lines ls',fcolor,backslash
+                         write(21,320)'lines ls',fcolor,' ',backslash
                       endif
                    endif
                 else
 ! any normal line add title
                    write(21,331)trim(linespoints),fcolor,&
-                        trim(color(lcolor(ii))),backslash
+                        trim(piincrement),trim(color(lcolor(ii))),backslash
                 endif
                 naptitle=naptitle+1
                 apptitles(naptitle)=lcolor(ii)
 !331             format('"" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
-331             format('"" using 1:2 with ',a,1x,i2,' title "',a,'"',a)
+331             format('"" using 1:2 with ',a,1x,i2,1x,a,' title "',a,'"',a)
                 done(lcolor(ii))=1
              endif cone
           endif

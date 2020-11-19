@@ -6879,14 +6879,18 @@ contains
              endif
              call gparidx('Line type?',cline,last,iz,1,'?PLOT line symbols')
              if(iz.eq.0) then
+! this means dashed lines and possibly symbols if already set ..
                 graphopt%linetype=0
              elseif(iz.gt.1) then
 !                graphopt%linetype=iz
+! this means symboles and possibly dashed lines if already set
                 graphopt%linewp=iz
              else
+! this means full lines and no symbols
+                graphopt%linewp=1
                 graphopt%linetype=1
              endif
-             write(*,*)'Only partially implemented'
+!             write(*,*)'Only partially implemented'
              goto 21100
 !...............................................
 ! PLOT EXTRA MANIPULATE LINE COLORS

@@ -3668,7 +3668,7 @@
 ! this is incremented by 1 each time a record is created in any phase
 !   integer, save ::uniqid=0
 !
-   write(*,8)lokph,typ,trim(species(1)),trim(species(2)),trim(species(3))
+!   write(*,8)lokph,typ,trim(species(1)),trim(species(2)),trim(species(3))
 8  format('3H Add_ternary_extrapol_method ',i3,2x,a,': ',a,'-',a,'-',a)
    if(phlista(lokph)%noofsubl.gt.1) then
       write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
@@ -3727,6 +3727,7 @@
       if(toop.eq.1) toop=2
    endif
 ! now 1 < 2 < 3 and species in same order
+!   write(*,'(a,3i3)')'3H tint:',tint
 ! now we have to find the interaction records ... suck
 ! Some binary parameter in the ternary may not have an interaction record.   
 ! there must be a check if this ternary is not a duplicate
@@ -3744,37 +3745,42 @@
 ! REMEMBER we have a substitutional model, no sublattices
 ! one may add a second sublattice with same constituent in all 3 endmembers
    start: do conix=1,2
+!      write(*,'(a,3i3)')'3H endmem1: ',conix,endmem%fraclinks(1,1),tint(conix)
       findem: do while(endmem%fraclinks(1,1).lt.tint(conix))
+!      write(*,'(a,3i3)')'3H endmem2: ',conix,endmem%fraclinks(1,1),tint(conix)
          endmem=>endmem%nextem;
          if(associated(endmem)) then
             cycle findem
+         elseif(associated(intrec1) .or. associated(intrec2)) then
+            exit start
          else
             write(*,*)'3H no binary model parameters for this ternary!'
             gx%bmperr=4399; goto 1000
          endif
       enddo findem
       if(.not.associated(endmem)) exit start
+!      write(*,'(a,3i3)')'3H endmem3: ',conix,endmem%fraclinks(1,1),tint(conix)
 ! we have found an endmember >=tint(conix)
       if(endmem%fraclinks(1,1).eq.tint(conix)) then
 !         write(*,*)'3H Found endmember for ',species(conix)
          if(conix.eq.1) then
 ! interaction AB and AC are in same list of interactions, separate later
-!            write(*,*)'3H interaction record 1-2: set'
+            write(*,*)'3H interaction list 1-2 and 1-3 found'
             intrec1=>endmem%intpointer
 !            if(associated(intrec1%tooprec)) write(*,'(a,4i3)')'3H link 1 id:',&
 !                 intrec1%fraclink(1),intrec1%tooprec%uniqid
          else
-!            write(*,*)'3H interaction record 2-3: set'
+            write(*,*)'3H interaction list 2-3 found'
             intrec2=>endmem%intpointer
 !            if(associated(intrec2%tooprec)) write(*,'(a,4i3)')'3H link 2 id:',&
 !                 intrec1%fraclink(1),intrec1%tooprec%uniqid
          endif
       else
-         write(*,*)'3H No endmember for ',species(conix)
+         write(*,*)'3H No endmember for constituent:',trim(species(conix))
       endif
    enddo start
    if(.not.associated(intrec1) .and. .not.associated(intrec2)) then
-      write(*,*)'3H No interactions in the ternary A-B-C'
+      write(*,*)'3H Ignoring extrapolation method as no binary interactions'
       gx%bmperr=4399; goto 1000
    endif
 !   if(associated(intrec1%tooprec)) write(*,'(a,4i3)')'3H link 3 id:',&
@@ -3793,7 +3799,7 @@
 ! skip check for duplicates
 !   checkdup=.FALSE.
 ! We look for interaction records 1-2, 1-3 and 1-3
-!   write(*,*)'3H intrec: ',associated(intrec1),associated(intrec2)
+   write(*,*)'3H intrec: ',associated(intrec1),associated(intrec2)
    intrec=>intrec1
    done=tint(1)
 !   if(associated(intrec%tooprec)) write(*,'(a,4i3)')'3H link 5 id:',&
@@ -3807,18 +3813,18 @@
       if(intrec%fraclink(1).eq.tint(2)) then
 ! In this case the endmember record must be tint(1)
          intrec12=>intrec
-!         write(*,*)'3H Found interaction 1-2: ',trim(species(1)),'-',&
-!              trim(species(2)),associated(intrec12%tooprec)
+         write(*,*)'3H Found interaction 1-2: ',trim(species(1)),'-',&
+              trim(species(2)),associated(intrec12%tooprec)
       elseif(intrec%fraclink(1).eq.tint(3)) then
 ! The endmember record can be tint(1) or tint(2)
          if(done.eq.tint(1)) then
             intrec13=>intrec
-!            write(*,*)'3H Found interaction 1-3: ',trim(species(1)),'-',&
-!                 trim(species(3)),associated(intrec13%tooprec)
+            write(*,*)'3H Found interaction 1-3: ',trim(species(1)),'-',&
+                 trim(species(3)),associated(intrec13%tooprec)
          else
             intrec23=>intrec
-!            write(*,*)'3H Found interaction 2-3: ',trim(species(2)),'-',&
-!                 trim(species(3)),associated(intrec23%tooprec)
+            write(*,*)'3H Found interaction 2-3: ',trim(species(2)),'-',&
+                 trim(species(3)),associated(intrec23%tooprec)
             exit intwith1
          endif
       endif

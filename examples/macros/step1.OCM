@@ -134,8 +134,9 @@ title step 1 fig 2
 font
 garamond
 16
-@$ Add symbols on lines
-extra line 2
+@$ Add symbols on lines, 1o means a symbol plotted at every 9th calculation
+extra line
+10
 render
 
 

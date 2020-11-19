@@ -1254,6 +1254,18 @@
 251                           format(a,3i3,4(1pe12.4))
                            enddo iloop4
                         endif
+     toop7: if(associated(tooprec)) then
+! this iloop3 is for all components "id".  Normally binay interactions depend
+! only on the constituents gz%iq(1) and gz%iq(2) but Toop/Kohler method depend
+! also on other constituents!  That is taken care of inside this IF
+        write(*,'(a,i3,5(1pe12.4))')'3X toop dvals',&
+             id,pyq,dvals(1,id),phres%dgval(1,id,ipy)+pyq*dvals(1,id),&
+             (phres%dgval(1,id,ipy)-pyq*dvals(1,id))*gz%rgast
+        do itp=1,3
+           phres%dgval(itp,id,ipy)=phres%dgval(itp,id,ipy)-pyq*dvals(itp,id)
+        enddo
+! ignore contribution to the second derivatives phres%d2gval
+     endif toop7
                         do itp=1,3
                            phres%dgval(itp,id,ipy)=&
                                 phres%dgval(itp,id,ipy)+ &
@@ -2741,7 +2753,7 @@
    phres=>toopx%phres
 !
    write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
-10 format('3X in calc_toop with binary; degree:',2i3,'; ',i2,2x,20('*'))
+10 format('3X in calc_toop with binary; degree:',2i3,'; ',i2,2x,20('<'))
 ! note vals, dvals and d2vals hare zero here
    if(lokpty%degree.eq.0) then
 ! quick exit if no composition dependence
@@ -2907,8 +2919,8 @@
 ! dxij, dxji and dsigma non-zero for the relevant constituents!
 ! This must be exact!!!
                fff=(dx12(j1)-dx21(j1)-dx0*dsigma(j1)/sigma)
-               write(*,8)'3Y fff 1:',j1,dx12(j1),dx12(j1),dsigma(j1),dx0,dx1,dx2
-8              format(a,4i4,3(1pe12.4))
+               write(*,8)'3X fff1:',j1,dx12(j1),dx12(j1),dsigma(j1),dx0,dx1,dx2
+8              format(a,4i3,3(1pe12.4))
                dvals(1,j1)=dvals(1,j1)+fff*dx1*valtp(1)
                dvals(2,j1)=dvals(2,j1)+fff*dx1*valtp(2)
                dvals(3,j1)=dvals(3,j1)+fff*dx1*valtp(3)
@@ -2917,7 +2929,7 @@
 ! 2nd derivatives wrt j1 and j2 using dx12(), dx21() and dsigma()
 ! This need only to be approximate ...
                      fff=dsigma(j1)*(-dx12(j2)+dx21(j2)+dx0*dsigma(j2))/sigma**2
-                     write(*,8)'3Y fff 2:',j1,j2,9,0,fff
+                     write(*,8)'3X fff2:',j1,j2,0,0,fff
                      d2vals(ixsym(j1,j2))=d2vals(ixsym(j1,j2))+fff*dx2*valtp(1)
                   enddo ktloop2
                endif dercal2
@@ -2927,9 +2939,12 @@
       dx2=(jdeg+1)*dx1
       dx1=(jdeg+1)*dx0
       dx=dx*dx0
+      write(*,'(a,i2,4(1pe12.4))')'3X dx etc:',jdeg,dx0,dx,dx1,dx2
    enddo RK
 !      
 1000 continue
+   write(*,1001)vals,(dvals(1,j1),j1=1,nyfr),d2vals
+1001 format('3X KT: ',6(1pe11.3)/7x,6(1pe11.3)/7x,6(1pe11.3))
 ! Normally only derivatives wrt gz%iq(1) and gz%gq(2) but with Kohler/Toop
 ! there can be derivatives wrt any constituent in the same sublattice
    return
