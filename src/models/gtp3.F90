@@ -674,7 +674,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! IONLIQ phase has ionic liquid model (I2SL)
 ! AQ1 phase has aqueous model (not implemented)
 ! STATE elemental liquid twostate (2-state) model parameter UNUSED?
-! QCE phase has quasichemical SRO configurational entropy (not implemented)
+! QCE phase has corrected quasichemical SRO config (not implemented)
 ! CVMCE phase has some CVM ordering entropy (not implemented)
 ! EXCB phase need explicit charge balance (has ions)
 ! XGRID use extra dense grid for this phase
@@ -694,7 +694,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHHID=0,     PHIMHID=1,    PHID=2,      PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,     PHBORD=6,    PHSORD=7, &     ! 
        PHMFS=8,     PHGAS=9,      PHLIQ=10,    PHIONLIQ=11, &  ! 
-       PHAQ1=12,    PH2STATE=13,   PHQCE=14,    PHCVMCE=15,&    ! 
+       PHAQ1=12,    PH2STATE=13,  PHQCE=14,    PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17,   PHFACTCE=18, PHNOCS=19,&     !
        PHHELM=20,   PHNODGDY2=21, PHEECLIQ=22, PHSUBO=23,&     ! 
        PHPALM=24,   PHMULTI=25,   PHBMAV=26,   PHUNIQUAC=27, & !
@@ -717,10 +717,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !       when running parallel
 ! CSDEL set if record is not used but has been and then deleted (by gridmin)
 ! CSADDG means there are terms to be added to G 
+! CSTEMPDOR means this compset was temporarily set dormant at an 
+!       equilibrium calculation
    integer, parameter :: &
         CSDFS=0,    CSDLNK=1,  CSDUM2=2,    CSDUM3=3, &
         CSCONSUS=4, CSORDER=5, CSABLE=6,    CSAUTO=7, &
-        CSDEFCON=8, CSTEMPAR=9,CSDEL=10,    CSADDG=11
+        CSDEFCON=8, CSTEMPAR=9,CSDEL=10,    CSADDG=11,&
+        CSTEMPDOR=12
 !\end{verbatim}
 !----------------------------------------------------------------
 !\begin{verbatim}
@@ -826,7 +829,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !  integer, parameter :: maxel=100,maxsp=1000,maxph=600,maxsubl=10,maxconst=1000
 ! NOTE increasing maxph to 600 and maxtpf to 80*maxph made the equilibrium
 ! record very big and created problems storing equilibria at STEP/MAP!!!
-  integer, parameter :: maxel=100,maxsp=1000,maxph=400,maxsubl=10,maxconst=1000
+  integer, parameter :: maxel=100,maxsp=1000,maxph=600,maxsubl=10,maxconst=1000
 ! maximum number of constituents in non-ideal phase
   integer, parameter :: maxcons2=300
 ! maximum number of elements in a species
@@ -1259,7 +1262,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! When the parameter is read the suffix symbol is translated to the
 ! current element or constituent index
   TYPE(gtp_propid), dimension(:), private, allocatable :: propid
-! This is the properties defined 2020-08-08/BoS defined in init_gtp
+! These are the properties defined 2020-11-27/BoS defined in init_gtp
 !   1 G     T P                                   0 Energy
 !   2 TC    - P                                   2 Combined Curie/Neel T
 !   3 BMAG  - -                                   1 Average Bohr magneton numb
@@ -1292,7 +1295,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !  30 HMVA  T P                                   0 Enthalpy of vacancy form.
 !  31 TSCH  - P                                   2 Schottky anomaly T
 !  32 CSCH  - P                                   2 Schottky anomaly Cp/R.
-!  33 NONE  T P
+!  33 QCM   - -                                   1 Modif Quasichem model ratio
 !  
 !\end{verbatim}
 !-----------------------------------------------------------------
@@ -2025,8 +2028,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 
 ! undocumented debug indicator
    integer :: gtpdebug=0
-! undocumented CPU time measuring in calcg_internal
-  double precision zputime(21)
 
 CONTAINS
 

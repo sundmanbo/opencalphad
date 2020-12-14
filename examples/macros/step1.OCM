@@ -242,5 +242,38 @@ Y
 @$ NOTE the PDF file will be saved in the working directory
 @&
 
+@$ Finally plot the driving force of all phases.  Stable phases has
+@$ driving force zero, those closest to become stable are close to zero
+
+plot
+
+dgm(#)
+
+
+
+@&
+plot
+
+dgm(#)
+@$ Only those close to zero are interesting
+scale
+Y
+N
+-0.2
+0
+@$ Move th key of the line to bottom left and smaller size than default
+position
+bottom left
+10
+10
+@$ Add symbols on the lines to make them easier to identify
+extra line 10
+
+
+@$ Note the DGM of the BCC phase, it is stable at high T
+@$ and comes back at low T
+
+
+
 set inter
 

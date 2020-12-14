@@ -32,7 +32,7 @@
     TYPE(gtp_equilibrium_data), pointer :: curceq
     type(map_node), pointer :: mapnode,invar,localtop
     type(map_line), pointer :: mapline
-    logical wildcard
+    logical wildcard,hashtag
 !    integer, parameter :: mofapl=100
     character ch1*1,gnuplotline*256,pfd*128,pfc*256
 !    character pfh*64,dummy*24,applines(mofapl)*128,appline*128
@@ -187,16 +187,18 @@
     ninv=0
     wildcard=.FALSE.
     selectph=.FALSE.
+    hashtag=.FALSE.
     selphase=' '
     do iax=1,2
 !       write(*,*)'Allocating for axis: ',iax
        call capson(pltax(iax))
-       wildcard1: if(index(pltax(iax),'*').gt.0) then
+!       wildcard1: if(index(pltax(iax),'*').gt.0) then
+       wildcard1: if(index(pltax(iax),'*').gt.0 .or. &
+            index(pltax(iax),'#').gt.0) then
+          if(index(pltax(iax),'#').gt.0) hashtag=.TRUE.
           if(wildcard) then
              write(*,*)'in OCPLOT2 one axis variable with wildcard allowed'
              goto 1000
-!          else
-!             write(*,*)'Wildcard on axis ',iax,np,nrv
           endif
 ! wildcards allowed only on one axis, we do not know how many columns needed
 ! allocate as many array elements as columns
@@ -461,7 +463,7 @@
 !          write(*,*)'SMP axis variable 1: ',trim(encoded1),value
           if(gx%bmperr.ne.0) then
 ! this error should not prevent plotting the other points FIRST SKIPPING
-             write(*,212)'SMP skipping a point, error evaluating: ',&
+             write(*,212)'SMP skipping a point 1, error evaluating: ',&
                   statevar(1:10),curceq%tpval(1),nv,nr
 212          format(a,a,f10.2,2i5)
 ! buperr resets putfun error 
@@ -497,6 +499,8 @@
 !                     trim(statevar),nooftup()
 ! segmentation fault is inside this call for map11.OCM
 ! probably because new composition set created
+!                write(*,*)'SMP2B get_many ',trim(statevar),nzp,selectph,hashtag
+! nzp is dimentsion of yyy, np is number of values
                 call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
 !                write(*,*)'In ocplot2, segmentation fault search: '
                 if(gx%bmperr.ne.0) then
@@ -506,6 +510,8 @@
 ! problem that part of encoded2 desctroyed in late calls, it is OK here
 !                write(*,737)len_trim(encoded2),trim(encoded2)
 737             format('smp2b: debug encoded2 ',i5/a/)
+!                write(*,738)(yyy(qp),qp=1,np)
+738             format('SMP mm: ',(10F7.3))
 ! compiling without -finit-local-zero gives a segmentation fault here
 ! running the MAP11 macro
                 qp=np
@@ -538,23 +544,27 @@
 ! not calling stvarix, all values should be included
 ! Allocation should be number of components
                    ixpos=1
-                elseif(.not.selectph) then
+                elseif(.not.selectph .and. .not.hashtag) then
 !                elseif(selectph) then
 ! this routine supress values for phases that are not relevant ...
 ! IT SHOULD NOT BE USED FOR CASES LIKE Y(GAS,*)
 !                   write(*,737)len_trim(encoded2),trim(encoded2)
 ! allocation should be number of phases
-                   call stvarix(statevar,phaseline(nlinesep),encoded2,nix,ixpos)
+! if 
+                   call stvarix(statevar,phaseline(nlinesep),&
+                        encoded2,nix,ixpos)
                    if(gx%bmperr.ne.0) then
                       write(*,*)'SMP2B yaxis error: "',trim(statevar),'"'
                       goto 1000
                    endif
-!                   write(*,9001)nix,(ixpos,jj=1,nix)
-!9001               format('SMP ixpos: ',i5,30i2)
                 else
                    ixpos=1
                 endif
              endif
+!             if(hashtag) then
+! all values are used
+!                ixpos=1
+!             endif
 !             write(*,*)'On ocplot2, segmentation fault 4D1'
 !             write(*,213)trim(encoded2),np,(yyy(ic),ic=1,np)
 213          format('WILDCARD: ',a,i3/6(1pe12.4))
@@ -565,6 +575,7 @@
              anpmin=1.0D20
              anpmax=-1.0D20
              lcolor=0
+!             write(*,'(a,90i3)')'SMP ixpos: ',(ixpos(jj),jj=1,np)
 !             write(*,*)'On ocplot2, segmentation fault before 4D2',np
 ! this is a loop for all values for this equilibria
 ! Here we may try to replace zero values by RNONE ???
@@ -653,7 +664,7 @@
              if(gx%bmperr.ne.0) then
 ! SECOND Skipping
                 if(gx%bmperr.ne.4373) &
-                     write(*,212)'SMP Skipping a point, error evaluating: ',&
+                     write(*,212)'SMP Skipping a point 2, error evaluating: ',&
                      statevar(1:10),curceq%tpval(1),nv,nr
                 nv=nv-1; goto 215
              endif
@@ -769,7 +780,7 @@
 !                   write(*,*)'SMP axis variable 3: ',encoded1(1:3),value
                    if(gx%bmperr.ne.0) then
 ! THIRD skipping
-                      write(*,212)'SMP skipping a point, error evaluating ',&
+                      write(*,212)'SMP skipping a point 3, error evaluating ',&
                            statevar,curceq%tpval(1),nv,0
                       goto 222
                    endif
@@ -1536,6 +1547,9 @@
 ! remove _ in keys
        call replace_uwh(lid(jj))
     enddo
+! Plot grid?
+    if(graphopt%setgrid.eq.1) write(21,777)
+777 format('set grid')
 ! columnheaders used as keys
     if(isoplethplot) then
 ! This column headin is not set before
@@ -1653,7 +1667,7 @@
                ' with lp ls (i-2+',i2,') pi ',i3,' title columnheader(i)') 
        endif
     endif
-    write(*,*)'SMP2 linespoint increment 1:',graphopt%linewp-1
+!    write(*,*)'SMP2 linespoint increment 1:',graphopt%linewp-1
 ! plot command from appfil
     if(appfil.gt.0) then
 ! try to avoid overlapping keys ...
@@ -2322,6 +2336,9 @@
        write(21,129)trim(title),trim(conditions),trim(graphopt%font)
     endif
     call replace_uwh(pltax(1))
+! Plot grid?
+    if(graphopt%setgrid.eq.1) write(21,777)
+777 format('set grid')
     write(21,130)graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(labelkey)
 128 format('#set title "',a,' \n #',a,'" font "',a,',10"')
@@ -3848,6 +3865,7 @@
 ! encoded: state variables returned by get_many(...) separated by a space
 ! nix: number of state variables in encoded
 ! ixpos: integer array with corresponding index for values
+! NOTE is there is a # in the statevar then ALL values should be included
     implicit none
     integer nix,ixpos(*)
     character*(*) statevar, phaseline, encoded

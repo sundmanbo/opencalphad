@@ -282,7 +282,7 @@
 ! Smooth unit step function (or second Einstein function) 17
    npid=npid+1
    propid(npid)%symbol='THT2 '
-   propid(npid)%note='Smooth step function T'
+   propid(npid)%note='Smooth step function Tcrit'
    propid(npid)%status=0
 ! THT2 cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
@@ -290,7 +290,7 @@
 ! Second Einstein delta CP 18
    npid=npid+1
    propid(npid)%symbol='DCP2 '
-   propid(npid)%note='Smooth step function value'
+   propid(npid)%note='Smooth step function increm.'
    propid(npid)%status=0
 ! DXP2 cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
@@ -397,11 +397,13 @@
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! UNUSED 33
+! Site ratio in Modified Quasichemical model 33
    npid=npid+1
-   propid(npid)%symbol='NONE'
-   propid(npid)%note='Unused'
+   propid(npid)%symbol='QCM'
+   propid(npid)%note='MQMQA cluster coord factor'
    propid(npid)%status=0
+! This parameter does not depend on T and P
+   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
 !.......................................
 !.......................................
 ! This IF statement should be at the last parameter identifier, maxprop=50?

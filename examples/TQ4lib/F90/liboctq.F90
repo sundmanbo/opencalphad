@@ -1301,6 +1301,128 @@ contains
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
+!\begin{verbatim}
+  subroutine tqchange_globalbit(bit,onoff)
+! set a global bit
+    implicit none
+    integer bit,onoff
+!\end{verbatim}
+! list here taken from models/gtp3.F90, only some allowed!!
+!  4 NOMERGE: no merge of gridmin result, 
+!  5 NODATA: not any data, 
+!  6 NOPHASE: no phase in system, 
+!  7 NOACS: no automatic creation of composition set for any phase
+!  8 NOREMCS: do not remove any redundant unstable composition sets
+!  9 NOSAVE: data changed after last save command
+! 10 VERBOSE: maximum of listing
+! 11 SETVERB: permanent setting of verbose
+! 12 SILENT: as little output as possible
+! 13 NOAFTEREQ: no manipulations of results after equilibrium calculation
+! 14 XGRID: extra dense grid for all phases
+! 15 NOPAR: do not run in parallel
+! 16 NOSMGLOB do not test global equilibrium at node points
+! 17 NOTELCOMP the elements are not the components
+! 18 TGRID use grid minimizer to test if global after calculating equilibrium
+! 19 OGRID use old grid generator
+! 20 NORECALC do not recalculate equilibria even if global test after fails
+! 21 OLDMAP use old map algorithm
+! 22 NOAUTOSP do not generate automatic start points for mapping
+! 23 GSYGRID extra dense grid
+! 24 GSVIRTUAL (CCI) enables calculations with a virtual element
+    if((bit.ge.7 .and. bit.le.16) .or. (bit.ge.18 .and. bit.le.23)) then
+       if(onoff.gt.0) then
+! set bit
+          globaldata%status=ibset(globaldata%status,bit)
+       else
+          globaldata%status=ibclr(globaldata%status,bit)
+       endif
+    else
+       gx%bmperr=4326
+    endif
+    return
+  end subroutine tqchange_globalbit
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
+  subroutine tqchange_phasebit(phtupx,bit,onoff)
+! set a bit of phase
+    implicit none
+    integer phtupx,bit,onoff
+!\end{verbatim}
+! taken from models/gtp3.F90
+!-Bits in PHASE record STATUS1 there are also bits in each phase_varres record!
+!  0 HID phase is hidden (not implemented)
+!  1 IMHID phase is implictly hidden (not implemented)
+!  2 ID phase is ideal, substitutional and no interaction
+!  3 NOCV phase has no concentration variation (fix composition)
+!  4 HASP phase has at least one parameter entered
+!  5 FORD phase has 4 sublattice FCC ordering with parameter permutations
+!  6 BORD phase has 4 sublattice BCC ordering with parameter permutations
+!  7 SORD phase has TCP type ordering (like for sigma)
+!  8 MFS phase has a disordered fraction set
+!  9 GAS this is the gas phase (first in phase list) 
+! 10 LIQ phase is liquid (can be several but listed directly after gas)
+! 11 IONLIQ phase has ionic liquid model (I2SL)
+! 12 AQ1 phase has aqueous model (not implemented)
+! 13 STATE elemental liquid twostate (2-state) model parameter UNUSED?
+! 14 QCE phase has quasichemical SRO configurational entropy (not implemented)
+! 15 CVMCE phase has some CVM ordering entropy (not implemented)
+! 16 EXCB phase need explicit charge balance (has ions)
+! 17 XGRID use extra dense grid for this phase
+! 18 FACTCE phase has FACT quasichemical SRO model (not implemented)
+! 19 NOCS not allowed to create composition sets for this phase
+! 20 HELM parameters are for a Helmholz energy model (not implemented),
+! 21 PHNODGDY2 phase has model with no analytical 2nd derivatives
+! 22 not implemented ELMA phase has elastic model A (not implemented)
+! 23 EECLIQ the condensed phase (liquid) that should have highest entropy
+! 24 PHSUBO special use testing models DO NOT USE
+! 25 PALM interaction records numbered by PALMTREE NEEDED FOR PERMUTATIONS !!!
+! 26 MULTI may be used with care
+! 27 BMAV Xion magnetic model with average Bohr magneton number
+! 28 UNIQUAC The UNIQUAC fluid model
+! 29 DILCE phase has dilute configigurational entropy (not implemented)
+! only bittar 3 left!
+    integer lokph
+    if(phtupx.le.0 .or. phtupx.gt.nooftup()) then
+       gx%bmperr=4325
+    elseif(bit.eq.17 .or. bit.eq.19) then
+       lokph=phasetuple(phtupx)%lokph
+       if(onoff.gt.0) then
+          call set_phase_status_bit(lokph,bit)
+       else
+          call clear_phase_status_bit(lokph,bit)
+       endif
+    else
+       gx%bmperr=4326
+    endif
+    return
+  end subroutine tqchange_phasebit
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
+  subroutine tqset_gaddition(phtupx,gadd,ceq)
+! set fix addition to Gibbs energy of a phase#compset
+    implicit none
+    integer phtupx
+    double precision gadd
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer lokcs
+    lokcs=phasetuple(phtupx)%lokvares
+    if(allocated(ceq%phase_varres(lokcs)%addg)) then
+       allocate(ceq%phase_varres(lokcs)%addg(1))
+    endif
+    ceq%phase_varres(lokcs)%addg(1)=gadd
+! set bit that this should be calculated
+    ceq%phase_varres(lokcs)%status2=&
+         ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
+    return
+  end subroutine tqset_gaddition
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
 end MODULE LIBOCTQ
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\

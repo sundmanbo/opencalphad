@@ -372,9 +372,14 @@
     call capson(model)
     if(model(1:5).eq.'I2SL ') then
        defnsl=2
+    elseif(model(1:4).eq.'MQM ') then
+       defnsl=1
+    elseif(model(1:4).eq.'CQC ') then
+       defnsl=1
     endif
     sites=one
-    if(model.eq.'IDEAL ' .or. model.eq.'RKM ' .or. model.eq.'CQC ') then
+    if(model(1:6).eq.'IDEAL ' .or. model(1:4).eq.'RKM ' .or. &
+         model(1:4).eq.'CQC ' .or. model(1:4).eq.'MQM ') then
 ! ideal, regular and quasichemical models have 1 sublattice with 1 site
        nsl=1
     elseif(model.eq.'I2SL ') then
@@ -391,6 +396,7 @@
        write(kou,*)'Maximum 9 sublattices'
        goto 1000
     endif
+! these checks are redundant?
     if(model(1:4).eq.'CQC ' .and. nsl.ne.1) then
        write(*,*)'The liquid quasichemical model has just one set of sites'
        gx%bmperr=4399; goto 1000
@@ -402,18 +408,21 @@
     sloop: do ll=1,nsl
 ! 'Number of sites on sublattice xx: '
 !  123456789.123456789.123456789.123
-       once=.true.
-4042   continue
-       if(nsl.eq.1 .and. model(1:4).eq.'CQC ') then
+!       write(*,*)'3B model: "',trim(model),'"'
+       if(model(1:4).eq.'RKM ' .or. model(1:6).eq.'IDEAL ') then
+! ideal and RKM models have one set of sites with 1 place ...
+          sites(1)=one
+       elseif(model(1:4).eq.'CQC ') then
           call gparrdx('Number of bonds: ',cline,last,sites(1),6.0D0,&
                'Enter phase bonds')
           if(buperr.ne.0) goto 900
+       elseif(model(1:4).eq.'MQM ') then
+! this model one set of sites and 2 bonds/atom
+          sites(1)=2.0d0
        elseif(model(1:5).ne.'I2SL ') then
-!             if(once) write(kou,4020)
-!4020         format('The ionic liquid model will adjust the number of sites',&
-!                  ' based on electroneutrality')
-!             once=.false.
-!          else
+! For all other models ask for sublattuces and sites
+          once=.true.
+4042      continue
           write(quest1(31:32),4043)ll
 4043      format(i2)
           call gparrdx(quest1,cline,last,sites(ll),one,&
@@ -429,8 +438,8 @@
              endif
           endif
        endif
-! This should be extended to allow several lines of input
-! 4 means up to ;
+! Now ask for constituents
+! This can require several lines, to allow that use 4 which means up to ;
        once=.true.
 4045   continue
        if(nsl.eq.1) then
@@ -504,7 +513,7 @@
 ! knr: integer array, number of constituents in each sublattice
 ! const: character array, constituent (species) names in sequential order
 ! sites: double array, number of sites on the sublattices
-! model: character, free text
+! model: character, some fixed parts, some free text
 ! phtype: character*1, specifies G for gas, L for liquid
    implicit none
    character name*(*),model*(*),phtype*(*)
@@ -522,7 +531,7 @@
    logical externalchargebalance,tupix
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
 ! logicals for models later stored in phase record
-   logical i2sl,cqc,uniquac
+   logical i2sl,cqc,uniquac,mqm,clusterr
 !   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
 ! csfree and highcs for finding phase_varres record
    if(.not.allowenter(2)) then
@@ -531,6 +540,7 @@
    endif
    i2sl=.FALSE.
    cqc=.FALSE.
+   mqm=.FALSE.
    uniquac=.FALSE.
 ! check input
    call capson(name)
@@ -593,10 +603,14 @@
 !  write(6,*)' enter_phase 3: ',name,nsl,nkk,noofsp
 ! set bit for quasichemical and ionic liquid model!
    call capson(model)
+!   write(*,'(a,a,2x,a)')'3B model: ',trim(model),phtype
    if(model(1:5).eq.'I2SL ' .or. model(1:13).eq.'IONIC_LIQUID ') then
       i2sl=.TRUE.
    elseif(model(1:4).eq.'CQC ') then
       cqc=.TRUE.
+   elseif(model(1:4).eq.'MQM ') then
+! FactSage modified quasichemical model
+      mqm=.TRUE.
    elseif(model(1:8).eq.'UNIQUAC ') then
       uniquac=.TRUE.
    endif
@@ -656,9 +670,9 @@
          enddo
       endif
 ! for quasichemical model check that costituents with name 'QC_' has 2 elements
-      if(cqc .and. const(jl)(1:3).eq.'QC_') then
+      if((cqc .or. mqm) .and. const(jl)(1:3).eq.'QC_') then
          if(splista(jk)%noofel.ne.2) then
-            write(*,*)'Quasichemical bond constituent must have 2 elements'
+            write(*,*)'Quasichemical mixing constituent must have 2 elements'
             gx%bmperr=4399; goto 1000
          endif
       endif
@@ -828,7 +842,7 @@
    firsteq%phase_varres(lokcs)%phstate=0
 ! sites must be stored in phase_varres
    if(cqc) then
-! have one sublattice but bonds are in sites(1)
+! very special, we have one sublattice but bonds are in sites(1)
       firsteq%phase_varres(lokcs)%sites(1)=one
       firsteq%phase_varres(lokcs)%qcbonds=sites(1)
       write(*,*)'3B zbonds: ',sites(1),firsteq%phase_varres(lokcs)%qcbonds
@@ -942,9 +956,10 @@
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHNOCV)
    endif
 ! quasichemical liquid: indicate status bit for bond clusters in phase_varres 
-   if(cqc) then
+   if(mqm .or. cqc) then
 ! clear the ideal bit
       phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
+      clusterr=.TRUE.
       do jk=1,size(phlista(nyfas)%constitlist)
 ! indexing is tricky ...
          ll=phlista(nyfas)%constitlist(jk)
@@ -952,10 +967,21 @@
             firsteq%phase_varres(lokcs)%constat(jk)=&
                  ibset(firsteq%phase_varres(lokcs)%constat(jk),CONQCBOND)
             write(*,*)'3B setting bond cluster bit',jk,CONQCBOND
+            clusterr=.FALSE.
          endif
       enddo
-! set CQC bit
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHQCE)
+      if(clusterr) then
+         write(*,*)'3B Phase with MQM or CQC model without any clusters "CQ_" !'
+         gx%bmperr=4399
+      endif
+! set CQC or MQM bit
+      if(cqc) then
+         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHQCE)
+      else
+         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHFACTCE)
+      endif
+! also set the liquid bit ...
+      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHLIQ)
    elseif(uniquac) then
 ! do not set anything else at the moment
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHUNIQUAC)

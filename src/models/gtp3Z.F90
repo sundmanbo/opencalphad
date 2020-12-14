@@ -2057,7 +2057,9 @@
 !   logical fromtdb
 !\end{verbatim}
 ! max number of ranges, max number of coefficents in each range
-   integer, parameter :: mrange=20,mc=15
+!   integer, parameter :: mrange=20,mc=15
+! in a paper more than 15 terms were used for a TP function!
+   integer, parameter :: mrange=20,mc=20
    integer jss,nc,ip,nrange,cbug
    real tlim(mrange)
    double precision coeff(mc),val
@@ -2591,7 +2593,7 @@
       rsize=4+nwch(16)+nr*(1+nwpr)+nwpr
       call wtake(lfun,rsize,iws)
       if(buperr.ne.0) then
-         write(*,*)'Error reserving record for TPfun'
+         write(*,*)'Error reserving record for TPfun',buperr,rsize,nr
          gx%bmperr=4399; goto 1000
       endif
 !      write(*,11)'3Z tpfun ',lfun,jfun,trim(tpfuns(jfun)%symbol),&

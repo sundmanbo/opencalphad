@@ -31,7 +31,8 @@ new Y
 @$ according to a suggestion by Andre
 @$ ================================================================
 @&
-set echo
+
+set echo Y
 
 r t ./steel1
 
@@ -503,11 +504,13 @@ set adv grid 0
 @$ the program searches for another stable composition set, 
 @$ thus TC(BCC) is sometimes TC(BCC#2)
 calc all Y
+1
 
 @&
 @$ Calculate without gridminimizer, note the speed
 @$ When calculated in parallel even more ...
 calc all N
+1
 
 @&
 @$ calculate and write the output on a file
@@ -526,6 +529,7 @@ set bit glo 15
 @$ ------------------------ BE PATIENT -----------------------------
 
 calc /out=outseq all N
+1
 
 
 @$ prepare for more tests in parallel
@@ -548,11 +552,18 @@ set bit glo 15 no
 @$  17.14 seconds CPU and  4407 clockcycles with 4 threads, factor 2.37 faster
 @$
 @$ This loop calculates 4000 equilibria, each requires 9 iterations
-@$ which means 379E-6 seconds/iteration on MAC
-@$ which means 286E-6 seconds/iteration on DELL, 1.3 times faster CPU
+@$ which means 0.379 miliseconds/iteration on MAC
+@$ which means 0.286 miliseconds/iteration on DELL, 1.3 times faster CPU
 @$
 @$ This system has 6 component system with 40 phases, 503 TPfuns and parameters
 @$ (the CPU time also includes listing some results on a file)
+@$ ==============================================
+@$ Running OC6-14 2020-10-04 looping  "c a n 10"
+@$ on my DELL 5511 Latitude with Intel core i7-1085H 10 gen 2.27 GHz, 16 GB RAM
+@$   6.94 seconds CPU and 6938 clockcykles with  1 thread
+@$  12.97 seconds CPU and 1234 clockcykles with 12 threads, factor 5.62 faster 
+@$ New DELL is 1.48 times faster than the old DELL (single CPU)
+@$ New DELL is 1.97 times faster than the MAC  (single CPU)
 @$ ==============================================
 @&
 

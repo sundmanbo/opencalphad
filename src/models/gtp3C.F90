@@ -1715,9 +1715,9 @@
 !\end{verbatim} %+
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
-   integer intpq,linkcon,ftyp,prplink
+   integer intpq,linkcon,ftyp,prplink,topline
    character text*3000,phname*24,prop*32,funexpr*1024,toopsp(3)*24,ch1*1
-   character special*8
+   character special*4,modelid*24
 !   integer, dimension(2,3) :: lint
 ! ?? increased dimension of lint ??
    integer, dimension(2,5) :: lint
@@ -1753,6 +1753,11 @@
 !
 ! toop/kohler methods
    tooptop=0
+! modelid should be used to identify the model
+   modelid=' '
+! this specifies the top line
+   topline=1
+!   modelid='123456789.123456789.1234'
 ! output on screen
    ftyp=1
    if(iph.lt.0 .or. iph.gt.noofph) then
@@ -1772,31 +1777,56 @@
    nsl=phlista(lokph)%noofsubl
    special=' '
 ! indicate some status bit specially
-! these 4 bits are mutually exclusive
-   if(btest(phlista(lokph)%status1,PHFORD)) special(1:1)='F'
-   if(btest(phlista(lokph)%status1,PHBORD)) special(1:1)='B'
-   if(btest(phlista(lokph)%status1,PHSORD)) special(1:1)='S'
-   if(btest(phlista(lokph)%status1,PHIONLIQ)) special(1:1)='I'
+! these bits are mutually exclusive
+   if(btest(phlista(lokph)%status1,PHFORD)) then
+      special(1:1)='F'; modelid='FCC permutation ordering'
+!                                123456789.123456789.1234
+   elseif(btest(phlista(lokph)%status1,PHBORD)) then
+      special(1:1)='B'; modelid='BCC permutation ordering'
+   elseif(btest(phlista(lokph)%status1,PHSORD)) then
+      special(1:1)='S'; modelid='Intermetallic ordering'
+   elseif(btest(phlista(lokph)%status1,PHIONLIQ)) then
+      special(1:1)='I'; modelid='Ionic 2-sblattice liquid'
+!                                123456789.123456789.1234
+! added 20201128/BoS, MQM, CQC and UNIQUAC
+   elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
+      special(1:1)='Q'; modelid='Modif. Quasichem. model'
+!                                123456789.123456789.1234
+      topline=2
+   elseif(btest(phlista(lokph)%status1,PHQCE)) then
+      special(1:1)='C'; modelid='Corr. Quasichem. model'
+      topline=2
+   elseif(btest(phlista(lokph)%status1,PHUNIQUAC)) then
+      special(1:1)='U'; modelid='UNIQAC polymer model'
+!                                123456789.123456789.1234
+   endif
+! end of exclusive bits
    kkk=2
    if(btest(phlista(lokph)%status1,PHMFS)) then
 ! this indicates if there is a disordered fraction set
       special(kkk:kkk)='D'; kkk=kkk+1
    endif
    lokcs=phlista(lokph)%linktocs(ics)
-!   write(*,*)'3C order: ',btest(firsteq%phase_varres(lokcs)%status2,CSORDER),&
-!        btest(phlista(lokph)%status1,PHSUBO),kkk
    if(btest(firsteq%phase_varres(lokcs)%status2,CSORDER)) then
 ! this indicates if ordered part should be subtracted as ordered
 ! for some historical illogical reason PHSUBO is not used but CSORDER
       special(kkk:kkk)='S'; kkk=kkk+1
    endif
+! special is 4 characters
 ! This subroutine is independent of current equilibrium, use firsteq
 !   write(lut,10)phname,phlista(lokph)%status1,special,&
 !        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
 !  lokcs=phlista(lokph)%linktocs(ics)
-   write(lut,10)phname,phlista(lokph)%status1,special,&
-        nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
-10  format(/'Phase: ',A,', Status: ',Z8,2x,a/'  Subl:',I3,10(1x,F7.3))
+   if(topline.eq.1) then
+      write(lut,10)phname,phlista(lokph)%status1,special,modelid,&
+           nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
+10    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a/'  Subl:',I3,10(1x,F7.3))
+   elseif(topline.eq.2) then
+! for the quasichemical models
+      write(lut,11)phname,phlista(lokph)%status1,special,modelid,&
+           firsteq%phase_varres(lokcs)%sites(1)
+11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a/'  Bonds/atom:',F7.3)
+   endif
    nk=0
    text='Constituents: '
    ip=15

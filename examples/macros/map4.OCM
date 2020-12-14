@@ -206,7 +206,7 @@ scale x
 N
 .64 .68
 scale y n 3100 3150
-title map 4 fig 5
+title map 4 fig 6
 
 
 set interactive

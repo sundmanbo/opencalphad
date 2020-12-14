@@ -15,6 +15,15 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2020.12.14 OC version 6.019: Modified input/output of data for models
+of phases to handle and list a bit more information.  I have also
+added a new wildcard, "#", to allow plotting the driving force, DGM,
+of metastable phases.  The wildcard "*", ignore metastable phases.
+Still working on understanding the MQMQA quasichemical model (the -QA
+suffix means including quadrupol clusters). A new model parameter
+identifier, QCM, has been added to define the variable coordination
+number of a constituent in this model.
+
 2020.11.19 OC version 6.018: Some more fixes for the TDB2DAT
 facilities.
 
@@ -35,8 +44,8 @@ one must use n=1.
 2020.11.08 OC version 6.016: Any inline argument provided when
 starting OC has been extended to 256 characters to cater for long file
 paths.  The output from "list short p" do not longer include the
-status bits, I will add some other useful information instead.  A
-hidden option "list short d" mimics the old version.  After consulting
+status bits, I will add some other useful information later.  A hidden
+option "list short d" mimics the old version.  After consulting
 Guillaume Vareille about problems opening a new file for writing a
 small modification in tinyopen.c has been made.
 

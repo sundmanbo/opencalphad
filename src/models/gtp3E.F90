@@ -7155,7 +7155,7 @@
 !      write(*,*)'3E at line ',nl,': ',trim(line)
       dbinfo=1
       write(kou,200)trim(line)
-200   format(/'This database has infomation to users, please read carefully'/a)
+200   format(/'This database has information to users, please read carefully'/a)
       do while(index(line,'!').le.0)
          read(21,110)line
          write(kou,110)trim(line)

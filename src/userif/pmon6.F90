@@ -419,7 +419,7 @@ contains
          'LINE_TYPE       ','MANIPULATE_LINES','PAUSE_OPTION    ',&
          'LOWER_LEFT_TEXT ','TIE_LINES       ','GIBBS_TRIANGLE  ',&
          'QUIT            ','SPAWN           ','NO_HEADING      ',&
-         'AXIS_FACTOR     ','                ','                ',&
+         'AXIS_FACTOR     ','GRID            ','                ',&
          '                ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
@@ -4190,6 +4190,11 @@ contains
           j4=index(line,' ')
           name1=line(1:j4)
           call capson(name1)
+! dot derivatives not allowed explicitly, must be entered as symbols
+          if(index(name1,'.').gt.0) then
+             write(kou,*)'Dot derivatives must be entered as symbols!'
+             goto 100
+          endif
 ! note gparc etc increment last before looking for answer, keep space in cline
           cline=line(j4:)
           last=1
@@ -4212,6 +4217,7 @@ contains
 ! the value of a state variable, symbol? or model parameter variable is returned
 ! STRANGE the symbol xliqni is accepted in get_state_var_value ???
 !             write(*,*)'pmon show: call get_state_var_value',' :',trim(name1)
+! get_state_var_value is in gtp3F.F90
              call get_state_var_value(name1,xxx,model,ceq)
 !          write(*,*)'pmon back from get_state_var_value',xxx,' :',trim(model)
 !             write(*,*)'PMON: show xliqni should come here 6 ... ',gx%bmperr
@@ -6204,7 +6210,7 @@ contains
 ! no scaling factor, graphopt%scalfactor(iax) already unity
              buperr=0
           endif
-          if(index(axplot(iax),'*').gt.0) then
+          if(index(axplot(iax),'*').gt.0 .or. index(axplot(iax),'#').gt.0) then
 !             if(wildcard) then
 !                write(*,*)'Wildcards allowed for one axis only'
 !                goto 21000
@@ -6220,6 +6226,18 @@ contains
 ! Code copied from show variable (case(4,17) around line 3273)
              if(index(axplot(iax),'*').gt.0) then
 ! generate many values
+! the values are returned in yarr with dimension maxconst. 
+! longstring are the state variable symbols for the values ...
+                call get_many_svar(axplot(iax),yarr,maxconst,i1,longstring,ceq)
+                if(gx%bmperr.ne.0) then
+! if error go back to command level
+                   write(kou,*)'Illegal axis variable!  Error code: ',gx%bmperr
+                   goto 100
+!                else
+!                   write(*,*)'pmon test value: ',yarr(1)
+                endif
+             elseif(index(axplot(iax),'#').gt.0) then
+! generate many values including for metastable phases
 ! the values are returned in yarr with dimension maxconst. 
 ! longstring are the state variable symbols for the values ...
                 call get_many_svar(axplot(iax),yarr,maxconst,i1,longstring,ceq)
@@ -6779,7 +6797,7 @@ contains
 !         'LINE_TYPE       ','MANIPULATE_LINES','PAUSE_OPTION    ',&
 !         'LOWER_LEFT_TEXT ','TIE_LINES       ','GIBBS_TRIANGLE  ',&
 !         'QUIT            ','SPAWN           ','NO_HEADING      ',&
-!         'AXIS_FACTOR     ','                ','                ',&
+!         'AXIS_FACTOR     ','GRID            ','                ',&
 !         '                ','                ','                ']
 !-------------------------------------------------------------------
 ! default set to GIBBS-TRIANGLE
@@ -6982,7 +7000,7 @@ contains
              endif
              goto 21100
 !...............................................
-! PLOT EXTRA axis factor to plot kJ or GPa instead of J and kJ
+! PLOT EXTRA axis_factor for example to plot kJ or GPa instead of J and Pa
           case(13)
              call gparcdx('Wich axis?',cline,last,1,ch1,'Y',&
                   '?PLOT extra factor')
@@ -6998,8 +7016,16 @@ contains
              endif
              goto 21100
 !...............................................
-! PLOT EXTRA unused
+! PLOT EXTRA GRID
           case(14)
+             call gparcdx('Plot grid?',cline,last,1,ch1,'Y',&
+                  '?PLOT extra factor')
+             call capson(ch1)
+             if(ch1.eq.'Y') then
+                graphopt%setgrid=1
+             else
+                graphopt%setgrid=0
+             endif
              goto 21100
 !...............................................
 ! PLOT EXTRA unused

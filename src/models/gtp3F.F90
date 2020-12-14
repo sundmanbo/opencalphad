@@ -94,10 +94,15 @@
 !   write(*,*)'3F In get_state_variable_value: ',statevar
    iunit=0
    svr=>svrvar
+!check if there is a "." (dot) neaing it is a dot derivative
+   if(index(statevar,'.').gt.0) then
+      write(*,*)'3F dot derivatives must be entered as symbols: ',trim(statevar)
+      gx%bmperr=4399; goto 1000
+   endif
    call decode_state_variable(statevar,svr,ceq)
 !   write(*,20)statevar(1:len_trim(statevar)),svr%oldstv,svr%norm,&
-!        svr%argtyp,svr%component
-20  format('3F gsvv 1: ',a,' : ',4i3)
+!        svr%argtyp,svr%component,gx%bmperr
+20  format('3F gsvv 1: ',a,' : ',5i3)
    if(gx%bmperr.ne.0) then
 !      goto 1000
 ! it can be a state variable symbol ...
@@ -112,7 +117,7 @@
       call find_svfun(name,lrot)
       if(gx%bmperr.ne.0) then
          write(*,*)'3F Neither state variable or symbol, maybe model-param-id?'
-         goto 1000
+         gx%bmperr=4399; goto 1000
       else
 ! get the value of the symbol, may involve other symbols and state variablse
 ! The actual_arg is a facility not yet implemented and not allowed here
@@ -168,9 +173,9 @@
 ! but when this is used for GNUPLOT the values are written in a matix
 ! and the same column in that phase must be the same phase ...
 ! so I have to have the same number of phases from each equilibria.
+! tentative added feature: # instead of * means also metastable phases
 !
 ! CURRENTLY if x(*,*) and x(*,A) mole fractions only in stable phases
-! Proposal: use * for all phases, use *S o $ or something else for all stable??
 !
 ! >>>>>>>>>>>>>>>> there is a segmentation fault in this subroutine when
 ! called from ocplot2 in the map11.OCM
@@ -192,6 +197,7 @@
    integer indices(4),modind(4)
    double precision xnan,xxx
    integer jj,lokph,lokcs,k1,k2,k3,iref,jl,iunit,istv,enpos,maxen
+   logical onlystable
 ! memory leak
    type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr
@@ -215,13 +221,13 @@
 !      phtupord=.TRUE.
 !   endif
 ! called from minimizer for testing
-!   write(*,*)'3F gmv 1: ',trim(statevar)
    svr=>svrvar
    call decode_state_variable(statevar,svr,ceq)
    if(gx%bmperr.ne.0) then
       write(*,*)'3F Failed decode statevar in get_many_svar',gx%bmperr
       goto 1000
    endif
+!   write(*,*)'3F get_many_svar 1: ',trim(statevar),svr%argtyp,svr%phase
 ! translate svr data to old indices etc
    istv=svr%oldstv
    iref=svr%phref
@@ -243,6 +249,7 @@
       indices(2)=svr%compset
       indices(3)=svr%constituent
    endif
+!   write(*,*)'3F get_many_svar 2: ',trim(statevar),svr%argtyp,indices
 !
 !   write(*,20)istv,indices,iref,iunit,gx%bmperr
 20 format('3F many 1: ',i5,4i4,3i7)
@@ -257,7 +264,9 @@
 ! -2 species or constituent
 ! -3 phase
 ! -4 composition set
+! indices(1)=-10 phase & compset means all phases also metastable "#"
    jj=0
+   onlystable=.true.
    if(indices(1).ge.0) then
       if(indices(2).ge.0) then
          if(indices(3).ge.0) then
@@ -312,7 +321,7 @@
 17          format(a,4i4)
             gx%bmperr=4317; goto 1000
          endif
-      elseif(indices(2).eq.-3) then
+      elseif(indices(2).eq.-3 .or. indices(2).eq.-10) then
 ! if indices(1)>=0 then indices(2)<0 must means a loop for all phase+compset
 !         write(*,*)'3F seg.fault ',noofph
          do k2=1,noofph
@@ -409,10 +418,13 @@
          write(*,17)'3F Illegal set of indices 3',(indices(jl),jl=1,4)
          gx%bmperr=4317; goto 1000
       endif
-   elseif(indices(1).eq.-3) then
+!   elseif(indices(1).eq.-3) then
+   elseif(indices(1).eq.-3 .or. indices(1).eq.-10) then
 ! loop for phase+compset as indices(1+2)
 ! here we must be careful not to destroy original indices, use modind
-!      write(*,*)'3F get_many NP(*) etc 1: ',gx%bmperr,indices(3),noofph
+      if(indices(1).eq.-10) onlystable=.FALSE.
+!      write(*,*)'3F get_many NP(*) etc 1: ',gx%bmperr,indices(1),indices(3),&
+!           onlystable,noofph
       phloop: do k1=1,noofph
          modind(1)=k1
          modind(2)=0
@@ -423,23 +435,30 @@
             modind(2)=k2
             call get_phase_compset(modind(1),modind(2),lokph,lokcs)
             if(gx%bmperr.ne.0) goto 1000
-            if(indices(3).eq.0) then
+!            if(indices(3).eq.0) then
+            if(indices(3).le.0) then
 ! This is typically listing of NP(*) for all phases
                modind(3)=0
                call encode_state_variable3(encoded,enpos,istv,modind,&
                     iunit,iref,ceq)
-               if(gx%bmperr.ne.0) goto 1000
+               if(gx%bmperr.ne.0) then
+                  write(*,*)'3F error encoding state variable'; goto 1000
+               endif
                enpos=enpos+1
 ! check for overflow in encoded
                if(enpos.gt.maxen) goto 1100
                jj=jj+1
                if(jj.gt.mjj) goto 1100
-               if(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
+! if the wildcard is # include also metastable
+               if(onlystable .and. &
+                    ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
                   values(jj)=xnan
                else
                   call state_variable_val3(istv,modind,iref,&
                        iunit,values(jj),ceq)
-                  if(gx%bmperr.ne.0) goto 1000
+                  if(gx%bmperr.ne.0) then
+                     write(*,*)'3F error calling __val3'; goto 1000
+                  endif
                endif
 !            elseif(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
 !               call encode_state_variable3(encoded,enpos,istv,modind,&
@@ -547,6 +566,7 @@
             endif
          enddo csloop
       enddo phloop
+!      write(*,*)'3F jj: ',jj
    else
 ! error if here
       write(*,17)'3F Illegal set of indices 5',(indices(jl),jl=1,4)
@@ -678,6 +698,7 @@
 ! -2 for species or constituent
 ! -3 for phase
 ! -4 for composition set
+! -10 for also metastable phases and composition sets
    istv=-1
    indices=0
 ! iref=0 means user defined reference state
@@ -694,7 +715,7 @@
 !   write(*,*)'3F decode_state_var 1: "',trim(lstate),'"'
 ! compare first character
    ch1=lstate(1:1)
-!   write(*,*)'3F decoding: ',trim(lstate),is,' ',ch1
+!   write(*,*)'3F decoding: ',trim(statevar),is,' ',ch1
    do is=1,noos
       if(ch1.eq.svid(is)(1:1)) goto 50
    enddo
@@ -710,6 +731,7 @@
          is=10
       endif
    endif
+!   write(*,*)'3F we are here statevar ',trim(statevar),', ch1: ',ch1
    if(deblist) write(*,*)'3F dsv 1: ',ch1,is
    if(is.eq.1) then
       if(lstate(2:2).ne.' ') then
@@ -928,6 +950,10 @@
          if(arg1(1:2).eq.'* ') then
             iph=-3
             ics=-4
+         elseif(arg1(1:2).eq.'# ') then
+! include also values for metastable phases, only for single argument variables
+            iph=-10
+            ics=-10
          else
             call find_phase_by_name(arg1,iph,ics)
             if(gx%bmperr.ne.0) goto 1000

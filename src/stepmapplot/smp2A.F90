@@ -7957,6 +7957,8 @@
     graphopt%linewp=0
 ! axis tics size etc
     graphopt%textonaxis=0
+! setgrid
+    graphopt%setgrid=0
 ! do not reset plotend if set
 !    plotend=plotenddefault
 !    write(*,*)'Plot options reset'

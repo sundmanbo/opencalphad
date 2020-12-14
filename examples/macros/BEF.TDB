@@ -61,11 +61,6 @@ $
                   1.72800E+03  Y
      -26794.655+280.39*T-43.1*T*LN(T)+1.12754E+31*T**(-9);,, N  !
      
- FUNCTION GBCCNI  298.15
-     +3535.925+114.298*T-22.096*T*LN(T)-.0048407*T**2;
-                  1.72800E+03  Y
-     -19125.571+275.579*T-43.1*T*LN(T)+1.12754E+31*T**(-9);,, N REF1 !
-     
  FUNCTION GLIQNI  298.15
      +11235.527+108.457*T-22.096*T*LN(T)-.0048407*T**2-3.82318E-21*T**7;
                   1.72800E+03  Y
@@ -244,7 +239,7 @@ $-------------------------------------------------------------------- SGTE
  PARAMETER G(FCC_A1,RE:VA;0)   298.15 GFCCRE;,, N REF1 !
 
  PARAMETER G(HCP_A3,MO:VA;0)  298.15 +GHCPMO;,, N REF1 !
- PARAMETER G(HCP_A3,NI:VA;0)  298.15 +GHCPNI;,,  N  !
+ PARAMETER G(HCP_A3,NI:VA;0)  298.15 +GHCPNI;,,  N  REF1 !
  PARAMETER G(HCP_A3,RE:VA;0)  298.15 +GHSERRE;,, N REF1 !
 
  PARAMETER G(LIQUID,MO;0)  298.15 GLIQMO;,, N REF1 !
