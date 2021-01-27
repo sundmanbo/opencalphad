@@ -6022,6 +6022,7 @@
  logical function allowenter(mode)
 ! Check if certain commands are allowed
 ! mode=1 means entering an element or species
+!     this routine is no longer used when entering species
 ! mode=2 means entering a phase
 ! mode=3 means entering an equilibrium
 ! returns TRUE if command can be executed
@@ -6044,7 +6045,7 @@
       if(eqfree.gt.2) goto 1000
       yesorno=.TRUE.
    elseif(mode.eq.3) then
-! there must be at lease one phase before entering a second equilibrium
+! there must be at least one phase before entering a second equilibrium
 ! Note this is tested also for entering the default equilibrium
 !      write(*,*)'3Y mode 3: ',eqfree,noofph
       if(eqfree.ge.2 .and. noofph.eq.0) goto 1000

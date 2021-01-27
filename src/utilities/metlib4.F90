@@ -7467,8 +7467,9 @@ CONTAINS
     integer ilocal(maxr*nwpr)
     integer i
     equivalence (dlocal,ilocal)
-    if(n.gt.256) then
-       write(*,*)'STORRN cannot handle arrays larger than ',maxr,n
+!    if(n.gt.256) then
+    if(n.gt.512) then
+       write(*,*)'M4 STORRN cannot handle arrays larger than ',maxr,n
        buperr=1010; goto 900
     endif
     do i=1,n

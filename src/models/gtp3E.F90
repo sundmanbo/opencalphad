@@ -3418,6 +3418,12 @@
 !   call delete_biblio
 !------ parameter property records
    deallocate(propid)
+!------ other things such as mqmq_data arrays
+   if(allocated(mqmqa_data%contyp)) then
+      deallocate(mqmqa_data%contyp)
+      deallocate(mqmqa_data%constoi)
+      mqmqa_data%nconst=0
+   endif
 !   write(*,*)'3E No segmentation error G'
 !------ map results are deleted separately
 !   call delete_mapresults(maptop)
@@ -3829,7 +3835,7 @@
 !\addtotable subroutine readtdb
 !\begin{verbatim}
  subroutine readtdb(filename,nel,selel)
-! reading data from a TDB file with selection of elements
+! reading data from a TDB file with selection of elements, read_tdb
 !-------------------------------------------------------
 ! Not all TYPE_DEFS implemented
 !-------------------------------------------------------
@@ -3853,7 +3859,7 @@
    double precision stoik(10),xsl,xxx
    integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv,rewindx
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx,idum,jdum
-   logical onlyfun,nophase,ionliq,notent
+   logical onlyfun,nophase,ionliq,notent,mqmqa
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics,ndisph
 ! disparttc and dispartph to handle phases with disordered parts
@@ -3861,7 +3867,7 @@
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
 !   character*24 disph(20)
    integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz,dismag
-   integer enteredpar
+   integer enteredpar,loop
    type(gtp_phase_add), pointer :: addrec
    logical warning,dbcheck
 ! set to TRUE if element present in database
@@ -4181,12 +4187,19 @@
       endif
       jp=index(name1,':')
 !      write(*,*)'3E readtdb 11: ',name1,ip,jp
-! phytype
+! phytype, a letter after the phase name separated by a :, for example GAS:G
       if(jp.gt.0) then
          phtype=name1(jp+1:jp+1)
          name1(jp:)=' '
       else
          phtype=' '
+      endif
+! we must know if we have the mqmqa model before reading constituents!!
+! tested below also.
+      if(phtype.eq.'Q') then
+         mqmqa=.TRUE.
+      else
+         mqmqa=.FALSE.
       endif
 ! check if phase rejected
 !      write(*,*)'3E number of phases rejected: ',nphrej
@@ -4393,6 +4406,42 @@
 !      longline(jp+1:)=' '
 ! 
       ip=index(longline,' :')+2
+      if(mqmqa) then
+! this is a FactSage MQMQA model for liquids
+! entering constituents as quadrupoles
+!         write(*,'(a,a,a,2i5)')'3E mqmqa const: "',trim(longline(ip:jp)),&
+!              '"',ip,jp
+         loop=0
+! MQMQA constituents created "on the fly" as quadrupols using existing species
+! and additional coordination numbers n1..n4. A  / separate sublattices
+! a , separate species in same sublattice. If any A B X Y species not entered
+! the quadrupole is ignored (not an error)
+! A/X n1 n2 A,B/X n1 n2 n3 B/X,Y n1 n2 n3 A,B/X,Y n1 n2 n3 n4 ...
+         call mqmqa_constituents(longline(ip:jp),const,loop)
+!         write(*,*)'3E back from entering constituents',gx%bmperr
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3E error entering quadrupoles'
+            goto 1000
+         endif
+         call mqmqa_rearrange
+!         write(*,*)'3E back from rearranging constituents',gx%bmperr
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3E error rearranging quadrupoles'
+            goto 1000
+         endif
+! skip the rest below except entering the phase
+! stoik(1) is bonds/atom, just for output, never used explicitly
+         stoik(1)=2.0D0
+         knr(1)=mqmqa_data%nconst
+!         write(*,*)'3E enter_p: ',trim(name1),' ',knr(1),stoik(1),' ',phtype
+         name2='MQMQA '
+         call enter_phase(name1,1,knr,const,stoik,name2,phtype,warning)
+!         write(*,*)'3E back from entering phase',gx%bmperr
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3E failed to enter the MQMQA phase',gx%bmperr
+         endif
+         goto 100
+      endif
 !      write(*,*)'3E readtdb gas2: ',jp,longline(1:jp)
       ll=0
       nr=0
@@ -4465,9 +4514,13 @@
 390    continue
 ! name2 is model, ignored on reading TDB
       ionliq=.FALSE.
-      if(phtype(1:1).eq.'Y') then
+      mqmqa=.FALSE.
+      if(phtype.eq.'Y') then
          name2='IONIC_LIQUID '
          ionliq=.TRUE.
+      elseif(phtype.eq.'Q') then
+         name2='MQMQA '
+         mqmqa=.TRUE.
       else
          name2='CEF-TDB-RKM? '
       endif
@@ -6259,6 +6312,8 @@
          endif
          if(modelname(1:5).eq.'I2SL ') phtype='Y'
 !
+! THIS IS READPDB subroutine .... OBSOLETE
+!
 !         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
 !         call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype)
          call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype,warning)
@@ -6924,7 +6979,7 @@
    if(buperr.ne.0 .or. gx%bmperr.ne.0) then
       if(gx%bmperr.eq.0) gx%bmperr=buperr
       if(.not.silent) write(kou,1002)gx%bmperr,nl
-1002   format('Error ',i5,', occured at TDB file line ',i7)
+1002   format('Error ',i5,', occured at PDB file line ',i7)
 !      write(*,*)'Do you want to continue at your own risk anyway?'
 !      read(*,1008)ch1
 !1008  format(a)

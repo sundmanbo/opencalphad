@@ -435,6 +435,8 @@
             modind(2)=k2
             call get_phase_compset(modind(1),modind(2),lokph,lokcs)
             if(gx%bmperr.ne.0) goto 1000
+! skip if phase+compset suspended
+!            if(ceq%phase_varres(lokcs)%phstate.le.PHSUS)
 !            if(indices(3).eq.0) then
             if(indices(3).le.0) then
 ! This is typically listing of NP(*) for all phases
@@ -2655,14 +2657,16 @@
 !  30 HMVA  T P                                   0 Enthalpy of vacancy form.
 !  31 TSCH  - P                                   2 Schottky anomality T
 !  32 CSCH  - P                                   2 Schottky anomality Cp/R.
+!  33 QCZ   - -                                   1 MQMQA coordination factor
 ! I am not sure how to handle changes ...
 !-------------------------------------------------------------------
 !...................................... without constituent index
 !   case(1:5,7:12,16:25,27:31)  OLD
-   case(1:5,7:12,16:25,27:32) 
-! with constituent index: 6: individual Bohr magneton number
-! with constituent index: 13:15: Mobilities
-! with constituent index: 26: UNIQUAC 
+!   case(1:5,7:12,16:25,27:32) 
+   case(1:5,7:12,16:25,27:33) 
+! not with constituent index: 6: individual Bohr magneton number
+! not with constituent index: 13:15: Mobilities
+! not with constituent index: 26: UNIQUAC 
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! nprop is number of properties calculated.  Property 1 is always G

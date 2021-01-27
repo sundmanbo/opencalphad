@@ -259,7 +259,7 @@ MODULE ocsmp
 ! maptop is map_node record with all results
 ! form is type of output (screen/postscript/pdf(acrobat)/gif)
 !------------------------------------------------------------------
-! status contain bits, BITS defined in ??
+! status contain bits, BITS defined below (GRKEEP etc)
 ! rangedefaults(i) nonzero if min/max for axis i set by user
 ! axistype(i) is 1 if axis i is logscale
 ! plotmin/max are user definied min/max
@@ -323,10 +323,12 @@ MODULE ocsmp
 #endif
 !-------------------------------------------------
 ! BITS for graphopt status word, do not use bit 0 and 1 ...
-! these bits very confused ...
-! GRKEEP is set if graphics windows kept
+! these bits are very confused ...
+! GRKEEP is set if graphics windows kept (does not really matter)
 ! GRNOTITLE is set if no title plotted 
-  integer, parameter :: GRKEEP=2,GRNOTITLE=3,GRISOPLETH=4
+! GRISOPLETH if plot is an isopleth (no tielines)
+! GRTABLE list results in a CSV table
+  integer, parameter :: GRKEEP=2,   GRNOTITLE=3,  GRISOPLETH=4, GRCSVTABLE=5
 !--------------------------------------------------
 ! default for some colors
   character (len=6) :: monovariant='7CFF40'       ! this is light green

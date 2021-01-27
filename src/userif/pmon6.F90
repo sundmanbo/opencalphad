@@ -181,7 +181,8 @@ contains
 ! loop variable when entering constituents of a phase
     integer icon,flc
 ! array with constituents in sublattices when entering a phase
-!    character, dimension(maxconst) :: const*24
+! only used for interactive entering the mqmqa_constituent
+    character, dimension(25) :: const*24
 ! for macro and logfile and repeating questions
     logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
     logical listzero,maptopbug
@@ -210,7 +211,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=21,ncalc=15,ncent=21,ncread=6
+    integer, parameter :: ncbas=30,nclist=24,ncalc=15,ncent=21,ncread=6
     integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=12
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
@@ -249,7 +250,8 @@ contains
          'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
-         'ACTIVE_EQUILIBR ','ELEMENTS        ','                ']
+         'ACTIVE_EQUILIBR ','ELEMENTS        ','TABLE_CSV_TYPE  ',&
+         '                ','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -384,7 +386,7 @@ contains
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
           'SPECIES         ','TPFUN           ','BROWSER         ',&
           'TRACE           ','SYMBOL_VALUE    ','MAP_STARTPOINTS ',&
-          'GRID            ','                ','                ']
+          'GRID            ','MQMQA_QUADS     ','                ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -1210,29 +1212,8 @@ contains
              write(*,*)'PMON: delete unstable composition sets'
              call delete_unstable_compsets(lokph,ceq)
 !....................................................
-          case(11) ! AMEND PHASE ... GADDITION
-! add a constant term to G, value in J/FU
-! This is replaced by AMEND PHASE ... ADDITION GADDITION
-             write(*,*)'Please use ... addition gaddition'
-             goto 100
-!             j4=phasetuple(iph)%lokvares
-!             call get_phase_compset(iph,ics,lokph,lokcs)
-!             if(gx%bmperr) goto 100
-!             write(*,*)'Pmon ',iph,ics,lokcs,j4
-!             lokcs=phasetuple(iph)%lokvares
-!             if(allocated(ceq%phase_varres(lokcs)%addg)) then
-!                xxy=ceq%phase_varres(lokcs)%addg(1)
-!             else
-! maybe we will use more terms later ....
-!                allocate(ceq%phase_varres(lokcs)%addg(1))
-!             endif
-!\hypertarget{Amend phase Gaddition}{}
-!             call gparrdx('Addition to G in J/FU (formula units): ',&
-!                  cline,last,xxx,xxy,'?Amend gaddition')
-!             ceq%phase_varres(lokcs)%addg(1)=xxx
-! set bit that this should be calculated
-!             ceq%phase_varres(lokcs)%status2=&
-!                  ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
+          case(11) ! unused
+             continue
 !....................................................
           case(12) ! amend phase ... aqueous model
              write(*,*)'Not implemented yet'
@@ -3699,10 +3680,12 @@ contains
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(3) ! enter species
-          if(.not.allowenter(1)) then
-             gx%bmperr=4125
-             goto 990
-          endif
+! Allow entering species even if there are phases entered
+! needed for the MQMQA model
+!          if(.not.allowenter(1)) then
+!             gx%bmperr=4125
+!             goto 990
+!          endif
           call gparcx('Species symbol: ',cline,last,1,name1,' ',&
                '?Enter species')
 ! NOTE: add check species name legal!
@@ -3999,7 +3982,8 @@ contains
 !         'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
 !         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
 !         'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
-!         ,ACTIVE_EQUILIBR ','ELEMENTS        ','                ']
+!         ,ACTIVE_EQUILIBR ','ELEMENTS        ','                ',&
+!         ,                ','                ','                ']
 ! SHOW is main cammand 25
     CASE(6,25) ! LIST and SHOW
        if(kom.eq.25) then
@@ -4718,8 +4702,150 @@ contains
        case(20)
           call list_all_elements(kou)
 !------------------------------
-! list ??
+! list CSV table, code copied from PLOT
        case(21)
+          if(noofaxis.gt.1 .or. .not.associated(maptop)) then
+             write(kou,*)'You must give a STEP command before list table_csv'
+             goto 100
+          endif
+          wildcard=.FALSE.
+          iax=1
+          jp=1
+          call get_one_condition(jp,text,axarr(iax)%seqz,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Error getting axis condition from index: ',&
+                  iax,axarr(iax)%seqz
+             goto 990
+          endif
+! we just want the expression, remove the value including the = sign
+          jp=index(text,'=')
+          text(jp:)=' '
+          axplotdef(1)=text
+          if(maptop%tieline_inplane.eq.1) then
+! if tie-lines in the plane is 1 (.e. YES) and calculating axis was x(A)
+! then plot axis should be x(*,cu) 
+             jp=index(text,'(')
+             if(jp.gt.0) then 
+                text=text(1:jp)//'*,'//text(jp+1:)
+             endif
+          endif
+! default for second axis always NP(*)
+          axplotdef(2)='NP(*)'
+! the 4th argument to gparc means the following:
+!      1 TEXT TERMINATED BY SPACE OR ","
+!      2 TEXT TERMINATED BY SPACE
+!      3 TEXT TERMINATED BY ";" OR "."
+!      4 TEXT TERMINATED BY ";"
+!      5 TEXT UP TO END-OF-LINE
+!      6 TEXT UP TO AND INCLUDING ";"
+!      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
+!    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
+          iax=1
+          call gparcdx('Independent variable',&
+               cline,last,7,axplot(iax),axplotdef(iax),'?Plot command')
+! dependent variables, can be wildcard
+          iax=2
+          call gparcdx('Dependent values',&
+               cline,last,7,axplot(iax),axplotdef(iax),'?Plot command')
+          if(buperr.ne.0) goto 990
+          if(index(axplot(iax),'*').gt.0 .or. index(axplot(iax),'#').gt.0) then
+             wildcard=.TRUE.
+          endif
+          if(index(axplot(iax),'*').gt.0) then
+! generate many values
+! the values are returned in yarr with dimension maxconst. 
+! longstring are the state variable symbols for the values ...
+             call get_many_svar(axplot(iax),yarr,maxconst,i1,longstring,ceq)
+             if(gx%bmperr.ne.0) then
+! if error go back to command level
+                write(kou,*)'Illegal axis variable!  Error code: ',gx%bmperr
+                goto 100
+             endif
+          elseif(index(axplot(iax),'#').gt.0) then
+! generate many values including for metastable phases
+! the values are returned in yarr with dimension maxconst. 
+! longstring are the state variable symbols for the values ...
+             call get_many_svar(axplot(iax),yarr,maxconst,i1,longstring,ceq)
+             if(gx%bmperr.ne.0) then
+! if error go back to command level
+                write(kou,*)'Illegal axis variable!  Error code: ',gx%bmperr
+                goto 100
+             endif
+          else
+! the value of a state variable or model parameter variable is returned
+! STRANGE the symbol xliqni is accepted in get_state_var_value ???
+             call get_state_var_value(axplot(iax),xxx,model,ceq)
+             if(gx%bmperr.ne.0) then
+! if error check if it is a complicated symbol like CP=H.T
+                gx%bmperr=0
+! If error then try to calculate a symbol ...
+                call capson(axplot(iax))
+                call find_svfun(axplot(iax),istv)
+                if(gx%bmperr.ne.0) then
+                   write(kou,*)'Illegal axis variable, error: ',gx%bmperr
+                   goto 100
+                endif
+             endif
+          endif
+! output file
+          if(buperr.ne.0) buperr=0
+          call gparfilex('Output file: ',cline,last,1,plotfile,' ',-5,&
+               '?CSV file')
+! make sure there is a plt extention
+          if(len_trim(plotfile).le.0) then
+             plotfile=' '
+             if(buperr.ne.0) then
+!                write(*,*)'PMON buperr: ',buperr
+                buperr=0
+             endif
+             write(*,*)'Output on screen'
+          else
+             jp=index(plotfile,'.')
+             if(jp.le.0) then
+                jp=len_trim(plotfile)
+                plotfile(jp+1:)='.csv'
+             endif
+             write(*,*)'Output will be on: ',trim(plotfile)
+          endif
+          if(plotfile(1:2).eq.'./') then
+! save in macro directory if iumaclevl>0, else in current working directory
+             if(iumaclevl.gt.0) then
+! we are executing a macro, skip the ./
+                aline=plotfile(3:)
+                plotfile=trim(macropath(iumaclevl))//aline
+             else
+! running interactivly prefix with working directory (default?)
+                aline=plotfile(2:)
+                plotfile=trim(workingdir)//aline
+             endif
+! trouble passing on ling file names ....
+!             write(*,*)'PMON working directory: ',trim(workingdir)
+             write(*,*)'Saving on file: ',trim(plotfile)
+          endif
+! use the graphics record to transfer data ...
+          graphopt%pltax(1)=axplot(1)
+          graphopt%pltax(2)=axplot(2)
+          graphopt%filename=plotfile
+! this command only for tabulating STEP commands
+          graphopt%status=ibset(graphopt%status,GRCSVTABLE)
+          graphopt%status=ibclr(graphopt%status,GRISOPLETH)
+! added ceq in the call to make it possible to handle change of reference states
+!          if(buperr.ne.0) buperr=0
+          call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
+          graphopt%status=ibclr(graphopt%status,GRCSVTABLE)
+          if(gx%bmperr.ne.0) goto 990
+!          write(*,*)'Not implemented yet'
+!------------------------------
+! list ??
+       case(22)
+          write(*,*)'Not implemented yet'
+!------------------------------
+! list ??
+       case(23)
+          write(*,*)'Not implemented yet'
+!------------------------------
+! list ??
+       case(24)
           write(*,*)'Not implemented yet'
        end SELECT list
 !=================================================================
@@ -4870,7 +4996,8 @@ contains
 ! if we come here with j4>j5 then ellist(jp) is not in elbase(1..j4)
                 if(j5.gt.j4) then
                    jp=jp-1
-                   write(kou,'(a,i3,1x,a)')'No such element: ',jp,ellist(jp)
+                   write(kou,'(a,i3,1x,a)')' *** WARNING: No such element: ',&
+                        jp,ellist(jp)
                 endif
                 if(eolch(cline,last)) then
 ! if empty line list current selection and prompt for more
@@ -5694,8 +5821,20 @@ contains
        case(10)
           call check_all_phases(0,ceq)
 !..................................
-! not used
+! DEBUG MQMQA_QUADS constituent test
        case(11)
+! specifying which sublattice each element belong to
+          jp=0
+          mqmqa: do while(.true.)
+             call gparcdx('MQMQA quadrupoles: ',&
+                  cline,last,5,aline,' ','?MQMQA specific')
+             if(aline(1:1).eq.' ') exit mqmqa
+             call mqmqa_constituents(aline,const,jp)
+             jp=1
+          enddo mqmqa
+          if(gx%bmperr.ne.0) goto 990
+! finished by an empty line, then replace species by endmembers
+          call mqmqa_rearrange
 !..................................
 ! not used
        case(12)

@@ -50,7 +50,7 @@
 !    integer, dimension(:), allocatable :: linesep
 ! encoded2 stores returned text from get_many ... 2048 is too short ...
 ! selphase used when plotting data just for a selected phase like y(fcc,*)
-    character statevar*64,encoded1*1024,encoded2*4096,selphase*24
+    character statevar*64,encoded1*1024,encoded2*4096,selphase*24,funsym*24
     character*128, dimension(:), allocatable :: phaseline
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv,nofapl
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil,errall
@@ -95,6 +95,7 @@
     pltax(1)=graphopt%pltax(1)
     pltax(2)=graphopt%pltax(2)
     filename=graphopt%filename
+    funsym=' '
 ! for isopleths this value determine the line color
     fixphasecolor=1
 
@@ -131,7 +132,7 @@
 !         maptop%next%seqx
     if(graphopt%rangedefaults(1).ne.0) then
        write(*,11)'x',graphopt%plotmin(1),graphopt%plotmax(1)
-11     format('Limits set by user for ',a,': ',2(1pe14.6))
+11     format('SMP limits set by user for ',a,': ',2(1pe14.6))
     endif
     if(graphopt%rangedefaults(2).ne.0) then
        write(*,11)'y',graphopt%plotmin(2),graphopt%plotmax(2)
@@ -668,6 +669,8 @@
                      statevar(1:10),curceq%tpval(1),nv,nr
                 nv=nv-1; goto 215
              endif
+! save to use in lid if not allocated
+             funsym=encoded1
              if(results%savedceq(nr)%nexteq.eq.0) then
 ! THIRD ?? Skipping
 !                write(*,212)'SMP skip last evaluated symbol: ',&
@@ -784,6 +787,8 @@
                            statevar,curceq%tpval(1),nv,0
                       goto 222
                    endif
+! save symbol name if lid not allocated
+                   funsym=encoded1
 ! This is tielines inplane, normally 3 lines to generate
 ! but when 2 stoichiometric phass with same composition one is not set stable
 !                   nv=nv+3
@@ -803,7 +808,6 @@
                    statevar=pltax(anpax)
 !                   write(*,*)'In ocplot2, segmentation fault 4H'
                    wild2: if(wildcard) then
-
 ! this cannot be a state variable derivative
 !                    write(*,*)'Getting a wildcard value 2: ',nr,statevar(1:20)
                       call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
@@ -1108,13 +1112,16 @@
 !       if(np.ge.1) then
 ! lid should always be allocated if np>1, but ... one never knows 
 !       write(*,*)'SMP: allocate lid 4: ',np
+! normally np=1 if we come here, plotting a single value
        allocate(lid(np),stat=errall)
        if(errall.ne.0) then
           write(*,*)'SMP2B Allocation error 11: ',errall
           gx%bmperr=4370; goto 1000
        endif
+!       write(*,*)'Allocating lid: ',trim(encoded1),trim(funsym),np
        do i=1,np
-          lid(i)='appended '
+!          lid(i)='appended '
+          lid(i)=funsym
        enddo
     endif
 !------------------------------------------------------------
@@ -1141,14 +1148,20 @@
 !    write(*,*)'smp2b isoplethplot 1: ',btest(graphopt%status,GRISOPLETH)
     call get_plot_conditions(encoded1,maptop%number_ofaxis,axarr,ceq)
 !
+! option to create a CSV table
+    if(btest(graphopt%status,GRCSVTABLE)) then
+       call list_csv(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
+            phaseline,title,filename,version,encoded1)
+    else
 ! NOW pltax should be the the axis labels if set manually
-    if(graphopt%labeldefaults(2).ne.0) pltax(1)=graphopt%plotlabels(2)
-    if(graphopt%labeldefaults(3).ne.0) pltax(2)=graphopt%plotlabels(3)
-!    write(*,*)' >>>>>>>>**>>> plot file: ',trim(filename)
-    call ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-         phaseline,title,filename,graphopt,version,encoded1,fixphasecolor)
+       if(graphopt%labeldefaults(2).ne.0) pltax(1)=graphopt%plotlabels(2)
+       if(graphopt%labeldefaults(3).ne.0) pltax(2)=graphopt%plotlabels(3)
+! write(*,*)' >>>>>>>>**>>> plot file: ',trim(filename)
+       call ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
+            phaseline,title,filename,graphopt,version,encoded1,fixphasecolor)
 !         title,filename,graphopt,pform,version,encoded1)
 !    goto 900
+    endif
 ! deallocate, not really needed for local arrays ??
     deallocate(anp)
     deallocate(xax)
@@ -3694,6 +3707,92 @@
 1000 continue
     return
   end subroutine amend_stored_equilibria
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine list_csv_table
+!\begin{verbatim} %
+  subroutine list_csv(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
+       phaseline,title,filename,version,encoded1)
+! list results from a STEP as an CSV (Comma Separated Values) table
+! called from ocplot2 when all values extraced
+! np number of regions
+! nrv total number of lines with calculated values
+! nlinesep number of lines for each region
+! linesep(j..nlinesep) is index of last line for region j
+! pltax are heading of table columns, each region separate headings
+! xax values on single value axis
+! anpax not used
+! anpdim first dimension of anp
+! anp values of axis with (possibly) multiple values
+! lid column headings for each region ?
+! phaseline ??
+! title of plot
+! filename output file
+! graphopt record
+! version of OC
+! encoded1 all conditions
+!     
+! use ov
+    integer np,nrv,nlinesep,anpax,anpdim
+    integer linesep(*)
+    character filename*(*),title*(*),version*(*),encoded1*(*)
+    character pltax(*)*(*),phaseline(*)*(*),lid(*)*(*)
+    double precision xax(*),anp(anpdim,*)
+! not needed?
+!    character lid(*)*(*)
+!\end{verbatim}
+    integer jj,kk
+!
+!    write(*,'(a,10i5)')'SMP2B: in list_csv',np,nrv,nlinesep,anpax,anpdim
+!    write(*,'(a,a,a,i3,1pe12.4)')'SMP2B: plotfile: "',trim(filename),'"',&
+!         len_trim(filename),rnone
+    if(filename(1:1).ne.' ') then
+       open(22,file=filename,access='sequential',status='unknown',err=1100)
+       lut=22
+    else
+       lut=kou
+    endif
+! header
+    if(np.eq.1) then
+       write(lut,100)trim(pltax(1)),trim(lid(np))
+    elseif(np.le.100) then
+       write(lut,101,advance='no')trim(pltax(1)),(trim(lid(jj)),jj=1,np-1)
+       write(lut,102)trim(lid(np))
+    else
+       write(*,*)'Cannot tablulate when more than 100 variables ...'
+    endif
+100 format('"',a,'", "',a,'"')
+101 format('"',a,'"',100(',"',a,'"'))
+102 format(a,'"')
+! loop for lines
+    do jj=1,nrv
+       write(lut,200,advance='no')xax(jj)
+200    format(1PE13.5)
+201    format(',',1PE13.5)
+202    format(',')
+! loop for columns except first and last value       
+       do kk=1,np-1
+          if(anp(kk,jj).ne.rnone) then
+             write(lut,201,advance='no')anp(kk,jj)
+          else
+             write(lut,202,advance='no')
+          endif
+       enddo
+       if(anp(np,jj).ne.rnone) then
+          write(lut,201)anp(np,jj)
+       else
+          write(lut,202)
+       endif
+    enddo
+    if(lut.ne.kou) close(lut)
+1000 continue
+    return
+! failed open output file
+1100 continue
+    write(*,*)'Cannot open file: ',trim(filename)
+    goto 1000
+  end subroutine list_csv
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

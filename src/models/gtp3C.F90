@@ -133,7 +133,7 @@
    text(ipos:ipos+24)=splista(spno)%symbol
    text(ipos+25:ipos+25)=' '
    dummy=' '
-   call encode_stoik(dummy,jpos,spno)
+   call encode_stoik(dummy,jpos,5,spno)
    text(ipos+26:ipos+48)=dummy(1:min(23,jpos))
    if(jpos.gt.23) text(ipos+46:ipos+48)='<.>'
    text(ipos+49:ipos+49)=' '
@@ -174,7 +174,7 @@
    text(ipos:ipos+24)=splista(loksp)%symbol
    text(ipos+25:ipos+25)=' '
    dummy=' '
-   call encode_stoik(dummy,jpos,loksp)
+   call encode_stoik(dummy,jpos,5,loksp)
    text(ipos+26:ipos+48)=dummy(1:jpos)
 !   text(ipos+49:ipos+49)=' '
 !   write(text(ipos+50:ipos+59),100)splista(loksp)%mass
@@ -1621,7 +1621,11 @@
       kmr=kmr+phlista(lokph)%nooffr(ll)
       l78='Subl. '; ip=7
       call wrinum(l78,ip,2,0,rl)
-      l78(ip:)=', sites: '; ip=ip+9
+      if(btest(phlista(lokph)%status1,PHFACTCE)) then
+         l78(ip:)=', bonds: '; ip=ip+9
+      else
+         l78(ip:)=', sites: '; ip=ip+9
+      endif
 !      call wrinum(l78,ip,6,0,phlista(lokph)%sites(ll))
       call wrinum(l78,ip,6,0,ceq%phase_varres(lokcs)%sites(ll))
       l78(ip:)=', const.: '; ip=ip+10
@@ -1788,9 +1792,9 @@
    elseif(btest(phlista(lokph)%status1,PHIONLIQ)) then
       special(1:1)='I'; modelid='Ionic 2-sblattice liquid'
 !                                123456789.123456789.1234
-! added 20201128/BoS, MQM, CQC and UNIQUAC
+! added 20201128/BoS, MQMQA, CQC and UNIQUAC
    elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
-      special(1:1)='Q'; modelid='Modif. Quasichem. model'
+      special(1:1)='Q'; modelid='MQMQA'
 !                                123456789.123456789.1234
       topline=2
    elseif(btest(phlista(lokph)%status1,PHQCE)) then
@@ -1817,15 +1821,16 @@
 !   write(lut,10)phname,phlista(lokph)%status1,special,&
 !        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
 !  lokcs=phlista(lokph)%linktocs(ics)
+!-----------------------------------------------------------------
    if(topline.eq.1) then
       write(lut,10)phname,phlista(lokph)%status1,special,modelid,&
            nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
 10    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a/'  Subl:',I3,10(1x,F7.3))
    elseif(topline.eq.2) then
 ! for the quasichemical models
-      write(lut,11)phname,phlista(lokph)%status1,special,modelid,&
+      write(lut,11)phname,phlista(lokph)%status1,special,trim(modelid),&
            firsteq%phase_varres(lokcs)%sites(1)
-11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a/'  Bonds/atom:',F7.3)
+11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a,', Bonds/at:',F7.3)
    endif
    nk=0
    text='Constituents: '
@@ -3040,10 +3045,11 @@
 
 !\addtotable subroutine encode_stoik
 !\begin{verbatim}
- subroutine encode_stoik(text,ipos,spno)
+ subroutine encode_stoik(text,ipos,mdig,spno)
 ! generate a stoichiometric formula of species from element list
+! mdig is max number of digits in stoichiometry
    implicit none
-   integer ipos,spno
+   integer ipos,mdig,spno
    character text*(*)
 !\end{verbatim}
    character elnam*2,ltext*60
@@ -3072,7 +3078,7 @@
       stoi=splista(spno)%stoichiometry(iel)
       isto=int(stoi)
       if(abs(dble(isto)-stoi).lt.1.0D-3) then
-! handle integer stoichiometries nicely
+! try to handle integer stoichiometries nicely
          if(isto.gt.99) then
             write(ltext(ipos:ipos+2),200)isto
 200         format(I3)
@@ -3091,9 +3097,10 @@
             ipos=ipos+1
          endif
       else
-! stoichiometry is a non-integer value
+! stoichiometry is a non-integer value, max mdig digits
          jpos=ipos
-         call wrinum(ltext,ipos,8,0,stoi)
+!         call wrinum(ltext,ipos,8,0,stoi)
+         call wrinum(ltext,ipos,mdig,0,stoi)
          if(buperr.ne.0) then
             gx%bmperr=buperr; goto 1000
          endif

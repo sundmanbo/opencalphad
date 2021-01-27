@@ -1466,6 +1466,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! used in ionic liquid:
 ! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)
      integer, dimension(2) :: i2slx
+! replaced by mqmqa_data
+!     integer, allocatable, dimension(:,:) :: contyp
 ! allocated in init_gtp.
   END TYPE gtp_phaserecord
 ! NOTE phase with index 0 is the reference phase for the elements
@@ -1474,6 +1476,21 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, private, allocatable :: PHASES(:)
 !\end{verbatim}
 !-----------------------------------------------------------------
+! data for liquid phase with mqmqa model (only one!)
+  TYPE gtp_mqmqa
+! contains special information for liquid models with MQMQA
+! nconst is umber of constituents, ncon1 on 1st subl, ncon2 on 2nd subl
+! contyp(1..4,const) 1,2 species in first sublattibe, -1,-2 in second sublattice
+! contyp(5,const) non-zero for endmember
+! contyp(6,7,const) for endmembers specifies 2 species
+! contyp(6..9,const) specifies 2 or 4 endmembers of the quadrupole
+! contyp(10,const) index of fraction (species in alphabetical order)
+! constoi(4,const) real with stoichiometry of species in quadrupole
+     integer nconst,ncon1,ncon2
+     integer, allocatable, dimension(:,:) :: contyp
+     double precision, allocatable, dimension(:,:) :: constoi
+  end TYPE gtp_mqmqa
+  TYPE(gtp_mqmqa), private :: mqmqa_data
 !
 !===================================================================
 !

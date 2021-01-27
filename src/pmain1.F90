@@ -20,9 +20,9 @@ PROGRAM pmain1
 ! save the data of linking the program
 !  call date_and_time(date)
 !  write(*,*)'Stored linking date: ',date
-! This line replaced by linkocdate to the date when compiling this program.
-  linkdate=date(1:4)//'-'//date(5:6)//'-'//date(7:8)
-! for example: linkdate='2019-11-27'
+! This line replaced by linkocdate to the date when compilin
+  linkdate='2021-01-27'
+! for example: linkdate='2021-01-27'
 ! this is the overall version identifier
   version='  6.020 '
 ! intvar and dblvar will eventually be used for allocations
@@ -48,7 +48,7 @@ PROGRAM pmain1
   call oc_command_monitor(version,linkdate,narg,arginline)
 !
 ! we come back here with the "back" command in the user i/f
-! The data structure for the default equilibrium is in eqlista
+! The data structure for the default equilibrium is in eqlis
   ceq=>eqlista(1)
 ! additional code can be added below for some particular app
 !

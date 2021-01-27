@@ -397,16 +397,16 @@
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Site ratio in Modified Quasichemical model 33
+! Modified Quasichemical model coordination factor 33
    npid=npid+1
-   propid(npid)%symbol='QCM'
+   propid(npid)%symbol='QCZ'
    propid(npid)%note='MQMQA cluster coord factor'
    propid(npid)%status=0
 ! This parameter does not depend on T and P
    propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
 !.......................................
 !.......................................
-! This IF statement should be at the last parameter identifier, maxprop=50?
+! This IF statement should be at the last parameter identifier, maxprop=50 ?
    if(npid.gt.maxprop) then
       write(*,*)'Too many parameter identifiers, increase maxprop'
       gx%bmperr=4250; goto 1000
