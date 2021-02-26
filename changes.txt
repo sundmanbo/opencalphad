@@ -6,7 +6,7 @@ OC6-macros.pdf.
 
 There is now a precompiled installation of OC on Windows on the
 OpenCalphad web page.  It includes an introduction, on-line help and
-examples with macro files and small databases.  For graphics the
+examples with macro files and some small databases.  For graphics the
 GNUPLOT software must be installed separately from Sourceforge or a
 similar website.
 
@@ -18,6 +18,19 @@ guru for help.  We who are providing this software do not have time to
 answer such questions.
 
 In the list below the most recent changes come first.
+
+2021.02.26 OC version 6.021: An attempt has been made to improve
+mapping of phase diagram.  As a first step several startpoints are
+now allowed for a map calculation and in a second step automatic
+startpoints will be generated.  The phase diagram calculation is very
+sensitive to the start points and any manipulation of the code for
+mapping creates havoc in some diagrams.  The command to add a second
+or third start point is "SET AS_START" after calculating the
+equilibrium with a new set of conditions.  Additionally one can invoke
+a global minimizer at regular intervals during mapping with the
+command "SET ADVANCED MAP" followed by a number.  The global grid
+minimizer will check the equilibria along the calculated lines at
+regular intervals according to this number.
 
 2021.01.27 OC version 6.020: On request from a user I have added a new
 list command, "LIST CSV-TABLE" which will generate a table with "Comma
@@ -44,7 +57,7 @@ added a new wildcard, "#", to allow plotting the driving force, DGM,
 of metastable phases.  The wildcard "*", ignore metastable phases.
 Still working on understanding the MQMQA quasichemical model (the -QA
 suffix means including quadrupol clusters). A new model parameter
-identifier, QCZ, has been added to define the variable coordination
+identifier, ZMQM, has been added to define the variable coordination
 factor for the elements in the liquid but maybe it is not needed.
 
 2020.11.19 OC version 6.018: Some more fixes for the TDB2DAT

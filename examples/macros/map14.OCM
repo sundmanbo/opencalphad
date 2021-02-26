@@ -30,7 +30,7 @@ set echo
 r t ./steel1
 fe cr mo
 
-set c t=1400 p=1e5 n=1 x(cr)=.5 x(mo)=.1
+set c t=1400 p=1e5 n=1 x(cr)=.3 x(mo)=.05
 
 c e
 

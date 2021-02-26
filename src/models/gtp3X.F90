@@ -226,7 +226,7 @@
       iliqva=.FALSE.
       jonva=0
    elseif(btest(phlista(lokph)%status1,PHQCE)) then
-! corrected quasichemical model
+! A quasichemical model with LRO/SRO
 ! we have to calculate the G of the the cluster constituents
 ! first determine the number of SRO cluster constituents
 !-      nclust=0
@@ -272,8 +272,8 @@
 ! this is the classical QC without LRO
 !      call config_entropy_cqc_classicqc(moded,phlista(lokph)%nooffr(1),&
 !           phres,phlista(lokph),gz%tpv(1))
-! this is the corrected QC
-      call config_entropy_cqc6(moded,phlista(lokph)%nooffr(1),&
+! this is the corrected QC, Hillert-Selleby-Sundman model
+      call config_entropy_qchillert(moded,phlista(lokph)%nooffr(1),&
            phres,phlista(lokph),gz%tpv(1))
 !      write(*,480)'3X dg/dt/RT: 1: ',qcmodel,phres%yfr(3),&
 !           phres%gval(1,1),phres%gval(2,1)
@@ -282,6 +282,18 @@
 !      call config_entropy_cqc(moded,phlista(lokph)%tnooffr(1),&
 !           phres,phlista(lokph),nclust,gclust,gz%tpv(1))
 
+   elseif(btest(phlista(lokph)%status1,PHCVMCE)) then
+! the classical quasichemical or tetraherdon CVM model with LRO
+      call config_entropy_qcwithlro(moded,phlista(lokph)%tnooffr,phres,&
+           phlista(lokph),gz%tpv(1))
+! phstate
+   elseif(btest(phlista(lokph)%status1,PHTISR)) then
+! the configurational model by E Kremer (CVM without LRO?)
+!      write(*,'(a,10(1pe12.4))')'3X tisr1: ',&
+!           (phres%dgval(1,j2,1),j2=1,phlista(lokph)%tnoffr)
+      call config_entropy_tisr(moded,phlista(lokph)%tnooffr,phres,&
+           phlista(lokph),gz%tpv(1))
+! phstate
    elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
 ! MQMQA FactSage entropy model
 !      write(*,*)'3X calling MQMQA liquid model'
@@ -3200,11 +3212,220 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine config_entropy_qcwithlro
+!\begin{verbatim}
+ subroutine config_entropy_qcwithlro(moded,ncon,phvar,phrec,tval)
+!
+! calculates configurational entropy/R for the quasichemial liquid with LRO
+!
+! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
+! ncon is number of constituents
+! phvar is pointer to phase_varres record
+! phrec is the phase record
+! tval is current value of T
+   implicit none
+   integer moded,ncon
+   TYPE(gtp_phase_varres), pointer :: phvar
+   TYPE(gtp_phaserecord) :: phrec
+   double precision tval
+!\end{verbatim} %+
+! First A=(z/2)*(\sum_i (y_ii*ln(y_ii) + \sum_(j>=i) y_ij*ln(y_ij/2))
+! and calculate all x_i = y_ii + \sum_j a/(a+b)*y_ij
+! Then calculate the SRO: q_ij=(y_ij/(x_i*x_j)-1)*(x_i+x_j)**2
+! and B=\sum_i x_i*ln(x_i)*(1-z + \sum_(j>i) (z/2-1)*f(q_ij))
+! -S = A+B
+   integer icon,loksp,lokel,iel,nqij,kqij,jxsym,infirst,lat2,i,j
+   double precision zhalf,yfra,ylog,cluster,sbonds,scorr,stoi1,stoi2
+   double precision xp,xs,gamma,x1,x2,sumx(2),gamma2
+   double precision, allocatable, dimension(:) :: qij,ycluster,&
+        dgamma,d2gamma
+   double precision, allocatable, dimension(:,:) :: xval
+   double precision, allocatable, dimension(:,:,:) :: dxval
+   integer, allocatable, dimension(:,:) :: qxij
+   logical iscluster
+   double precision, parameter :: half=0.5D0
+!
+   zhalf=half*phvar%qcbonds
+   allocate(xval(noofel,2))
+   allocate(dxval(noofel,ncon,2))
+!   allocate(ycluster(noofel))
+   xval=zero
+   dxval=zero
+!   write(*,*)'3X classical qc with LRO!',zhalf
+!   gx%bmperr=4399; goto 1000
+!
+   sbonds=zero
+   nqij=0
+   sumx=zero
+   ally: do icon=1,ncon
+      yfra=phvar%yfr(icon)
+      if(yfra.lt.bmpymin) yfra=bmpymin
+      if(yfra.gt.one) yfra=one
+! loksp is set to the index of the constituent in the species array
+      loksp=phrec%constitlist(icon)
+! if two elements it is an AB bond
+! To identify if the cluster constituent is on the first or second sublattice
+! use the alphabetical order of the species name.  If first letter<second
+! then the first element is in the first sublattice:
+! thus AB means first  element in first sublattice,
+!      BA means second element in first sublattice
+! The elements are always ordered alphabetically in splista(loksp)%ellinks
+      infirst=1
+      if(splista(loksp)%noofel.eq.2) then
+         cluster=half
+         iscluster=.TRUE.
+!         write(*,*)'3X CQC classic 0: ',qcmodel,iscluster,yfra
+         if(splista(loksp)%symbol(1:1).gt.splista(loksp)%symbol(2:2)) then
+! this is constituent BA
+            infirst=2
+         endif
+      elseif(splista(loksp)%noofel.eq.1) then
+! same element in both sublattices
+         cluster=one
+         iscluster=.FALSE.
+      else
+         write(*,*)'3X cluster with too many elements'
+         gx%bmperr=4399; goto 1000
+      endif
+      ylog=log(yfra)
+! gval(1:6,1) are G and derivator wrt T and P
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
+! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
+! this is a symmetric matrix and index givem by ixsym(M,N)
+      sbonds=sbonds+zhalf*yfra*ylog
+      if(moded.gt.0) then
+         phvar%dgval(1,icon,1)=zhalf*(one+ylog)
+         phvar%d2gval(kxsym(icon,icon),1)=zhalf/(yfra)
+      endif
+! lokel is index in ellista of first element in alphabetical order of element
+      lokel=splista(loksp)%ellinks(1)
+!      write(*,17)'3X qccorr: ',trim(splista(loksp)%symbol),icon,loksp,lokel,&
+!           infirst,iscluster,yfra
+17    format(a,a,4i4,l3,F7.4)
+      if(iscluster) then
+         nqij=nqij+1
+! if a bond cluster there must be two elements         
+         iel=ellista(lokel)%alphaindex
+         stoi1=splista(loksp)%stoichiometry(1)
+         stoi2=splista(loksp)%stoichiometry(2)
+         xval(iel,infirst)=xval(iel,infirst)+stoi1/(stoi1+stoi2)*yfra
+         sumx(infirst)=sumx(infirst)+stoi1/(stoi1+stoi2)*yfra
+         dxval(iel,icon,infirst)=stoi1/(stoi1+stoi2)
+!         write(*,60)'3X qc 3A: ',infirst,iel,yfra,((xval(i,j),i=1,2),j=1,2)
+60       format(a,2i4,F7.3,': ',10F7.3)
+         lokel=splista(loksp)%ellinks(2)
+         iel=ellista(lokel)%alphaindex
+         xval(iel,3-infirst)=xval(iel,3-infirst)+stoi2/(stoi1+stoi2)*yfra
+         sumx(3-infirst)=sumx(3-infirst)+stoi2/(stoi1+stoi2)*yfra
+         dxval(iel,icon,3-infirst)=stoi2/(stoi1+stoi2)
+!         write(*,60)'3X qc 3B: ',3-infirst,iel,yfra,((xval(i,j),i=1,2),j=1,2)
+      else
+! the same element in both sublattices, we already know lokel
+!         lokel=splista(loksp)%ellinks(1)
+         iel=ellista(lokel)%alphaindex
+         xval(iel,1)=xval(iel,1)+half*yfra
+         sumx(1)=sumx(1)+half*yfra
+         dxval(iel,icon,1)=half
+         xval(iel,2)=xval(iel,2)+half*yfra 
+         sumx(2)=sumx(2)+half*yfra
+         dxval(iel,icon,2)=half
+!         write(*,60)'3X qc 3C: ',1,iel,yfra,((xval(i,j),i=1,2),j=1,2)
+      endif
+!      write(*,60)'3X sumx: ',icon,0,yfra,sumx
+!      write(*,'(a,2i2,": ",8(i2,F6.2))')'3X dx:',icon,1,&
+!           ((iel,dxval(iel,i,1),i=1,ncon),iel=1,noofel)
+!      write(*,'(a,2i2,": ",8(i2,F6.2))')'3X dx:',icon,2,&
+!           ((iel,dxval(iel,i,2),i=1,ncon),iel=1,noofel)
+   enddo ally
+!----------------------------------------
+! Here we have all x values and derivatives
+! The correction term is composition independent 1-z
+!   gamma=one-2.0D0*zhalf
+! factor 0.5 gives OK SRO but no LRO
+   gamma=0.5D0*(one-2.0D0*zhalf)     ! OK SRO but no LRO
+!   gamma=sumx(1)*(one-2.0D0*zhalf) no improvement
+!   gamma=0.75D0*(one-2.0D0*zhalf) totally wrong
+!   gamma=0.25D0*(one-2.0D0*zhalf) Very bad
+! THIS FACTOR 2 MAKES LRO STABLE ... BUT IS IT CORRECT???
+   gamma2=2.0D0*gamma
+! MAYBE THERE IS SOME ERROR IN THE DERIVATIVES BELOW?
+! Some elements may not be dissolved in this phase ??
+!   write(*,'(a,7F7.3)')'3X x1:',sumx(1),(xval(iel,1),iel=1,noofel)
+!   write(*,'(a,5F7.3)')'3X x2:',sumx(2),(xval(iel,2),iel=1,noofel)
+   do lat2=1,2
+      do iel=1,noofel
+         xval(iel,lat2)=xval(iel,lat2)/sumx(lat2)
+      enddo
+   enddo
+!   write(*,'(a,5F7.3)')'3X QCLRO: ',sumx,gamma,gamma2
+!   write(*,'(a,7F7.3)')'3X x3:',sumx(1),(xval(iel,1),iel=1,noofel)
+!   write(*,'(a,7F7.3)')'3X x4:',sumx(2),(xval(iel,2),iel=1,noofel)
+!   write(*,'(a,8(i2,F7.3))')'3X x5:',((iel,dxval(iel,icon,1),&
+!        icon=1,ncon),iel=1,noofel)
+!   write(*,'(a,8(i2,F7.3))')'3X x6:',((iel,dxval(iel,icon,2),&
+!        icon=1,ncon),iel=1,noofel)
+   scorr=zero
+   sub2: do lat2=1,2
+      allx: do iel=1,noofel
+         yfra=xval(iel,lat2)
+         if(yfra.le.bmpymin) yfra=bmpymin
+         if(yfra.gt.one) yfra=one
+         ylog=log(yfra)
+! this is the contribution to integral G, multiplied with gamma after the loop
+         scorr=scorr+yfra*ylog
+! WE MUST ALSO CALCULATE DERIVATIVES OF x_i wrt y USING CHAIN RULE
+         if(moded.gt.0) then
+            ally2: do icon=1,ncon
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1..N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1..N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1..N and P
+! d2dval(ixsym(N*(M+1)/2),1) are derivatives of G wrt fractions N and M
+               phvar%dgval(1,icon,1)=phvar%dgval(1,icon,1)+&
+                    gamma2*(one+ylog)*dxval(iel,icon,lat2)
+               jxsym=kxsym(icon,icon)
+               do loksp=icon,ncon
+                  if(ixsym(icon,loksp).ne.jxsym) then
+! this ixsym test works and has run of few 1000 times, removed for speed!!
+                     write(*,*)'3X KSYM error 18',ixsym(icon,loksp),jxsym
+                     stop
+                  endif
+                  phvar%d2gval(jxsym,1)=phvar%d2gval(jxsym,1)+&
+                       gamma2*dxval(iel,icon,lat2)*dxval(iel,loksp,lat2)/yfra
+! this replaces call to ixsym(loksp,icon)
+                  jxsym=jxsym+loksp
+               enddo
+            enddo ally2
+         endif
+      enddo allx
+   enddo sub2
+!
+!   write(*,'(a,8(i2,F7.3))')'3X x5:',((iel,dxval(iel,ncon,1),iel=1,noofel),&
+!
+!- ixsym --------------- ixsym end modification
+! now all is calculated gval(1,1)=G; gval(2,1)=S etc
+   write(*,'(a,4(1pe12.4))')'3X scorr: ',tval,gamma2,scorr,sbonds
+   phvar%gval(1,1)=sbonds+gamma*scorr
+   phvar%gval(2,1)=(sbonds+gamma*scorr)/tval
+!   write(*,12)'3X QCLRO: ',phvar%gval(1,1),phvar%gval(2,1),gamma,&
+!        zhalf,sbonds,scorr
+12 format(a,6(1pe11.3))
+!
+1000 continue
+   return
+! NO LRO .... SUCK .... but LRO by doubling gamma2, why??
+ end subroutine config_entropy_qcwithlro
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine config_entropy_cqc_classicqc
 !\begin{verbatim}
  subroutine config_entropy_cqc_classicqc(moded,ncon,phvar,phrec,tval)
 !
-! calculates configurational entropy/R for the classical quasichemial liquid
+! calculates configurational entropy/R for the quasichemial liquid with LRO
+!
+! THIS ROUTINE NOT USED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! THIS WORKS OK 2019-01-10: DO NOT CHANGE ANYTHING!! works for qcmodel=1
 ! routine for qcmodel=2 and 3 laret
@@ -3356,164 +3577,20 @@
         zhalf,sbonds,scorr
 12 format(a,i2,6(1pe11.3))
 !
+! THIS ROUTINE NOT USED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
 1000 continue
    return
  end subroutine config_entropy_cqc_classicqc
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine config_entropy_floryhuggins
+!\addtotable subroutine config_entropy_qchillert
 !\begin{verbatim}
- subroutine config_entropy_floryhuggins(moded,nofc,phvar,tval,fhv,dfhv,d2fhv)
-! calculates configurational entropy/R for a phase with Flory-Huggins model
-! moded=0 only G; =1 G and dG/dy; =2; G, dG/dy and d2G/dy2
-! nofc number of constituents, phvar phase_varres record
-   implicit none
-   integer moded,nofc
-   TYPE(gtp_phase_varres), pointer :: phvar
-! fvh(1,1) is FH volume for constituent 1 etc.
-   double precision tval,fhv(nofc,*),dfhv(nofc,3,*),d2fhv(nofc,*)
-!\end{verbatim} %+
-   integer kall,nofc2,k1,k2
-   double precision ss,sy,st,sp,yfra1,ylog,sumq
-   double precision, allocatable :: pfhv(:,:),dpfhv(:,:,:),d2pfhv(:,:)
-   double precision, allocatable :: yfra(:),qfra(:),sumsy(:,:)
-!
-   nofc2=nofc*(nofc+1)/2
-!   write(*,1)'3X Config entropy FH model: ',nofc,(fhv(kall,1),kall=1,nofc)
-1  format(a,i3,5F8.2)
-107 format(a,6(1pe12.4))
-108 format(a,i2,6(1pe12.4))
-   allocate(yfra(nofc))
-   allocate(qfra(nofc))
-   allocate(sumsy(nofc,nofc))
-! temporary arrays, maybe all not needed??
-   allocate(pfhv(nofc,6))
-   allocate(dpfhv(nofc,3,nofc))
-   allocate(d2pfhv(nofc,nofc2))
-   dpfhv=zero
-   d2pfhv=zero
-!
-! sum the FH volumes for current composition and use as normallizing
-   sumq=zero
-   sumsy=zero
-   do kall=1,nofc
-      yfra1=phvar%yfr(kall)
-      if(yfra1.lt.bmpymin) yfra1=bmpymin
-      if(yfra1.gt.one) yfra1=one
-!v      sumq=sumq+fhv(kall,1)*yfra1
-      sumq=sumq+yfra1
-      yfra(kall)=yfra1
-!      do k1=1,nofc
-!         if(k1.eq.kall) then
-! 1st DERIVATIVES of q_i = p_i/\sum_j p_j
-! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P der
-! dfhv(i,1,j) derivative of FH volume for i wrt const j
-! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
-! dfhv(i,3,j) 2nd derivative of FH volume for i wrt const j and P
-! UNFINISHED ?? sumsy including T and P derivatives ??
-!            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)+fhv(kall,1)
-!            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)+fhv(kall,2)
-!            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)+fhv(kall,3)
-!            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1+fhv(kall,1)
-!            write(*,106)'3X sum1: ',kall,k1,sumsy(1,k1)
-!         else
-!            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)
-!            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)
-!            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)
-!            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1
-!            write(*,106)'3X sum2: ',kall,k1,sumsy(1,k1)
-!         endif
-!      enddo
-   enddo
-106 format(a,2i3,1pe12.4)
-! we should extract fhv for each constituent from the species record ...
-!   write(*,117)'3X sumq, vi: ',sumq,(fhv(kall,1)*yfra(kall)/sumq,kall=1,nofc)
-117 format(a,6(1pe12.4))
-!-----------------------------------------
-! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P deriv
-! dfhv(i,1,j) derivative of FH volume for i wrt const j
-! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
-! dfhv(i,3,j) 2nd derivative of FH volume for i wrt const j and P
-! d2fhv(i,ixsym(j,k)) 2nd derivative of FH volume for i wrt const j and k
-! gval(1:6,1) are G and derivator wrt T and P
-! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
-! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
-! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
-! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
-! this is a symmetric matrix and index givem by ixsym(M,N)
-! ========== IMPORTANT: We have not implemented composition dependence in the
-! Gibbs energy calculations !!!  Test that is not used!
-   do kall=1,nofc
-      ss=dfhv(kall,1,1)
-      do k1=2,nofc
-         if(abs(dfhv(kall,1,k1)-ss).gt.1.0D-8) then
-            write(*,77)kall,k1,dfhv(kall,1,k1)
-77          format(' *** Warning, Flory-Huggins model implemented',&
-                 ' for constant FHV only',2i3,1pe12.4)
-         endif
-      enddo
-   enddo
-! =========================================================================
-! Calculate the confurational entropy
-   ss=zero
-   fractionloop: do kall=1,nofc
-! We use the already calculated partial molar volumes v_i = fhv_i * y_i
-! This means we cannot calculate this before calculating all parameters once!!
-! so this routine must be called after a first calculation of fhv, dfhv etc
-! and then we must calculate all parameters again ... as they depend of v_i
-! this is ln(n_i/(\sum_j n_j)), 0<yfra(kall)<1
-!v      ylog=log(fhv(kall,1)*yfra(kall)/sumq)
-!      ylog=log(yfra(kall)/sumq)    .... sumq=1.0!!
-      ylog=log(yfra(kall))
-      if(moded.gt.0) then
-! UNFINISHED derivatives wrt T, P
-         loopk1: do k1=1,nofc
-            loopk2: do k2=k1,nofc
-! UNFINISHED all second derivatives ignored, just set as for ideal 1/y
-               if(kall.eq.k1 .and. k1.eq.k2) then
-                  phvar%d2gval(ixsym(k1,k2),1)=one/yfra(kall)
-               endif
-            enddo loopk2
-! This is df_i/dz, eq. 11 in FH documentation. Note dpfhv and sumsy set
-! above to include the extra term if kall=k1
-!            sy=dpfhv(kall,1,k1)*(ylog+one)-fhv(kall,1)/sumq*sumsy(1,k1)
-! UNFINISHED ... IGNORE THE COMPOSITION DEPENENCE OF fhv_i ...
-         enddo loopk1
-! 
-!         phvar%dgval(1,kall,1)=fhv(kall,1)/sumq*(ylog+one)
-!         phvar%dgval(1,kall,1)=(ylog+one)/sumq
-! each species has now a flory-Huggins segment value in fhv(kall,1)
-         phvar%dgval(1,kall,1)=(ylog+one)/fhv(kall,1)
-         phvar%dgval(2,kall,1)=phvar%dgval(2,kall,1)/tval
-      endif
-!      ss=ss+(fhv(kall,1)/sumq)*yfra(kall)*ylog
-!v      ss=ss+yfra(kall)*ylog
-      ss=ss+yfra(kall)/fhv(kall,1)*ylog
-!      write(*,300)'3X ss: ',ss,yfra(kall),fhv(kall,1),fhv(kall,1)*yfra/sumq,&
-!           ylog
-300   format(a,6(1pe12.4))
-   enddo fractionloop
-! each species may now have a Flory Huggins segment number ....
-!   ss=ss/sumq
-   ss=ss
-! The integral entropy and its T and P derivatives
-! UNFINISHED should include T and P derivatives of fhv ....
-!   phvar%gval(1,1)=phvar%gval(1,1)+ss
-   phvar%gval(1,1)=ss
-! UNFINISHED add T derivates of dfhv .... and any P derivatives
-   phvar%gval(2,1)=phvar%gval(1,1)/tval
-1000 continue
-   return
- end subroutine config_entropy_floryhuggins
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine config_entropy_cqc6
-!\begin{verbatim}
- subroutine config_entropy_cqc6(moded,ncon,phvar,phrec,tval)
+ subroutine config_entropy_qchillert(moded,ncon,phvar,phrec,tval)
 !
 ! calculates configurational entropy/R for the corrected quasichemial liquid
+! Hillert-Selleby-Sundman
 ! Rewritten 2019-01-12 based on cqc-classicqc which seems correct
 ! test1: qcmodel=1: OK for zhalf=1 and 3
 ! test2: qcmodel=2: OK!!
@@ -3775,7 +3852,376 @@
 !
 1000 continue
    return
- end subroutine config_entropy_cqc6 !gamma, dgamma, d2gamma
+ end subroutine config_entropy_qchillert !gamma, dgamma, d2gamma
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_cvmce
+!\begin{verbatim}
+ subroutine config_entropy_cvmce(moded,ncon,phvar,phrec,tval)
+!
+! calculates the classical QC and CVM models sith LRO
+! started 2021-02-17
+!
+! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
+! ncon is number of constituents
+! phvar is pointer to phase_varres record
+! phrec is the phase record
+! tval is current value of T
+   implicit none
+   integer moded,ncon
+   TYPE(gtp_phase_varres), pointer :: phvar
+   TYPE(gtp_phaserecord) :: phrec
+   double precision tval
+!\end{verbatim}
+!---------------------------------------------------------------------------1
+   write(*,*)'3X classical QC model with LRO, not implemented yet'
+! S = - \sum_i y_i ln(y_i) + z/2 \sum_k x_k ln(x_k)
+   gx%bmperr=4399
+1000 continue
+   return
+ end subroutine config_entropy_cvmce
+
+ !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_tisr_try2
+!\begin{verbatim}
+ subroutine config_entropy_tisr(moded,ncon,phvar,phrec,tval)
+!
+! calculates configurational entropy/R for the Kremer liquid SRO model
+! started 2021-02-12
+!
+! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
+! ncon is number of constituents, each cell a constituent
+! phvar is pointer to phase_varres record
+! phrec is the phase record
+! tval is current value of T
+   implicit none
+   integer moded,ncon
+   TYPE(gtp_phase_varres), pointer :: phvar
+   TYPE(gtp_phaserecord) :: phrec
+   double precision tval
+!\end{verbatim}
+!---------------------------------------------------------------------------
+! FOR A BINARY, with 5 SRO clusters as in tetrahedron FCC 
+! 
+   integer ia,ib,ja,jb,kk,mm,alpha,jxsym,loksp
+   double precision sum,rk,ggx(2),ggg,rtg
+   double precision s1,s2,s11,s12,s21,s22
+   double precision s111,s112,s121,s122,s211,s212,s221,s222
+! model constants 
+   double precision beta,gamma
+   double precision, allocatable, dimension(:) :: uijalpha,wwij,pij,lambda,xx
+   double precision rrk(0:4)
+! rk is 1/kk; tetrahedron in fcc lattice, z=12; m=4
+   kk=4; rk=0.25D0
+! this is the fraction parmuations, 1, 4, 6, 4, 1 for tetrahedron FCC
+!   rrk=one
+   rrk(0)=one; rrk(1)=0.25D0; rrk(2)=one/6.0D0; rrk(3)=0.25; rrk(4)=one
+   beta=6.0D0
+   gamma=one
+   write(*,'(a,i2,8(F7.3))')'3X testing TISR try 2: ',ncon,&
+        (phvar%yfr(ia),ia=1,ncon)
+   if(ncon.gt.5) then
+! ncon should be less than 5 for the moment ...
+      write(*,*)'3X too big system'
+      stop
+   endif
+! check amount of B atoms in the constituents, should go from 0 to 4
+!   do ia=1,ncon
+!      do ib=1,phrec%tnooffr
+!         loksp=phrec%constitlist(ib)
+!         do ja=1,splista(loksp)%noofel
+!           write(*,'(a,a,i2,F7.2)')'3X tisr sp: ',trim(splista(loksp)%symbol),&
+!                 splista(loksp)%ellinks(ja),splista(loksp)%stoichiometry(ja)
+!         enddo
+!      enddo
+!   enddo
+! alpha is the configuration as A4, A3B1, A2B2 etc. Assume only one uijalpha 
+! A4  : i=0, j=4; alpha=0   pp(0)
+! A3B1: i=1, j=3; alpha=1   pp(1)
+! A2B2: i=2, j=2; alpha=2   pp(2)
+! A1B3: i=3, j=1; alpha=3   pp(3)
+! B4  : i=4, j=0; alpha=4   pp(4)
+! the fraction of elements in xx
+   allocate(xx(1:2))
+   allocate(uijalpha(0:4))
+   allocate(wwij(0:4))
+   allocate(pij(0:4))
+   uijalpha=zero
+! uijalpha is in J/mol; globaldata%rgas is J/(mol*K).  only a2b2 ordering
+   rtg=globaldata%rgas*tval
+! test without any ordering parameters, the system should be ideal ...
+! uija(0) is B4, uija(1) is B3A1
+!   uijalpha(2)=-1.0D0*beta/rtg
+!-------------------------------------------------------------------
+   do alpha=0,4
+!      wwij(alpha)=exp(-uijalpha(alpha)/gamma)
+! the pij are the external fraction variables
+! They are in the order A4, A3B1, ... B4; thus "ia" is number of B atoms
+      pij(alpha)=phvar%yfr(alpha+1)
+   enddo
+! mole fractions, note "ia" is the number of B atoms!!
+   xx=zero
+   do ia=0,4
+      xx(1)=xx(1)+(kk-ia)*rk*pij(ia)
+      xx(2)=xx(2)+ia*rk*pij(ia)
+   enddo
+! xx(1) is fraction of A, xx(2) fraction of B
+   write(*,'(a,5F7.3,2x,3F7.3)')'3X pij&xi: ',(pij(ia),ia=0,4),xx(1),xx(2)
+!
+! This subroutine return values divided by RT
+   ggg=zero
+! all values should be zero here!!!
+!   write(*,'(a,7(1pe11.3))')'3X H0: ',ggg,(phvar%dgval(1,ia,1),ia=1,ncon)
+! This is the enthalpy part
+   do ia=0,4
+      ggg=ggg+uijalpha(ia)*pij(ia)
+   enddo
+!   do ia=1,ncon
+!      phvar%dgval(1,ia,1)=zero
+!   enddo
+! First derivatives of the enthalpy part, no T derivative at present
+   do ia=0,4
+      phvar%dgval(1,ia+1,1)=uijalpha(ia)
+   enddo
+   write(*,'(a,7(1pe11.3))')'3X H1: ',ggg,(phvar%dgval(1,ia,1),ia=1,ncon)
+! this is random entropy part   
+   ggx=zero
+!   do ia=1,2
+!      ggx(1)=ggx(1)+xx(ia)*log(xx(ia))
+!   enddo
+! This is the SRO entropy part
+   do ia=0,4
+!      ggx(2)=ggx(2)+pij(ia)*log(pij(ia)*rrk(ia))
+      ggx(2)=ggx(2)+pij(ia)*log(pij(ia)*rrk(ia))
+   enddo
+! gval(1:6,1) are G, dG/dT, dG/dP, d2G/dT2, d2G/dTdP and d2G/dP2
+! this is version try2...................
+!   phvar%gval(1,1)=ggg+(one-gamma)*ggx(1)+gamma*ggx(2)
+!   phvar%gval(2,1)=((one-gamma)*ggx(1)+gamma*ggx(2))/tval
+   phvar%gval(1,1)=ggg+gamma*ggx(2)
+   phvar%gval(2,1)=(gamma*ggx(2))/tval
+   write(*,'(a,5(1pe12.4))')'3X GVAL: ',phvar%gval(1,1),ggx
+! first derivatives of p_ij
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
+! using p*log(p) for ordered part, we have ncon derivtives ...
+   do ia=0,4
+! d/pij ( x1*ln(x1)+x2*log(x2)+  ...+ pij*log(pij)
+! note "ia" counts the B atoms
+!      phvar%dgval(1,ia+1,1)=(one-gamma)*(one+log(xx(1))+log(xx(2)))+&
+!           gamma*(one/rrk(ia)+log(pij(ia)*rrk(ia)))
+!      phvar%dgval(1,ia+1,1)=gamma*(one/rrk(ia)+log(pij(ia)*rrk(ia)))
+      phvar%dgval(1,ia+1,1)=gamma*(one+log(pij(ia)*rrk(ia)))
+      phvar%dgval(2,ia+1,1)=phvar%dgval(1,ia+1,1)/tval
+   enddo
+   write(*,'(a,5(1pe12.4))')'3X dgdy1: ',(phvar%dgval(1,ia,1),ia=1,ncon)
+!------------------------------------------------------
+! second derivatives, symmetric, stored only upper half
+! approximate with 1/pij
+! NOTE phvar%d2gval(*,1) is zero when we come here
+   jxsym=0
+   jb=1
+   do ia=1,ncon
+      do ib=ia,ncon
+         jxsym=jxsym+1
+         if(ib.eq.ia) then
+!            phvar%d2gval(jxsym,1)=gamma*rrk(ib-1)/pij(ib-1)  ???
+!            phvar%d2gval(jxsym,1)=gamma/(pij(ib-1)*rrk(ib-1))
+            phvar%d2gval(jxsym,1)=gamma/pij(ib-1)
+!            write(*,'(a,3i3,1pe12.4)')'3X pij: ',ia,ib,jxsym,pij(ib-1)
+         endif
+      enddo
+      write(*,'(a,5(1pe11.3))')'3X d2gdy2: ',(phvar%d2gval(ja,1),ja=jb,jxsym)
+      jb=jxsym+1
+   enddo
+!   write(*,'(a,5(1pe12.4))')'3X dgdy2: ',(phvar%dgval(1,ia,1),ia=1,ncon)
+!-----------------------------------
+1000 continue
+   return
+ end subroutine config_entropy_tisr
+
+ !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_tisr_try1
+!\begin{verbatim}
+ subroutine config_entropy_tisr_try1(moded,ncon,phvar,phrec,tval)
+!
+! calculates configurational entropy/R for the Kremer liquid SRO model
+! started 2021-02-12
+!
+! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
+! ncon is number of constituents
+! phvar is pointer to phase_varres record
+! phrec is the phase record
+! tval is current value of T
+   implicit none
+   integer moded,ncon
+   TYPE(gtp_phase_varres), pointer :: phvar
+   TYPE(gtp_phaserecord) :: phrec
+   double precision tval
+!\end{verbatim}
+!---------------------------------------------------------------------------
+! FOR A BINARY, two external variables treated as fractions although not
+! 
+   integer ia,ib,ja,jb,kk,mm,alpha,jxsym
+   double precision sum,rk,ggx(2),ggg,dgg(2),rtg
+   double precision s1,s2,s11,s12,s21,s22
+   double precision s111,s112,s121,s122,s211,s212,s221,s222
+   double precision :: lambdasum=1
+! is this needed?
+   save lambdasum
+! model is tetrahedron with 5 p_i ?
+! model constants 
+   double precision beta,gamma
+   double precision, allocatable, dimension(:) :: uijalpha,wwij,pij,lambda,xx
+! rk is 1/kk; tetrahedron in fcc lattice, z=12; m=4
+   kk=4; rk=0.25D0
+   beta=6
+   gamma=2.0D0
+! ncon should be 2, the lambdas
+   write(*,'(a,i2,F7.3,2x,7(F7.3))')'3X testing TISR ',ncon,lambdasum,&
+        (phvar%yfr(ia),ia=1,ncon)
+   if(ncon.ne.2) then
+! attempt to include vacancies ...
+      write(*,*)'3X Last constituent ignored',ncon
+   endif
+! the first two should be the real elements
+   allocate(xx(1:2))
+   allocate(lambda(1:2))
+   allocate(uijalpha(0:4))
+   allocate(wwij(0:4))
+   allocate(pij(0:4))
+   uijalpha=zero
+! alpha is the configuration as A4, A3B1, A2B2 etc. Assume only one uijalpha 
+! A4  : i=0, j=4; alpha=0   pp(0)
+! A3B1: i=1, j=3; alpha=1   pp(1)
+! A2B2: i=2, j=2; alpha=2   pp(2)
+! A1B3: i=3, j=1; alpha=3   pp(3)
+! B4  : i=4, j=0; alpha=4   pp(4)
+! uijalpha is in J/mol; globaldata%rgas is J/(mol*K).  only a2b2 ordering
+   rtg=globaldata%rgas*tval
+   uijalpha(2)=-5.0D2*beta/rtg
+!-------------------------------------------------------------------
+! lambda are the "symbolic" fraction variables ... they are scaled by lambdasum
+   lambda(1)=phvar%yfr(1)*lambdasum
+   lambda(2)=phvar%yfr(2)*lambdasum
+! lambdasum can be updated at each iteration, but it will always be unity ??
+   lambdasum=lambda(1)+lambda(2)
+! Calculate w_ij and p_ij
+   sum=zero
+   do alpha=0,4
+      wwij(alpha)=exp(-uijalpha(alpha)/gamma)
+! index i is same as alpha, j=k-i
+      ia=alpha; ja=kk-ia
+      pij(alpha)=wwij(alpha)*exp(ia*lambda(1)+ja*lambda(2))
+      sum=sum+pij(alpha)
+   enddo
+   write(*,'(a,5(1pe12.4))')'3X ggx: ',(wwij(ia),ia=0,4)
+! normalize pij and calculate mole fractions
+   do ia=0,4
+      pij(ia)=pij(ia)/sum
+   enddo
+   xx=zero
+   do ia=0,4
+      xx(1)=xx(1)+ia*rk*pij(ia)
+      xx(2)=xx(2)+(kk-ia)*rk*pij(ia)
+   enddo
+   write(*,'(a,5F7.3,2x,3F7.3)')'3X pij&xi: ',(pij(ia),ia=0,4),xx(1),xx(2),sum
+   if(abs(xx(1)+xx(2)-one).gt.1.0D-12) then
+      write(*,*)'3X sum of mole fractions not unity',xx(1)+xx(2)
+   endif
+! This subroutine return value divided by RT
+   ggg=zero
+! This is the enthalpy part
+   do ia=0,4
+      ggg=ggg+uijalpha(ia)*pij(ia)
+   enddo
+   write(*,*)'3X enthalpy: ',ggg
+! this is the entropy part   
+   ggx=zero
+   do ia=1,2
+      ggx(1)=ggx(1)+xx(ia)*log(xx(ia))
+      ggx(2)=ggx(2)+xx(ia)*lambda(ia)
+   enddo
+!   do ia=0,4
+!      ggx(2)=ggx(2)+pij(ia)*log(pij(ia))
+!   enddo
+! gval(1:6,1) are G, dG/dT, dG/dP, d2G/dT2, d2G/dTdP and d2G/dP2
+   phvar%gval(1,1)=ggg+(one-gamma)*ggx(1)+gamma*ggx(2)
+   phvar%gval(2,1)=((one-gamma)*ggx(1)+gamma*ggx(2))/tval
+   write(*,'(a,5(1pe12.4))')'3X GVAL: ',phvar%gval(1,1),ggx
+! derivatives, usind Ed's notation, note pp(1) has i=0; s=1.0
+! first derivatives
+   s1=pij(1) +2*pij(2)+3*pij(3) +4*pij(4); s2=kk-s1
+   s11=pij(1)+4*pij(2)+9*pij(3)+16*pij(4); s12=kk*s1-s11; s22=kk**2-2*kk*s1+s11
+! is s_21=s_12 ???
+   s21=s12
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
+! original derivatives
+   phvar%dgval(1,1,1)=(one-gamma)*rk*(s11*log(s1*rk)+s21*log(s1*rk)+s11+s12)+&
+        gamma*rk*(s1*lambda(1)+s2*lambda(2))
+   phvar%dgval(2,1,1)=phvar%dgval(1,1,1)/tval
+   phvar%dgval(1,2,1)=(one-gamma)*(s12*rk*log(s1*rk)+s22*rk*log(s1*rk)+&
+        s12*rk+s22*rk)+gamma*rk*(s1*lambda(1)+s2*lambda(2))
+   phvar%dgval(2,2,1)=phvar%dgval(1,2,1)/tval
+!--------------------------------------------------
+! using p*log(p) for ordered part
+!   phvar%dgval(1,1,1)=(one-gamma)*rk*(s11*log(s1*rk)+s21*log(s1*rk)+s11+s12)+&
+!        gamma*rk*s1*(one+log(pijlambda(1)+s2*lambda(2))
+!   phvar%dgval(2,1,1)=phvar%dgval(1,1,1)/tval
+!   phvar%dgval(1,2,1)=(one-gamma)*(s12*rk*log(s1*rk)+s22*rk*log(s1*rk)+&
+!        s12*rk+s22*rk)+gamma*rk*(s1*lambda(1)+s2*lambda(2))
+!   phvar%dgval(2,2,1)=phvar%dgval(1,2,1)/tval
+!------------------------------------------------------
+! second derivatives, symmetric, stored only upper half
+! approximate with 1/xx
+   jxsym=1
+   phvar%d2gval(jxsym,1)=(one-gamma)*rk/xx(1)
+   jxsym=3
+   phvar%d2gval(jxsym,1)=(one-gamma)*rk/xx(2)
+   goto 900
+!--------------------------------
+! some missing s_ijk ?
+   s111=pij(1)+8*pij(2)+27*pij(3)+64*pij(4); s112=kk*s11-s111
+   s122=kk**2*s1-2*kk*s11+s111;          s222=kk**3-3*kk**2+3*kk*s11+s111
+! d2dval(jxsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
+   jxsym=1
+! sigma=1, rho=1
+   phvar%d2gval(jxsym,1)=(one-gamma)*rk*(s111*log(s1*rk)+s211*log(s2*rk)+&
+        s11/s1*s11+s12/s2*s2+s111+s211)+&
+        gamma*rk*(s111*lambda(1)+s211*lambda(2)+s11+s11)
+! sigma=1, rho=2
+   jxsym=jxsym+1
+   phvar%d2gval(jxsym,1)=(one-gamma)*rk*(s112*log(s1*rk)+s212*log(s2*rk)+&
+        s11/s1*s11+s12/s2*s2+s111+s211)+&
+        gamma*rk*(s111*lambda(1)+s211*lambda(2)+s11+s11)
+! sigma=2; rho=2
+   jxsym=jxsym+1
+   phvar%d2gval(jxsym,1)=(one-gamma)*rk*(s111*log(s1*rk)+s211*log(s2*rk)+&
+        s11/s1*s11+s12/s2*s2+s111+s211)+&
+        gamma*rk*(s111*lambda(1)+s211*lambda(2)+s11+s11)
+   
+   gx%bmperr=4399
+!-----------------------------------
+900 continue
+! Also first derivatives of the enthalpy part
+!  ggx(1)=uijalpha(ia)*pij(ia)
+   dgg=zero
+   do ia=0,4
+      dgg(1)=dgg(1)+uijalpha(ia)*s1
+      dgg(2)=dgg(2)+uijalpha(ia)*s2
+   enddo
+   phvar%dgval(1,1,1)=phvar%dgval(1,1,1)+dgg(1)
+   phvar%dgval(1,1,1)=phvar%dgval(1,2,1)+dgg(2)
+!-----------------------------------
+1000 continue
+   return
+ end subroutine config_entropy_tisr_try1
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -3812,16 +4258,18 @@
    type(gtp_species) :: sprec
 ! f1 max number of constituents,, also used for other arrays
    integer, parameter :: f1=50
-! nsps number of constituents in sublattice s
-   integer noofend,nsps(2),loksp,nspel,ielno(10),nextra,ncation
+! number of endmembers
+   integer noofend,ncons1,ncons2
+! not needed ....
+!   integer loksp,nspel,ielno(10),nextra,ncation
 ! these are used to as index of species on sublatte 1 (ee,ff) and 2 (gg,hh)
    integer ee,ff,gg,hh
 ! loop variables
    integer s1,s2,s3,s4,em,c1
-! arguments calling get_species_data
-   double precision x2(f1),stoi(10),smass,qsp,extra(5)
+! site fractions
+   double precision xx(f1),x1(f1),x2(f1)
 ! fractions in sublattices
-   double precision x1(f1),sum1,sum2,sum3,sum4,half
+   double precision sum1,sum2,sum3,sum4,half
 ! contyp(5,i) is nonzero for a quadrupols that is endmembers
 ! contyp(1..4,i) specify sublattice +/- of element and if alone or mixing 2/1
 ! contyp(6&7,i) for endmembers are the elements
@@ -3830,32 +4278,43 @@
 ! in contyp(6..9 the endmember index, not contyp index of endmember!!
    integer cridx(f1)
 ! fractions for endmembers and coordination equiv fractions
-   double precision endmf(f1),ceqf1(f1),ceqf2(f1),sm,sm1,term,fffy,fff1,fff2
+   double precision endmf(f1),ceqf1(f1),ceqf2(f1),ceqff(f1)
+   double precision sm,sm1,term,fffy,fff1,fff2
    double precision ffem,ffceq1,ffceq2,once1,once2
+! indicate which species that are involved
+   integer involved(noofsp),maxcon,stoix1,stoix2
 ! first and second derivatives wrt constituents ...
    double precision dma(f1,f1), dsf(f1,f1),dendmf(f1,f1),dceqf(f1,f1)
-   double precision dsm1(f1),d2sm1(f1*(f1-1)/2),dterm(f1),ojoj
+   double precision dx1(f1,f1),dx2(f1,f1),dceqf1(f1,f1),dceqf2(f1,f1)
+   double precision dsm1(f1),d2sm1(f1*(f1-1)/2),dterm(f1),ojoj,alone
+   character conname*24,endname*24,spname1*24,spname2*24
 ! to avoid adding quadrupols twice
    logical done
 ! The mqmqa_data provides information about the constituents 
 ! check that we have inititaed phrec%contyp
-   write(*,*)'3X calculating MQMQA entropy version 1: ',&
-        trim(splista(1)%symbol),ncon
+   write(*,*)'3X calculating MQMQA entropy version 2: ',ncon
    if(.not.allocated(mqmqa_data%contyp)) then
       write(*,*)'3X MQMQA missing constituent information'
       gx%bmperr=4399; goto 1000
    endif
    do s1=1,mqmqa_data%nconst
+      conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
       write(*,3)s1,(mqmqa_data%contyp(s2,s1),s2=1,10),&
-           (mqmqa_data%constoi(s2,s1),s2=1,4)
-3     format('3X calc: ',i2,1x,4i3,i5,2x,4i3,i5,1x,4F7.3)
+           (mqmqa_data%constoi(s2,s1),s2=1,4),phvar%yfr(s1),trim(conname)
+3     format('3X mq:',i2,4i3,i5,4i3,i5,4F5.1,F5.2,1x,a)
    enddo
 !   write(*,6)phvar%yfr
 6  format('3X y: ',9F7.4)
-   x1=zero; x2=zero; endmf=zero; ceqf1=zero; ceqf2=zero
+   x1=zero; x2=zero; endmf=zero; ceqff=zero; xx=zero
    dma=zero; dendmf=zero; dceqf=zero;
-   noofend=0
-! This is a quite stupid generation of crossindex for endmembers
+   noofend=0; maxcon=0
+! any species used below is indicated by a 1 or 2 depending on sublattice
+! it is forbidden to have the same species in both sublattices
+   involved=0
+! If contyp(5,s1)>0 it is an endmember index, set cridx(this index) to s1
+! it is needed to find the endmember location for other quadrupoles sx
+! which has stored the endmember index in contyp(6..9,sx), not the location.
+! I could change that in the mqmqa_rearrange subroutine ... maybe later
    do s1=1,ncon
       if(mqmqa_data%contyp(5,s1).gt.0) cridx(mqmqa_data%contyp(5,s1))=s1
    enddo
@@ -3865,49 +4324,76 @@
 ! we must calculate a number of auxilliary fraction variables from the
 ! site fractions using mqmqa_data%contyp
    sumfrac: do s1=1,ncon
-      loksp=phrec%constitlist(s1)
-! extract data from the constituents from mqmqa_data%contyp(1..9,s1)
-      call get_species_data(loksp,nspel,ielno,stoi,smass,qsp,nextra,extra)
-      if(gx%bmperr.ne.0) goto 1000
+      conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
       s3=mqmqa_data%contyp(5,s1)
       typ: if(s3.gt.0) then
-! an endmember quadrupol AA:XX, the endmemberfraction
+! AN ENDMEMBER quadrupol AA:XX, the endmemberfraction
          noofend=noofend+1
-         endmf(s3)=endmf(s3)+phvar%yfr(s1)
+! the index of the fraction is in contyp(10,s1)
+         endmf(s3)=endmf(s3)+phvar%yfr(mqmqa_data%contyp(10,s1))
          dendmf(s3,s1)=one
-!         write(*,333)' ENDF1',s1,0,0,0,s3,endmf(s3),1.0D0,phvar%yfr(s1)
+         endname=conname
+!         write(*,327)'3X endmf1:',s1,s3,0,0,endmf(s3),phvar%yfr(s1),&
+!              trim(endname)
+327      format(a,4i3,2F7.4,' x(',a,')')
 ! the order of elements is normally in sublattice order but ... one never knows
          if(mqmqa_data%contyp(1,s1).eq.2) then
 ! first species always in sublattice 1
             ee=mqmqa_data%contyp(6,s1)
             gg=mqmqa_data%contyp(7,s1)
+            spname1=splista(ee)%symbol
+            spname2=splista(gg)%symbol
+!            spname1=splista(mqmqa_data%contyp(6,s1))%symbol
+!            spname2=splista(mqmqa_data%contyp(7,s1))%symbol
+            if(ee.gt.maxcon) maxcon=ee
+            if(gg.gt.maxcon) maxcon=gg
+! remember which species that are used by marking them (only needed for endmem)
+            if(involved(ee).eq.2) then
+               write(*,*)'3X species already in sublattices 2: ',&
+                    trim(splista(ee)%symbol),ee
+            else
+               involved(ee)=1
+            endif
+            if(involved(gg).eq.1) then
+               write(*,*)'3X species already in sublattices 1',&
+                    trim(splista(gg)%symbol),ee
+            else
+               involved(gg)=2
+            endif
+! this is the stoichiometric factors of the species
             fff1=2.0d0/mqmqa_data%constoi(1,s1)
             fff2=2.0d0/mqmqa_data%constoi(2,s1)
          else
-            write(*,*)'3X contyp error 1'
+            write(*,*)'3X contyp error 1: ',mqmqa_data%contyp(1,s1)
             gx%bmperr=4399; goto 1000
          endif
-! species  ee is on first sublattice
+! species  ee is on first sublattice, gg in second
 !         write(*,330)1,s1,0,ee,x1(ee),fff1,phvar%yfr(s1),&
 !              fff1*phvar%yfr(s1),x1(ee)+fff1*phvar%yfr(s1)
 330      format('3X MQMQA ',i1,2x,3i3,5F10.6)
-         x1(ee)=x1(ee)+fff1*phvar%yfr(s1)
-         x2(gg)=x2(gg)+fff2*phvar%yfr(s1)
+         xx(ee)=xx(ee)+fff1*phvar%yfr(mqmqa_data%contyp(10,s1))
+         xx(gg)=xx(gg)+fff2*phvar%yfr(mqmqa_data%contyp(10,s1))
          dma(ee,s1)=fff1
          dma(gg,s1)=fff2
-!         write(*,22)'3X endmem: ',s1,s2,s3,ee,gg,&
-!              (mqmqa_data%contyp(c1,s1),c1=1,5),fff1,fff2
-         write(*,333)'  SF11',s1,0,0,1,ee,x1(ee),fff1,phvar%yfr(s1),x1(4)
-         write(*,333)'  SF12',s1,0,0,2,gg,x2(gg),fff2,phvar%yfr(s1)
+         write(*,334)trim(spname1),s1,0,1,ee,xx(ee),fff1,&
+              phvar%yfr(mqmqa_data%contyp(10,s1)),&
+              mqmqa_data%constoi(1,s1),trim(conname)
+         write(*,334)trim(spname2),s1,0,2,ee,xx(gg),fff2,&
+              phvar%yfr(mqmqa_data%contyp(10,s1)),&
+              mqmqa_data%constoi(2,s1),trim(conname)
+334      format('3Xe n(',a2,'): ',4i3,4(F10.6),2x,a)
 ! equivalent sublattice fraction for the elements
-         ceqf1(ee)=ceqf1(ee)+phvar%yfr(s1)
-         ceqf2(gg)=ceqf2(gg)+phvar%yfr(s1)
+         ceqff(ee)=ceqff(ee)+phvar%yfr(mqmqa_data%contyp(10,s1))
+         ceqff(gg)=ceqff(gg)+phvar%yfr(mqmqa_data%contyp(10,s1))
 ! dceqf is not splitted on sublattices, actually ceqf can be just one array
          dceqf(ee,s1)=one
          dceqf(gg,s1)=one
-!         write(*,333)'CEQF11',s1,0,0,1,ee,ceqf1(ee),1.0D0,phvar%yfr(s1)
-!         write(*,333)'CEQF12',s1,0,0,2,gg,ceqf2(gg),1.0D0,phvar%yfr(s1)
-333      format('3X MQMQA ',a,': ',5i3,4(F10.6))
+!         write(*,333)'3X ceqf1',s1,0,0,1,ee,ceqff(ee),1.0D0,&
+!              phvar%yfr(mqmqa_data%contyp(10,s1)),trim(spname1),trim(conname)
+!         write(*,333)'3X ceqf2',s1,0,0,2,gg,ceqff(gg),1.0D0,&
+!              phvar%yfr(mqmqa_data%contyp(10,s1)),trim(spname2),trim(conname)
+333      format(a,': ',5i3,3F10.6,' ceq1(',a,')  ',a)
+! end of endmember summations
       else
 !--------------------------------------------------------------
 ! this is a quadrupol AB:XY consisting of 2 or 4 endmembers typ A:X and B:Y
@@ -3924,135 +4410,174 @@
          endif
 ! these refer to constituent species, ff, gg in first; gg hh in second
          ee=0; ff=0; gg=0; hh=0
-! position 6, 7, 8, 9 are indices to endmembers
-         s2=6
-         emloop: do while(mqmqa_data%contyp(s2,s1).gt.0 .and. s2.lt.10)
-            once1=one; once2=one
+! s2 loops over the species involved in the quadrupol, it can be 3 or 4
+! in %contyp(1..4,s1) is indeicated if it is double or single
+! in %constoi(1..4,s1) is the coordination number
+         s2=1
+! these are used to find correct stoichimetry index
+! which constoi to use? AA:XY should have (1,2) and (1,3) for AA:XX and AA:YY
+! which constoi to use? AB:XX should have (1,3) and (2,3) for AA:XX and BB:XX
+! which constoi to use? AB:XY should have (1,3), (1,4), (2,3) and (2,4) for ...
+!         stoix1=1; stoix2=1
+! position 6, 7, 8, 9 are indices to endmembers, s2 incremented at loop end
+         emloop: do while(mqmqa_data%contyp(5+s2,s1).gt.0 .and. s2.lt.5)
+            once1=one; once2=one; alone=one
+            ffceq1=0.5D0; ffceq2=0.5D0
+            if((mqmqa_data%contyp(1,s1).eq.2)) then
+! to set correct stoix1 and stoix2;
+               if(s2.eq.1) then
+! quadrupole AA:XY first, endmember AA:XX, second AA:YY
+                  stoix1=1; stoix2=2
+               else
+                  stoix1=1; stoix2=3
+               endif
+            elseif(abs(mqmqa_data%contyp(3,s1)).eq.2) then
+! quadrupole AB:XX, first endmember AA:XX, second BB:XX
+               if(s2.eq.1) then
+                  stoix1=1; stoix2=3
+               else
+                  stoix1=2; stoix2=3
+               endif
+            else
+! quadupole AB:XX, 4 endmembers used, AA:XX; AA:YY; BB:XX BB:YY
+               if(s2.eq.1) then
+                  stoix1=1; stoix2=3
+               elseif(s2.eq.2) then
+                  stoix1=1; stoix2=4
+               elseif(s2.eq.3) then
+                  stoix1=2; stoix2=3
+               else
+                  stoix1=2; stoix2=4
+               endif
+            endif
 ! loop for all endmembers included in this quadrupol, the index of
-! the endmembers are contyp(6..9,s1), the LOCATION in contyp is in cridx!!!
-            s3=mqmqa_data%contyp(s2,s1)
+! the endmember index in contyp(6..9,s1), the LOCATION is in cridx!!!
+            s3=mqmqa_data%contyp(5+s2,s1)
 !            write(*,*)'3X crossindexing endmember 1',s3,cridx(s3)
             s3=cridx(s3)
+! the endmember index is in %contyp(5,s3)
             em1=mqmqa_data%contyp(5,s3)
-            endmf(em1)=endmf(em1)+ffem*phvar%yfr(s1)
+            endmf(em1)=endmf(em1)+ffem*phvar%yfr(mqmqa_data%contyp(10,s1))
             dendmf(em1,s1)=ffem
-!            write(*,333)' ENDF2',s1,s2,s3,0,em1,endmf(em1),ffem,phvar%yfr(s1)
-! for the site fractions and equivalent fraction ceqf1 and ceqf2 we have to
-! extract the constituent species of the quadrupol from the endmembers.
-! we must and also take into account if the species is alone in the sublattice
-            if(mqmqa_data%contyp(1,s3).eq.2) then
-! the sublattice is determined by the endmember contyp
-! add each element only one
-!   write(*,17)1,s1,s3,ee,gg,mqmqa_data%contyp(6,s3),mqmqa_data%contyp(7,s3),&
-!                    once1,once2
-17             format('3X once ',i1,2x,2i3,3x,2i3,2x,2i3,2F7.3)
-               if(ee.ne.mqmqa_data%contyp(6,s3)) then
-                  ee=mqmqa_data%contyp(6,s3)
-                  once1=one
-               else
-                  once1=zero
-               endif
-               if(gg.ne.mqmqa_data%contyp(7,s3)) then
-                  gg=mqmqa_data%contyp(7,s3)
-                  once2=one
-               else
-                  once2=zero
-               endif
-! the stoichiometry is taken from the species itself, stoi(1..4,s1), see below
-!            elseif(mqmqa_data%contyp(1,s3).eq.-2) then
-! this else branch should be redundant now, first species alwaus in first subl
-!  write(*,17)2,s1,s3,ee,gg,mqmqa_data%contyp(7,s3),mqmqa_data%contyp(6,s3),&
-!                    once1,once2
-!               if(ee.ne.mqmqa_data%contyp(7,s3)) then
-!                  ee=mqmqa_data%contyp(7,s3)
-!                  once1=one
-!               else
-!                  once1=zero
-!               endif
-!               if(gg.ne.mqmqa_data%contyp(6,s3)) then
-!                  gg=mqmqa_data%contyp(6,s3)
-!                  once2=one
-!               else
-!                  once2=zero
-!               endif
-            else
-!  mqmqa_data%contyp(1,s3) must be 2 as s3 is index of an endmember
-               write(*,*)'3X contyp error 2',s1,s3,mqmqa_data%contyp(1,s1),&
-                    mqmqa_data%contyp(1,s3)
-               gx%bmperr=4399; goto 1000
-            endif
-!  write(*,17)3,s1,s3,ee,gg,mqmqa_data%contyp(6,s3),mqmqa_data%contyp(7,s3),&
-!                 once1,once2
-! MODIFIED USING MQMQA_DATA%CONSTOI not relating to elements
-! here ee and gg are index to endmembers in %contyp, the endmembers have
-! the locations of the constituent species (loksp)
-! ignorera nspel and the stoichiometry of the species but use %constoi
-! THERE ARE 3 values in constoi, which to use?
-            fff1=fffy*once1/mqmqa_data%constoi(1,s1)
-            fff2=fffy*once2/mqmqa_data%constoi(2,s1)
-!            write(*,22)'3X testing: ',s1,s2,s3,ee,gg,&
-!                 (mqmqa_data%contyp(c1,s1),c1=1,5),fff1,fff2
-22          format(a,3i3,3x,2i3,3x,5i3,2F12.6)
-! site fractions, element ee is on first sublattice
-!            write(*,330)2,s1,s3,ee,x1(ee),fff1,phvar%yfr(s1),&
-!                 fff1*phvar%yfr(s1),x1(ee)+fff1*phvar%yfr(s1)
-            x1(ee)=x1(ee)+fff1*phvar%yfr(s1)
-            x2(gg)=x2(gg)+fff2*phvar%yfr(s1)
+            endname=splista(phrec%constitlist(mqmqa_data%contyp(10,s3)))%symbol
+!            write(*,322)'3X endmf2:',s1,s2,s3,em1,&
+!                 endmf(em1),ffem,phvar%yfr(mqmqa_data%contyp(10,s1)),&
+!                 trim(endname),trim(conname)
+322         format(a,4i3,3F7.4,' x(',a,')  ',a)
+! Now the site fractions and equivalent fraction ceqff we have to
+! extract all constituent species of the quadrupol s1 using the endmember s3
+! divided by with the coordination factor in s2 for quadrupol s1
+! the species in first sublattice of the endmember
+            ee=mqmqa_data%contyp(6,s3)
+! which constoi to use? AA:XY should have (1,2) and (1,3)
+! which constoi to use? AB:XX should have (1,3) and (2,3)
+! which constoi to use? AB:XY should have (1,3), (1,4), (2,3) and (2,4)
+            fff1=fffy*alone/mqmqa_data%constoi(stoix1,s1)
+            xx(ee)=xx(ee)+fff1*phvar%yfr(mqmqa_data%contyp(10,s1))
             dma(ee,s1)=fff1
+! the species in second sublattice of the endmember
+            gg=mqmqa_data%contyp(7,s3)
+            fff2=fffy*alone/mqmqa_data%constoi(stoix2,s1)
+            xx(gg)=xx(gg)+fff2*phvar%yfr(mqmqa_data%contyp(10,s1))
             dma(gg,s1)=fff2
-!            write(*,333)'  SF21',s1,s2,s3,1,ee,x1(ee),fff1,phvar%yfr(s1),x1(4)
-!            write(*,333)'  SF22',s1,s2,s3,1,gg,x2(gg),fff2,phvar%yfr(s1)
+            spname1=splista(ee)%symbol
+            spname2=splista(gg)%symbol
+!            write(*,'(a,3i3,2F7.3)')'3Xq stoik:',s1,stoix1,stoix2,&
+!                 mqmqa_data%constoi(stoix1,s1),mqmqa_data%constoi(stoix2,s1)
+!            spname1=splista(mqmqa_data%contyp(6,s3))%symbol
+!            spname2=splista(mqmqa_data%contyp(7,s3))%symbol
+            write(*,331)trim(spname1),s1,s2,s3,1,ee,xx(ee),fff1,&
+                 phvar%yfr(mqmqa_data%contyp(10,s1)),&
+                 mqmqa_data%constoi(stoix1,s1),trim(conname)
+            write(*,331)trim(spname2),s1,s2,s3,2,gg,xx(gg),fff2,&
+                 phvar%yfr(mqmqa_data%contyp(10,s1)),&
+                 mqmqa_data%constoi(stoix2,s1),trim(conname)
+331         format('3Xq n(',a2,'): ',3i3,2i3,4F10.6,1x,a)
 ! equivalent site fraction, each mixing element will be counted twice
-            if(nspel.eq.4) then
-               ffceq1=0.25D0; ffceq2=0.25D0
-            else
-               ffceq1=0.5D0; ffceq2=0.5D0
-            endif
-            ceqf1(ee)=ceqf1(ee)+ffceq1*phvar%yfr(s1)
-            ceqf2(gg)=ceqf2(gg)+ffceq2*phvar%yfr(s1)
-            dceqf(ee,s1)=ffceq1
-            dceqf(gg,s1)=ffceq2
-!            write(*,333)'CEQF21',s1,s2,s3,1,ee,ceqf1(ee),ffceq1,phvar%yfr(s1)
-!            write(*,333)'CEQF22',s1,s2,s3,2,gg,ceqf2(gg),ffceq2,phvar%yfr(s1)
+! for quadrupole with 4 endmembers fffy=0.25; otherwice 0.5
+            ceqff(ee)=ceqff(ee)+fffy*ffceq1*phvar%yfr(mqmqa_data%contyp(10,s1))
+            ceqff(gg)=ceqff(gg)+fffy*ffceq2*phvar%yfr(mqmqa_data%contyp(10,s1))
+            dceqf(ee,s1)=fffy*ffceq1
+            dceqf(gg,s1)=fffy*ffceq2
+!            write(*,333)'3X ceqf1',s1,0,s3,1,ee,ceqff(ee),fffy*ffceq1,&
+!                 phvar%yfr(mqmqa_data%contyp(10,s1)),&
+!                 trim(spname1),trim(conname)
+!            write(*,333)'3X ceqf2',s1,0,s3,2,gg,ceqff(gg),fffy*ffceq2,&
+!                 phvar%yfr(mqmqa_data%contyp(10,s1)),&
+!                 trim(spname2),trim(conname)
+! increment s2 for next endmember in quadrupole s1
             s2=s2+1
          enddo emloop
       endif typ
    enddo sumfrac
+! ------------------------------- we have summed all fractions
 ! we must sum the sublattice fractions and normallize
-!-------------------------------- normallize
-! CEQF summation is OK
-   sum1=zero; sum2=zero; sum3=zero; sum4=zero
-   do s1=1,noofel
-      sum1=sum1+x1(s1)
-      sum2=sum2+x2(s1)
-   enddo
-!   do s1=1,noofend
-!      sum4=sum4+endmf(s1)
-!   enddo
-   write(*,*)'3X MQMQA variables:'
-   write(*,90)1,(x1(s1),s1=1,noofel),sum1
-   write(*,90)2,(x2(s1),s1=1,noofel),sum2
-90 format('3X n(',i1,',i): ',8F7.4)
-   do s1=1,noofel
+! shift site fractions to correct sublattice
+   write(*,*)'3X summs:',maxcon
+   write(*,83)'3X spc: ',(splista(s1)%symbol,s1=1,maxcon)
+   write(*,81)'3X n_i: ',(xx(s1),s1=1,maxcon)
+   write(*,81)'3X q_i: ',(ceqff(s1),s1=1,maxcon)
+   write(*,82)'3X inv: ',(involved(s1),s1=1,maxcon)
+81 format(a,7F7.3)
+82 format(a,7I7)
+83 format(a,5x,7a7)   
+!
+   ncons1=0; ncons2=0
+   sum1=zero; sum2=zero
+   sumsub: do s1=1,maxcon
+      if(involved(s1).eq.0) then
+         cycle sumsub
+      elseif(involved(s1).eq.1) then
+         ncons1=ncons1+1
+         x1(ncons1)=xx(s1)
+         sum1=sum1+x1(ncons1)
+         ceqf1(ncons1)=ceqff(s1)
+         do s2=1,maxcon
+            dceqf1(ncons1,s2)=dceqf(s1,s2)
+            dx1(ncons1,s2)=dma(s1,s2)
+         enddo
+      elseif(involved(s1).eq.2) then
+         ncons2=ncons2+1
+         x2(ncons2)=xx(s1)
+         sum2=sum2+x2(ncons2)
+         ceqf2(ncons2)=ceqff(s1)
+         do s2=1,maxcon
+            dceqf2(ncons2,s2)=dceqf(s1,s2)
+            dx2(ncons2,s2)=dma(s1,s2)
+         enddo
+      else
+         write(*,*)'3X involved error',s1,involved(s1)
+         stop
+      endif
+   enddo sumsub
+   write(*,*)'3X amounts on sublattices'
+   write(*,92)1,sum1,(x1(s1),s1=1,ncons1)
+   write(*,92)2,sum2,(x2(s1),s1=1,ncons2)
+92 format('3X sum, n_(',i1,',i): ',F7.4,5x,8F7.4)
+! derivative of site fraction is serivative of xx(1)/sum1
+! derivative of xx() wrt y(s2) is dma(1,s2)
+   do s1=1,ncons1
       x1(s1)=x1(s1)/sum1
-      x2(s1)=x2(s1)/sum2
-   enddo
-! derivates of x1 and x2 wrt all constituent fractions ...
-   do s1=1,noofel
       do s2=1,ncon
-         if(x1(s1).gt.zero) then
-            dsf(s1,s2)=(dma(s1,s2)-x1(s1)*sum1)/sum1
-         else
-            dsf(s1,s2)=(dma(s1,s2)-x2(s1)*sum2)/sum2
-         endif
+         dx1(s1,s2)=(dx1(s1,s2)*sum1-x1(s1))/sum1**2
       enddo
    enddo
-   write(*,*)'3X NOTE FIRST COLUMN REPRESENT THE VACANCY SPECIES'
-   write(*,100)1,(x1(s1),s1=1,noofel)
-   write(*,100)2,(x2(s1),s1=1,noofel)
+   do s1=1,ncons2
+      x2(s1)=x2(s1)/sum2
+      do s2=1,ncon
+         dx2(s1,s2)=(dx2(s1,s2)*sum2-x1(s1))/sum2**2
+      enddo
+   enddo
+! check if same as in mqmqa_data
+   if(mqmqa_data%ncon1.ne.ncons1) stop 'ncons1 error'
+   if(mqmqa_data%ncon2.ne.ncons2) stop 'ncons2 error'
+!-------------------------------- normallize
+   write(*,*)'3X site fractions mm'
+   write(*,100)1,(x1(s1),s1=1,ncons1)
+   write(*,100)2,(x2(s1),s1=1,ncons2)
 100 format('3X y_(',i1,',i): ',8F7.4)
-   write(*,110)1,(ceqf1(s1),s1=1,noofel)
-   write(*,110)2,(ceqf2(s1),s1=1,noofel)
+   write(*,110)1,(ceqf1(s1),s1=1,ncons1)
+   write(*,110)2,(ceqf2(s1),s1=1,ncons2)
 110 format('3X CEQF ',i2,': ',8F7.4)
    write(*,120)(endmf(s1),s1=1,noofend)
 120 format('3X endmf: ',8F7.4)
@@ -4129,18 +4654,21 @@
          enddo
          write(*,430)s1,ncon,em1,ee,gg,0,endmf(em1),term,sm1
 430   format('3X line 2:   ',6i4,4(1pe12.4))
-         sm1=sm1+phvar%yfr(s1)*log(phvar%yfr(s1)/(endmf(em1)*term)**2)
-! derivatives, first wrt wrt phvar%yfr(s1) 
-         dsm1(s1)=dsm1(s1)+log(phvar%yfr(s1)/(endmf(em1)*term)**2)
+         sm1=sm1+phvar%yfr(mqmqa_data%contyp(10,s1))*&
+              log(phvar%yfr(mqmqa_data%contyp(10,s1))/(endmf(em1)*term)**2)
+! derivatives, first wrt wrt phvar%yfr 
+         dsm1(s1)=dsm1(s1)+log(phvar%yfr(mqmqa_data%contyp(10,s1))/&
+              (endmf(em1)*term)**2)
 ! d/dy(log(f/g)) = 1/(f/g)*((g*df/dy-f*dg/dy))/g**2 = g/f*(g*df/dy-f*dg/dy)/g**2
 !                = 1/(f*g) * (g*df/dy-f*dg/dy)
          do s2=1,ncon
             ojoj=((endmf(em1)*term)**2-&
-                 phvar%yfr(s1)/(2.0d0*endmf(em1)*term))
+                 phvar%yfr(mqmqa_data%contyp(10,s1))/(2.0d0*endmf(em1)*term))
 ! unfinished ....
-            dsm1(s2)=dsm1(s2)+phvar%yfr(s1)*ojoj
+            dsm1(s2)=dsm1(s2)+phvar%yfr(mqmqa_data%contyp(10,s1))*ojoj
          enddo
-         write(*,431)s1,ncon,em1,ee,gg,0,phvar%yfr(s1),term,sm1
+         write(*,431)s1,ncon,em1,ee,gg,0,phvar%yfr(mqmqa_data%contyp(10,s1)),&
+              term,sm1
 431   format('3X line 3:   ',6i4,4(1pe12.4))
       elseif(mqmqa_data%contyp(9,s1).gt.0) then
 ! this is with all 4 endmembers and elements different
@@ -4185,8 +4713,10 @@
                term=term/(ceqf1(ff)*ceqf2(hh))
             endif
          enddo
-         sm1=sm1+phvar%yfr(s1)*log(phvar%yfr(s1)/term)
-         write(*,440)s1,ncon,ee,ff,gg,hh,phvar%yfr(s1),term,sm1
+         sm1=sm1+phvar%yfr(mqmqa_data%contyp(10,s1))*&
+              log(phvar%yfr(mqmqa_data%contyp(10,s1))/term)
+         write(*,440)s1,ncon,ee,ff,gg,hh,phvar%yfr(mqmqa_data%contyp(10,s1)),&
+              term,sm1
 440   format('3X line 6: ',6i4,4(1pe12.4))
       else
 ! here we have mixing in either first or second sublattce, 2 endmembers
@@ -4216,8 +4746,10 @@
                ff=ee; hh=gg
             endif
          enddo
-         sm1=sm1+phvar%yfr(s1)*log(phvar%yfr(s1)/term)
-         write(*,450)s1,ncon,ee,ff,gg,hh,phvar%yfr(s1),term,sm1
+         sm1=sm1+phvar%yfr(mqmqa_data%contyp(10,s1))*&
+              log(phvar%yfr(mqmqa_data%contyp(10,s1))/term)
+         write(*,450)s1,ncon,ee,ff,gg,hh,phvar%yfr(mqmqa_data%contyp(10,s1)),&
+              term,sm1
 450   format('3X line 4&5: ',6i4,4(1pe12.4))
       endif termer
    enddo eloop

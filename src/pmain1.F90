@@ -21,10 +21,10 @@ PROGRAM pmain1
 !  call date_and_time(date)
 !  write(*,*)'Stored linking date: ',date
 ! This line replaced by linkocdate to the date when compilin
-  linkdate='2021-01-27'
-! for example: linkdate='2021-01-27'
+  linkdate='2021-02-26'
+! for example: linkdate='2021-02-26'
 ! this is the overall version identifier
-  version='  6.020 '
+  version='  6.021 '
 ! intvar and dblvar will eventually be used for allocations
   intvar(1)=30
   call init_gtp(intvar,dblvar)

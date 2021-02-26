@@ -5362,7 +5362,7 @@
 ! closer (or below) to the current calculated solution
 ! if so it changes the composition of the phase
 ! If a gridpoint is BELOW the current plane an error code is returned
-! !phase should be stable with another composition an error code is returned
+! phase should be stable with another composition an error code is returned
 ! It does not creating any new composition sets
 ! It can be usd during STEP/MAP to update compositions of metastable
 ! phases which have become stuck in a local minimium
@@ -5379,6 +5379,7 @@
 !   write(*,*)'3Y In check_all_phases'
 ! COPY the whole equilibrium record to avoid destroying anything!!
 ! otherwise I had strange problems with amounts of phases ??
+   saverr=0
    cceq=ceq
    pceq=>cceq
 ! mode will be updated inside check_phase_grid to correspond to meqrec%phr index

@@ -351,16 +351,26 @@
        if(mapline%done.ne.0) goto 220
        mapline%done=-1
        if(ocv()) write(*,*)'Plotting line: ',&
-            mapline%lineid,mapline%number_of_equilibria
+            mapline%lineid,mapline%number_of_equilibria,mapline%termerr
        first=.TRUE.
+! last set true when we reach the last equilibrium on the line
        last=.FALSE.
 ! we may have empty lines due to bugs ...
 !       write(*,*)'Axis with wildcard and not: ',anpax,notanp
 !200    continue
 ! this is the loop for all equilibria in the line
 !       write(*,*)'SMP2: nr and nv: ',nr,nv
+! Possibly skip last if mapline%termerr not zero
+!       if(mapline%termerr.ne.0) write(*,*)'SMP2B termerr:',mapline%termerr
        nrett=nv+1
        plot1: do while(nr.gt.0)
+! nr is index to stored equilibrium
+          if(last.and. mapline%termerr.ne.0) then
+! skip this equilibrium!!
+             nr=0
+             write(*,*)'Skipping last equilibrium in the plot'
+             cycle plot1
+          endif
           nv=nv+1
           if(nv.ge.maxval) then
              write(*,*)'Too many points to plot',maxval
@@ -493,7 +503,6 @@
 ! skip this equilibrium, nv=nv-1, and take next equilibrium, increement nr!!
                 nv=nv-1
                 goto 199
-!                cycle plot1
              else
 !                write(*,*)'SMP2B wildcard value 1: ',nr,trim(statevar)
 !                write(*,*)'In ocplot2, segmentation fault after 4C1: ',&

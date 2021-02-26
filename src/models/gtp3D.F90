@@ -358,8 +358,9 @@
 ! extract symbol, normally G or L but TC and others can occur 
 ! for example a mobility like  MQ&FE+2#3 where FE+2#3 is a constinuent
 ! in sublattice 3
+! NO ABBREVIATION IS ACCEPTED, for example not BM for BMAGN
    lp1=index(parname,'(')
-!   write(*,*)'3D parname: ',trim(parname),lp1
+!   write(*,*)'3D in parname: ',trim(parname),lp1
    if(lp1.le.1) then
       gx%bmperr=4027; goto 1000
    endif
@@ -526,6 +527,7 @@
 ! this removes the final )
    name3(lp1:)=' '
 !
+!   write(*,*)'3D decoding constituent array'
    call decode_constarr(lokph,name3,nsl,endm,nint,lint,ideg)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,83)'3D after d_c: ',name3(1:lp1),nint,(lint(2,kp),kp=1,nint)

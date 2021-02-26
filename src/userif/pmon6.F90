@@ -107,12 +107,14 @@ contains
 ! axis data structures
     type(map_axis), dimension(5) :: axarr
 ! if more than one start equilibrium these are linked using the ceq%next index
-    type(gtp_equilibrium_data), pointer :: starteq
+!    type(gtp_equilibrium_data), pointer :: starteq
+!    type(starteq_lista), dimension(20) :: starteqs
 ! for map results
     type(map_node), pointer :: maptop,mapnode,maptopsave,maptopcheck
 !    type(map_line) :: mapline
 ! seqxyz has initial values of seqx, seqy and seqz
-    integer noofaxis,noofstarteq,seqxyz(3)
+!    integer noofaxis,noofstarteq,seqxyz(3)
+    integer noofaxis,seqxyz(3)
 ! this should be removed
 !    TYPE(ssm_node), pointer :: resultlist
 !<<<<<<<--------------------------------------------------------------
@@ -386,7 +388,7 @@ contains
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
           'SPECIES         ','TPFUN           ','BROWSER         ',&
           'TRACE           ','SYMBOL_VALUE    ','MAP_STARTPOINTS ',&
-          'GRID            ','MQMQA_QUADS     ','                ']
+          'GRID            ','MQMQA_QUADS     ','BOMBMATTA       ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -600,7 +602,7 @@ contains
     nullify(mapnode)
     nullify(maptopsave)
 ! entered start equilibria
-    nullify(starteq)
+    nullify(starteqs(1)%p1)
     noofstarteq=0
 ! set default fractions when entering composition
     xknown=one
@@ -3210,13 +3212,14 @@ contains
           call copy_equilibrium(neweq,eqname,ceq)
           if(gx%bmperr.ne.0) goto 990
           neweq%multiuse=ndl
-          if(associated(starteq)) then
-             starteq%nexteq=neweq%eqno
-          else
-             starteq=>neweq
-             starteq%nexteq=0
-             write(*,*)'Starteq next',starteq%nexteq
-          endif
+          starteqs(noofstarteq)%p1=>neweq
+!          if(associated(starteq)) then
+!             starteq%nexteq=neweq%eqno
+!          else
+!             starteq=>neweq
+!             starteq%nexteq=0
+!             write(*,*)'Starteq next',starteq%nexteq
+!          endif
           write(*,*)'A copy of current equilibrium linked as start eqilibrium'
 !-------------------------
        case(18) ! SET BIT (all kinds of bits) just global implemented
@@ -4391,7 +4394,8 @@ contains
           endif
 ! CCI extending the number of listing options
 !          if(listresopt.gt.0 .and. listresopt.le.9) then
-          if(listresopt.gt.0 .and. listresopt.le.11) then
+!          if(listresopt.gt.0 .and. listresopt.le.11) then
+          if(listresopt.gt.0 .and. listresopt.le.12) then
              lrodef=listresopt
           endif
 ! CCI end          
@@ -4475,6 +4479,9 @@ contains
 ! 11: stable phases with constituent fractions time FU of hase in value order
              mode=10010
 ! CCI end             
+          elseif(listresopt.eq.12) then
+! 12: just one line per phase, no compositions
+             mode=10020
           else
 ! all phase with with mole fractions
              mode=0
@@ -5105,9 +5112,9 @@ contains
           call gparcdx('Database format: ',&
                cline,last,1,name1,'TDB','?READ SEL_PHASE')
           call capson(name1)
-          if(name1(1:4).ne.'TDB ') then
+          if(name1(1:1).ne.'T') then
              write(*,*)'Only TDB files currently implemented'
-             goto 100
+             gx%bmperr=4399; goto 990
           endif
 ! the first part copied from READ TDB
           if(tdbfile(1:1).ne.' ') then
@@ -5516,6 +5523,8 @@ contains
           write(kou,*)'*** NO CHANGE, upper case Y needed for NEW'
           goto 100
        endif
+! remove global check during map
+       mapglobalcheck=0
 !------remove assessment data
 !       write(*,*)'No segmentation fault 1'
        if(allocated(firstash%eqlista)) then
@@ -5573,7 +5582,7 @@ contains
 ! remove some more defaults ...
        defcp=1
 ! deallocate does not work on pointers!!!
-       nullify(starteq)
+       nullify(starteqs(1)%p1)
        noofstarteq=0
 !
 ! this routine fragile, inside new_gtp init_gtp is called
@@ -5811,10 +5820,9 @@ contains
 !..................................
 ! debug map_startpoints
        case(9)
-          nullify(starteq)
-          starteq=>ceq
-          starteq%nexteq=0
-          call auto_startpoints(maptop,noofaxis,axarr,seqxyz,starteq)
+          nullify(starteqs(1)%p1)
+          starteqs(1)%p1=>ceq
+          call auto_startpoints(maptop,noofaxis,axarr,seqxyz,starteqs)
           if(gx%bmperr.ne.0) goto 990
 !..................................
 ! debug grid.  This calculates grid for phases one by one and check
@@ -5824,20 +5832,40 @@ contains
 ! DEBUG MQMQA_QUADS constituent test
        case(11)
 ! specifying which sublattice each element belong to
-          jp=0
-          mqmqa: do while(.true.)
-             call gparcdx('MQMQA quadrupoles: ',&
-                  cline,last,5,aline,' ','?MQMQA specific')
-             if(aline(1:1).eq.' ') exit mqmqa
-             call mqmqa_constituents(aline,const,jp)
-             jp=1
-          enddo mqmqa
-          if(gx%bmperr.ne.0) goto 990
+!          jp=0
+!          mqmqa: do while(.true.)
+!             call gparcdx('MQMQA quadrupoles: ',&
+!                  cline,last,5,aline,' ','?MQMQA specific')
+!             if(aline(1:1).eq.' ') exit mqmqa
+!             call mqmqa_constituents(aline,const,jp)
+!             jp=1
+!          enddo mqmqa
+!          if(gx%bmperr.ne.0) goto 990
 ! finished by an empty line, then replace species by endmembers
-          call mqmqa_rearrange
+!          call mqmqa_rearrange(const)
 !..................................
-! not used
-       case(12)
+          if(.not.allocated(mqmqa_data%contyp)) then
+             write(*,*)'Sorry, no MQMQA data entered'
+             goto 100
+          endif
+          call gparcx('Phase name: ',cline,last,1,name1,'LIQUID ','?debug mqmq')
+          if(buperr.ne.0) goto 990
+          call find_phase_by_name(name1,iph,ics)
+          if(gx%bmperr.ne.0) goto 990
+          write(*,*)'Constituents in sublattices: ',&
+               mqmqa_data%ncon1,mqmqa_data%ncon2
+          do jp=1,mqmqa_data%nconst
+             call get_constituent_name(iph,jp,name2,xxx)
+             if(gx%bmperr.ne.0) goto 990
+             write(*,12)jp,(mqmqa_data%contyp(kl,jp),kl=1,10),&
+                  (mqmqa_data%constoi(kl,jp),kl=1,4),trim(name2)
+12           format('Quad ',i3,1x,4i3,1x,i3,1x,5i3,1x,4F6.2,1x,a)
+          enddo
+!........................
+       case(12) ! test bombmatta for mapping
+          nullify(starteqs(1)%P1)
+          starteqs(1)%P1=>ceq
+          call bombmatta(maptop,noofaxis,axarr,seqxyz,starteqs)
        END SELECT debug
 !=================================================================
 ! select command
@@ -6015,7 +6043,7 @@ contains
 ! remove some more defaults ...
           defcp=1
 ! deallocate does not work on pointers!!!
-          nullify(starteq)
+          nullify(starteqs(1)%p1)
           noofstarteq=0
           call reset_plotoptions(graphopt,plotfile,textlabel)
           axplotdef=' '
@@ -6102,8 +6130,10 @@ contains
 ! maptop is returned as main map/step record for results
 ! noofaxis is current number of axis, axarr is array with axis data
 ! starteq is start, equilibria, if empty set it to ceq
-          if(.not.associated(starteq)) then
-             starteq=>ceq
+!          if(.not.associated(starteq)) then
+          if(noofstarteq.eq.0) then
+             noofstarteq=1
+             starteqs(1)%p1=>ceq
           endif
 ! can one have several STEP commands YES!
           if(associated(maptop)) then
@@ -6111,7 +6141,7 @@ contains
              goto 100
           endif
 ! seqzyz are initial values for creating equilibria for lines and nodes
-          call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
+          call map_setup(maptop,noofaxis,axarr,seqxyz,starteqs)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)
           if(.not.associated(maptop)) then
@@ -6131,18 +6161,21 @@ contains
 ! debugging: last maptop/line used
 !          write(*,'(a,2i4)')'PMON: sexy 1:',maptop%next%seqx,maptop%seqy
 ! remove start equilibria
-          nullify(starteq)
+          nullify(starteqs(1)%p1)
+          noofstarteq=0
           if(gx%bmperr.ne.0) goto 990
 !-----------------------------------------------------------
 ! STEP SEPARATE
-       case(2) ! calculate for each entered phase separately
-          starteq=>ceq
+       case(2) ! calculate for each entered phase separately (one by one)
+!          starteqs(1)%p1=>ceq
+!          noofstarteq=1
+! it will always use the current equilibrium
 ! can one have several STEP commands??
           if(associated(maptop)) then
              write(*,*)'Deleting previous step/map results missing'
              goto 100
           endif
-          call step_separate(maptop,noofaxis,axarr,seqxyz,starteq)
+          call step_separate(maptop,noofaxis,axarr,seqxyz,ceq)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)
           if(.not.associated(maptop)) then
@@ -6167,7 +6200,8 @@ contains
 !          write(*,'(a,4i4)')'PMON: separate seqx:',maptop%next%seqx,&
 !               maptop%seqx,maptop%previous%seqx,maptop%seqy
 ! remove start equilibria
-          nullify(starteq)
+          nullify(starteqs(1)%p1)
+          noofstarteq=0
 !-----------------------------------------------------------
 ! STEP QUIT
        case(3)
@@ -6236,17 +6270,19 @@ contains
 ! maptop is returned as main map/step record for results
 ! noofaxis is current number of axis, axarr is array with axis data
 ! starteq is start equilibria, if empty set it to ceq
-       if(.not.associated(starteq)) then
-          starteq=>ceq
-          starteq%nexteq=0
+!       if(.not.associated(starteq)) then
+       if(noofstarteq.eq.0) then
+          noofstarteq=1
+          starteqs(1)%p1=>ceq
        endif
-       ll=degrees_of_freedom(starteq)
+       ceq=>starteqs(1)%p1
+       ll=degrees_of_freedom(ceq)
        if(ll.ne.0) then
           write(*,*)'Degrees of freedom not zero ',ll
           goto 100
        endif
 ! maptop is first nullified inside map_setup, then alloctated to return result
-       call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
+       call map_setup(maptop,noofaxis,axarr,seqxyz,starteqs)
        if(gx%bmperr.ne.0) then
           write(kou,*)'Error return from MAP: ',gx%bmperr
           gx%bmperr=0
@@ -6267,7 +6303,8 @@ contains
           nullify(maptopsave)
        endif
 ! remove start equilibria
-       nullify(starteq)
+       noofstarteq=0
+       nullify(starteqs(1)%p1)
 ! mark that interactive listing of conditions and results may be inconsistent
        ceq%status=ibset(ceq%status,EQINCON)
        if(gx%bmperr.ne.0) goto 990

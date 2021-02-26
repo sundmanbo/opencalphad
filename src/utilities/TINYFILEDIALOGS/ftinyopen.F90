@@ -34,6 +34,7 @@ contains
 ! character directory*128
 ! call getcwd(directory)
 ! specify a name of a file type:
+!    write(*,*)'ftinyopen ',typ
 ! 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT, 8=LOG
     C_String_ptr = tinyopen(typ)
 ! convert C pointer to Fortran pointer

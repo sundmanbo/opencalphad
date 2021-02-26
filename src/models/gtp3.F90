@@ -673,8 +673,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! LIQ phase is liquid (can be several but listed directly after gas)
 ! IONLIQ phase has ionic liquid model (I2SL)
 ! AQ1 phase has aqueous model (not implemented)
-! STATE elemental liquid twostate (2-state) model parameter UNUSED?
-! QCE phase has corrected quasichemical SRO config (not implemented)
+! STATE elemental liquid twostate (2-state) model parameter
+! QCE phase has corrected quasichemical entropy (Hillerst-Selleby-Sundman)
 ! CVMCE phase has some CVM ordering entropy (not implemented)
 ! EXCB phase need explicit charge balance (has ions)
 ! XGRID use extra dense grid for this phase
@@ -689,7 +689,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! MULTI may be used with care
 ! BMAV Xion magnetic model with average Bohr magneton number
 ! UNIQUAC The UNIQUAC fluid model
-! DILCE phase has dilute configigurational entropy (not implemented)
+! TISR phase has the TSIR entropy model (E Kremer)
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,    PHID=2,      PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,     PHBORD=6,    PHSORD=7, &     ! 
@@ -698,7 +698,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHEXCB=16,   PHXGRID=17,   PHFACTCE=18, PHNOCS=19,&     !
        PHHELM=20,   PHNODGDY2=21, PHEECLIQ=22, PHSUBO=23,&     ! 
        PHPALM=24,   PHMULTI=25,   PHBMAV=26,   PHUNIQUAC=27, & !
-       PHDILCE=28                                          !
+       PHTISR=28                                          !
 !
 !----------------------------------------------------------------
 !-Bits in PHASE_VARRES (constituent fraction) record STATUS2
@@ -1466,8 +1466,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! used in ionic liquid:
 ! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)
      integer, dimension(2) :: i2slx
-! replaced by mqmqa_data
-!     integer, allocatable, dimension(:,:) :: contyp
 ! allocated in init_gtp.
   END TYPE gtp_phaserecord
 ! NOTE phase with index 0 is the reference phase for the elements
@@ -1490,7 +1488,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, allocatable, dimension(:,:) :: contyp
      double precision, allocatable, dimension(:,:) :: constoi
   end TYPE gtp_mqmqa
-  TYPE(gtp_mqmqa), private :: mqmqa_data
+!  TYPE(gtp_mqmqa), private :: mqmqa_data
+! it should be private when everything work and can be removed from pmon6
+  TYPE(gtp_mqmqa) :: mqmqa_data
 !
 !===================================================================
 !

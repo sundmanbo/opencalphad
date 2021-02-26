@@ -2,7 +2,7 @@
 
 !\addtotable subroutine map_setup
 !\begin{verbatim}
-  subroutine map_setup(maptop,nax,axarr,seqxyz,starteq)
+  subroutine map_setup(maptop,nax,axarr,seqxyz,starteqs)
 ! main map/step routine
 ! THIS HAS BEEN SPLIT IN TWO PARTS
 ! This first part tranforms all user provided or automatic start points
@@ -14,15 +14,16 @@
 ! nax is the number of axis (can be just one for STEP)
 ! axarr is an array of records specifying the axis for the step/map
 ! seqxyz are intial values for number of nodes and lines
-! starteq is an equilibrium data record, if there are more start equilibria
+! starteqs is an array with equilibrium data record
 ! they are linked using the ceq%next index
     implicit none
     integer nax,seqxyz(*)
     type(map_axis), dimension(nax) :: axarr
-    TYPE(gtp_equilibrium_data), pointer :: starteq
+!    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(starteqlista), dimension(*) :: starteqs
     TYPE(map_node), pointer :: maptop
 !\end{verbatim}
-    TYPE(gtp_equilibrium_data), pointer :: ceq
+    TYPE(gtp_equilibrium_data), pointer :: ceq,starteq
     type(gtp_condition), pointer :: pcond
     TYPE(map_node), pointer :: tmp
     type(map_line), pointer :: mapline
@@ -50,7 +51,7 @@
 !
 !    write(*,*)'in map_setup'
 ! save all conditions 
-    call get_all_conditions(savedconditions,-1,starteq)
+    call get_all_conditions(savedconditions,-1,starteqs(1)%p1)
     if(gx%bmperr.ne.0) then
        write(kou,*)'Cannot save current set of conditions'
        savedconditions=' '
@@ -70,37 +71,35 @@
     if(ocv()) write(*,*)'Entering map_setup',nax
 ! if automatic statpoints requested they are generatet here
 !    call auto_startpoints(maptop,nax,axarr,seqxyz,starteq)
-    ceq=>starteq
+!    ceq=>starteq
+    ceq=>starteqs(1)%p1
     iadd=1
+!    ceqlista=1
 21  continue
-!    write(*,*)'Start equilibrium: ',trim(ceq%eqname),&
-!         ceq%eqno,ceq%next,ceq%multiuse
-    if(ceq%nexteq.gt.0) then
-       ceq=>eqlista(ceq%nexteq)
-       iadd=iadd+1
-       goto 21
-    endif
-!    write(*,*)'There are ',iadd,' start equilibria'
-! save index to next start point
-    ceqlista=starteq%nexteq
+!    write(*,'(a,a,3i4)')'SMP2A Start equilibrium: ',trim(ceq%eqname),&
+!         ceq%eqno,ceq%nexteq,ceq%multiuse
+!    if(ceq%nexteq.gt.0) then
+!       ceq=>eqlista(ceq%nexteq)
+!       iadd=iadd+1
+!       goto 21
+!    endif
+! noofstarteq is a global variable in SMP, set by calling routine
+    if(noofstarteq.gt.0) write(*,*)'There are ',noofstarteq,' start equilibria'
 ! loop to change all start equilibria to start points
 ! Store the start points in map_node records started from maptop
-100 continue
-       ceq=>starteq
-107    continue
-!       write(*,*)'calling map_startpoint',ceq%eqno
+    do ceqlista=1,noofstarteq
+       ceq=>starteqs(ceqlista)%p1
+!       write(*,*)'SMP2A calling map_startpoint: ',trim(ceq%eqname),ceq%eqno
 !       read(*,106)ch1
 106    format(a)
+! convert all axis conditions except one to fix phase
        call map_startpoint(maptop,nax,axarr,seqxyz,inactive,ceq)
-!       write(*,*)'back from map_startpoint'
        if(gx%bmperr.ne.0) then
-          if(ceq%nexteq.gt.0) then
-             write(*,101)ceq%nexteq,gx%bmperr
-101          format('Failed calculate a start point: ',i4,i7)
+          write(*,101)ceq%nexteq,gx%bmperr
+101       format('Failed calculate a start point: ',i4,i7)
 !             ceq=>eqlista(ceq%nexteq)
-!             gx%bmperr=0; goto 100
-             gx%bmperr=0; goto 900
-          endif
+          gx%bmperr=0
+          goto 900
        endif
 ! error if no startpoints 
        if(.not.associated(maptop)) then
@@ -120,16 +119,20 @@
 !       write(*,*)'savesize: ',size(maptop%saveceq%savedceq)
 ! if there are more startpoints try to convert these to start equilibria
 900    continue
-       if(ceqlista.gt.0) then
-          write(*,*)'At label 900: ',ceqlista
-          ceq=>eqlista(ceqlista)
-          ceqlista=ceq%nexteq
-          goto 107
-       endif
+!       write(*,*)'At label 900: ',ceqlista
+!       if(ceqlista.gt.0) then
+!          ceq=>eqlista(ceqlista)
+!          ceqlista=ceq%nexteq
+!       endif
+    enddo
 ! end indentation starting at label 100
 !-----------------------------------------------------
 ! now we should calculate all lines stored as start equilibria       
+! but maybe there are no start equilibria??
+! starteq is a ceq record, mapping will use maptop record ....
+!    write(*,*)'SMP2A call map_doallines'
     call map_doallines(maptop,nax,axarr,seqxyz,starteq)
+!    write(*,*)'SMP2A back from map_doallines'
 !-----------------------------------------------------
 1000 continue
 !--------------------------------------------------
@@ -155,9 +158,8 @@
 !       write(*,*)trim(savedconditions)
 ! ij is incremented by 1 inside set_condition
        ij=0
-       call set_condition(savedconditions,ij,starteq)
+       call set_condition(savedconditions,ij,starteqs(1)%p1)
        if(gx%bmperr.ne.0) write(*,*)'Error restoring conditions',gx%bmperr
-!       call list_conditions(kou,starteq)
     endif
     return
   end subroutine map_setup
@@ -432,12 +434,12 @@
 !             call get_phase_compset(iph,ics,lokph,lokres)
                 if(gx%bmperr.eq.4366) then
 ! terminate line and call gridminimizer
-                   write(*,*)'SMP check_all_phases require gridminimizer',jj
+!                   write(*,*)'SMP check_all_phases require gridminimizer',jj
                    gx%bmperr=0
                    call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
                    if(gx%bmperr.eq.0) goto 321
                 elseif(gx%bmperr.eq.4365) then
-                   write(*,*)'SMP check_all_phases error, call map_halfstep:',jj
+!                write(*,*)'SMP check_all_phases error, call map_halfstep:',jj
                    gx%bmperr=0
 ! we have to convert jj=iph*10+ics to index in mapline%meqrec%phr
 ! Check if constitution is the one se in check_all_phases
@@ -570,10 +572,10 @@
 !       write(*,*)'Back from map_step 1',mapline%more,&
 !            mapline%number_of_equilibria,gx%bmperr
        if(gx%bmperr.ne.0) then
-          write(*,*)'Error return from map_step 1: ',gx%bmperr
+!          write(*,*)'SMP2A error return from map_step 1: ',gx%bmperr
           gx%bmperr=0
           if(meqrec%tpindep(1)) then
-             write(*,*)'Restore T 1: ',tsave,axvalok
+!             write(*,*)'SMP2A restore T 1: ',tsave,axvalok
              ceq%tpval(1)=tsave
           endif
           call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
@@ -590,7 +592,7 @@
 ! if mapline%more<0 the line has ended at axis limit or there is an error
        if(mapline%more.ge.0) goto 310
        if(gx%bmperr.ne.0) then
-          write(*,*)'Error stepping to next equilibria, ',gx%bmperr
+!          write(*,*)'SMP2A Error stepping to next equilibria, ',gx%bmperr
        endif
 ! any error code will be cleared inside map_lineend.
 !       write(*,*)'Calling map_lineend 1'
@@ -921,6 +923,149 @@
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine bombmatta
+!\begin{verbatim}
+  subroutine bombmatta(maptop,nax,axarr,seqxyz,starteqs)
+! calculate a number of equilibria inside the region of x and y
+!
+! nax is the number of axis (can be just one for STEP)
+! axarr is an array of records specifying the axis for the step/map
+! seqxyz are intial values for number of nodes and lines
+! starteq is an equilibrium data record, if there are more start equilibria
+! they are linked using the ceq%next index
+    implicit none
+    integer nax,seqxyz(*)
+    type(map_axis), dimension(nax) :: axarr
+!    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(starteqlista), dimension(*) :: starteqs
+    TYPE(map_node), pointer :: maptop
+!\end{verbatim}
+    TYPE(gtp_equilibrium_data), pointer :: ceq,starteq
+    type(gtp_condition), pointer :: xcond,ycond
+    type(gtp_phase_varres), pointer :: phres
+    integer s1,s2,s3,n1,n2,lokcs,nel,globalstatus,iph,potax,touse,newset
+    integer, allocatable, dimension(:,:) :: phstable,phused
+    double precision xval,yval,xlen,ylen
+    integer, parameter :: nss=5
+! start in the middle, close to end points at the end
+    double precision, dimension(nss), parameter :: axinc=&
+         [0.49D0, 0.78D0, 0.22D0, 0.01D0, 0.99D0]
+    character name*24
+    double precision, dimension(nss*nss) ::  xuse,yuse
+!
+    starteq=>starteqs(1)%p1
+    if(nax.ne.2) then
+       write(*,*)'S2A only for map with 2 axis'
+       goto 1000
+    endif
+    nel=noel()
+    if(allocated(phstable)) then
+       deallocate(phstable)
+       deallocate(phused)
+    endif
+    newset=nooftup()
+! there cannot be more than nel phases stable
+    allocate(phstable(0:nel,nss*nss+5))
+    allocate(phused(0:nel,2*nss))
+    phstable=0
+    write(*,*)'S2A allocate phstable: ',nel,50,size(phstable),newset
+    ceq=>starteq
+! supress messages from minimizer
+    globalstatus=globaldata%status
+    globaldata%status=ibset(globaldata%status,GSSILENT)
+    potax=0
+! extrahera axis variables and their min and max
+! identify any potential axis, statevarid=1=T; 2=P; 3=MU, 4=AC; 5=LNAC
+    call locate_condition(axarr(1)%seqz,xcond,ceq)
+    if(xcond%statvar(1)%statevarid.le.5) potax=1
+    call locate_condition(axarr(2)%seqz,ycond,ceq)
+    if(ycond%statvar(1)%statevarid.le.5) potax=2
+    if(gx%bmperr.ne.0) goto 1000
+    if(potax.gt.0) write(*,*)'S2A potential axis: ',potax
+    xlen=axarr(1)%axmax-axarr(1)%axmin
+    ylen=axarr(2)%axmax-axarr(2)%axmin
+    write(*,*)'S2A axis length: ',xlen,ylen
+! start loop
+    n1=0
+    xloop: do s1=1,nss
+! calculate at intervals 0.02 0.1 0.3 0.5 0.7 0.9 0.98 in x and y axis (49 eq)
+! set condionon on x axis
+       xval=axarr(1)%axmin+axinc(s1)*xlen
+! first argument 0 is to set condition, 1 means extract value
+       call condition_value(0,xcond,xval,ceq)
+       if(gx%bmperr.ne.0) cycle xloop
+       yloop: do s2=1,nss
+          yval=axarr(2)%axmin+axinc(s2)*ylen
+          write(*,'(a,i2,4(1pe12.4))')'S2A x,y: ',n1+1,xval,yval
+! set condition on y axis
+          call condition_value(0,ycond,yval,ceq)
+          if(gx%bmperr.ne.0) cycle yloop
+          call calceq2(1,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'S2A failed calculation',gx%bmperr
+             gx%bmperr=0; cycle yloop
+          endif
+          n1=n1+1
+          xuse(n1)=xval
+          yuse(n1)=yval
+! loop to extract stable phases, there can be new composition sets
+          n2=0
+! start from 2 as first phase_varres is the stable_el_refernce phase
+          do lokcs=2,nooftup()
+             phres=>ceq%phase_varres(lokcs)
+             if(phres%phstate.ge.PHENTSTAB) then
+                n2=n2+1
+                iph=phres%phlink
+                call get_phase_name(iph,1,name)
+                if(gx%bmperr.ne.0) gx%bmperr=0
+                write(*,'(a,2i2,i5,2x,a)')'S2A stable:',s1,n1,lokcs,trim(name)
+! save lokcs as we can have several composition sets
+                phstable(n2,n1)=lokcs
+             endif
+          enddo
+! number of stable phases at this equilibrium
+          phstable(0,n1)=n2
+       enddo yloop
+    enddo xloop
+! we have calculate all 25 equilibria
+    do s1=1,n1
+       write(*,'(a,i3,2x,i2,2x,5i5)')'S2A equil: ',s1,(phstable(s2,s1),s2=0,nel)
+    enddo
+! now decide which points to use as start points, skip points with 
+    phused=0
+    touse=0
+! skip points with phases already used
+    all: do s1=1,n1
+       if(phstable(0,s1).eq.0) cycle all
+       write(*,'(a,5i5)')'S2A compare equil',s1,n1,phstable(0,s1),touse
+       phases: do s2=1,phstable(0,s1)
+          newset1: do s3=1,touse
+! compare with saved equil, skip if an equilibrium has the same phases
+             if(phstable(s2,s1).eq.phused(s2,s3)) cycle newset1
+          enddo newset1
+       enddo phases
+! if s3 is less than touse we have an equil with a new set of phases
+       write(*,*)'S2A skip as same: ',s3,touse
+       if(touse.gt.0 .and. s3.gt.touse) cycle all
+! this equilibrium has a new set of phases
+       touse=touse+1
+       do s3=1,phstable(0,s1)
+          phused(s3,touse)=phstable(s3,s1)
+       enddo
+       write(*,'(a,i3,2x,2F12.5,i2,2x,5i5)')'S2A use: ',s1,xuse(s1),yuse(s1),&
+            (phused(s2,s1),s2=0,nel)
+    enddo all
+    newset=nooftup()-newset
+    if(newset.gt.0) write(*,*)'S2A created ',newset,' composition sets'
+    write(*,*)'S2A equilibria to use: ',touse
+1000 continue
+! reset the globaldata%status
+    globaldata%status=globalstatus
+    return
+  end subroutine bombmatta
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine map_startpoint
 !\begin{verbatim}
   subroutine map_startpoint(maptop,nax,axarr,seqxyz,inactive,ceq)
@@ -969,7 +1114,7 @@
     mode=-1
     if(allocated(mapfix)) deallocate(mapfix)
 !    nullify(mapfix)
-!    write(*,*)'meq_startpoint: after allocating meqrec 1'
+!    write(*,*)'SMP2A meq_startpoint: after allocating meqrec 1'
     call calceq7(mode,meqrec,mapfix,ceq)
     if(gx%bmperr.ne.0) then
 ! try using grid minimizer
@@ -996,7 +1141,7 @@
        call condition_value(1,condition,value,ceq)
        if(gx%bmperr.ne.0) goto 1000
        if(value.lt.axarr(iax)%axmin .or. value.gt.axarr(iax)%axmax) then
-          write(*,*)'Startpoint outside axis limits'
+          write(*,*)'Startpoint outside axis limits',iax,value
           gx%bmperr=4225; goto 1000
        endif
     enddo
@@ -1275,9 +1420,11 @@
     eqname='_MAPNODE_'
     jp=10
 ! maptop%next is the most recent created mapnode ??
-!    seqx=maptop%next%seqx+1
-!    write(*,*)'Maptop index: ',maptop%next%seqx,maptop%previous%seqx
+    seqx=maptop%next%seqx+1
+!    write(*,*)'SMP2A New mapnode index: ',seqx,&
+!         maptop%next%seqx,maptop%previous%seqx
     seqx=max(maptop%next%seqx,maptop%previous%seqx)+1
+    maptop%next%seqx=seqx
 !    write(*,666)seqx,maptop%seqx,maptop%next%seqx,maptop%previous%seqx
 666 format('maptop seqx: ',10i3)
     call wriint(eqname,jp,seqx)
@@ -1661,13 +1808,17 @@
           endif
 ! ========================================== tie-lines in plane and one phase
        else ! we have just a single phase stable we must move in some direction
-          write(*,*)'Tie-line in plane and single phase,',&
-               ' This may not work ... '
+! ceq%multiuse is direction
+!          write(*,*)'SMP2A Tie-line in plane and single phase,',&
+!               ' This may not work ... '
           call map_startline(meqrec,axactive,ieq,nax,axarr,tmpline,ceq)
+          if(gx%bmperr.ne.0) goto 1000
        endif stablephases
 ! ============================================= no tie-lines in plane
     else !tie-lines NOT in the plane
 ! I am not sure what stableph and axis_withnocond are used for ...
+!   write(*,*)'SMP2A multiple startpoint without tie-lines in plane not allowed'
+!       gx%bmperr=4399; goto 1000
        allocate(axis_withnocond(nax))
        axis_withnocond=0
        call map_startline(meqrec,axactive,ieq,nax,axarr,tmpline,ceq)
@@ -1708,13 +1859,15 @@
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     integer jax,iax,idir,irem,iadd,iph,jj,jph,kph,ll,mapx
+    integer :: maxtry=0
     integer, parameter :: nstabphdim=20
     double precision curval,startval
     type(gtp_condition), pointer :: pcond
 ! turns off converge control for T
     integer, parameter :: inmap=1
+    save maxtry
 !
-!    write(*,*)'In map_startline, find a phase to set fix',ceq%eqno
+!    write(*,*)'In map_startline, find a phase to set fix',ceq%multiuse
 ! start in negative direction unless direction given
     idir=-1
     if(ceq%multiuse.ne.0) then
@@ -1747,47 +1900,62 @@
              gx%bmperr=4229; goto 1000
           endif
        else
-          if(jax.gt.0) idir=1
+! direction is +/-axis
+!          write(*,*)'SMP2A direction: ',ceq%multiuse
+          if(ceq%multiuse.gt.0) idir=1
           jax=abs(ceq%multiuse)
           call locate_condition(axarr(jax)%seqz,pcond,ceq)
+!          write(*,*)'SMP2A axis condition: ',pcond%statev,gx%bmperr
           if(gx%bmperr.ne.0) goto 1000
        endif
     else
+! no axis selected
+!       write(*,*)'SMP2A no direction',ceq%multiuse,nax
        jax=0
-       do iax=1,nax
+       idir=-1
+       findax: do iax=1,nax
           call locate_condition(axarr(iax)%seqz,pcond,ceq)
           if(gx%bmperr.ne.0) goto 1000
           if(pcond%statev.lt.10) then
 ! this means intensive variable (T,P chemical potential)
-             jax=iax; exit
+             idir=-1; jax=iax; exit findax
           endif
-       enddo
+       enddo findax
+! both axis are extensive, take the first axix
        if(jax.eq.0) jax=1
        call locate_condition(axarr(jax)%seqz,pcond,ceq)
        if(gx%bmperr.ne.0) goto 1000
 !       write(*,*)'Searching for phase to fix along axis: ',jax
     endif
     call condition_value(1,pcond,curval,ceq)
+!    write(*,'(a,3i4,F10.2)')'SMP2A initial value: ',gx%bmperr,jax,idir,curval
     if(gx%bmperr.ne.0) goto 1000
+! it seems OK until here ....
     startval=curval
 ! increment axis variable using axinc and calculate with meq_sameset
 100 continue
        curval=curval+idir*axarr(jax)%axinc
        call condition_value(0,pcond,curval,ceq)
+!       write(*,'(a,i5,F12.5)')'SMP2A current value: ',gx%bmperr,curval
        if(gx%bmperr.ne.0) goto 1000
        irem=0; iadd=0; meqrec%noofits=0
 !       write(*,*)'SMP2A calling meq_sameset from map_startline 1'
        call meq_sameset(irem,iadd,mapx,meqrec,meqrec%phr,inmap,ceq)
 !       if(ocv()) write(*,110)'Search for phase change: ',&
 !       write(*,110)'Search for phase change: ',&
-!            idir*jax,gx%bmperr,irem,iadd,ceq%tpval(1),curval
-110    format(a,i2,3i5,2x,F8.2,1pe14.6)
+!            idir*jax,gx%bmperr,irem,iadd,ceq%tpval(1),curval,axarr(jax)%axinc
+110    format(a,i2,3i5,2x,F8.2,2(1pe12.4))
+       maxtry=maxtry+1
+       if(maxtry.gt.1000) then
+          write(*,*)'SMP2A eternal loop: ',maxtry
+          stop
+       endif
        if(gx%bmperr.ne.0) goto 1000
        nophasechange: if(irem.eq.0 .and. iadd.eq.0) then
           if(idir.lt.0) then
              if(curval.le.axarr(jax)%axmin) then
 ! change direction
-                idir=+1
+                idir=1
                 curval=startval
              endif
           elseif(idir.gt.0) then
@@ -1802,15 +1970,14 @@
 ! we found a phase to set fix!
     meqrec%nfixph=meqrec%nfixph+1
 ! This is written to handle several axis i.e. several fix phases.
+!    write(*,*)'SMP2A found a phase change: ',irem,iadd
     fixfas: if(irem.gt.0) then
        if(meqrec%nstph.eq.1) then
           write(*,*)'Attempt to set the only phase as fix!'
           gx%bmperr=4230; goto 1000
        endif
-       write(*,*)'Remove axis condition and set stable phase fix: ',irem
+!       write(*,*)'Remove axis condition and set stable phase fix: ',irem
 ! phase already in lists, just mark it is no fixed with zero amount
-!       meqrec%phr(irem)%itrem=meqrec%noofits
-!       meqrec%phr(irem)%prevam=zero
        meqrec%phr(irem)%stable=1
        meqrec%phr(irem)%curd%amfu=zero
        meqrec%phr(irem)%curd%dgm=zero
@@ -1821,7 +1988,7 @@
        kph=irem
 !---------------------------------------------------------------
     else !fixfas iadd
-!       write(*,*)'Remove axis condition and set new phase fix: ',iadd
+!       write(*,*)'SMP2A set new phase fix: ',iadd
        if(meqrec%nstph.eq.meqrec%maxsph) then
           write(*,*)'Too many phases stable',meqrec%maxsph
           gx%bmperr=4231; goto 1000
@@ -1848,6 +2015,7 @@
        do kph=meqrec%nstph,jph,-1
           meqrec%stphl(kph+1)=meqrec%stphl(kph)
        enddo
+!       write(*,*)'SMP2A still trying to fix conditions ...'
 ! phase added at jph, (note jph may be equal to nstph+1)
        meqrec%stphl(jph)=iadd
        meqrec%nstph=meqrec%nstph+1
@@ -1864,7 +2032,7 @@
 ! matrix.  Fix phases have no variable amount.
     meqrec%fixpham(meqrec%nfixph)=zero
 !
-!    write(*,*)'No axis condition and call meq_sameset with fix phase: ',kph
+!    write(*,*)'Now release axis condition: ',kph,pcond%active
 ! Must not forget to set if T or P is variable!
     pcond%active=1
     if(pcond%statev.eq.1) then
@@ -1884,11 +2052,11 @@
        write(*,*)'Another phase want to be stable: ',iadd,irem
        gx%bmperr=4232; goto 1000
     endif
-!    write(*,110)'meq_sameset calculated: ',0,gx%bmperr,irem,iadd,ceq%tpval(1)
+!    write(*,110)'SMP2A start calculated: ',0,gx%bmperr,irem,iadd,ceq%tpval(1)
 !    if(gx%bmperr.ne.0) goto 1000
 !
-!
 ! we must return some values
+!    write(*,*)'SMP2A now create start node and line equilibria'
 ! two exits
     ieq=2
 ! active axis, the remaining one, if jax=1 then 2, if jax=2 then 1
@@ -1932,10 +2100,10 @@
 !       exit
     enddo
 !    if(ocv()) write(*,300)axactive,kph,tmpline(1)%linefixph%phaseix,&
-    if(ocv()) write(*,300)axactive,kph,tmpline(1)%linefixph%ixphase,&
-         tmpline(1)%linefixph%compset,tmpline(1)%nstabph,&
-         (tmpline(1)%stableph(jj)%ixphase,tmpline(1)%stableph(jj)%compset,&
-         jj=1,tmpline(1)%nstabph)
+!    write(*,300)axactive,kph,tmpline(1)%linefixph%ixphase,&
+!         tmpline(1)%linefixph%compset,tmpline(1)%nstabph,&
+!         (tmpline(1)%stableph(jj)%ixphase,tmpline(1)%stableph(jj)%compset,&
+!         jj=1,tmpline(1)%nstabph)
 300 format('exit map_startline: ',i2,i3,2x,2i3,2x,i2,10(2x,i3,i2))
     if(tmpline(1)%nstabph.eq.0) then
        write(*,*)'No stable phase !!'
@@ -2019,7 +2187,7 @@
     logical saveonfile,testforspinodal
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval ALLOCATE
-!    write(*,*)'SMP in map_store',mapline%start%number_ofaxis,nax,totalsavedceq
+!    write(*,*)'SMP in map_store',gx%bmperr
 ! insert a test for spinodal at every iii equilibriia
     testforspinodal=.FALSE.
     if(globaldata%sysparam(2).gt.0) then
@@ -2053,6 +2221,17 @@
 !        endif
        axarr(jj)%lastaxval=value
     enddo
+    if(repeatederr.ge.2) then
+! VERY STRANGE BEHAVIOUR HERE, repeatederr not reset ??
+! maybe not store if repeatederr nonzero 
+       jj=repeatederr; repeatederr=0
+!       write(*,*)'SMP in map_store',jj,repeatederr,gx%bmperr
+! Finnaly I will store the calculated equilibrium but skip it for plotting
+! if lasterr nonzero.
+!       gx%bmperr=4399
+!       goto 1000
+    endif
+    repeatederr=0
 !    write(*,18)'stored: ',mapline%number_of_equilibria,(axarr(jj)%lastaxval,&
 !         jj=1,mapline%start%number_ofaxis)
 !18  format(a,i3,5(1pe14.6))
@@ -2067,6 +2246,11 @@
     elseif(gx%bmperr.ne.0) then
 ! some other fatal error
        goto 1000
+    endif
+    if(repeatederr.gt.0) then
+! maybe not store if repeatederr nonzero
+!       write(*,*)'SMP in map_store',repeatederr,gx%bmperr,place
+       repeatederr=0
     endif
 ! >>>> end threadprotected
 !-----------------------
@@ -2287,7 +2471,7 @@
 !    write(*,*)'SMP2A calling meq_sameset from map_changeaxis'
     call meq_sameset(irem,iadd,mapx,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
     if(gx%bmperr.ne.0) then
-       write(*,*)'Error from meq_sameset when trying to change axis',gx%bmperr
+!       write(*,*)'Error from meq_sameset when trying to change axis',gx%bmperr
     endif
 !       ierr=gx%bmperr; gx%bmperr=0
 !       write(*,*)'Error trying to change axis: ',ierr
@@ -4260,7 +4444,7 @@
 !
     eqname='_MAPNODE_'
     jj=10
-!    write(*,*)'copy equilibrium: ',seqx,nrel
+!    write(*,*)'SMP2A map_newnode copy equilibrium: ',seqx,nrel
     call wriint(eqname,jj,seqx)
 ! This copy is a record in the array "eqlista" of equilibrium record, thus
 ! it will be updated if new composition sets are created in other threads.
@@ -6421,6 +6605,8 @@
        if(gx%bmperr.ne.0) goto 1000
        ip=len_trim(phaseset)+4
        phaseset(ip-2:ip-2)='+'
+! It seems to be diffcult to reset tjis variable ....
+       repeatederr=0
 !       write(*,*)'Fixed phase: ',mapfix%nfixph,&
 !            mapfix%fixph%ixphase,mapfix%fixph%compset
        if(mapnode%linehead(nyline)%nstabph.gt.0) then
@@ -7297,7 +7483,7 @@
     double precision value
     double precision :: sfact=1.0D-2
     integer jax
-!    write(*,*)'In map_halfstep'
+!    write(*,*)'In map_halfstep_bad',halfstep
     if(halfstep.eq.1) then
        sfact=0.5D0
     else
@@ -7372,7 +7558,8 @@
     double precision value
     double precision, parameter :: sfact=1.0D-2
     integer jax
-!    write(*,*)'In map_halfstep'
+    repeatederr=repeatederr+1
+!    write(*,*)'In map_halfstep',halfstep,repeatederr
     halfstep=halfstep+1
     if(type.eq.1 .and. (axvalok.eq.zero .or. halfstep.ge.3)) then
 !       write(*,*)'Two phases competing to appear/disappear',axvalok,halfstep
@@ -7751,7 +7938,7 @@
 
 !\addtotable subroutine auto_startpoints
 !\begin{verbatim}
-  subroutine auto_startpoints(maptop,noofaxis,axarr,seqxyz,starteq)
+  subroutine auto_startpoints(maptop,noofaxis,axarr,seqxyz,starteqs)
 ! Calculates 5 equilibria and store them as start points for mapping
 ! maptop map node record
 ! noofaxis must be 2
@@ -7761,7 +7948,8 @@
     implicit none
     integer noofaxis,seqxyz(*)
     type(map_axis), dimension(noofaxis) :: axarr
-    TYPE(gtp_equilibrium_data), pointer :: starteq
+!    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(starteqlista), dimension(*) :: starteqs
     TYPE(map_node), pointer :: maptop
 !\end{verbatim}
 ! genrate one startpoint in each corner and one in the center
@@ -7775,7 +7963,7 @@
 ! startpoint 0.3x, 0.3y; all 4 directions (should work also in isothermal)
     integer seqz1,seqz2,j1,j2,mode,nss
     double precision xx1,xx2
-    TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
+    TYPE(gtp_equilibrium_data), pointer :: ceq,neweq,starteq
     type(gtp_condition), pointer :: pcond1,pcond2
     double precision, dimension(2), parameter :: x1=[0.02,0.92]
     double precision, dimension(2), parameter :: x2=[0.02,0.92]
@@ -7786,7 +7974,7 @@
 !    goto 1000
 ! the rest here works but not converting the startpoint to lines.
     write(*,*)'SMP *** in auto_startpoints'
-    ceq=>starteq
+    ceq=>starteqs(1)%p1
     mode=1
     eqname='_STARTEQ_00'
     nss=0

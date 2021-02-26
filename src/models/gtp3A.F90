@@ -58,7 +58,7 @@
 ! create  special elements VA
    ellista(0)%symbol='VA'
    ellista(0)%name='Vacancy'
-   ellista(0)%ref_state='Vaccum'
+   ellista(0)%ref_state='Vacuum'
    ellista(0)%mass=zero
    ellista(0)%h298_h0=zero
    ellista(0)%s298=0.0D0
@@ -911,13 +911,27 @@
    integer loksp
    character name*(*)
 !\end{verbatim}
+   integer quad
    character symbol*24
    symbol=name
    call capson(symbol)
+! special for quadrupoles ... they can have a trailing -Qij which may be
+! different each time ...
+   quad=index(symbol,'-Q')
+   if(quad.gt.0) then
+      quad=quad-1
+   else
+      quad=0
+   endif
    do loksp=1,noofsp
 !       write(*,17)'find species 17: ',loksp,splista(loksp)%symbol,name
 !17     format(a,i3,' "',a,'" "',a,'"')
-      if(symbol.eq.splista(loksp)%symbol) goto 1000
+      if(quad.gt.0) then
+         if(symbol(1:quad).eq.splista(loksp)%symbol(1:quad)) goto 1000
+      else
+! problem that V was not read from database ...
+         if(symbol.eq.splista(loksp)%symbol) goto 1000
+      endif
    enddo
 ! This message cannot be written as it is used when reading a TDB file ...
 !   write(kou,*)'Exact match to species name requited'

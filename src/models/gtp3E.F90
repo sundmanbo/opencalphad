@@ -3867,7 +3867,7 @@
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
 !   character*24 disph(20)
    integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz,dismag
-   integer enteredpar,loop
+   integer enteredpar,loop,emodel
    type(gtp_phase_add), pointer :: addrec
    logical warning,dbcheck
 ! set to TRUE if element present in database
@@ -3877,6 +3877,7 @@
 !  mmyfr noofph
 ! if warning is true at the end pause before listing bibliography
 !   write(*,*)'3E readtdb',allocated(seltdbph),nselph
+   emodel=0
    nsl=0
    dbcheck=.FALSE.
    warning=.FALSE.
@@ -4423,7 +4424,7 @@
             write(*,*)'3E error entering quadrupoles'
             goto 1000
          endif
-         call mqmqa_rearrange
+         call mqmqa_rearrange(const)
 !         write(*,*)'3E back from rearranging constituents',gx%bmperr
          if(gx%bmperr.ne.0) then
             write(*,*)'3E error rearranging quadrupoles'
@@ -4435,7 +4436,7 @@
          knr(1)=mqmqa_data%nconst
 !         write(*,*)'3E enter_p: ',trim(name1),' ',knr(1),stoik(1),' ',phtype
          name2='MQMQA '
-         call enter_phase(name1,1,knr,const,stoik,name2,phtype,warning)
+         call enter_phase(name1,1,knr,const,stoik,name2,phtype,warning,emodel)
 !         write(*,*)'3E back from entering phase',gx%bmperr
          if(gx%bmperr.ne.0) then
             write(*,*)'3E failed to enter the MQMQA phase',gx%bmperr
@@ -4633,7 +4634,7 @@
       else
 !         write(*,*)'3E enter phase: ',name1
 !         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
-         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype,warning)
+         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype,warning,emodel)
 !      write(*,*)'readtdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then
@@ -5676,7 +5677,7 @@
    integer nofunent,disparttc,dodis,jl,nd1,thisdis
    integer excessmodel,modelcode,noofadds,noofdet,permut,enteredpar
    character*24 dispartph(5),ordpartph(5)
-   integer add(10),allel,cbug,rewindx,orddistyp(5)
+   integer add(10),allel,cbug,rewindx,orddistyp(5),emodel
    character modelname*72
    integer, parameter :: nadditions=6
    character*128, dimension(10) :: detail
@@ -5691,6 +5692,7 @@
 !  mmyfr
 ! if warning is true at the end pause before listing bibliography
 !
+   emodel=0
    warning=.FALSE.
    silent=.FALSE.
    verbose=.TRUE.
@@ -6316,7 +6318,8 @@
 !
 !         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
 !         call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype)
-         call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype,warning)
+         call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype,warning,&
+              emodel)
 !      write(*,*)'readpdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then

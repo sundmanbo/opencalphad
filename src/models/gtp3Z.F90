@@ -2242,6 +2242,7 @@
 ! returns TRUE if name1 is an abbreviation of name2
 ! termintaes when a space is found in name1
 ! each part between _ or - can be abbreviated from the left
+! a slash is treated as _
 ! case insensitive. Only 36 first characters compared
    implicit none
    character*(*) name1,name2   
@@ -2259,11 +2260,16 @@
    bigloop: do ip=1,36
       ch1=lname1(ip:ip)
       if(ip.gt.1 .and. ch1.eq.' ') goto 900
-! in species - has a special meaning of charge
+! in species - has a special meaning of charge (and other things)
       if(ch1.eq.'-') then
          if(ch1.eq.lname2(jp:jp)) goto 300
          ch1='_'
       endif
+! in species / has a special meaning of cluster
+!      if(ch1.eq.'/') then
+!         if(ch1.eq.lname2(jp:jp)) goto 300
+!         write(*,*)'3Z accepting /'
+!      endif
       if(ch1.eq.lname2(jp:jp)) goto 300
 !      if(ch1.eq.'_' .or. ch1.eq.'-') then
       if(ch1.eq.'_') then

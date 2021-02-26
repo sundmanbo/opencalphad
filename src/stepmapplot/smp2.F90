@@ -247,6 +247,18 @@ MODULE ocsmp
      integer type
      integer active
   end type plot_line
+!\end{verbatim}
+!
+!------------------------------------------------------------------------
+!
+!\begin{verbatim}
+  TYPE starteqlista
+! links to equilibria that are used as start points for step or map
+     type(gtp_equilibrium_data), pointer :: p1
+  end type starteqlista
+!\end{verbatim}
+  type (starteqlista), dimension(20) :: starteqs
+  integer noofstarteq
 !
 !------------------------------------------------------------------------
 !
@@ -353,6 +365,8 @@ MODULE ocsmp
   type(plot_line), pointer :: lastplotline,plotline1
 ! set by user for globalcheck during STEP/MAP
   integer :: mapglobalcheck=0
+! repeated errors
+  integer :: repeatederr=0
 !
 !-------------------------------------------------
 !

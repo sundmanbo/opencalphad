@@ -939,6 +939,7 @@
 ! 100th digit:  0=value order,        100=alphabetical order
 ! 1000th digit: 0=all phases,         1000=only stable phases
 ! 10000th digit: 1= constituent fractions times formula unit of phase (Solgas)
+! ? digit, just one line per phase
    implicit none
    integer iph,jcs,mode,lut
    logical once
@@ -954,9 +955,9 @@
    double precision, dimension(:), allocatable :: ymol
    integer lokph,lokcs,kode,nz,jl,nk,ll,ip,kstat
    mindgm=1.0D-10
-   if(ocv()) write(*,*)'mode: ',mode
+   if(ocv()) write(*,*)'3C mode: ',mode
    if(iph.lt.1 .or. iph.gt.noofph) then
-!       write(*,*)'lpr ',iph,jcs,mode
+!       write(*,*)'3C lpr ',iph,jcs,mode
       gx%bmperr=4050; goto 1000
    endif
    lokph=phases(iph)
@@ -977,7 +978,7 @@
 ! get name with pre- and suffix
    call get_phase_name(iph,jcs,phname)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,11)'Phase name: ',iph,jcs,phname
+!   write(*,11)'3C Phase name: ',iph,jcs,phname
 !11 format(a,2i3,'"',a,'"')
    if(mode.ge.1000) then
 ! if mode>=1000 list stable phases only (dgm<0 )
@@ -1037,15 +1038,15 @@
 !   wmass=zero
    call calc_phase_molmass(iph,jcs,xmol,wmass,totmol,totmass,amount,ceq)
    if(gx%bmperr.ne.0) then
-      write(*,*)'Error: ',gx%bmperr; goto 1000
+      write(*,*)'3C Error: ',gx%bmperr; goto 1000
    endif
 !CCI
    totmolperFU=ceq%phase_varres(lokcs)%amfu
 !CCI   
-!   write(*,99)'xmol: ',xmol
+!   write(*,99)'3C xmol: ',xmol
 !99 format(a,6(1pe12.4))
    kode=mod(mode,10)
-!   write(*,*)'lpr: ',mode,kode
+!   write(*,*)'3C lpr 3: ',mode,kode
    abv=ceq%phase_varres(lokcs)%abnorm(1)
 ! a shorter output
 !   write(lut,700)phname,status(1:1),totmol,totmass*0.001, &
@@ -1092,6 +1093,8 @@
 25  format('Moles',1PE12.4,', Mass',1PE12.4,' kg, Volume',1PE12.4,' m3')
 28  format('Moles',1PE11.3,' Mass',1PE11.3,' kg, Volume',1PE11.3,' m3,',&
          ' Charge: ',1pe11.3)
+! skip composition
+   if(mode.eq.10020) goto 1000
 ! composition
    nz=noofel
    allocate(consts(nz))
@@ -1590,9 +1593,12 @@
       ics=1
    endif
    lokcs=phlista(lokph)%linktocs(ics)
-   call get_phase_name(iph,ics,phname)
-   if(btest(phlista(lokph)%status1,PHQCE)) then
-! this is for the quasichemical model, cqc
+   call get_phase_name(iph,ics,phname)!
+   if(btest(phlista(lokph)%status1,PHQCE) .or. &
+        btest(phlista(lokph)%status1,PHCVMCE) .or. &
+        btest(phlista(lokph)%status1,PHFACTCE) .or. &
+        btest(phlista(lokph)%status1,PHTISR)) then
+! this is for the quasichemical models, qce, cvmqe, mqmqa, tisr
       write(lut,111)phname,phlista(lokph)%models(1:40),&
            ceq%phase_varres(lokcs)%qcbonds,phlista(lokph)%status1,&
            ceq%phase_varres(lokcs)%status2
@@ -1792,13 +1798,20 @@
    elseif(btest(phlista(lokph)%status1,PHIONLIQ)) then
       special(1:1)='I'; modelid='Ionic 2-sblattice liquid'
 !                                123456789.123456789.1234
-! added 20201128/BoS, MQMQA, CQC and UNIQUAC
+! added 20201128/BoS, FACTCE, QCE and UNIQUAC
    elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
-      special(1:1)='Q'; modelid='MQMQA'
+      special(1:1)='Q'; modelid='FACTCE'
 !                                123456789.123456789.1234
+! Topline 2 means bonds rather than sites ...
       topline=2
    elseif(btest(phlista(lokph)%status1,PHQCE)) then
-      special(1:1)='C'; modelid='Corr. Quasichem. model'
+      special(1:1)='C'; modelid='QCE'
+      topline=2
+   elseif(btest(phlista(lokph)%status1,PHCVMCE)) then
+      special(1:1)='K'; modelid='CVMCE'
+      topline=2
+   elseif(btest(phlista(lokph)%status1,PHTISR)) then
+      special(1:1)='E'; modelid='TISR'
       topline=2
    elseif(btest(phlista(lokph)%status1,PHUNIQUAC)) then
       special(1:1)='U'; modelid='UNIQAC polymer model'
@@ -1829,7 +1842,8 @@
    elseif(topline.eq.2) then
 ! for the quasichemical models
       write(lut,11)phname,phlista(lokph)%status1,special,trim(modelid),&
-           firsteq%phase_varres(lokcs)%sites(1)
+           firsteq%phase_varres(lokcs)%qcbonds
+!           firsteq%phase_varres(lokcs)%sites(1)
 11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a,', Bonds/at:',F7.3)
    endif
    nk=0
@@ -2885,7 +2899,7 @@
 ! special care for ionic liquid as sites varies ...
    character text*80,els*2
    integer element(maxel),lokel
-   double precision coef(maxel),xx,pqval(2)
+   double precision coef(maxel),xx,pqval(2),bonds
 !   TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_fraction_set), pointer :: disfra
    integer nsl,lokcs,ie,ll,jsp,nrel,ik,je,more,is,ip
@@ -2905,6 +2919,15 @@
       nsl=disfra%ndd
    endif
    ie=0
+! do not multiply swith sites for models PHCVMCQ, TISR, MQMQA, CRC
+   if(nsl.eq.1 .and. &
+        (btest(phlista(lokph)%status1,PHCVMCE) .or.&
+      btest(phlista(lokph)%status1,PHFACTCE) .or.&
+      btest(phlista(lokph)%status1,PHQCE) .or.&
+      btest(phlista(lokph)%status1,PHTISR))) then
+      bonds=firsteq%phase_varres(lokcs)%sites(1)
+      firsteq%phase_varres(lokcs)%sites(1)=one
+   endif
    sublat: do ll=1,nsl
       jsp=endm(ll)
       if(jsp.gt.0) then
@@ -3012,6 +3035,13 @@
          more=1
       endif
    enddo
+! restore bonds in sites(1) ....
+   if(btest(phlista(lokph)%status1,PHCVMCE) .or.&
+      btest(phlista(lokph)%status1,PHFACTCE) .or.&
+      btest(phlista(lokph)%status1,PHQCE) .or.&
+      btest(phlista(lokph)%status1,PHTISR)) then
+      firsteq%phase_varres(lokcs)%sites(1)=bonds
+   endif
    if(more.gt.0) goto 300
 ! list the elements as -10*H298(SER,element)
 !    write(*,*)'subrefstate 2:',ie,(element(i),i=1,ie)
@@ -3356,6 +3386,7 @@
       endif letter
 ! we have a species name between ip and jp
       const=constarr(ip:jp-1)
+!      write(*,*)'3C decode_constarr species: "',trim(const),'"'
       call find_species_record_exact(const,loksp)
       if(gx%bmperr.ne.0) then
          if(const(1:2).eq.'* ') then

@@ -564,13 +564,14 @@ CONTAINS
 910 buperr=1001
     GOTO 900
   END SUBROUTINE SORTIN
-  
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine ssort & Sorting characters
+!\addtotable subroutine ssort DOES NOT WORK
 !\begin{verbatim}
   SUBROUTINE SSORT(CMD,NS,INDEX)
 !...SORTING a character array, max 40 characters long
+! THIS DOES NOT WORK !!!
     implicit none
     CHARACTER CMD(*)*(*)
     integer ns,index(*)
@@ -614,6 +615,94 @@ CONTAINS
     GOTO 100
 900 RETURN
   END SUBROUTINE SSORT
+  
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine ssort & Sorting characters
+!\begin{verbatim}
+  SUBROUTINE SSORT2(CMD,NS,INDX)
+!...SORTING a character array, max 40 characters long
+! it does not change the position of the texts in CMD but return order in ORDER
+    implicit none
+    CHARACTER CMD(*)*(*)
+    integer ns,indx(*)
+!\end{verbatim}
+    CHARACTER STR*40
+    integer j1,j2,first,previous,next,limit
+    integer, allocatable, dimension(:) :: order
+!
+! links has the the index of the CMD in the increasing order
+    allocate(order(ns))
+    do j1=1,ns
+       order(j1)=-j1
+    enddo
+!    write(*,'(a,20i4)')'SSORT ',ns,(order(j1),j1=1,ns)
+    next=1
+    first=1
+!    write(*,*)'SSORT first quad ',next,': ',trim(cmd(next))
+    all: do j1=2,ns
+       previous=-1
+       next=first
+       limit=0
+!       write(*,'(a,i3,a,i3,a,a)')'SSORT loop from ',first,' to ',j1,&
+!            ' to find place for ',trim(cmd(j1))
+       find: do while(next.le.j1)
+          limit=limit+1; if(limit.gt.2*ns) stop 'ininite loop'
+          if(next.lt.0) then
+! there are no more to compare with, this is the last
+             order(previous)=j1
+!             write(*,'(a,i3,2x,20i3)')'SSORT insert last at ',&
+!                  previous,(order(j2),j2=1,ns)
+! do not change sign or order(j1)
+             cycle all
+          endif
+!          write(*,'(a,3i3,1x,a,1x,a,1x,a,1x,a)')'SSORT 1:',previous,j1,next,&
+!               ' compare ',trim(cmd(j1)),' and ',trim(cmd(next))
+          if(cmd(j1).lt.cmd(next)) then
+! insert this after previous, copy link to next to order(j1)
+             if(previous.lt.0) then
+!                write(*,'(a,a,3i3)')'SSORT 2: insert first before ',&
+!                  trim(cmd(next)),previous,j1,next
+                order(j1)=first; first=j1
+             else
+!                write(*,'(a,a,"< ",a," >",a,3i3)')'SSORT 2: insert between ',&
+!                     trim(cmd(previous)),trim(cmd(j1)),trim(cmd(next)),&
+!                     previous,j1,next
+                order(j1)=order(previous);
+                order(previous)=j1
+             endif
+!             write(*,'(a,2i3,2x,20i3)')'SSORT 3:',first,j1,(order(j2),j2=1,ns)
+             exit find
+          endif
+!          write(*,'(a,2i3,2x,20i3)')'SSORT 5:',next,j1,(order(j2),j2=1,ns)
+! compare with next
+          previous=next
+          next=order(next)
+       enddo find
+!       write(*,'(a,2i3,2x,20i3)')'SSORT 6:',first,0,(order(j2),j2=1,ns)
+    enddo all
+!    write(*,'(a,2i3,2x,20i3)')'SSORT 7:',first,ns,(order(j2),j2=1,ns)
+!
+!    next=first
+!    limit=1
+!    do while(next.gt.0)
+!       write(*,*)limit,' ',cmd(next)
+!       next=order(next)
+!       limit=limit+1
+!    enddo
+! convert to positions ...
+    next=first
+    limit=1
+    do while(next.gt.0)
+       j1=next
+       next=order(next)
+       indx(j1)=limit
+       limit=limit+1
+    enddo
+!    write(*,'(a,2i3,2x,20i3)')'SSORT 9:',first,ns,(order(j2),j2=1,ns)
+!    stop 'ssol'
+    return
+  end SUBROUTINE SSORT2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 !
@@ -7805,6 +7894,35 @@ CONTAINS
     ENDIF
     RETURN
   END SUBROUTINE UNTAB
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine incnum
+!\begin{verbatim}
+  SUBROUTINE INCNUM(NUMB)
+!...increments the number in character NUMB by 1, if >9 set to 0
+! and increment precedent number 
+! if first number >9 set all to zero.
+    implicit none
+    CHARACTER numb*(*)
+!\end{verbatim}
+    integer clen,ipos,idig,czero
+    czero=ichar('0')
+    clen=len(numb)
+    ipos=clen
+    loop: do while(ipos.gt.0)
+       idig=ichar(numb(ipos:ipos))-czero
+       if(idig.eq.9) then
+          numb(ipos:ipos)='0'
+          ipos=ipos-1
+       else
+          numb(ipos:ipos)=char(czero+idig+1)
+          exit loop
+       endif
+    enddo loop
+1000 continue
+    return
+  end SUBROUTINE INCNUM
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
