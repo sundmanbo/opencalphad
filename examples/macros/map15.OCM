@@ -25,7 +25,7 @@ new Y
 @$===============================================================
 set echo
 
-r t BEF
+r t ./BEF
 
 
 @$ First at 500 K,
@@ -58,27 +58,26 @@ plot
 
 
 
-@$ Some parts are missing, add another startpoint
+@&
+@$ Sometimes some parts are missing, try adding another startpoint
 
 @$ does not work on LINUX set c x(ni)=.2
-set c x(re)=.37 x(ni)=.2
+@$ set c x(re)=.37 x(ni)=.2
 
-c e
+@$ c e
 
-l,,,,,
-
-@&
-map
-N
-
+@$ l,,,,,
 
 @&
+@$ map
+@$ N
 
-plot
+
+@$ plot
 
 
 
-@$ Now it looks OK, plot it nicer
+@$ It looks OK, plot as a Gibbs triangle and add tie-lines
 @&
 
 
@@ -100,6 +99,7 @@ title Map 15 fig 1: BEF model Mo-Ni-Re isotherm 500 K
 @$ Mapping is still to be improved with experience
 
 @&
+
 
 
 @$-------------------------------------------------
