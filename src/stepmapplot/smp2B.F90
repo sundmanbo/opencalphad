@@ -196,7 +196,14 @@
 !       wildcard1: if(index(pltax(iax),'*').gt.0) then
        wildcard1: if(index(pltax(iax),'*').gt.0 .or. &
             index(pltax(iax),'#').gt.0) then
-          if(index(pltax(iax),'#').gt.0) hashtag=.TRUE.
+          i=index(pltax(iax),'#')
+          if(i.gt.0 .and.&
+               (pltax(iax)(i+1:i+1).eq.')'.or.pltax(iax)(i+1:i+1).eq.',')) then
+! this means the phase name is #, indicating all phases including dormant
+! Note that # is used to indicate composition sets, thus ignore #2 etc
+             hashtag=.TRUE.
+             write(*,*)'SMP2B hastag set true',trim(pltax(iax)),i
+          endif
           if(wildcard) then
              write(*,*)'in OCPLOT2 one axis variable with wildcard allowed'
              goto 1000
@@ -368,7 +375,7 @@
           if(last.and. mapline%termerr.ne.0) then
 ! skip this equilibrium!!
              nr=0
-             write(*,*)'Skipping last equilibrium in the plot'
+             write(*,*)'Skipping last point of a line in the plot'
              cycle plot1
           endif
           nv=nv+1
@@ -561,6 +568,8 @@
 !                   write(*,737)len_trim(encoded2),trim(encoded2)
 ! allocation should be number of phases
 ! if 
+!                   write(*,'(a,a/a,2i5)')'SMP2B stvarix1: ',trim(statevar),&
+!                        trim(encoded2),nlinesep,nix
                    call stvarix(statevar,phaseline(nlinesep),&
                         encoded2,nix,ixpos)
                    if(gx%bmperr.ne.0) then
@@ -568,7 +577,19 @@
                       goto 1000
                    endif
                 else
-                   ixpos=1
+! here we may have hashtag TRUE
+!                   write(*,*)'SMP2B Hashtag: ',hashtag
+! We should supress values for suspended phases !!!
+                   if(hashtag) then
+                      call hashtag_susphix(statevar,phaseline(nlinesep),&
+                           encoded2,nix,ixpos,curceq)
+                      if(gx%bmperr.ne.0) then
+                         write(*,*)'SMP2B failed handle hashtag'
+                         goto 1000
+                      endif
+                   else
+                      ixpos=1
+                   endif
                 endif
              endif
 !             if(hashtag) then
@@ -823,6 +844,9 @@
                       if(gx%bmperr.ne.0) goto 1000
 ! we have to handle axis values that are zero what is np here???
                       nix=np
+! to supress suspended phases
+!                      write(*,'(a,a/a,2i5)')'SMP2B stvarix2: ',trim(statevar),&
+!                           trim(encoded2),nlinesep,nix
                       call stvarix(statevar,phaseline(nlinesep),&
                            encoded2,nix,ixpos)
                       if(gx%bmperr.ne.0) goto 1000
@@ -4012,7 +4036,7 @@
 !          read(*,10)cha
 10        format(a)
           if(trim(sstring).eq.trim(encoded(kp:lp-1))) then
-             vix=vix+1
+!             vix=vix+1
 ! it seems simpler to indicate for each possible value that it is relevent
              ixpos(pix)=1
 ! than to return an array with the relevant values ...
@@ -4038,6 +4062,83 @@
 1000 continue
     return
   end subroutine stvarix
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine hashtag_susphix 
+!\begin{verbatim}
+  subroutine hashtag_susphix(statevar,phaseline,encoded,nix,ixpos,ceq)
+! replace # with non-suspended phase names in DGM(#)
+! statevar: DGM(#) wildcard (for a phase)
+! phaseline: phase names separated by a space
+! encoded: state variables returned by get_many(...) separated by a space
+! nix: number of state variables in encoded
+! ixpos: integer array with corresponding index for values
+    implicit none
+    integer nix,ixpos(*)
+    character*(*) statevar, phaseline, encoded
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    character sstring*48,phase*32,prefix*24,suffix*24,cha*1
+    integer ip,jp,kp,lp,pix,lpre,lenc,iph,ics
+    double precision amfu
+!    write(*,*)'SMP2B hastag_suspix: ',trim(statevar),nix
+!    write(*,*)'phases:  "',trim(phaseline),'"'
+!    write(*,*)'encoded: "',trim(encoded),'"'
+! initiate ipos to zero
+!    write(*,8)1,trim(statevar),len_trim(encoded),trim(encoded)
+!8   format('smp2B: ',i1,' searching for "',a,'" in encoded with length ',i5/a/)
+!
+    lenc=len_trim(encoded)
+!    write(*,*)'SMP2B in hashtag_susphix: ',trim(statevar)
+!    write(*,'(a,a)')'SMP2B phaseline: ',trim(phaseline)
+!    write(*,'(a,a)')'SMP2B encoded: ',lenc
+!
+    ixpos(1:nix)=0
+    ip=index(statevar,'#')
+! if no hashtag skip
+    if(ip.le.0) goto 1000
+! if hashtag not followed ) or , it indicate a composition set, skip
+    if(.not.(statevar(ip+1:ip+1).eq.')' .or. statevar(ip+1:ip+1).eq.',')) &
+         goto 1000
+! debug check search string:
+!    write(*,8)2,trim(statevar),len_trim(encoded),trim(encoded)
+    prefix=statevar(1:ip-1)
+    lpre=len_trim(prefix)
+!    write(*,*)'SMP2B hastag1: "',prefix(1:lpre),'"',len(encoded)
+!
+    ip=1
+    pix=0
+    ixpos(1:nix)=0
+!  we can ignore phaseline and we skip all phases in encoded that are suspended
+    do while(ip.lt.lenc)
+       jp=index(encoded(ip:),prefix(1:lpre))
+       kp=index(encoded(ip:),' ')
+       phase=encoded(ip+jp+lpre-1:ip+kp-3)
+!       write(*,'(a,a,a,3i5)')'SMP2B hashtag 2: "',trim(phase),'"',ip,jp,kp
+! update ip for next phase
+       ip=ip+kp
+!       write(*,*)'SMP2B rest: ',trim(encoded(ip:))
+! find phase number/set       
+!       call find_phase_by_name_exact(phase,iph,ics)
+       call find_phase_by_name(phase,iph,ics)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'SMP2B hashtag found nonexisting phase name: ',phase
+       endif
+       pix=pix+1
+       if(test_phase_status(iph,ics,amfu,ceq).ge.PHDORM) then
+! this phase is not suspended, it should be included
+! it seems simpler to indicate for each possible value that it is relevent
+          ixpos(pix)=1
+! than to return an array with the relevant values ...
+!          write(*,*)'not suspended: ',trim(phase),pix,ixpos(pix)
+!       else
+!          write(*,*)'suspended: ',trim(phase)
+       endif
+    enddo
+1000 continue
+    return
+  end subroutine hashtag_susphix
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

@@ -57,6 +57,7 @@ map
 plot
 
 
+title map 15 fig 1a
 
 @&
 @$ Sometimes some parts are missing, try adding another startpoint
@@ -91,7 +92,7 @@ gibbs
 y
 extra tie 3
 extra lower Mo
-title Map 15 fig 1: BEF model Mo-Ni-Re isotherm 500 K
+title Map 15 fig 1b: BEF model Mo-Ni-Re isotherm 500 K
 
 
 

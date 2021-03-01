@@ -294,7 +294,8 @@
                do iph=1,nent
 ! bypass all stable phases
                   if(ceq%phase_varres(entph(iph))%amfu.gt.zero) cycle
-                  if(csrec%dgm.lt.ceq%phase_varres(entph(iph))%dgm) cycle
+                  if(csrec%dgm/csrec%abnorm(1).lt.&
+ ceq%phase_varres(entph(iph))%dgm/ceq%phase_varres(entph(iph))%abnorm(1)) cycle
 ! this is the place for this phase, shift later phases down
                   do jph=nent,iph,-1
                      entph(jph+1)=entph(jph)
@@ -316,7 +317,8 @@
             else
 ! DORMANT sort after with smallest (least nagative) DGM first
                do iph=1,ndorm
-                  if(csrec%dgm.lt.ceq%phase_varres(dorph(iph))%dgm) cycle
+                  if(csrec%dgm.lt.&
+  ceq%phase_varres(dorph(iph))%dgm/ceq%phase_varres(dorph(iph))%abnorm(1)) cycle
 ! this is the place for this phase, shift later down
                   do jph=ndorm,iph,-1
                      dorph(jph+1)=dorph(jph)
@@ -380,7 +382,7 @@
          ch1='X'
          write(unit,112)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
               csrec%amfu*csrec%abnorm(1),&
-              csrec%abnorm(1),csrec%dgm
+              csrec%abnorm(1),csrec%dgm/csrec%abnorm(1)
 112      format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2)
          if(csrec%dgm.lt.zero) then
             jph=jph+1
@@ -432,7 +434,7 @@
          ch1='D'
          write(unit,112)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
               csrec%amfu*csrec%abnorm(1),&
-              csrec%abnorm(1),csrec%dgm
+              csrec%abnorm(1),csrec%dgm/csrec%abnorm(1)
          jph=jph+1
          if(jph.gt.10) then
             write(unit,*)' ... other phases further from stability'
@@ -478,8 +480,8 @@
          endif
          ch1='X'
          write(unit,412)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
-              csrec%amfu*csrec%abnorm(1),&
-              csrec%abnorm(1),csrec%dgm,phlista(lokph)%status1,&
+              csrec%amfu*csrec%abnorm(1),csrec%abnorm(1),&
+              csrec%dgm/csrec%abnorm(1),phlista(lokph)%status1,&
               ceq%phase_varres(lokcs)%status2,ch1
 412   format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2,2(0p,z8),a1)
          if(csrec%dgm.lt.zero) then
@@ -532,7 +534,7 @@
          ch1='D'
          write(unit,113)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
               csrec%amfu*csrec%abnorm(1),&
-              csrec%abnorm(1),csrec%dgm,phlista(lokph)%status1,&
+              csrec%abnorm(1),csrec%dgm/csrec%abnorm(1),phlista(lokph)%status1,&
               ceq%phase_varres(lokcs)%status2,ch1
 113      format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2,2(0p,z8),a1)
          jph=jph+1
@@ -665,7 +667,7 @@
 !               write(unit,112)jk,ics,csname, &
                write(unit,112)jk,csrec%phtupx,csname, &
                     csrec%amfu*csrec%abnorm(1),&
-                    csrec%abnorm(1),csrec%dgm,&
+                    csrec%abnorm(1),csrec%dgm/csrec%abnorm(1),&
                     phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2,ch1
 112            format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2,2(0p,z8),a1)
 !112            format(2i4,1x,a24,1PE10.2,1x,0PF9.2,1PE10.2,2(0p,z8))
@@ -673,7 +675,7 @@
          else
 !            write(unit,111)jk,ics,csname, &
             write(unit,111)jk,csrec%phtupx,csname, &
-                 csrec%abnorm(1),csrec%dgm,&
+                 csrec%abnorm(1),csrec%dgm/csrec%abnorm(1),&
                  phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2,ch1
 111         format(2i4,1x,a24,'       0.0',1x0PF8.2,1PE10.2,2(0p,z8),a1)
 !111         format(2i4,1x,a24,'       0.0',1x0PF9.2,1PE10.2,2(0p,z8))
@@ -861,7 +863,8 @@
 !            write(*,*)'ignoring phase with net charge: ',iph,ics
 !            cycle csloop
 !         endif
-         if(ceq%phase_varres(lokcs)%dgm.gt.1.0D-4) then
+         if(ceq%phase_varres(lokcs)%dgm/&
+              ceq%phase_varres(lokcs)%abnorm(1).gt.1.0D-4) then
             if(once.eq.0) then
                allocate(phtupx(nooftuples))
             endif
@@ -870,7 +873,7 @@
 109         format(/' *** There are phase(s) which would like to be stable:')
             phtupx(once)=ceq%phase_varres(lokcs)%phtupx
             write(lut,78, advance='no')trim(phlista(lokph)%name),&
-                 ceq%phase_varres(lokcs)%dgm
+                 ceq%phase_varres(lokcs)%dgm/ceq%phase_varres(lokcs)%abnorm(1)
 78          format(3x,a,1pe12.4)
 !            write(*,98)once,phtupx(once),phasetuple(phtupx(once))%phase,iph,&
 !                 lokcs,ceq%phase_varres(lokcs)%dgm,&
@@ -917,7 +920,8 @@
 ! means SUSPEND, DORMANT, ENTENTED/UNST, ENTERED, ENTERD/STABLE, FIXED
          kkz=ceq%phase_varres(lokcs+1)%phstate
          if(kkz.ge.PHDORM) then
-            write(lut,120)name,phstate(kkz),ceq%phase_varres(lokcs+1)%dgm
+            write(lut,120)name,phstate(kkz),&
+              ceq%phase_varres(lokcs+1)%dgm/ceq%phase_varres(lokcs+1)%abnorm(1)
 120         format('Phase: ',a,' Status: ',a,' Driving force:',1pe12.4)
          endif
       enddo
@@ -1064,7 +1068,7 @@
 !          '    Form.U      At/FU DGM    Fracs:')
       write(lut,700)phname,status(1:1),totmol,&
            amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1),&
-           ceq%phase_varres(lokcs)%amfu,abv,ceq%phase_varres(lokcs)%dgm,'X:'
+           ceq%phase_varres(lokcs)%amfu,abv,ceq%phase_varres(lokcs)%dgm/abv,'X:'
 !      phase status moles/mass   (volume FU)  Atomes/FU DGM Content
 700 format(a,1x,a,  1pe11.3,     2(1pe10.2),1x,0pF7.2,1pe10.2,2x,a)
 !X      if(abs(ceq%phase_varres(lokcs)%netcharge).gt.1.0D-6) then
@@ -1083,7 +1087,7 @@
       once=.FALSE.
       write(lut,700)phname,status(1:1),totmass*0.001, &
            amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1),&
-           ceq%phase_varres(lokcs)%amfu,abv,ceq%phase_varres(lokcs)%dgm,'W:'
+           ceq%phase_varres(lokcs)%amfu,abv,ceq%phase_varres(lokcs)%dgm/abv,'W:'
 !X      write(lut,25)totmol,totmass*0.001,&
 !X           amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1)
 !X      write(lut,22)ceq%phase_varres(lokcs)%amfu,abv

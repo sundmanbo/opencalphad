@@ -237,6 +237,7 @@ gra
 3
 step1
 Y
+title step 1 fig 8b
 
 
 @$ NOTE the PDF file will be saved in the working directory
@@ -248,30 +249,84 @@ Y
 plot
 
 dgm(#)
+title step 1 fig 9
 
 
 
 @&
+
+@$ This is clearly too many phases, only a few are interesting
+@$ However, to select them we have to recalculate the step with just the phases
+@$ we think are interesting, the other set as suspended.
+@$ That means more or less all phases except the different carbides
+@$ and maybe some intermetallic phases.
+
+set stat ph *=sus
+
+set stat ph liq fcc bcc hcp m23c6 m7c3 m6c ksi m3c2 m5c2 mc_eta mc_shp=e 0
+
+@$ Note that FCC is the austenite and FCC#2 is the MC cubic carbide.
+@$ HCP is the M2C hexagonal carbide.
+
+@&
+
+l c
+
+c e
+
+l,,,,
+
+
+
+@&
+
+step
+
+
+
+@&
+
 plot
 
 dgm(#)
-@$ Only those close to zero are interesting
+@$ Move the position of the line keys to bottom left
+position
+bottom left
+12
+@$ Add symbols on the lines to make them easier to identify
+extra line 10
+title step 1 fig 10
+
+
+
+@$ There are some irregularites for the FCC phase at high T
+@$ as it switches between metallic austenite and cubic carbide phase
+
+@&
+@$ Scale up to see those closest to be stable
+
+
+plot
+
+
 scale
 Y
 N
 -0.2
 0
-@$ Move th key of the line to bottom left and smaller size than default
-position
-bottom left
-10
-10
-@$ Add symbols on the lines to make them easier to identify
-extra line 10
-
+title step 1 fig 11
 
 @$ Note the DGM of the BCC phase, it is stable at high T
 @$ and comes back at low T
+
+@&
+@$ We still have the same set of stable phases
+
+plot
+
+np(*)
+title step 1 fig 12
+
 
 
 
