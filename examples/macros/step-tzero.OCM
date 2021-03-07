@@ -1,0 +1,180 @@
+new Y
+@$===============================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ step-tzero.OCM
+@$
+@$ This example show the T limit of diffusionless transformation
+@$ from austenite (FCC) to ferrite (FCC) depending on the
+@$ alloy composition.
+@$ 
+@$ This transformation is important as rapidly quenched austenite
+@$ can transform to martensite and various forms of eutectoid
+@$ structures like perlite and bainite with high strength
+@$
+@&
+@$===============================================================
+@$ 
+
+set echo
+
+
+r t ./steel1
+c cr fe si
+
+set c t=1173 p=1e5 n=1 w%(c)=.3 w%(cr)=5 w%(si)=1
+
+c e
+
+l , 4
+
+
+@$ At 1173 K (900 degree C) we have only austenite (FCC)
+@&
+
+set ref fe bcc * 1e5
+
+@$ set the reference state for Fe as BCC
+
+@&
+@$
+@$ Use CALCULATE TRANSITION to find the T when BCC is formed
+@$
+c tran
+BCC
+
+
+l,,,,
+
+
+@$ We release condition 1 (T) and at 1106 K we form BCC
+@$ but also M7C3
+@$ Note the condition for T is set to the new T (1106.18 K)
+@&
+@$ At present ignore carbide formation, thus suspend all phases but FCC and BCC
+set status ph *=sus
+set status ph fcc bcc=ent 1
+
+@$ Calculate without the grid minimizer to avoid creating new composition sets
+
+c n
+
+l,,,,
+
+@$ We have now just fcc at 1106 because we have higher C content in FCC
+@&
+@$ Calculate again when BCC is formed
+
+c tran
+bcc
+
+
+l,,,,
+
+@$ The BCC is formed at 1079 when M7C3 is ignored
+@&
+@$ The T-zero line is at a carbon content in between BCC and FCC
+@$ Thus at a lower T
+
+c tzero
+FCC
+BCC
+1
+
+l,,,,
+
+
+@$ The tzero T is 946 K (673 degree C).
+@$=====================================================================
+@$ This is not an equilibrium but the limit for diffusionless transformation
+@$ from FCC to BCC
+@$=====================================================================
+@$ At this T FCC and BCC have the same Gibbs energy
+@$ at the same alloy composition.
+@&
+@$ Calculate how the TZERO temperature varies with the carbon content
+
+@$ Set the carbon content as axis
+
+set ax 1 w%(c) 0 1 .01
+
+@$ During this STEP command the C content is varied
+@$ to find the T (condition 1)
+@$ when FCC and BCC have the same Gibbs energy for the same alloy content
+step tzero
+y
+FCC
+BCC
+1
+
+
+@&
+
+plot
+w%(c)
+T
+
+@&
+@$ Let us verify this by calculating the Gibbs energy curves at 950 K
+@$ at varying C content.
+@$ First suspend again all other phases
+
+set status ph *=sus
+
+set st ph fcc bcc=ent 0
+
+c n
+
+l,,,,,
+
+
+@&
+
+step sep
+Y
+
+
+
+@&
+
+plot
+w%(C)
+GM(*)
+scale
+Y
+N
+-6500
+-5000
+
+
+
+@$ We can see the Gibbs energy curves cross around w%(C)=0.3
+@$ inside the two-phase region FCC and BCC.
+
+@$ The equilibrium tie-line is not in the plane
+@$ because the alloy also has Cr and Si
+@&
+
+c e
+
+l,,,,,
+
+
+
+
+set inter
+

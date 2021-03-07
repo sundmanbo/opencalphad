@@ -1821,14 +1821,8 @@ CONTAINS
     TYPE(meq_phase), pointer :: pmi
 ! Using SAVE not possible for parallel calculations here once is just warning
     logical, save :: once=.true.
-!    character ch1*1
-!    double precision, dimension(maxel) :: ccm
-!    double precision, dimension(maxel) :: sccm
     double precision, dimension(5) :: qq
-!    double precision, dimension(2) :: tpvalz
-!    double precision, dimension(maxel+2) :: ycormax
     double precision, dimension(maxconst) :: ycormax
-!    double precision phfrac(maxel)
     double precision, dimension(:,:), allocatable :: smat
     double precision, dimension(:), allocatable :: svar
 ! these arrays should maybe be allocated ....
@@ -1842,19 +1836,14 @@ CONTAINS
     double precision yvar1,yvar2
     double precision maxphch
     double precision sum
-!    double precision dumdum,wdum(20)
-!    double precision, dimension(:), allocatable :: xcol
     double precision, dimension(:), allocatable :: cit
-!    double precision, dimension(:,:), allocatable :: cpmat
     double precision deltat,deltap,deltaam,yfact
 ! this is an emergecy fix to improve convergence for ionic liquid
     double precision, parameter :: ionliqyfact=3.0D-1
-!    double precision, parameter :: ionliqyfact=1.0D0
 ! to check if we are calculating a single almost stoichiometric phase ...
     integer iz,tcol,pcol,nophasechange,notagain
     double precision maxphasechange,molesofatoms,factconv
     double precision lastdeltat,deltatycond,phfmin,value
-!    double precision, allocatable, dimension(:) :: loopfact
     integer notf,dncol,iy,jy,iremsave,phasechangeok,nextch,iremax,srem,errall
     character phnames*50
     double precision, dimension(:), allocatable :: lastdeltaam
@@ -1862,21 +1851,6 @@ CONTAINS
 ! NOTE using save cannot be reconciled with parallel calculations
     save notagain
 !
-! How is mapping setting fix phases?? I have forgotten
-!    if(meqrec%nfixph.le.0) then
-!       write(*,*)'Calling meq_sameset no fix phase, X(O): ',value
-!    elseif(meqrec%nfixph.eq.1) then
-! and there seems to be errors ...
-!       write(*,7)meqrec%nfixph,meqrec%fixph(1,1),meqrec%fixph(2,1),&
-!            meqrec%fixpham(1),0,0,0.0D0,value
-!    elseif(meqrec%nfixph.eq.2) then
-! and there seems to be errors ...
-!       write(*,7)meqrec%nfixph,meqrec%fixph(1,1),meqrec%fixph(2,1),&
-!            meqrec%fixpham(1),meqrec%fixph(1,2),meqrec%fixph(2,2),&
-!            meqrec%fixpham(2),value
-!7      format('MM fix: ',i2,': ',i3,i2,', am: ',e10.2,&
-!            '; ',i3,i2,', am: ',2e10.2)
-!    endif
 ! do not allow return unless meqrec%noofits greater or equal to nextch
     mapx=0
     nextch=meqrec%noofits+4
@@ -1983,8 +1957,8 @@ CONTAINS
 !101 format(a)
 !    write(*,*)'Iteration: ',meqrec%noofits,' ----------------------------- '
     if(ocv()) write(*,199)meqrec%noofits,ceq%tpval(1),meqrec%nstph,&
+!    write(*,199)meqrec%noofits,ceq%tpval(1),meqrec%nstph,&
          (meqrec%stphl(jz),jz=1,meqrec%nstph)
-!199 format(/'Equil iter: ',i3,f8.2,', stable phases: ',i3,2x,10i3)
 199 format(/'Equil iter: ',i3,f8.2,', stable phases: ',i3,2x,100i3)
     if(meqrec%noofits.gt.ceq%maxiter) goto 1200
     converged=0
@@ -2038,9 +2012,9 @@ CONTAINS
 ! (If a fix phase condition or chem.pot. condition slightly different??)
 !----------------------------------------
 300 continue
-    if(vbug) write(*,301)'Calculating general equil matrix',meqrec%nfixmu,&
+!    if(vbug) write(*,301)'Calculating general equil matrix',meqrec%nfixmu,&
 !    write(*,301)'Calculating general equil matrix',meqrec%nfixmu,&
-         meqrec%nfixph,meqrec%tpindep,meqrec%noofits
+!         meqrec%nfixph,meqrec%tpindep,meqrec%noofits
 301 format(a,2i2,2l2,i5)
 ! some arguments here are redundant but kept for some
     call setup_equilmatrix(meqrec,phr,nz1,smat,tcol,pcol,&

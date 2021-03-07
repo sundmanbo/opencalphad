@@ -241,8 +241,8 @@
        if(maptop%tieline_inplane.gt.0) then
 ! with tie-lines in plane we must check axis variable for stable phase also
           allocate(mapline%axvals2(nax))
-       else
-          
+!       else
+! any special  to do??          
        endif
     endif
 ! Each thread must have separate meqrec and ceq records
@@ -1077,7 +1077,8 @@
 ! maptop is returned as a first nodepoint(although it is not a node)
 ! nax is number of axis, axarr records with axis information
 ! seqxyz is array with indices for numbering nodepoints and lines
-! inactive is not really used (conditions replaced by fix phase)
+! inactive is used for map to replaced axis by fix phase
+!       and for step inactive(1) nonzero means create just one linehead
 ! ceq is equilibrium record
     implicit none
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -1191,6 +1192,7 @@
        mapnode%nodefix%ixphase=0
        mapnode%status=0
        mapnode%artxe=0
+       mapnode%type_of_node=0
        mapnode%globalcheckinterval=mapglobalcheck
 ! if there is a previous MAP/STEP then 
 ! seqx and seqy pass on the last used indices for _MAPNODE and _MAPLINE
@@ -1233,14 +1235,17 @@
     else
 ! only one axis, i.e. a step command, create a map_node record with 2 lines
        axactive=1
-       ieq=2
-       continue
+       if(inactive(1).eq.0) then
+          ieq=2
+       else
+          ieq=1
+       endif
     endif
 !    write(*,1001)'After replace: ',(meqrec%phr(jp)%curd%amfu,&
 !         jp=1,meqrec%nphase)
 !-----------------------------------------------------------------------
 ! finished converting a start equilibrium to a start point, 
-    mapnode%type_of_node=0
+!    mapnode%type_of_node=0
     mapnode%lines=ieq
 ! debug listing of links for maptop ...
 !    write(*,*)'maptop: ',maptop%noofstph
@@ -1262,15 +1267,20 @@
     mapnode%nodeceq=>ceq
 !-----------------------------------------------------------------------
     if(ocv()) write(*,*)'allocating lineheads: ',ieq,maptop%seqy
+! ensure mapnode%lines is correctly set
     allocate(mapnode%linehead(ieq))
+    mapnode%lines=ieq
+!    mapnode%type_of_node=0
 ! meqrec%status
     do jp=1,ieq
        mapnode%linehead(ieq)%meqrec%status=0
     enddo
 ! we can have 3 or more exits if starting inside a 3 phase triagle for isotherm
-    if(ieq.eq.2) then
+    if(ieq.lt.3) then
 ! STEP command: set one exit in each direction of the active axis axactive
-       do jp=1,2
+! or we found a phase to set fix in a map command?
+!       do jp=1,2
+       do jp=1,ieq
 !--------------------- code moved from map_findline
 ! make a copy of the equilibrium record
           if(ocv()) write(*,*)'We found a line from node: ',mapnode%seqx
@@ -1289,7 +1299,13 @@
           maptop%seqy=seqy
 !------------------------------ end code copied
 ! one line has +axactive, the other -axactive
-          mapnode%linehead(jp)%axandir=(3-2*jp)*axactive
+          if(ieq.eq.2) then
+             mapnode%linehead(jp)%axandir=(3-2*jp)*axactive
+          else
+! this is used for Scheil-Gulliver step with just one axis
+!            write(*,*)'SMP2A Scheil map_startpoint: ',inactive(1),jp,ieq
+             mapnode%linehead(jp)%axandir=inactive(1)
+          endif
           mapnode%linehead(jp)%number_of_equilibria=0
           mapnode%linehead(jp)%first=0
           mapnode%linehead(jp)%last=0
@@ -1393,6 +1409,7 @@
           else
 ! this is for STEP
              if(ocv()) write(*,*)'For STEP no need of fixed phases.'
+!             write(*,*)'SMP2A Scheil step here?'
              mapnode%linehead(jp)%nfixphases=0
              allocate(mapnode%linehead(jp)%stableph(meqrec%nstph))
              allocate(mapnode%linehead(jp)%stable_phr(meqrec%nstph))
@@ -2187,7 +2204,7 @@
     logical saveonfile,testforspinodal
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval ALLOCATE
-!    write(*,*)'SMP in map_store',gx%bmperr
+!    write(*,*)'SMP in map_store',gx%bmperr,globaldata%sysparam(2)
 ! insert a test for spinodal at every iii equilibriia
     testforspinodal=.FALSE.
     if(globaldata%sysparam(2).gt.0) then
@@ -2200,6 +2217,7 @@
        axstv=>axstv1
        call state_variable_val(axstv,value,mapline%lineceq)
        if(gx%bmperr.gt.0) goto 1000
+!       write(*,*)'map_store: ',value
 ! this check could be moved before store to take halfstep??
        if(nax.gt.1 .and. mapline%number_of_equilibria.gt.3) &
             call map_checkstep(mapline,value,jj,axarr,nax,saveceq)
@@ -2238,6 +2256,7 @@
 !-----------------------
     saveonfile=.FALSE.
 ! >>>> begin treadprotected
+!    write(*,*)'map_store: ',saveonfile
     call reserve_saveceq(place,saveceq)
     if(gx%bmperr.eq.4219) then
 ! the memory is full, save this equilibrium, clean up and empty all on file
@@ -2252,8 +2271,12 @@
 !       write(*,*)'SMP in map_store',repeatederr,gx%bmperr,place
        repeatederr=0
     endif
+!    write(*,*)'map_store: ',place,allocated(mapline%meqrec%phr)
+!    write(*,*)'map_store: ',place,assigned(mapline%meqrec)
 ! >>>> end threadprotected
 !-----------------------
+! when step_tzero and some other step procedures MEQREC is not used
+    if(.not.allocated(mapline%meqrec%phr)) goto 600
 ! loop through all phases and if their status is entered set it as PHENTUNST
 ! then loop through all stable to set status PHENTSTAB
 ! That is important for extracting values later ...
@@ -2300,6 +2323,7 @@
 !         meqrec%phr(meqrec%stphl(jj))%ics,jj=1,meqrec%nstph)
 201 format(a,10(2i3,2x))
 !-----------------------------------------
+600 continue
 ! this copies the whole data structure !!!
 ! LIKELY PLACE FOR SEGMENTATION FAULT !!!
 !    write(*,*)'SMP storing equilibrium record: ',place
@@ -4374,7 +4398,7 @@
        enddo
 ! We can come here with a STEP command without any fix phases
        if(maptop%tieline_inplane.eq.0) then
-!          write(*,*)'Step command'
+          write(*,*)'SMP2A map_calcnode: Step command'
           goto 800
        endif
 ! T, P and all chemical potentials the same, one should maybe check phases??
@@ -4476,7 +4500,7 @@
     allocate(newnode%chempots(nrel))
     newnode%chempots=ceq%cmuval
     newnode%tpval=ceq%tpval
-    newnode%type_of_node=0
+!    newnode%type_of_node=0
 ! correct value of lines will be set later
     newnode%lines=0
     newnode%tieline_inplane=maptop%tieline_inplane
@@ -4615,6 +4639,7 @@
        write(*,*)'SMP2A Allocation error 1: ',errall
        gx%bmperr=4370; goto 1000
     endif
+!    newnode%type_of_node=0
 !
     do jp=1,newnode%lines
 !--------------------- code moved from map_findline
@@ -4838,6 +4863,12 @@
        endif
 !-------------- 
 ! no need for loop here I guess ... but I am oldfashioned
+! begin doublecheck
+       if(newnode%lines.ne.size(newnode%linehead)) then
+          write(*,*)'SMP2A Trouble ahead!!'
+          stop
+       endif
+! end doublecheck
        do jj=1,2
 ! initiate data in map_line record
           newnode%linehead(jj)%number_of_equilibria=0
@@ -5064,6 +5095,10 @@
             newnode%linehead(2)%stableph(1)%compset,&
             newnode%linehead(2)%nodfixph
 56     format(a,i3,5x,2i3,5x,2i3,5x,2i3)
+       if(newnode%lines.ne.2) then
+          write(*,*)'SMP2A setting newnode%lines'
+          newnode%lines=2
+       endif
 ! the fix and stable phases must be copied to meqrec1 when line is started
 !       write(*,*)'Created node with 2 exits: ',newnode%seqx,ceq%tpval(1)
 ! prevent the lines from being used as that makes the program crash
@@ -6317,6 +6352,7 @@
           nullify(mapline)
           goto 1000
        endif
+!       write(*,*)'map_findline: ',mapnode%lines
        do nyline=1,mapnode%lines
 ! if done is >=0 then this is a line to be calculated
           if(mapnode%linehead(nyline)%done.ge.0) then
@@ -6568,7 +6604,7 @@
           if(gx%bmperr.ne.0) then
              gx%bmperr=0; goto 1000
           elseif(irem.gt.0 .or. irem.gt.0) then
-             write(*,*)'ignorin new phases: ',irem,iadd
+             write(*,*)'ignoring new phases: ',irem,iadd
           endif
 ! change the amount of the fix phase
           allocate(mapfix%fixphamap(1))
@@ -7165,19 +7201,25 @@
        write(*,*)'No step or map results to delete'
        goto 1000
     endif
-!    current=>maptop
+!    write(*,*)'smp2A in delete_mapresults'
+    current=>maptop
 !    deloop: do while(associated(current))
-!       write(*,*)'Number of stored equilibria: ',current%saveceq%free-1
+!       write(*,*)'smp2A maybe no saveceq?',associated(current%saveceq)
+!       if(associated(current%saveceq)) &
+!            write(*,*)'Saved equilibria:',current%saveceq%free-1
 !       current=>current%plotlink
 !    enddo deloop
-!    write(*,*)'All mapnodes listed'
+!    write(*,*)'All equilibria saved in mapnodes listed'
 ! all mapnodes has a pointer to first where the saveceq is allocated
     current=>maptop
     do while(associated(current))
-       if(allocated(current%saveceq%savedceq)) then
-          write(*,*)'SMP: deleting saved step/map line equilibria: ',&
-               current%saveceq%free-1
-          deallocate(current%saveceq%savedceq)
+!       write(*,*)'smp2a current associated'
+       if(associated(current%saveceq)) then
+          if(allocated(current%saveceq%savedceq)) then
+             write(*,*)'SMP: deleting saved step/map line equilibria: ',&
+                  current%saveceq%free-1
+             deallocate(current%saveceq%savedceq)
+          endif
        endif
 ! adding this write avoided a segmentation fault ... no longer ...
 !       write(*,*)'SMP: are there more mapnode records?',&
@@ -7185,8 +7227,9 @@
        nexttop=>current%plotlink
        mapnode=>current%next
        do while(.not.associated(mapnode,current))
-!          write(*,*)'SMP: cleaning up more'
+!          write(*,*)'SMP: cleaning up more',mapnode%lines
           if(allocated(mapnode%linehead)) then
+!             write(*,*)'SMP: cleaning maplines: ',size(mapnode%linehead)
              do jj=1,mapnode%lines
 ! should these be deallocated explicitly??
                 linehead=>mapnode%linehead(jj)
@@ -7205,17 +7248,9 @@
 ! deallocate the last mapnode
        if(associated(current)) deallocate(delnode)
     enddo
-! this is maybe meaningless or actually BAD
-!    do while(associated(current))
-!       delnode=>current
-!       current=>current%next
-!       deallocate(delnode)
-!    enddo
     write(*,*)'Deleting _MAPx equilibria'
-!    if(associated(maptop)) write(*,*)'maptop associated'
     ceq=>firsteq
     call delete_equilibria('_MAP*',ceq)
-!    write(*,*)'Done delete_mapresults ',associated(maptop)
 1000 continue
     return
   end subroutine delete_mapresults
@@ -7933,6 +7968,812 @@
 1000 continue
     return
   end subroutine step_separate
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine step_special_setup
+!\begin{verbatim}
+  subroutine step_special_setup(maptop,seqxyz,exits,starteq)
+! create mapnode and tzero line and other special step commands
+! maptop map node record
+! seqxyz indices for map and line records
+! exits is 1 or more depending on type of step
+    implicit none
+    integer seqxyz(*),exits
+    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(map_node), pointer :: maptop
+!\end{verbatim}
+    TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
+    integer jj,jp,seqz,iadd,irem,nv,saveq,lokcs,mapx,idir,seqx,seqy,kpos
+    type(map_node), pointer :: mapnode
+    type(map_line), pointer :: mapline
+    type(map_fixph), allocatable :: mapfix
+    type(meq_setup), pointer :: meqrec
+    type(gtp_state_variable), pointer :: svr
+    type(meq_phase), pointer :: phr
+    type(gtp_condition), pointer :: pcond
+    double precision xxx,yyy,zzz,fact
+!    logical firstline
+    character eqname*24
+    integer, parameter :: maxsavedceq=1800
+!
+!    write(*,*)'In step_special_setup',exits
+!======================================================
+! create maptop, maplines and things for storing results
+! we cannot use map_startpoint as we are not calculating equilibria ...
+! we must allocate a maptop and its next and previous to point at itself
+    allocate(maptop)
+    mapnode=>maptop
+! inititate status and links, maybe some of these change for other applications
+    mapnode%status=0
+    mapnode%noofstph=2
+    mapnode%savednodeceq=-1
+    mapnode%next=>mapnode
+    mapnode%previous=>mapnode
+    mapnode%first=>mapnode
+    mapnode%number_ofaxis=1
+    mapnode%nodefix%ixphase=0
+    mapnode%status=0
+! mapnone%lines incremented when created ??
+    mapnode%lines=0
+! %artxe nonzero if node with two stoichiometric phases with same composition
+    mapnode%artxe=0
+    mapnode%globalcheckinterval=0
+    mapnode%seqx=seqxyz(1)
+    mapnode%seqy=seqxyz(2)
+!
+! skip saving chemical potentials?
+    mapnode%tpval=starteq%tpval
+    mapnode%nodeceq=>starteq
+    eqname='_MAPNODE_'
+    jp=10
+! maptop%next is the the same mapnode !!!
+    seqx=maptop%next%seqx+1
+!    seqy=maptop%next%seq+1
+    maptop%next%seqx=seqx
+    call wriint(eqname,jp,seqx)
+! make a copy of ceq in a new equilibrium record with the pointer neweq
+! This copy is a record in the array "eqlista" of equilibrium record, thus
+! it will be updated if new composition sets are created in other threads.
+    call copy_equilibrium(neweq,eqname,starteq)
+    if(gx%bmperr.ne.0) goto 1000
+!    write(*,*)'Created MAPNODE ',seqx
+! set the tieline_inplane or not
+! For step calculation, tieline_inplane=0
+! if there are more than one condition on an extensive_variable
+! that is not an axis variable then no tielines in plane, tieline_inplane=-1
+! If there are tie_lines in plane then tieline_inplane=1
+    mapnode%tieline_inplane=0
+! forgetting to do this created a crash when plotting ...
+    nullify(maptop%plotlink)
+! we must store 1 or 2 (=exits) lineceq using starteq
+    mapnode%lines=exits
+    allocate(mapnode%linehead(mapnode%lines))
+!    write(*,*)'step_special_setup',maptop%seqx,exits
+!    mapnode%type_of_node=0
+    idir=1
+    do jp=1,exits
+       mapnode%linehead(jp)%axandir=idir
+       idir=-1
+       mapnode%linehead(jp)%number_of_equilibria=0
+       mapnode%linehead(jp)%first=0
+       mapnode%linehead(jp)%last=0
+       mapnode%linehead(jp)%axchange=-1
+       mapnode%linehead(jp)%done=0
+       mapnode%linehead(jp)%status=0
+       mapnode%linehead(jp)%more=1
+       mapnode%linehead(jp)%termerr=0
+       mapnode%linehead(jp)%firstinc=zero
+! saving equilibrium pointer in lineceq
+       mapnode%linehead(jp)%lineceq=>starteq
+       mapnode%linehead(jp)%start=>mapnode
+       mapnode%linehead(jp)%axfact=1.0D-2
+! this is set to zero indicating the stable phases are saved in lineceq record
+       mapnode%linehead(jp)%nstabph=0
+       mapnode%linehead(jp)%lineid=seqy
+       mapnode%seqy=seqy+1
+       mapnode%linehead(jp)%nodfixph=0
+! %more is 1 while line is calculated, 0 means terminated at axis limit
+! > 0 means error code <0 means exit removed ?? or is it %done ??
+       mapnode%linehead(jp)%more=1
+       mapnode%lines=exits
+       nullify(mapnode%linehead(jp)%end)
+    enddo
+!
+! create array of equilibrium records for saving results
+!    write(*,*)'step_special_setup create saveceq:',maxsavedceq
+    saveq=maxsavedceq
+    call create_saveceq(maptop%saveceq,saveq)
+    if(gx%bmperr.ne.0) goto 1000
+! in this subroutine we have only one axis variable
+1000 continue
+    return
+  end subroutine step_special_setup
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine step_tzero
+!\begin{verbatim}
+  subroutine step_tzero(maptop,noofaxis,axarr,seqxyz,iph1,iph2,tzcond,starteq)
+! calculates t for two phases where they have same Gibbs energy
+! second version using step_special_setup
+! There can not be any other phases
+! maptop map node record
+! noofaxis must be 1
+! axarr array of axis records
+! seqxyz indices for map and line records
+! iph1 and iph2 should be phase index (compset 1 in both)
+! tzcond should be condition number for T
+    implicit none
+    integer noofaxis,seqxyz(*),iph1,iph2,tzcond
+    type(map_axis), dimension(noofaxis) :: axarr
+    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(map_node), pointer :: maptop
+!\end{verbatim}
+    TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
+    integer jj,jp,seqz,iadd,irem,nv,saveq,lokcs,mapx,idir,seqx,seqy,kpos
+    type(map_node), pointer :: mapnode
+    type(map_line), pointer :: mapline
+    type(map_fixph), allocatable :: mapfix
+    type(meq_setup), pointer :: meqrec
+    type(gtp_state_variable), pointer :: svr
+    type(meq_phase), pointer :: phr
+    type(gtp_condition), pointer :: pcond
+    double precision xxx,yyy,zzz,fact
+!    logical firstline
+    character eqname*24
+    integer, parameter :: maxsavedceq=1800
+! turns off convergence control for T
+    integer, parameter :: inmap=1
+!
+!    write(*,*)'In step_tzero',iph1,iph2
+    if(noofaxis.ne.1) then
+       write(kou,*)'Step tzero only with one axis variable'
+       goto 1000
+    endif
+! check that we have a tzero point
+    ceq=>starteq
+!
+    call tzero(iph1,iph2,tzcond,yyy,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Start point is not on a tzero line'
+       gx%bmperr=4399; goto 1000
+    endif
+! extract axis condition value
+    call locate_condition(axarr(1)%seqz,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! first argument 1 means to get the value
+    call condition_value(1,pcond,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+!    write(*,88)xxx,yyy
+88  format('At x=',F10.6,' Tzero=',F10.2,10x,1pe12.4)
+!======================================================
+    call step_special_setup(maptop,seqxyz,2,starteq)
+    if(gx%bmperr.ne.0) goto 1000
+!
+    mapnode=>maptop
+!    write(*,*)'step_tzero creating maplines'
+    tzstep: do jp=1,2
+       mapline=>mapnode%linehead(jp)
+       eqname='_MAPLINE_'
+       kpos=10
+       seqy=maptop%seqy+1
+       call wriint(eqname,kpos,seqy)
+       call copy_equilibrium(mapnode%linehead(jp)%lineceq,eqname,&
+            mapnode%nodeceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error creating equilibrium: ',eqname
+          goto 1000
+       endif
+!       write(*,*)'step_tzero created mapline ',seqy
+       maptop%seqy=seqy
+       mapnode%linehead(jp)%lineid=seqy
+       mapnode%linehead(jp)%nodfixph=0
+! mapline%more is positive for line to be calculated, 0 means end at axis limit
+       mapnode%linehead(jp)%more=1
+       ceq=>mapline%lineceq
+! A very small first axis increment, extract axis condition value
+       call locate_condition(axarr(1)%seqz,pcond,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+! first argument 1 means to get the value
+       call condition_value(1,pcond,xxx,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       fact=1.0D-2
+       idir=mapline%axandir
+!       write(*,*)'axis direction: ',idir,xxx
+       tzlimits: do while(.TRUE.)
+          xxx=xxx+fact*idir*axarr(1)%axinc
+          if(xxx.lt.axarr(1)%axmin .or. xxx.gt.axarr(1)%axmax) exit tzlimits
+          call condition_value(0,pcond,xxx,ceq)
+          call tzero(iph1,iph2,tzcond,yyy,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'TZERO step ',jp,' ended with error ',gx%bmperr
+             gx%bmperr=0; cycle tzstep
+!          else
+!             write(*,88)xxx,yyy,fact
+          endif
+          call map_store(mapline,axarr,maptop%number_ofaxis,maptop%saveceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Error storing equilibrium',gx%bmperr
+             gx%bmperr=0; cycle tzstep
+          endif
+! save missing .........
+          fact=min(2.0d0*fact,1.0d0)
+       enddo tzlimits
+       if(xxx.lt.axarr(1)%axmin) then
+          xxx=max(axarr(1)%axmin,1.0D-6)
+          call condition_value(0,pcond,xxx,ceq)
+          call tzero(iph1,iph2,tzcond,yyy,ceq)
+       elseif(xxx.gt.axarr(1)%axmax) then
+          xxx=min(axarr(1)%axmax,0.999999D0)
+          call condition_value(0,pcond,xxx,ceq)
+          call tzero(iph1,iph2,tzcond,yyy,ceq)
+       endif
+!       write(*,88)xxx,yyy
+       call map_store(mapline,axarr,maptop%number_ofaxis,maptop%saveceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error storing equilibrium',gx%bmperr
+          gx%bmperr=0; cycle tzstep
+       endif
+    enddo tzstep
+!
+1000 continue
+    return
+  end subroutine step_tzero
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine step_tzero1
+!\begin{verbatim}
+  subroutine step_tzero1(maptop,noofaxis,axarr,seqxyz,iph1,iph2,tzcond,starteq)
+! ORIGINAL tzero step NO LONGER USED
+! calculates t for two phases where they have same Gibbs energy
+! There can not be any other phases
+! maptop map node record
+! noofaxis must be 1
+! axarr array of axis records
+! seqxyz indices for map and line records
+! iph1 and iph2 should be phase index (compset 1 in both)
+! tzcond should be condition number for T
+    implicit none
+    integer noofaxis,seqxyz(*),iph1,iph2,tzcond
+    type(map_axis), dimension(noofaxis) :: axarr
+    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(map_node), pointer :: maptop
+!\end{verbatim}
+    TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
+    integer jj,jp,seqz,iadd,irem,nv,saveq,lokcs,mapx,idir,seqx,seqy,kpos
+    type(map_node), pointer :: mapnode
+    type(map_line), pointer :: mapline
+    type(map_fixph), allocatable :: mapfix
+    type(meq_setup), pointer :: meqrec
+    type(gtp_state_variable), pointer :: svr
+    type(meq_phase), pointer :: phr
+    type(gtp_condition), pointer :: pcond
+    double precision xxx,yyy,zzz,fact
+!    logical firstline
+    character eqname*24
+    integer, parameter :: maxsavedceq=1800
+! turns off convergence control for T
+    integer, parameter :: inmap=1
+!
+!    write(*,*)'In step_tzero',iph1,iph2
+    if(noofaxis.ne.1) then
+       write(kou,*)'Step tzero only with one axis variable'
+       goto 1000
+    endif
+! check that we have a tzero point
+    ceq=>starteq
+!
+    call tzero(iph1,iph2,tzcond,yyy,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Start point is not on a tzero line'
+       gx%bmperr=4399; goto 1000
+    endif
+! extract axis condition value
+    call locate_condition(axarr(1)%seqz,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! first argument 1 means to get the value
+    call condition_value(1,pcond,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+!    write(*,88)xxx,yyy
+88  format('At x=',F10.6,' Tzero=',F10.2,10x,1pe12.4)
+!======================================================
+! create maptop, maplines and things for storing results
+!    write(*,*)'Creating start point'
+! we cannot use map_startpoint as we are not calculating equilibria ...
+!    call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,ceq)
+!    if(gx%bmperr.ne.0) goto 500
+! we must allocate a maptop and its next and previous to point at itself
+    allocate(maptop)
+    mapnode=>maptop
+! inititate status and links
+    mapnode%status=0
+    mapnode%noofstph=2
+    mapnode%savednodeceq=-1
+    mapnode%next=>mapnode
+    mapnode%previous=>mapnode
+    mapnode%first=>mapnode
+    mapnode%number_ofaxis=noofaxis
+    mapnode%nodefix%ixphase=0
+    mapnode%status=0
+! mapnone%lines incremented when created ??
+    mapnode%lines=0
+! %artxe nonzero if node with two stoichiometric phases with same composition
+    mapnode%artxe=0
+    mapnode%globalcheckinterval=0
+    mapnode%seqx=seqxyz(1)
+    mapnode%seqy=seqxyz(2)
+!
+! skip saving chemical potentials?
+    mapnode%tpval=ceq%tpval
+    mapnode%nodeceq=>ceq
+    eqname='_MAPNODE_'
+    jp=10
+! maptop%next is the most recent created mapnode ??
+    seqx=maptop%next%seqx+1
+    maptop%next%seqx=seqx
+    call wriint(eqname,jp,seqx)
+! make a copy of ceq in a new equilibrium record with the pointer neweq
+! This copy is a record in the array "eqlista" of equilibrium record, thus
+! it will be updated if new composition sets are created in other threads.
+    call copy_equilibrium(neweq,eqname,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+!    write(*,*)'Created MAPNODE ',seqx
+! set the tieline_inplane or not
+! For step calculation, tieline_inplane=0
+! if there are more than one condition on an extensive_variable
+! that is not an axis variable then no tielines in plane, tieline_inplane=-1
+! If there are tie_lines in plane then tieline_inplane=1
+    mapnode%tieline_inplane=0
+! forgetting to do this created a crash when plotting ...
+    nullify(maptop%plotlink)
+! we must store 2 lineceq using ceq, one in each direction
+    mapnode%lines=2
+    allocate(mapnode%linehead(2))
+!    write(*,*)'step_tzero created maptop',maptop%seqx
+    idir=-1
+    do jp=1,2
+       mapnode%linehead(jp)%axandir=idir
+       idir=1
+       mapnode%linehead(jp)%number_of_equilibria=0
+       mapnode%linehead(jp)%first=0
+       mapnode%linehead(jp)%last=0
+       mapnode%linehead(jp)%axchange=-1
+       mapnode%linehead(jp)%done=0
+       mapnode%linehead(jp)%status=0
+       mapnode%linehead(jp)%more=1
+       mapnode%linehead(jp)%termerr=0
+       mapnode%linehead(jp)%firstinc=zero
+! saving equilibrium pointer in lineceq
+       mapnode%linehead(jp)%lineceq=>ceq
+       mapnode%linehead(jp)%start=>mapnode
+       mapnode%linehead(jp)%axfact=1.0D-2
+! this is set to zero indicating the stable phases are saved in ceq record
+       mapnode%linehead(jp)%nstabph=0
+       seqy=mapnode%seqy
+       mapnode%linehead(jp)%lineid=seqy
+       mapnode%seqy=seqy+1
+       mapnode%linehead(jp)%nodfixph=0
+! %more is 1 while line is calculated, 0 means terminated at axis limit
+! > 0 means error code <0 means exit removed ?? or is it %done ??
+       mapnode%linehead(jp)%more=1
+       nullify(mapnode%linehead(jp)%end)
+    enddo
+!
+! suck
+!
+! create array of equilibrium records for saving results
+    saveq=maxsavedceq
+    call create_saveceq(maptop%saveceq,saveq)
+    if(gx%bmperr.ne.0) goto 1000
+! in this subroutine we have only one axis variable
+200 continue
+!
+    tzstep: do jp=1,2
+       mapline=>mapnode%linehead(jp)
+       eqname='_MAPLINE_'
+       kpos=10
+       seqy=maptop%seqy+1
+       call wriint(eqname,kpos,seqy)
+       call copy_equilibrium(mapnode%linehead(jp)%lineceq,eqname,&
+            mapnode%nodeceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error creating equilibrium: ',eqname
+          goto 1000
+       endif
+!       write(*,*)'step_tzero created mapline ',seqy
+       maptop%seqy=seqy
+       mapnode%linehead(jp)%lineid=seqy
+       mapnode%linehead(jp)%nodfixph=0
+! mapline%more is positive for line to be calculated, 0 means end at axis limit
+       mapnode%linehead(jp)%more=1
+       ceq=>mapline%lineceq
+! A very small first axis increment, extract axis condition value
+       call locate_condition(axarr(1)%seqz,pcond,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+! first argument 1 means to get the value
+       call condition_value(1,pcond,xxx,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       fact=1.0D-2
+       idir=mapline%axandir
+!       write(*,*)'axis direction: ',idir,xxx
+       tzlimits: do while(.TRUE.)
+          xxx=xxx+fact*idir*axarr(1)%axinc
+          if(xxx.lt.axarr(1)%axmin .or. xxx.gt.axarr(1)%axmax) exit tzlimits
+          call condition_value(0,pcond,xxx,ceq)
+          call tzero(iph1,iph2,tzcond,yyy,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'TZERO step ',jp,' ended with error ',gx%bmperr
+             gx%bmperr=0; cycle tzstep
+!          else
+!             write(*,88)xxx,yyy,fact
+          endif
+          call map_store(mapline,axarr,maptop%number_ofaxis,maptop%saveceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Error storing equilibrium',gx%bmperr
+             gx%bmperr=0; cycle tzstep
+          endif
+! save missing .........
+          fact=min(2.0d0*fact,1.0d0)
+       enddo tzlimits
+       if(xxx.lt.axarr(1)%axmin) then
+          xxx=max(axarr(1)%axmin,1.0D-6)
+          call condition_value(0,pcond,xxx,ceq)
+          call tzero(iph1,iph2,tzcond,yyy,ceq)
+       elseif(xxx.gt.axarr(1)%axmax) then
+          xxx=min(axarr(1)%axmax,0.999999D0)
+          call condition_value(0,pcond,xxx,ceq)
+          call tzero(iph1,iph2,tzcond,yyy,ceq)
+       endif
+!       write(*,88)xxx,yyy
+       call map_store(mapline,axarr,maptop%number_ofaxis,maptop%saveceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error storing equilibrium',gx%bmperr
+          gx%bmperr=0; cycle tzstep
+       endif
+    enddo tzstep
+!
+1000 continue
+! ORIGINAL tzero step NO LONGER USED
+    return
+  end subroutine step_tzero1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine step_scheil
+!\begin{verbatim}
+  subroutine step_scheil(maptop,noofaxis,axarr,seqxyz,starteq)
+! calculates a Scheil-Gulliver solidification simulation
+! maptop map node record
+! noofaxis must be 1
+! axarr array of axis records
+! seqxyz indices for map and line records
+! starteq is an equilibrium with just liquid stable
+    implicit none
+    integer noofaxis,seqxyz(*)
+    type(map_axis), dimension(noofaxis) :: axarr
+    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(map_node), pointer :: maptop
+!\end{verbatim}
+    TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
+    integer jj,jp,seqz,iadd,irem,nv,saveq,lokcs,mapx,idir,seqx,seqy,kpos
+    integer inactive(4),mode,nc,nsch,liquid
+    type(map_node), pointer :: mapnode
+    type(map_line), pointer :: mapline
+    type(map_fixph), allocatable :: mapfix
+    type(meq_setup), pointer :: meqrec
+    type(gtp_state_variable), pointer :: svr
+    type(meq_phase), pointer :: phr
+    type(gtp_condition), pointer :: pcond,firstcond,axcond
+    double precision xxx,yyy,zzz,fact,fact1,axvalok,npliqval,liqfrac(20)
+    character eqname*24,phname*24,npliq*24,encoded*72
+    integer, parameter :: maxsavedceq=1800
+! turns off convergence control for T
+    integer, parameter :: inmap=1
+    logical solids
+! needed to store links to condition values
+    TYPE smp_scheil_condval
+! these pointers must be updated for each new line (equilibrium)
+       type(gtp_condition), pointer :: p1
+    end type smp_scheil_condval
+! These two arrays keep track of conditions and liquid compositis
+! the first is pointers to the condition record, the second is statevariable id
+    type(smp_scheil_condval), dimension(20) :: scheilval
+    TYPE(gtp_state_variable), target, dimension(20) :: scheilsvr
+!
+    write(*,*)'In step_scheil'
+    if(noofaxis.ne.1) then
+       write(kou,*)'Scheil simulations use one axis variable'
+       goto 1000
+    endif
+! axis condition must be T, extract its value
+    call locate_condition(axarr(1)%seqz,pcond,starteq)
+    if(gx%bmperr.ne.0) goto 1000
+    if(pcond%statev.ne.1) then
+! pcond%statev=1 means T
+       write(*,*)'Axis condition must be T'
+       gx%bmperr=4399; goto 1000
+    endif
+! first argument 1 means to get the value
+    axcond=>pcond
+    call condition_value(1,pcond,xxx,starteq)
+    if(gx%bmperr.ne.0) goto 1000
+!    write(*,'(a,F10.2)')'Scheil start T=',xxx
+!
+    inactive=0
+! inactive(1)=-1 means only one exit point with direcition -1
+    inactive(1)=-1
+! generate step/map datastructure needed for plotting and phase set changes.
+    call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,starteq)
+    if(gx%bmperr.ne.0) goto 1000
+! There should be two maplines generated, the stable phase should be the liquid
+! but do not be fuzzy, one may quech a two-phase mixture
+!    write(*,*)'Scheil step 1',allocated(maptop%linehead)
+!    write(*,*)'Scheil lineheads: ',size(maptop%linehead),&
+!         maptop%linehead(1)%axandir
+! create array of equilibrium records for saving results
+    seqy=maxsavedceq
+    call create_saveceq(maptop%saveceq,seqy)
+    if(gx%bmperr.ne.0) goto 1000
+! Mark this as a Scheil step
+    maptop%type_of_node=3
+! ensure plotlink is nullified!!
+    nullify(maptop%plotlink)
+! initiate node counter done, line counter will be incremented
+    if(maptop%seqx.gt.1) write(*,85)maptop%seqx,maptop%seqy+1
+85  format('Previous step/map results saved'/&
+         'New mapnode/line equilibria indices will start from: ',i3,i5)
+! take the first (only) line created by map_startpoint
+!    write(*,*)'Calling map_findline'
+    call map_findline(maptop,axarr,mapfix,mapline)
+    if(gx%bmperr.ne.0) goto 1000
+!    write(*,*)'Back from map_findline in Scheil'
+    ceq=>mapline%lineceq
+    meqrec=>mapline%meqrec
+    mode=-1
+    call calceq7(mode,meqrec,mapfix,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    xxx=ceq%tpval(1)
+    if(meqrec%nstph.gt.1) then
+       write(*,*)'More than one phase stable at startpoint'
+       gx%bmperr=4399; goto 1000
+    endif
+! check stable phase is liquid
+    call get_phasetup_name(meqrec%phr(meqrec%stphl(1))%phtupix,phname)
+    if(gx%bmperr.ne.0) goto 1000
+    liquid=meqrec%phr(meqrec%stphl(1))%iph
+    write(*,*)'Stable phase at start: ',trim(phname),liquid
+    npliq='NP('//trim(phname)//') '
+!=======================================================
+! create special result array to save current fraction of liquid
+!    allocate(mapline%stepresultid(1))
+!    mapline%stepresultid(1)=npliq
+! extract relevant conditions and store in scheilval and scheilsvr
+    firstcond=>ceq%lastcondition%next
+    pcond=>firstcond
+    nc=0
+    nsch=0
+    ploop: do while(.TRUE.)
+! if %active nonzero the condition is not active
+       if(pcond%active.ne.0) cycle ploop
+       nc=nc+1
+! to prevent eternal loop
+       if(nc.gt.20) exit ploop
+!       write(*,'(a,i3,a,i5)')'Condition ',nc,' type ',pcond%statev
+       if(pcond%statev.lt.0) then
+          write(*,*)'Fix phases not allowed as conditions'
+          gx%bmperr=4399; goto 1000
+       endif
+       svr=>pcond%statvar(1)
+!       write(*,*)'State variable id: ',svr%statevarid,svr%argtyp
+! statvarid<10 means potential, allow and ignore
+       if(svr%statevarid.le.10) goto 100
+! 11 <= statvarid <=15 are G, H etc, not allowed.  Neither is Y
+       if(svr%statevarid.le.15 .or. svr%statevarid.ge.20) then
+          write(*,*)'Illegal condition for Scheil simulation',svr%statevarid
+          gx%bmperr=4399; goto 1000
+       endif
+! Allowed state variables are N, X, B and W without phase specification
+! argtyp=0 means total such as N=1
+       if(svr%argtyp.eq.0) goto 100
+! argtyp=1 means component, >1 other means phase or compset specification
+       if(svr%argtyp.gt.1) then
+          write(*,*)'Condition has wrong type of arguments: ',svr%argtyp
+          gx%bmperr=4399; goto 1000
+       endif
+       if(pcond%symlink1.gt.0) then
+! value must not be a symbol
+          write(*,*)'Condition value must not be a symbol'
+          gx%bmperr=4399; goto 1000
+       endif
+       nsch=nsch+1
+       scheilval(nsch)%p1=>pcond
+! save state variable but change it to include liquid phase index
+       scheilsvr(nsch)=svr
+! replace argtyp and add phase and compset
+       scheilsvr(nsch)%argtyp=3
+       scheilsvr(nsch)%phase=liquid
+       scheilsvr(nsch)%compset=1
+!       write(*,'(a,i3,F10.6)')'Condition value: ',nsch,pcond%prescribed
+! Puuuuuh, condition allowed, link to its current value
+100    continue
+       pcond=>pcond%next
+! current value
+       if(associated(pcond,firstcond)) exit ploop
+    enddo ploop
+!    write(*,'(a,i3,a,i3)')'Found ',nc,' active conditions and saved ',nsch
+! test that we can extract (and set) liquid conditions and state variable
+    do nc=1,nsch
+       svr=>scheilsvr(nc)
+       call state_variable_val(svr,xxx,ceq)
+!       write(*,'(a,i3,2F10.6)')'Liquid initial conditions: ',&
+!            nc,scheilval(nc)%p1%prescribed,xxx
+    enddo
+! initial
+    npliqval=one
+    solids=.FALSE.
+! Now find T when first solid phase will appear
+! mapx does not seem to be used, inmap=1 turn off T convergence test(?)
+! all data in meqrec was set calling calceq7 above
+! axis conditio
+! first argument 1 means to get the value
+    call condition_value(1,axcond,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    irem=0; iadd=0; nc=0
+! iadd=-1 turn on verbose in meq_sameset
+!    iadd=-1
+! large step before first solid appears
+    fact1=1.0D1
+    axarr(1)%axinc=fact1*axarr(1)%axinc
+    axvalok=xxx
+!==================================================== big loop
+    node: do while(.TRUE.)
+!   follow axis including nodepoints with phase changes
+!   start with small steps
+!       fact=1.0D-2
+       line: do while(iadd.le.0 .and. irem.eq.0)
+!         follow line until a nodepoint
+!          axarr(1)%axval=axarr(1)%axval-axarr(1)%axinc
+          if(solids) then
+! update the liquid composition
+! We have located the pcond records for each new line below
+!             write(*,*)'Update liquid composition at T=',ceq%tpval(1)
+             do nc=1,nsch
+! this call extract the liquid composition
+                svr=>scheilsvr(nc)
+                call state_variable_val(svr,liqfrac(nc),ceq)
+                if(gx%bmperr.ne.0) then
+                   write(*,*)'Error extracting liquid composition'
+                   goto 1000
+                endif
+! and this sets it as the overall composition
+                call condition_value(0,scheilval(nc)%p1,liqfrac(nc),ceq)
+                if(gx%bmperr.ne.0) then
+                   write(*,*)'Error setting new liquid composition'
+                   goto 1000
+                endif
+             enddo
+             call get_state_var_value(npliq,yyy,encoded,ceq)
+             if(gx%bmperr.ne.0) gx%bmperr=0
+             npliqval=npliqval*yyy
+             write(*,'(a,F7.2,"% ",F7.2,": ",10(1x,F8.4))')'Liquid:',&
+                  1.0D2*npliqval,ceq%tpval(1),(liqfrac(nc),nc=1,nsch)
+! turn on debug info in meq_sameset
+!             iadd=-1
+          endif
+! take a step in the axis variable T
+          call map_step2(maptop,mapline,meqrec,meqrec%phr,axvalok,1,axarr,ceq)
+          if(gx%bmperr.ne.0) goto 1000
+          if(ceq%tpval(1).lt.axarr(1)%axmin) then
+             write(*,*)'At low T limit ',axarr(1)%axmin
+             goto 900
+          endif
+! calculate until a phase change
+!          write(*,*)'Calling meq_sameset',ceq%tpval(1),npliqval
+          call meq_sameset(irem,iadd,mapx,mapline%meqrec,mapline%meqrec%phr,&
+               inmap,ceq)
+!          write(*,*)'Back from meq_sameset',ceq%tpval(1),gx%bmperr
+          if(iadd.eq.0 .and. irem.eq.0) then
+! Store the equilibrium along the line
+             call map_store(mapline,axarr,1,maptop%saveceq)
+!             write(*,*)'Stored calculated equilibrium'
+             if(gx%bmperr.ne.0) then
+                write(*,*)'Error storing equilibria',gx%bmperr
+                goto 1000
+             endif
+          endif
+       enddo line
+! exit line loop when iadd or irem nonzero, i.e. new set of phases
+       if(.not.solids) then
+! if solids FALSE set it TRUE
+          solids=.TRUE.
+          axarr(1)%axinc=axarr(1)%axinc/fact1
+          fact1=1.0D0
+       endif
+! Maybe not store here because the T is not correct
+!       call map_store(mapline,axarr,1,maptop%saveceq)
+!       write(*,*)'Stored calculated equilibrium'
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error storing equilibria',gx%bmperr
+          goto 1000
+       endif
+! use map_calcnode to create new mapnode and mapline.  
+! We should not set any fix phases, just continue along the axis
+! as with a step command with different sets of stable phases
+       call map_calcnode(irem,iadd,maptop,mapline,meqrec,axarr,ceq)
+! in map_calcnode a new _MAPNODE and _MAPLINE is created with the new set
+! of phases.  Store the end point of the line
+       nullify(maptop%plotlink)
+! Terminate the current line, must be after calcnode ...
+       call map_lineend(mapline,axarr(1)%lastaxval,ceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Rest error ',gx%bmperr
+          gx%bmperr=0
+       endif
+       write(*,*)'Per cent liquid and T',1.0D2*npliqval,ceq%tpval(1)
+       if(.not.(npliqval.gt.0.01)) then
+! terminate if npliqval<0.01 BUT IT DOES NOT WORK ???
+          write(*,*)'Terminating as liquid fraction less than 1%'
+          goto 900
+!       else
+!          if(npliqval.gt.0.01) then
+!             write(*,*)'Terminating as liquid fraction less than 1%'
+!             goto 900
+!          endif
+       endif
+! The Scheil simulation continue along the same axis with new set of phases.
+       call map_findline(maptop,axarr,mapfix,mapline)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error return from map_findline, terminating'
+          goto 1000
+       endif
+       ceq=>mapline%lineceq
+!       write(*,*)'SMP2A calling calceq7 after findline,',allocated(mapfix),mode
+! Evidently we have to call calceq7 to initiate meqrec ??
+       meqrec=>mapline%meqrec
+       call calceq7(mode,meqrec,mapfix,ceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Failed calling calceq7',gx%bmperr
+          goto 1000
+       endif
+! check if zero fraction of liquid here
+       call get_state_var_value(npliq,yyy,encoded,ceq)
+       write(*,*)'SMP2A Scheil liquid fraction: ',yyy
+       if(yyy.lt.0.03) then
+! Terminate the current line
+          call map_lineend(mapline,axarr(1)%lastaxval,ceq)
+          goto 900
+       endif
+! we have to locate the condition records for the liquid comp in the new ceq
+       firstcond=>ceq%lastcondition%next
+       pcond=>firstcond
+       ploop2: do while(.TRUE.)
+          if(pcond%active.ne.0) cycle ploop2
+          svr=>pcond%statvar(1)
+          do nc=1,nsch
+             if(svr%statevarid.eq.scheilsvr(nc)%statevarid .and. &
+                  svr%argtyp.eq.1 .and.&
+                  svr%component.eq.scheilsvr(nc)%component) then
+                scheilval(nc)%p1=>pcond
+!                write(*,*)'Found scheil condition in new ceq: ',nc 
+             endif
+          enddo
+          pcond=>pcond%next
+          if(associated(pcond,firstcond)) exit ploop2
+!          write(*,*)'Looping conditions in new ceq'
+       enddo ploop2
+!       write(*,*)'Node T=',ceq%tpval(1)
+    enddo node
+    write(*,*)'Never here!'
+!
+!===========================================
+! exit here if no liquid left of at low T limit
+900 continue
+! maybe clean up?
+1000 continue
+    return
+  end subroutine step_scheil
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

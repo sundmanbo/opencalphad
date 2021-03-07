@@ -19,18 +19,49 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.03.07 OC version 6.022: Finally I have implemented some new STEP
+commands useful to simulate some limiting cases of phase transformations:
+
+- STEP TZERO to calculate a curve where to phases have the same Gibbs
+energy.  Such a curve can be taken as a limit of a diffusionless
+transformation.  
+
+- STEP SCHEIL_GULLIVER to calculate a solidification curve when
+assuming no diffusion in the solid phase and homogeneous liquid.
+
+One more step option will hopefully be implemented soon.
+
+- STEP NPLE to calculate a "No Partitioning Local Equilibrium" line
+which describe the limit of fast ferrite/austenite transformation in a
+steel, assuming that only carbon can diffuse and the ferrite inherits
+the alloy composition of the austenite.
+
+Neither of these simulations describe an equilibrium situation and
+must be used with care.  There are new macros, step-tzero and
+step-scheil explaining how to use tese commands.  As always please
+report problems.
+
+A main problem I have with the diagams is the plotting because I wrote
+most of the step-map-plot package some 5 years when I was learning the
+new Fortan and knew nothing about GNUPLOT.  Hopefully I will get time
+to rewrite the whole graphical interface sometime, as well as update
+documentation and help files.  Luckily Chunhui Luo is working hard to
+make OC more user friendly with the OC-CAE program.
+
 2021.02.26 OC version 6.021: An attempt has been made to improve
 mapping of phase diagram.  As a first step several startpoints are
 now allowed for a map calculation and in a second step automatic
 startpoints will be generated.  The phase diagram calculation is very
 sensitive to the start points and any manipulation of the code for
-mapping creates havoc in some diagrams.  The command to add a second
-or third start point is "SET AS_START" after calculating the
-equilibrium with a new set of conditions.  Additionally one can invoke
-a global minimizer at regular intervals during mapping with the
-command "SET ADVANCED MAP" followed by a number.  The global grid
-minimizer will check the equilibria along the calculated lines at
-regular intervals according to this number.
+mapping creates havoc in some diagrams.
+
+The command to add a second or third start point is "SET AS_START"
+after calculating the equilibrium with a new set of conditions.
+Additionally one can invoke a global minimizer at regular intervals
+during mapping with the command "SET ADVANCED MAP" followed by a
+number.  The global grid minimizer will check the equilibria along the
+calculated lines at regular intervals according to this number and may
+prevent metastable extrapolations.
 
 2021.01.27 OC version 6.020: On request from a user I have added a new
 list command, "LIST CSV-TABLE" which will generate a table with "Comma

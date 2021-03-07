@@ -131,6 +131,8 @@ MODULE ocsmp
      double precision, dimension(:,:), allocatable :: dxval
 ! factor to control length of step in axis with axtive condition
      double precision :: axfact
+! data particular to a step calculation, for example scheil
+!     character*24, allocatable, dimension(:) :: stepresultid
   end TYPE map_line
 !\end{verbatim}
 !
@@ -162,9 +164,9 @@ MODULE ocsmp
      type(map_ceqresults), pointer :: saveceq
 ! copy of nodeceq in saveceq (composition sets not updated but needed for plot)
      integer savednodeceq
-! type_of_node not used?? Maybe:
-! =1 step; =2 step_separate; =10 map_tieline_inplane; =11 map_isotherm
-! =20 map_isopleth
+! type_of_node not used?? Proposal
+! =1 step normal; =2 step_separate; =3 Scheil; =4 Tzero; =5 Paraeq; =6 NPLE
+! =10 map_tieline_inplane; =11 map_isotherm; ! =20 map_isopleth
 ! lines are number of line records
 ! noofstph is number of stable phases (copied from meqrec)
 ! tieline_inplane is 1 if so, 0 if step, -1 if no tie-lines (only maptop)

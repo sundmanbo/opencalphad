@@ -38,7 +38,7 @@ r t ./AlFe-4SLBF
 @&
 
 @$ Calculate an equilibrium in the B2
-set c t=1200 p=1e5 n=1 x(al)=.3
+set c t=1000 p=1e5 n=1 x(al)=.3
 
 c e
 
@@ -92,11 +92,13 @@ l c
 @&
 @$ We are now sufficiently close to the A2/B2 transition line
 
-c e
+c n
 
 l,,,
 
+
 @&
+
 
 @$ Set a T axis
 set ax 1 T 300 2000 5

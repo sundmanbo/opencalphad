@@ -55,6 +55,9 @@
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv,nofapl
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil,errall
     double precision xmax,xmin,ymax,ymin,value,anpmin,anpmax
+! used for Scheil
+    double precision npflval
+    logical scheilorder
 ! lhpos is last used position in lineheader
     integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat,anpdim,qp
     integer nix,stoichfix,invlines,invnode,nrett,mfix
@@ -62,6 +65,8 @@
 ! setting color on isopleth lines?  Dimension is max different fix phases
     integer, allocatable, dimension(:,:) :: phamfu
     integer fixphasecolor
+! trying to understand
+    integer ttunodeid,ttuheads,ttutoplines,ttuline,ttuplotline,haha
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
     logical overflow,first,last,novalues,selectph,varofun,moretops,isopleth
@@ -80,6 +85,7 @@
 ! transfer from graphics record to local variables
 ! initiate lines_excluded
     lines_excluded=0
+    scheilorder=.FALSE.
 ! create the terminal plot_line record
     allocate(lastplotline)
     nullify(lastplotline%nextline)
@@ -98,7 +104,6 @@
     funsym=' '
 ! for isopleths this value determine the line color
     fixphasecolor=1
-
 !    write(*,*)'In ocplot2: ',trim(filename)
 !    pform=graphopt%pform
 ! continue as before ...
@@ -108,6 +113,8 @@
             version,ceq)
        goto 1000
     endif
+! for tzero lines there is no meqrec record, meqrec%phr not allocated
+!    write(*,*)'In ocplot2: ',maptop%lines,allocated(maptop%linehead)
     moretops=.FALSE.
     seqx=0
     call date_and_time(date)
@@ -193,6 +200,21 @@
     do iax=1,2
 !       write(*,*)'Allocating for axis: ',iax
        call capson(pltax(iax))
+       if(pltax(iax)(1:4).eq.'PFL ') then
+          if(maptop%type_of_node.eq.3) then
+! this is a function only used for plotting phase fraction liquid in Scheil
+! simulations.
+             scheilorder=.TRUE.
+             npflval=one
+          else
+             write(*,*)'Plot axis PFL reserved for Scheil simulations'
+             gx%bmperr=4399; goto 1000
+          endif
+       endif
+       if(maptop%type_of_node.eq.3) then
+! this should be made before this do-loop but I dare not change anything
+          scheilorder=.TRUE.
+       endif
 !       wildcard1: if(index(pltax(iax),'*').gt.0) then
        wildcard1: if(index(pltax(iax),'*').gt.0 .or. &
             index(pltax(iax),'#').gt.0) then
@@ -287,10 +309,10 @@
 ! come back here if there is another localtop in plotlink!
 77  continue
 ! change all "done" marks in mapnodes to zero
-!    write(*,*)'SMP at label 77A: ',localtop%lines
+!    write(*,*)'SMP2B ocplot2 at label 77A: ',localtop%lines
     ikol=0
     do nrv=1,localtop%lines
-       localtop%linehead(nrv)%done=0
+       if(allocated(localtop%linehead)) localtop%linehead(nrv)%done=0
     enddo
 ! we sometimes have a segmentation fault when several maptops ...
     if(associated(localtop%next)) then
@@ -304,7 +326,7 @@
        write(*,*)'Mapnode next link missing 1'
        goto 79
     endif
-!    write(*,*)'SMP at label 77B: ',localtop%lines
+!    write(*,*)'SMP2B ocplot2 at label 77B: ',localtop%lines
     thisloop: do while(.not.associated(mapnode,localtop))
        do nrv=1,mapnode%lines
           mapnode%linehead(nrv)%done=0
@@ -317,19 +339,33 @@
     enddo thisloop
 !-----------
 79  continue
+    if(.not.associated(localtop%saveceq)) then
+       write(*,*)'Plot data structure has no results to plot'
+       gx%bmperr=4399; goto 1000
+    endif
     results=>localtop%saveceq
     mapnode=>localtop
     line=1
 ! looking for segmentation fault running map11.OCM as part of all.OCM in oc4P
 ! This error may be due to having created (or not created) composition sets ...
-!    write(*,*)'ocplot2 after label 79'
+!    write(*,*)'SMP2B ocplot2 after label 79'
 ! extract the names of stable phases for this lone
 
 !    write(*,*)'mapnode index: ',mapnode%seqx
 !    write(*,*)'Before label 100: ',results%free
 !------------------------------------------- begin loop 100
+! loop back here from ??
 100    continue
        mapline=>localtop%linehead(line)
+! TRYING TO UNDERSTAND WHAT IS HAPPENING HERE ....
+       ttunodeid=localtop%seqx
+       ttuheads=size(localtop%linehead)
+       ttutoplines=localtop%lines
+       ttuline=line
+       ttuplotline=nv
+!       write(*,101)'At 100',ttunodeid,ttuheads,ttutoplines,ttuline,ttuplotline
+101    format('Line selected: ',a,': nodeid ',i3,', heads/lines: ',2i2,&
+            ' index: ',i2,', plotline: ',2i4)
 ! initiate novalues to false for each line
        novalues=.false.
 ! skip first point if dot derivative
@@ -348,17 +384,35 @@
              goto 500
           endif
        endif
+! We jump here from where?? ... several places
 110    continue
 ! mark line is plotted
 !       write(*,*)'Values from mapline ',mapline%lineid
-! loop for all calculated equilibra, phases and composition sets
+! loop for all calculated equilibria, phases and composition sets
 !       write(*,*)'Before label 150: ',mapline%lineid
 !150    continue
        nr=mapline%first
        if(mapline%done.ne.0) goto 220
        mapline%done=-1
-       if(ocv()) write(*,*)'Plotting line: ',&
-            mapline%lineid,mapline%number_of_equilibria,mapline%termerr
+!       if(ocv()) write(*,*)'Plotting line: ',&
+!       write(*,*)'Plotting line: ',&
+!            mapline%lineid,mapline%number_of_equilibria,mapline%termerr
+!--------------
+       ttunodeid=localtop%seqx
+       ttuheads=size(localtop%linehead)
+       ttutoplines=localtop%lines
+       ttuline=line
+       ttuplotline=nv
+!       write(*,101)'at 110',ttunodeid,ttuheads,ttutoplines,ttuline,&
+!            ttuplotline
+!--------------
+       if(mapline%lineid.le.0) then
+          write(*,*)'Skipping line with id less or equal to zero'
+          goto 500
+       elseif(mapline%number_of_equilibria.le.0) then
+!          write(*,*)'Skipping line with no equilibria.'
+          goto 500
+       endif
        first=.TRUE.
 ! last set true when we reach the last equilibrium on the line
        last=.FALSE.
@@ -477,16 +531,25 @@
 !             skipdotder=.FALSE.; special_circumstances=1
              special_circumstances=1
           endif
-          call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
+          if(statevar(1:4).eq.'PFL ') then
+             call meq_get_state_varorfun_value('NP(LIQUID) ',&
+                  value,encoded1,curceq)
+             value=npflval*value
+!             write(*,12)'SMP2B calculates PFL',npflval,value,curceq%tpval(1)
+12           format(a,3F10.2)
+             npflval=value
+          else
+             call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
 !          write(*,*)'SMP axis variable 1: ',trim(encoded1),value
-          if(gx%bmperr.ne.0) then
+             if(gx%bmperr.ne.0) then
 ! this error should not prevent plotting the other points FIRST SKIPPING
-             write(*,212)'SMP skipping a point 1, error evaluating: ',&
-                  statevar(1:10),curceq%tpval(1),nv,nr
-212          format(a,a,f10.2,2i5)
+                write(*,212)'SMP skipping a point 1, error evaluating: ',&
+                     statevar(1:10),curceq%tpval(1),nv,nr
+212             format(a,a,f10.2,2i5)
 ! buperr resets putfun error 
-             gx%bmperr=0; buperr=0
-             nv=nv-1; goto 215
+                gx%bmperr=0; buperr=0
+                nv=nv-1; goto 215
+             endif
           endif
           xax(nv)=value
 !          write(*,201)'at 202: ',nr,nv,curceq%tpval(1),value
@@ -913,6 +976,7 @@
           endif
        endif
 !---- take next node along the same line
+! Then jump back to label 100 and plot other lines ... a bit stupid ...
 230    continue
 !       write(*,*)'SMP2B at 230: nr and nv: ',nr,nv
        kk=seqx
@@ -932,8 +996,24 @@
 !                write(*,*)'adding empty line 2',nlinesep,linesep(nlinesep)
              endif
           endif
-          if(line.eq.2) goto 500
+! Hm, this was not designed for multicomponent isopleths ....
+          if(line.eq.2) then
+!             write(*,*)'ocplot2 jump to label 500',line
+             goto 500
+          endif
+          if(scheilorder) then
+! The mapnodes must be followed in numeric order
+! ane they have just one line each.
+              line=1
+!             write(*,*)'SMP2B scheilorder',localtop%seqx,&
+!                  localtop%next%seqx,localtop%previous%seqx
+             localtop=>localtop%previous
+             mapline=>localtop%linehead(1)
+             goto 110
+          endif
           line=2
+! jump back to label 100 for next line
+!          write(*,*)'ocplot2 jump to label 100 for line 2'
           goto 100
        else
           if(kk.eq.seqx) then
@@ -955,15 +1035,18 @@
 250       continue
           if(mapnode%seqx.eq.seqx) then
 ! >>> this is just for step, for map one must find line connected
-             mapline=>mapnode%linehead(1)
-! skip line if EXCLUDEDLINE set
-             if(.not.btest(mapline%status,EXCLUDEDLINE)) then
-                if(mapline%done.eq.0) goto 110
-             else
-                lines_excluded=lines_excluded+1
-!                write(*,*)'Skipping a line 2'
-             endif
-!             if(mapline%done.eq.0) goto 110
+             do haha=1,size(mapnode%linehead)
+                mapline=>mapnode%linehead(haha)
+                if(mapline%done.eq.0) then
+                   if(.not.btest(mapline%status,EXCLUDEDLINE)) then
+!                      write(*,*)'ocplot2 jump to label 110',&
+!                           seqx,mapline%number_of_equilibria
+                      goto 110
+                   else
+                      lines_excluded=lines_excluded+1
+                   endif
+                endif
+             enddo
           endif
           if(.not.associated(mapnode,localtop)) then
              mapnode=>mapnode%next
@@ -986,13 +1069,18 @@
 500    continue
 !       write(*,*)'Checking for unplotted lines'
 !       write(*,*)'In ocplot2, looking for segmentation fault 5'
-       mapnode=>localtop%next
+!       mapnode=>localtop%next
+! when we have several plots localtop is the important one!!
+       mapnode=>localtop
        invnode=0
        if(btest(mapnode%status,MAPINVARIANT)) then
           invnode=size(mapnode%linehead)
+!          if(invnode.ne.mapnode%lines) write(*,*)'SMP2B check invnodes 1!'
 !          write(*,*)'ocplot2 invariant node 4',invnode
        endif
-       do while(.not.associated(mapnode,localtop))
+! Check for unplotted lines
+       anymoretoplot: do while(.TRUE.)
+!          write(*,*)'>>>>>Checking unplotted lines at node: ',mapnode%seqx
           jjline: do jj=1,mapnode%lines
              if(mapnode%linehead(jj)%done.eq.0) then
                 if(ocv()) write(*,*)'Found a line in node: ',mapnode%seqx,jj
@@ -1006,31 +1094,32 @@
                    endif
                 endif
                 mapline=>mapnode%linehead(line)
-!                goto 110
 ! skip line if EXCLUDEDLINE set
                 if(btest(mapline%status,EXCLUDEDLINE)) then
-!                   write(*,*)'Skipping a line 1'
-!                   mapnode%linehead(line)%done=0
                    cycle jjline
-                else
-                   goto 110
                 endif
+!                write(*,*)'SMP2B jump to 110 for line ',jj,&
+!                     ' in mapnode ',mapnode%seqx
+! %done=-1 means already plotted ...
+!                mapnode%linehead(jj)%done=-1
+                goto 110
              endif
           enddo jjline
           mapnode=>mapnode%next
           invnode=0
           if(btest(mapnode%status,MAPINVARIANT)) then
              invnode=size(mapnode%linehead)
+!             if(invnode.ne.mapnode%lines) write(*,*)'SMP2B check invnodes 2!'
 !             write(*,*)'ocplot2 invariant node 5',invnode
           endif
-!          write(*,*)'Looking at node: ',mapnode%seqx
-       enddo
+          if(associated(mapnode,localtop)) exit anymoretoplot
+       enddo anymoretoplot
 !--------------------------------------------
 ! end extracting data
 600    continue
        overflow=.FALSE.
 ! but we may have another maptop !!
-       if(associated(localtop%plotlink)) then
+       if(associated(localtop%plotlink) .and. .not.scheilorder) then
           if(.not.moretops) then
              write(*,*)'More than one maptop record'
              moretops=.true.
@@ -1778,7 +1867,7 @@
 ! if gnuplot cannot be started with gnuplot give normal path ...
 !    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
     k3=len_trim(gnuplotline)+1
-    write(kou,*)'Gnuplot command file: ',pfc(1:kk+4)
+!    write(kou,*)'Gnuplot command file: ',pfc(1:kk+4)
     if(graphopt%gnutermsel.ne.1) then
        write(kou,*)'Graphics output file: ',pfh(1:kk+4)
     endif
@@ -1794,14 +1883,14 @@
 ! spawn plot on Windows ?? NOT ISO-TERMAL DIAGRAM
 !          write(*,*)'executing command: "start /B '//trim(gnuplotline)
 !          call execute_command_line('start /B '//gnuplotline(9:k3))
-          write(*,*)'executing command: "start /B '//trim(gnuplotline)//'"'
+    write(*,*)'ocplot2B executing command: "start /B '//trim(gnuplotline)//'"'
           call execute_command_line('start /B '//trim(gnuplotline))
 ! WORKS WITH OCPLOT3B
 !          call execute_command_line('start /B '//trim(gnuplotline))
        else
 !          write(*,*)'plot command: "',gnuplotline(1:k3),'"'
 !          call system(gnuplotline)
-          write(*,*)'executing command: "'//trim(gnuplotline)//'"'
+          write(*,*)'ocplot2B executing command: "'//trim(gnuplotline)//'"'
           call execute_command_line(gnuplotline)
        endif
     else
@@ -2152,13 +2241,15 @@
           enddo nodeequil
           lineends(same)=plotp
        endif
-!       write(*,*)'jump back to 100, same and plotp',same,plotp
+! jump back to label 100
        goto 100
     endif
 !    do jj=1,same
 !       write(*,23)'phases: ',same,jj,trim(lid(1,jj)),trim(lid(2,jj))
 !    enddo
 !------------------------------------------------
+! Jump here if there is a line with illegal lineid
+772 continue
 ! there can be more maptops linked via plotlink
     if(associated(plottop%plotlink)) then
        jj=plottop%seqx
@@ -3115,11 +3206,11 @@
 ! this is a TERNARY PLOT with 2 extenive axis
 !          write(*,*)'executing command '//trim(gnuplotline(9:))
 !          call system(gnuplotline(9:))
-          write(*,*)'Executing Command: "start /B '//trim(gnuplotline)//'"'
+   write(*,*)'ocplot3B executing Command: "start /B '//trim(gnuplotline)//'"'
 ! WORKS WITH OCPLOT3B
           call execute_command_line('start /B '//trim(gnuplotline))
        else
-!          write(*,*)'executing command '//trim(gnuplotline)
+          write(*,*)'ocplot3B executing command '//trim(gnuplotline)
           call execute_command_line(gnuplotline)
        endif
     else
@@ -3491,28 +3582,30 @@
 100 continue
 !    mapnode=>localtop
     write(kou,101)mapnode%seqx,mapnode%nodeceq%tpval(1),mapnode%noofstph,&
-         mapnode%savednodeceq,mapnode%status,mapnode%lines
-101 format(' Mapnode: ',i5,' at T=',F10.2,' with ',i2,' phases, ceq saved ',&
-         i5,', status ',z8,', lines exit: ',i2)
+         mapnode%savednodeceq,mapnode%lines
+!         mapnode%savednodeceq,mapnode%status,mapnode%lines
+101 format(' Mapnode: ',i3,' at T=',F10.2,', ',i2,' phases, ceq saved ',&
+         i5,', exting lines: ',i2)
     do kl=1,mapnode%lines
        if(.not.associated(mapnode%linehead(kl)%end)) then
           if(mapnode%linehead(kl)%termerr.gt.0) then
-             write(kou,105)mapnode%linehead(kl)%lineid,&
+             write(kou,105)kl,mapnode%linehead(kl)%lineid,&
                   mapnode%linehead(kl)%number_of_equilibria,&
                   mapnode%linehead(kl)%termerr
-105          format('  Line ',i3,' with ',i5,&
+105          format('  Line ',i3,', id: ',i3,' with ',i5,&
                   ' equilibria ended with error: ',i6)
           else
-             write(kou,110)mapnode%linehead(kl)%lineid,&
+             write(kou,110)kl,mapnode%linehead(kl)%lineid,&
                   mapnode%linehead(kl)%number_of_equilibria
-110          format('  Line ',i3,' with ',i5,&
+110          format('  Line ',i3,', id: ',i3,' with ',i5,&
                   ' equilibria ending at axis limit')
           endif
        else
           ll=mapnode%linehead(kl)%end%seqx
-          write(kou,120)mapnode%linehead(kl)%lineid,&
+          write(kou,120)kl,mapnode%linehead(kl)%lineid,&
                mapnode%linehead(kl)%number_of_equilibria,ll
-120       format('  Line ',i3,' with ',i5,' equilibria ending at node ',i3)
+120       format('  Line ',i3,', id: ',i3,' with ',i5,&
+               ' equilibria ending at node ',i3)
        endif
        if(btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
           write(*,*)'Line excluded'
@@ -3521,7 +3614,9 @@
        ll=mapnode%linehead(kl)%first
 !       write(*,*)'SMP2B allcrach 1: ',ll
 ! BOS 191224 add phase names
-       if(ll.gt.0) then
+! tzero lines has no meqrec%phr allocated NOTE kl is K-EL not K-ETT
+! for tzero lines it is listed line 3 and 4 although there are only 2 ????
+       if(ll.gt.0 .and. allocated(mapnode%linehead(kl)%meqrec%phr)) then
 ! only if there is an link to a linehead
           lineeq=>mapnode%linehead(kl)%meqrec
           phases=' '
@@ -3679,23 +3774,23 @@
        endif
        if(.not.associated(mapnode%linehead(kl)%end)) then
           if(mapnode%linehead(kl)%termerr.gt.0) then
-             write(kou,105)mapnode%linehead(kl)%lineid,&
+             write(kou,105)kl,mapnode%linehead(kl)%lineid,&
                   mapnode%linehead(kl)%number_of_equilibria,&
                   mapnode%linehead(kl)%termerr,status,trim(phline)
-105          format('  Line ',i3,' with ',i5,&
-                  ' equilibria ended with error: ',i6/2x,a,' with phases: ',a)
+105          format('  Line ',i3,', id: ',i3,' with ',i5,&
+                  ' equilibria ended with error: ',i6,2x,a/'  with phases: ',a)
           else
-             write(kou,110)mapnode%linehead(kl)%lineid,&
+             write(kou,110)kl,mapnode%linehead(kl)%lineid,&
                   mapnode%linehead(kl)%number_of_equilibria,status,trim(phline)
-110          format('  Line ',i3,' with ',i5,&
-                  ' equilibria ending at axis limit.'/2x,a,' with phases: ',a)
+110          format('  Line ',i3,', id: ',i3,' with ',i5,&
+                  ' equilibria ending at axis limit.',2x,a/'  with phases: ',a)
           endif
        else
           ll=mapnode%linehead(kl)%end%seqx
-          write(kou,120)mapnode%linehead(kl)%lineid,&
+          write(kou,120)kl,mapnode%linehead(kl)%lineid,&
                mapnode%linehead(kl)%number_of_equilibria,ll,status,trim(phline)
-120       format('  Line ',i3,' with ',i5,' equilibria ending at node ',i3/&
-               2x,a,' with phases: ',a)
+120       format('  Line ',i3,', id: ',i3,' with ',&
+               i5,' equilibria ending at node ',i3,2x,a/'  with phases: ',a)
        endif
        ll=mapnode%linehead(kl)%first
 ! if deleted ask for Restore, else ask for Keep or Delete

@@ -1,0 +1,127 @@
+@$
+new Y
+@$===============================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ step-scheil_Gulliver.OCM
+@$
+@$ Step in carbon contenr to follow T-zero line between BCC and FCC
+@$ The tzero line is the limit of diffusionless transformation
+@$ Below the tzero line FCC may transform to metastable BCC
+@$ without carbon diffusion.
+@&
+@$===============================================================
+@$ 
+
+set echo
+
+
+r t ./cost507R
+al mg si zn
+
+set c t=1000 p=1e5 n=1 x(mg)=.02 x(si)=.03 x(zn)=0.02
+
+c e
+
+l,,,
+
+
+@&
+@$ Slow cooling will maintain equilibrium and can be simulated
+@$ by a step command with axis T
+
+set ax 1 t
+600
+1000
+2
+
+
+step
+
+
+
+plot
+np(*)
+T
+title step-scheil Fig 1
+output ./equil-solidific
+Y
+render
+
+
+@$ This is a solidification assuming full equilibrium in the system
+@$ But as diffusion in the solid is slow a normal solidification
+@$ frequently create non-equilibrium structures.
+@&
+
+@$====================================
+@$ In a Scheil-Gulliver simulation the liquid is assumed to be
+@$ homogeneous and in equilibrium with the most recently formed solid.
+@$ The at each step in T the solid formed is removed
+@$ and the liquid composition modified according to the quilibrium
+@$ This means the liquid composition will vary until we reach
+@$ an invariant equilibrium where the last liquid will disappear.
+
+
+step scheil
+Y
+y
+
+
+
+@$ The output during the step command is temporary but indicates
+@$ how the fraction liquid and its composition changes with T.
+@&
+
+
+plot
+
+
+title step-scheil Fig 2
+
+@$ PFL is a special symbol for the "phase fraction liquid"
+@$ Which is the most interesting result of the simulation.
+@$ Note that the liquid is stable to very much lower T than
+@$ when the equilibrium is assumed.  We can overlay the figures
+
+@&
+
+plot
+
+
+title step-scheil Fig 3
+append ./equil-solidific
+
+
+@&
+@$ Segregation is also important, we can plot the liquid composition
+@$ in the Scheil simulation
+
+
+plot
+x(liq,*)
+T
+title step-scheil Fig 4
+
+
+
+@$ and note the last liquid is 70% Zn
+@$ This can be very bad for the mechanical properties
+@$ and require complex heat treatments to homogenize the alloy
+
+set inter
+

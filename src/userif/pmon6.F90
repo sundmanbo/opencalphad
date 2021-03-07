@@ -188,6 +188,10 @@ contains
 ! for macro and logfile and repeating questions
     logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
     logical listzero,maptopbug
+! default plot axis for some STEP command:
+! 1 for SEPARATE, 2 SCHEIL, 3 TZERO, 4 PARAEQUIL, 5 NPLE
+    logical stepspecial(5)
+!    logical tzeroline,separate, stepspecial(5)
 ! unit for logfile input, 0 means no logfile
     integer logfil
 ! remember default for calculate phase
@@ -217,7 +221,7 @@ contains
     integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=12
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
-    integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=6
+    integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=9
     integer, parameter :: nplt2=18
     integer, parameter :: ninf=15
 ! basic commands
@@ -380,7 +384,8 @@ contains
 ! subcommands to STEP
     character (len=16), dimension(nstepop) :: cstepop=&
          ['NORMAL          ','SEPARATE        ','QUIT            ',&
-          'CONDITIONAL     ','                ','                ']
+          'CONDITIONAL     ','TZERO           ','NPLE            ',&
+          'SCHEIL_GULLIVER ','PARAEQUILIBRIUM ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
 ! subcommands to DEBUG
@@ -442,6 +447,8 @@ contains
     logfil=0
     defcp=1
     seqxyz=0
+! defaults for several step special
+    stepspecial=.FALSE.
 ! save the working directory (where OC is started)
     call getcwd(workingdir)
 !    write(*,*)'Working directory is: ',trim(workingdir)
@@ -5525,6 +5532,7 @@ contains
        endif
 ! remove global check during map
        mapglobalcheck=0
+       stepspecial=.FALSE.
 !------remove assessment data
 !       write(*,*)'No segmentation fault 1'
        if(allocated(firstash%eqlista)) then
@@ -5544,30 +5552,21 @@ contains
 !       iexit(2)=1
 !       write(*,*)'No Segmentation fault 4'
 !----- deleting map results ...
-!       write(*,*)'Deleting map results'
+       write(*,*)'Deleting map results'
        if(associated(maptopsave)) then
 ! this is necessary only if no plot of last step/map made ...
-!          write(kou,*)'We link to maptopsave'
+          write(kou,*)'We link to maptopsave'
           maptop%plotlink=>maptopsave
           nullify(maptopsave)
        endif
        seqxyz=0
+!       write(*,*)'Calling delete_mapresults'
        call delete_mapresults(maptop)
        if(gx%bmperr.ne.0) then
           write(*,*)'Error deleting map results! Report this error with macro!'
           stop
        endif
 !       write(*,*)'Back from delete_mapresults'
-! remove any results from step and map
-!       if(associated(maptop)) then
-!          write(*,*)'maptop nullified: ',maptop%next%seqx
-!          maptop%next%seqx=0
-!          maptop%next%seqy=0
-!          maptop%seqx=0
-!          maptop%seqy=0
-!          nullify(maptop)
-!       endif
-!       write(*,*)'we are here'
        nullify(maptop)
        nullify(mapnode)
        nullify(maptopsave)
@@ -5598,7 +5597,7 @@ contains
           write(*,*)'Error initiating! Report this error with macro!'
           stop
        endif
-       write(kou,*)'Workspaces initiated'
+!       write(kou,*)'Workspaces initiated'
 !       ceq=>firsteq
        goto 20
 !=================================================================
@@ -6059,7 +6058,8 @@ contains
 !=================================================================
 ! STEP, must be tested if compatible with assessments
 !         ['NORMAL          ','SEPARATE        ','QUIT            ',&
-!          'CONDITIONAL     ','                ','                ']
+!          'CONDITIONAL     ','TZERO           ','NPLE            ',&
+!          'SHEIL_GULLIVER  ','PARAEQUILIBRIUM ','                ']
     case(19)
 ! disable continue optimization
 !       iexit=0
@@ -6074,6 +6074,8 @@ contains
           write(*,*)'Degrees of freedom not zero',ll
           goto 100
        endif
+! forget any previous step special
+       stepspecial=.FALSE.
 ! IMPORTANT I have changed the order between option and reinitiate!!
        kom2=submenu('Step options?',cline,last,cstepop,nstepop,1,'?TOPHLP')
 ! check if adding results
@@ -6130,13 +6132,12 @@ contains
 ! maptop is returned as main map/step record for results
 ! noofaxis is current number of axis, axarr is array with axis data
 ! starteq is start, equilibria, if empty set it to ceq
-!          if(.not.associated(starteq)) then
           if(noofstarteq.eq.0) then
              noofstarteq=1
              starteqs(1)%p1=>ceq
           endif
-! can one have several STEP commands YES!
           if(associated(maptop)) then
+! can one have several STEP commands YES!
              write(*,*)'Deleting previous step/map results missing'
              goto 100
           endif
@@ -6171,6 +6172,7 @@ contains
 !          noofstarteq=1
 ! it will always use the current equilibrium
 ! can one have several STEP commands??
+          stepspecial(1)=.TRUE.
           if(associated(maptop)) then
              write(*,*)'Deleting previous step/map results missing'
              goto 100
@@ -6202,20 +6204,123 @@ contains
 ! remove start equilibria
           nullify(starteqs(1)%p1)
           noofstarteq=0
+          stepspecial(1)=.TRUE.
 !-----------------------------------------------------------
 ! STEP QUIT
        case(3)
 !-----------------------------------------------------------
-! STEP CONDITIONAL
+! STEP CONDITIONAL (NOT for Scheil-Gulliver)
        case(4)
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
-! STEP unused
+! STEP TZERO plotlink
        case(5)
+          write(kou,871)
+871       format('For this command you must already have used',&
+               ' "calculate tzero"'/&
+               'for the two phases you will specify below and you must',&
+               ' have specified an axis'/&
+               'with the composition of the fast diffusing element.')
+          call gparcx('Have you done all that?',cline,last,1,&
+               name1,'NO','?STEP TZERO')
+          call capson(name1)
+          if(name1(1:1).ne.'Y') goto 100
+          call gparcx('First phase name: ',cline,last,1,name1,' ',&
+               '?STEP TZERO')
+          if(buperr.ne.0) goto 990
+          call find_phase_by_name(name1,iph,ics)
+          if(gx%bmperr.ne.0) goto 990
+          if(ics.ne.1) then
+             write(*,*)'You must use first composition set'
+             goto 100
+          endif
+          call gparcx('Second phase name: ',cline,last,1,name2,' ',&
+               '?STEP TZERO')
+          call find_phase_by_name(name2,iph2,ics)
+          if(gx%bmperr.ne.0) goto 990
+          if(ics.ne.1) then
+             write(*,*)'You must use first composition set'
+             goto 100
+          endif
+! normally T is the first condition
+          j2=1
+          call gparidx('Release condition number',cline,last,tzcond,j2,'?TZERO')
+! Delete previous step/map results
+          if(associated(maptop)) then
+             write(kou,*)'Previous map/step results will be deleted'
+             call delete_mapresults(maptop)
+          endif
+          nullify(maptop)
+          nullify(maptopsave)
+          stepspecial(3)=.TRUE.
+! This is to keep trace of total number of saved equilibria
+          totalsavedceq=0
+! initiate indexing nodes and lines
+          seqxyz=0
+! remove all graphopt settings
+          call reset_plotoptions(graphopt,plotfile,textlabel)
+          axplotdef=' '
+!          call tzero(iph,iph2,tzcond,xxx,ceq)
+          call step_tzero(maptop,noofaxis,axarr,seqxyz,iph,iph2,tzcond,ceq)
+          if(gx%bmperr.ne.0) goto 990
+!          write(*,*)'Number of points calculated?',allocated(maptop%linehead)
+! sum the points calculated
+          jp=maptop%linehead(1)%number_of_equilibria+&
+               maptop%linehead(2)%number_of_equilibria
+          write(kou,'(a,i5,a)')'Calculated ',jp,' points along the tzero line'
+!          write(*,*)'Equal Gibbs energy at:'
+!          call list_conditions(kou,ceq)
+!-----------------------------------------------------------
+! STEP NPLE
+       case(6)
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
-! STEP unused
-       case(6)
+! STEP SCHEIL_GULLIVER
+       case(7)
+          write(kou,872)
+872       format('Before this command you must have set an alloy composition',&
+               ' and calculated'/&
+               'an equilibrium in the liquid and have set an axis with T',&
+               ' as variable.')
+          call gparcx('Have you done all that?',cline,last,1,&
+               name1,'NO','?STEP SCHEIL')
+          call capson(name1)
+          if(name1(1:1).ne.'Y') goto 100
+! Delete previous step/map results
+          if(associated(maptop)) then
+             write(kou,*)'Previous map/step results will be deleted'
+             call delete_mapresults(maptop)
+          endif
+          write(kou,873)
+873       format('The simulation will decrease T and change the liquid',&
+               ' composition depending'/&
+               'on the solids formed until there is no liquid stable.')
+          nullify(maptop)
+          nullify(maptopsave)
+! This is to keep trace of total number of saved equilibria
+          totalsavedceq=0
+! initiate indexing nodes and lines
+          seqxyz=0
+! remove all graphopt settings
+          call reset_plotoptions(graphopt,plotfile,textlabel)
+          axplotdef=' '
+          stepspecial(2)=.TRUE.
+! now execute the step scheil
+          call step_scheil(maptop,noofaxis,axarr,seqxyz,ceq)
+          if(gx%bmperr.ne.0) goto 990
+! sum the points calculated
+!          write(*,*)'Finished Scheil simulation'
+!          jp=maptop%linehead(1)%number_of_equilibria+&
+!               maptop%linehead(2)%number_of_equilibria
+!          write(kou,'(a,i5,a)')'Calculated ',jp,' points for the simulation'
+!-----------------------------------------------------------
+! STEP PARAEQUILIBRIUM
+       case(8)
+          stepspecial(4)=.TRUE.
+          write(kou,*)'Not implemented yet'
+!-----------------------------------------------------------
+! STEP ??
+       case(9)
           write(kou,*)'Not implemented yet'
        end SELECT step
 !=================================================================
@@ -6226,6 +6331,9 @@ contains
           write(kou,*)'You must set two axis with independent variables'
           goto 100
        endif
+!       tzeroline=.FALSE.
+!       separate=.FALSE.
+       stepspecial=.FALSE.
        write(kou,20014)
 20014   format('The map command is fragile, please send problematic diagrams',&
             ' to the',/'OC development team'/)
@@ -6311,20 +6419,22 @@ contains
 ! end of MAP command
 !=================================================================
 ! PLOT COMMAND with many options and EXTRA
-! Always specify the axis when giving this command, default is previous!!
-! Sunbommands comes after
+! Always specify the axis first when giving this command, default is previous!!
+! loop with subcommands comes after
     case(21)
        if(.not.associated(maptop)) then
           write(kou,*)'You must give a STEP or MAP command before PLOT'
           goto 100
        endif
        wildcard=.FALSE.
-       do iax=1,2
-! default scaling factor for the axis variable set at initiation
-!          graphopt%scalefact(iax)=one
+       pltaxdef: do iax=1,2
           plotdefault: if(axplotdef(iax)(1:1).eq.' ') then
-! insert a default answer for plot axis
-             if(iax.le.noofaxis) then
+! If there is no previous plot axis variable, propose one
+             iaxval: if(iax.eq.1 .and. stepspecial(2)) then
+! Scheil, PFL (Phase Fraction Liquid) is a special function
+                if(iax.eq.1) text='PFL'
+             elseif(iax.le.noofaxis) then
+! extract the actual axis condition used for calculation
                 jp=1
                 call get_one_condition(jp,text,axarr(iax)%seqz,ceq)
                 if(gx%bmperr.ne.0) then
@@ -6332,11 +6442,10 @@ contains
                         iax,axarr(iax)%seqz
                    goto 990
                 endif
-! we just want the expression, remove the value including the = sign
                 jp=index(text,'=')
                 text(jp:)=' '
                 if(maptop%tieline_inplane.eq.1) then
-! if tie-lines in the plane is 1 (.e. YES) and calculating axis was x(A)
+! if tie-lines in the plane is 1 (.e. YES) and calculating axis was x(cu)
 ! then plot axis should be x(*,cu) 
                    jp=index(text,'(')
                    if(jp.gt.0) then 
@@ -6344,9 +6453,28 @@ contains
                    endif
                 endif
              else
-! this is plotting a STEP calculation
-                text='NP(*) '
-             endif
+! this the vertical axis of a STEP calculation, most often T as axis 1
+! maybe change default for iax=1 also.  Most frequent vertical axis is NP(*)
+                if(iax.eq.2) text='NP(*)'
+                if(stepspecial(1)) then
+! step separate, default vertical axis is GM, horizontal fraction
+                   if(iax.eq.2) text='GM(*)'
+                elseif(stepspecial(2)) then
+! Scheil, PFL (Phase Fraction Liquid) is a special function
+                   if(iax.eq.1) text='PFL'
+                   if(iax.eq.2) text='T'
+                elseif(stepspecial(3)) then
+! Tzero, fraction vs T
+                   if(iax.eq.2) text='T'
+                elseif(stepspecial(4)) then
+! Paraequilibrium, fraction vs T
+                   if(iax.eq.2) text='T'
+                elseif(stepspecial(5)) then
+! NPLE, fraction vs T
+                   if(iax.eq.2) text='T'
+                endif
+                nullify(maptop%plotlink)
+             endif iaxval
              axplotdef(iax)=text
           endif plotdefault
 ! the 4th argument to gparc means the following:
@@ -6359,10 +6487,12 @@ contains
 !      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
 !------------------------------------------------------------------------
+! Here the user specifies his axis for plotting
 21000      continue
           if(iax.eq.1) then
              call gparcdx('Horizontal axis variable',&
                   cline,last,7,axplot(iax),axplotdef(iax),'?Plot command')
+! Note "7" means that a "," inside x(liq,fe) will not return just "x(liq"
           else
              call gparcdx('Vertical axis variable',&
                   cline,last,7,axplot(iax),axplotdef(iax),'?Plot command')
@@ -6400,7 +6530,13 @@ contains
              call reset_plotoptions(graphopt,plotfile,textlabel)
 ! check that axis variable is a correct state variable or symbol
 ! Code copied from show variable (case(4,17) around line 3273)
-             if(index(axplot(iax),'*').gt.0) then
+             if(index(axplot(iax),'PFL ').gt.0) then
+! this is a special function allowed in Scheil simulations for phase frac liq
+                if(.not.stepspecial(2)) then
+      write(*,*)'The PFL function is allowed only for Scheil simulations'
+                   goto 100
+                endif
+             elseif(index(axplot(iax),'*').gt.0) then
 ! generate many values
 ! the values are returned in yarr with dimension maxconst. 
 ! longstring are the state variable symbols for the values ...
@@ -6444,14 +6580,12 @@ contains
           endif
 ! remember most recent axis as default (and to avoid reset)
           axplotdef(iax)=axplot(iax)
-       enddo
+       enddo pltaxdef
 ! first argument is the number of plot axis, always 2 at present
        jp=2
        if(associated(maptopsave)) then
           write(kou,'(a)')'Link set to maptopsave'
           maptop%plotlink=>maptopsave
-!       else
-!          write(*,*)'There is no maptopsave'
        endif
 ! restore default graphopt%linetype
 !       graphopt%linetype=1
@@ -6488,6 +6622,7 @@ contains
        case(1)
 !2190      continue
 ! use the graphics record to transfer data ...
+          write(*,*)'PMON render plot',associated(maptop%plotlink)
           graphopt%pltax(1)=axplot(1)
           graphopt%pltax(2)=axplot(2)
           if(graphopt%gibbstriangle) then
@@ -6518,7 +6653,7 @@ contains
 ! for step and tie-lines in plane clear the bit
              graphopt%status=ibclr(graphopt%status,GRISOPLETH)
           endif
-!          write(*,*)'PMON6 **** call ocplot2: ',graphopt%status,grisopleth
+          write(*,*)'PMON call ocplot2: ',graphopt%status,grisopleth
 ! added ceq in the call to make it possible to handle change of reference states
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
           if(gx%bmperr.ne.0) goto 990
@@ -6526,8 +6661,8 @@ contains
           if(graphopt%gnutermsel.ne.1) &
                write(kou,*)'Restoring plot device to screen'
           graphopt%gnutermsel=1
-          graphopt%filename='ocgnu '
           plotfile='ocgnu'
+          graphopt%filename=plotfile
 !-----------------------------------------------------------
 ! PLOT SCALE_RANGE of either X or Y
        case(2)
