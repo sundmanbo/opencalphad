@@ -87,6 +87,12 @@ mac ./step9
 mac ./step-tzero
 
 @& *********************************************************
+@$ A isothermal section, paraequilibrum and T-zero line in a Fe-Mn-Si-C steel
+@$ *********************************************************
+
+mac ./step-epz
+
+@& *********************************************************
 @$ A Scheil-Gulliver solidification simulation
 @$ *********************************************************
 

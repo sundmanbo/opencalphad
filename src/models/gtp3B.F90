@@ -6405,7 +6405,7 @@
    enddo eqloop
 ! we have deleted all equilibria until ieq+1
    if(ocv()) write(*,900)ieq+1,eqfree
-   write(*,900)ndel,eqfree-1
+   if(ndel.gt.0) write(*,900)ndel,eqfree-1
 900 format('3B Deleted ',i3,' equilibria.  First free ',i3)
    eqfree=ieq+1
 1000 continue

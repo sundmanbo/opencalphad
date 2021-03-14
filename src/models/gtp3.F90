@@ -1399,6 +1399,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! A tuplet index always refer to the same phase+compset.  New tuples with
 ! the same phase and other compsets are added at the end.
 ! BUT if a compset>1 is deleted tuples with higher index will be shifted down!
+! CONFUSING ixphase is usually iph, phases in alphabetical order in phases
+!           lokph is usually lokph, location in phlista
      integer lokph,compset,ixphase,lokvares,nextcs
 ! >>>>>>>>>>>> old     integer phaseix,compset,ixphase,lokvares,nextcs
   end TYPE gtp_phasetuple
@@ -1530,6 +1532,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   end TYPE gtp_state_variable
 ! used for state variables/properties in various subroutines
 !\end{verbatim}
+! statevarid: defined in decode_state_variable3 in gtp3F.F90
+! potentials: 1=T;   2=P;   3=MU;  4=AC;  5=LNAC
+! extensive:  6=U;   7=S;   8=V;   9=H;  10=A;    11=G;
+! phase:     12=NP; 13=BP; 14=Q ; 15=DG
+! amounts:   16=N;  17=X;  18=B;  19=W;  20=Y
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_condition

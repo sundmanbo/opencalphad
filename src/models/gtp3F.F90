@@ -68,7 +68,7 @@
 !   write(*,*)'3F back from get_state_var_value',value,' ',trim(encoded)
 1000 continue
 ! possible memory leak
-   write(*,*)'3F exit get_stable_state_var_value'
+!   write(*,*)'3F exit get_stable_state_var_value'
    nullify(svr)
    return
  end subroutine get_stable_state_var_value

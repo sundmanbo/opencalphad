@@ -19,6 +19,23 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.03.14 OC version 6.023: A very fragile facility to calculate and
+step paraequilibria has been implemented.  This time it was mainly
+problems using the non-linear solver that caused problems, when
+eventually there was something to plot that caused no extra problems.
+Except to append a plotfile that was already contained an appended
+file.  There is a new macro "step-epz" which calculates a stable
+isopleth for the Fe-Mn-Si-C system and the overlays that with a
+paraequilibrium section for bcc/fcc and overlays that with a tzero
+line between bcc/fcc.  It may be useful to understand transformations
+in low alloyes steel.  I am grateful to Bengt Hallstedt who provided a
+new free steel database, "iron4cd.TDB" intended for cast irons.
+
+The calculate/step NPLE will be put on the shelf for a while, in the
+macro testcond1 there is an example how to calculate s single NPLE
+equilibria which can be more intructive than just mechanically repeat
+set/calculate/step/plot.
+
 2021.03.07 OC version 6.022: Finally I have implemented some new STEP
 commands useful to simulate some limiting cases of phase transformations:
 

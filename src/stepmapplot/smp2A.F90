@@ -1192,6 +1192,9 @@
        mapnode%nodefix%ixphase=0
        mapnode%status=0
        mapnode%artxe=0
+! type_of_node =1 step special; =2 step scheil; =3 step tzero;
+!              =4 step paraequil; =5 step nple
+! same indices used in stepspecial in pmon
        mapnode%type_of_node=0
        mapnode%globalcheckinterval=mapglobalcheck
 ! if there is a previous MAP/STEP then 
@@ -3741,7 +3744,7 @@
              endif
              ysave=yyy
           else
-             write(*,*)'Impossible!'
+             write(*,*)'Impossible!',yyy
           endif
        endif
     endif
@@ -7763,14 +7766,12 @@
              if(gx%bmperr.ne.0) goto 500
              call get_phasetuple_name(entphcs(itup),name)
 ! axis variable is composition, skip hases with no variance
-!             call get_phase_variance(entphcs(itup)%phaseix,nv)
              call get_phase_variance(entphcs(itup)%ixphase,nv)
              if(nv.eq.0) then
                 write(*,71)name(1:len_trim(name)),val
 71              format(/'Ignoring phase with fixed composition: ',a,F10.6)
 !----------------
                 lokcs=phasetuple(iph)%lokvares
-!                write(*,*)'indices: ',iph,phasetuple(iph)%phaseix,lokcs
                 write(*,*)'indices: ',iph,phasetuple(iph)%ixphase,lokcs
                 goto 500
 ! handle stoichiometric phases in step_separate ....
@@ -7804,6 +7805,11 @@
 !----------------
              endif
 !             if(ocv()) write(*,73)name(1:len_trim(name)),val
+! check if val is within axis limits
+             if(val.lt.axarr(1)%axmin .or. val.gt.axarr(1)%axmax) then
+! write adjusting startpoint to be inside limits
+                val=axarr(1)%axmin+0.1D0*(axarr(1)%axmax-axarr(1)%axmin)
+             endif
              write(*,73)name(1:len_trim(name)),val
 73           format(/'Setting start condition for ',a,f10.5)
 ! first argument 1 means to extract the value, 0 means to set the value
@@ -8774,6 +8780,207 @@
 1000 continue
     return
   end subroutine step_scheil
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine step_paraequil
+!\begin{verbatim}
+  subroutine step_paraequil(maptop,noofaxis,axarr,seqxyz,tupix,fastelno,starteq)
+! calculates a paraequilibrium diagram
+! maptop map node record
+! noofaxis must be 1
+! axarr array of axis records
+! seqxyz indices for map and line records
+! starteq is an equilibrium with just two phases stable
+! tupix are phasetuple indices of two phases
+! fastelno fast diffusing component index
+!
+! TO BE MODIFIED
+!
+! we will use the same overall conditions except for the carbon
+    implicit none
+    integer noofaxis,seqxyz(*),tupix(*),fastelno
+    type(map_axis), dimension(noofaxis) :: axarr
+    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(map_node), pointer :: maptop
+!\end{verbatim}
+    TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
+    integer jj,jp,seqz,iadd,irem,nv,saveq,lokcs,mapx,idir,seqx,seqy,kpos
+    integer inactive(4),mode,nc,npara,liquid
+    type(map_node), pointer :: mapnode
+    type(map_line), pointer :: mapline
+    type(map_fixph), allocatable :: mapfix
+    type(meq_setup), pointer :: meqrec
+    type(gtp_state_variable), target :: fastxsvr,fastmusvr
+    type(gtp_state_variable), target :: matrixsvr,growxsvr
+    type(gtp_state_variable), pointer :: svr
+    type(meq_phase), pointer :: phr
+    type(gtp_condition), pointer :: pcond,axcond
+    double precision xxx,yyy,zzz,fact,fact1,axvalok
+    character eqname*24,phname*24,npliq*24,encoded*72,setmucond*64
+    integer, parameter :: maxsavedceq=1800
+! temporary storage of results
+    double precision xpara(2)
+! turns off convergence control for T
+    integer, parameter :: inmap=1
+! needed to store links to condition values
+    TYPE smp_paraequil_condval
+! these pointers must be updated for each new line (equilibrium)
+       type(gtp_condition), pointer :: p1
+    end type smp_paraequil_condval
+! These two arrays keep track of conditions and liquid compositis
+! the first is pointers to the condition record, the second is statevariable id
+!    type(smp_paraequil_condval), dimension(20) :: paraval
+!    TYPE(gtp_state_variable), target, dimension(20) :: parasvr
+!
+    write(*,*)'In step_paraequil',tupix(1),tupix(2),fastelno
+    if(noofaxis.ne.1) then
+       write(kou,*)'Paraequilibrium simulations one axis variable'
+       goto 1000
+    endif
+!    ceq=>starteq
+    jp=1
+    findxcond: do while(.true.)
+! find the condition on the amount of the fast diffusing element
+! ?? does this loop through all conditions number 1..n? YES
+       call locate_condition(jp,pcond,starteq)
+       if(gx%bmperr.eq.4295) then
+! this error code means no more conditions
+          gx%bmperr=0; exit findxcond
+       endif
+       if(gx%bmperr.ne.0) goto 1000
+! skip conditions not active
+       if(pcond%active.ne.0) cycle findxcond
+       svr=>pcond%statvar(1)
+!       write(*,*)'findcond: ',jp,svr%statevarid,svr%argtyp,svr%component
+       if(svr%component.eq.fastelno) then
+          if(svr%argtyp.ne.1) then
+             write(*,*)'Problem, condition not on overall fraction'
+             stop 'paraeq 3'
+          endif
+!          fastxcondno=jp
+! here it should be assigned, not a pointer
+          fastxsvr=svr
+       endif
+! avoid eternal loop?
+       jp=jp+1
+       if(jp.gt.20) stop 'eternal loop'
+    enddo findxcond
+    write(*,*)'Calling calc_paraeq first time',tupix(1),tupix(2),fastelno
+! check we can calculate a paraequilibrium
+    call calc_paraeq(tupix,fastelno,xpara,starteq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Sorry, cannot calculate an initial paraequilibrium',gx%bmperr
+       goto 1000
+    endif
+    write(*,'(a,2F10.6)')'first paraeq:',xpara(1),xpara(2)
+!
+!    gx%bmperr=4399; goto 1000
+! =================================================================    
+    inactive=0
+! inactive(1)=-1 is used when only one exit point with direcition -1
+! generate step/map datastructure needed for plotting and phase set changes.
+! in map_startpoint an equilibrium will be calculated and maplines created
+    call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,starteq)
+    if(gx%bmperr.ne.0) goto 1000
+! create storage area for results
+    write(*,*)'Back from map_startpoint'
+    call create_saveceq(maptop%saveceq,maxsavedceq)
+    if(gx%bmperr.ne.0) goto 1000
+! Mark this as a paraequil step
+    maptop%type_of_node=4
+! ensure plotlink is nullified!!
+    nullify(maptop%plotlink)
+    write(*,*)'Taking the first line'
+! take the first line created by map_startpoint
+    call map_findline(maptop,axarr,mapfix,mapline)
+    if(gx%bmperr.ne.0) goto 1000
+    ceq=>mapline%lineceq
+! meqrec contain information from the calculated equilibrium
+    meqrec=>mapline%meqrec
+    mode=-1
+    call locate_condition(axarr(1)%seqz,axcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+!----------------------------------------------- line loop
+    jp=0
+    lineloop: do while(.TRUE.)
+! there will be no phase changes during the STEP command, no new nodes
+       jp=jp+1
+!       write(*,*)'Calculating paraequilibrium',jp
+       call calc_paraeq(tupix,fastelno,xpara,ceq)
+       if(gx%bmperr.ne.0) then
+! terminate the line and check if more lines
+          goto 500
+       endif
+! first argument 1 means to get the value
+       call condition_value(1,axcond,xxx,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       write(*,'(a,F12.6,": ",2F10.6)')'step paraeq:',xxx,xpara(1),xpara(2)
+! calculation OK, save it
+       call map_store(mapline,axarr,1,maptop%saveceq)
+!       write(*,*)'Stored calculated equilibrium'
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error storing equilibria',gx%bmperr
+          goto 1000
+       endif
+! take a step, at second line the step is zero ... why??
+       call map_step2(maptop,mapline,meqrec,meqrec%phr,axvalok,1,axarr,ceq)
+       if(gx%bmperr.ne.0) goto 500
+! when outside limits aapline%more is negative
+       if(mapline%more.lt.0) then
+! this indicate outside axis limits, call map_findline or finish
+          call map_lineend(mapline,axarr(abs(mapline%axandir))%lastaxval,ceq)
+          goto 510
+       endif
+       cycle lineloop
+! treating problems 
+500    continue
+       if(gx%bmperr.ne.0) then
+          write(*,*)'SMP2A error in step_paraequil',gx%bmperr
+! terminate the line, error code cleared
+          call map_lineend(mapline,axarr(mapline%axandir)%lastaxval,ceq)
+! some errors maybe fatal 
+       endif
+510    continue
+! take another line created by map_startpoint
+       
+       call map_findline(maptop,axarr,mapfix,mapline)
+       if(gx%bmperr.ne.0) goto 1000
+       if(.not.associated(mapline)) then
+!          write(*,*)'SMP2A no more lines'
+!          call list_conditions(kou,ceq)
+          exit lineloop
+       endif
+       ceq=>mapline%lineceq
+! axcond changed because ceq changed!!
+       write(*,*)'New line, change axis condition record'
+       call list_conditions(kou,ceq)
+       call locate_condition(axarr(1)%seqz,axcond,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+! Wow, forgot > 
+       svr=>axcond%statvar(1)
+       call state_variable_val(svr,xxx,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       write(*,*)'Next line start at: ',xxx
+!       call list_conditions(kou,ceq)
+! first argument 0 means to set the value NOT ALWAYS T BEWARE
+!       call condition_value(0,axcond,xxx,ceq)
+!       if(gx%bmperr.ne.0) goto 1000
+!       call list_conditions(kou,ceq)
+! meqrec contain information from the calculated equilibrium
+       meqrec=>mapline%meqrec
+    enddo lineloop
+!===========================================
+! exit here when followed the line in both directions  remove all axcond
+900 continue
+! maybe clean up?
+! Allow plotting tie-lines
+    maptop%tieline_inplane=1
+1000 continue
+!    write(*,*)'Finished step_paraequil, list condition?'
+!    call list_conditions(kou,ceq)
+    return
+  end subroutine step_paraequil
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

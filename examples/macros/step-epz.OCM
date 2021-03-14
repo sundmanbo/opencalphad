@@ -1,0 +1,251 @@
+@$
+new Y
+@$===============================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ Macro showing calculation of equilibrium diagram,
+@$ paraequilibrium and tzero line for the same system
+@$
+@$ Same as TC example 23 (but not same database)
+@$
+@$ macro file at oc/oc6/
+@&
+@$===============================================================
+@$ 
+
+set echo
+
+
+@$ Use Bengt Hallstedt's special database for cast iron
+r t ./iron4cd
+fe mn c si
+
+
+@$ ignore the warnings ...
+@&
+
+@$ Conditions for a low alloyed steel
+
+set c t=1000 p=1e5 n=1 w(mn)=.015 w(si)=.003 w(c)=.001
+c e
+
+l , 4
+
+
+@$ Set reference states for C and Fe
+set ref c gra * 1e5
+
+set ref fe bcc * 1e5
+
+@$ Set axis to calculate the equilibrium isopleth
+
+set ax 1 w(c) 0 .02 0.0005
+set ax 2 t 800 1200 10
+
+@&
+
+map
+
+
+@&
+plot
+
+
+
+
+@&
+@$ Save the diagram on a gnuplot file epzpd.plt
+@$ with some labels
+plot
+
+
+text
+0.004
+1100
+.8
+0
+y
+@$ empty line means calculate equilibrium
+
+text
+n
+.004
+930
+.8
+0
+y
+
+text
+n
+.004
+980
+.8
+0
+y
+
+out ./epzpd
+y
+
+@&
+@$ The T condition is 980 K after adding the label
+@$ set inter
+@$===========================================
+@$
+@$ Calculate a paraequilibrium diagram between fcc and bcc
+@$ Suspend all phases except fcc and bcc
+set st ph *=sus
+set st ph fcc bcc=ent 1
+
+@$ Use "c n" not to create additional composition sets
+c n
+
+l,,,,
+
+
+@$
+@&
+@$ Calculate first a single paraequilibrium at this T
+calc para
+fcc
+bcc
+c
+
+
+@&
+l,,,,
+
+
+@$ The composition of the two phases is listed
+@$ Compare with the (ortho) equilibrium above
+@$ Note the content of Mn and Si are the same in bcc and fcc
+@$ The Gibbs energy is higher, -43869.0 J/mol
+@$ as it is not the stable equilibrium.
+@&
+
+@$ set an axis to calculate the paraequilibrium for various T
+@$ Remove the second axis
+set ax 1 t 800 1200 5
+set ax 2 none
+
+@&
+@$ First y is to delete previous map results, 
+@$ second y that we have done all necessary things
+step para
+y
+y
+fcc
+bcc
+C
+
+
+@$ The step command emporarily lists the values
+@$ of the axis and the carbon content in bcc and fcc
+@&
+
+plot
+
+
+text
+.0044
+1010
+.8
+0
+FCC paraequilibrium line
+
+@$ the carbon solubility curves, in fcc and bcc
+@$ the calculation failed at the highest T
+@&
+
+plot
+
+
+app ./epzpd
+scale y n 800 1200
+out ./epzpdtz
+y
+
+
+@$ Plot togehther with the equilibrium diagram
+@$ The paraequilibrium solubility lines are inside
+@$ the stable two-phase region and the carbides suspended
+
+@&
+
+@$
+@$================================================
+@$ Finally calculate the tzero line with equal
+@$ Gibbs energy for FCC and BCC
+@$ This is the limit for diffusionless transformation (martensite)
+
+
+c tz
+fcc
+bcc
+1
+
+@$ The last line with "1" means release the condition on T
+@&
+
+@$ For the tzero diagram the axis must be w(c) !!
+set ax 1 w(c) 0 .006 .0001
+
+step tz
+y
+y
+fcc
+bcc
+
+
+
+@&
+
+plot
+w(c)
+T
+text
+.0039
+890
+.8
+0
+Tzero line
+
+
+@$ Plot the Tzero line with a label
+@$ *************************************
+@&
+
+@$
+@$ Now plot all together, the phase diagram,
+@$ the paraequilibrium lines and the tzero line
+
+plot
+
+
+app ./epzpdtz
+out ./epzall
+y
+
+
+
+@&
+
+@$ This gives some indication of possible transitions
+@$ because carbon can diffuse rapidly even at low T
+@$ *************************************
+
+set inter
+

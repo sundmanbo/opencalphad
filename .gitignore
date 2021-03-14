@@ -14,7 +14,7 @@
 *.ocu
 *~
 *.txt
-src\pmain1.F90
+src/pmain1.F90
 .*
 crfemo-1400-leftcorner.pdf
 examples/macros/cp-cumg2.pdf
@@ -24,11 +24,7 @@ examples/macros/map17-all.png
 examples/macros/map18f2.png
 examples/macros/square.pdf
 examples/macros/step1.pdf
-examples/macros/step9UAB.plt
-examples/macros/step9UAB.plt
 README-old.md
 examples/macros/step9UAB.plt
 square.pdf
 step1.pdf
-src/pmain1.F90
-src/pmain1.F90

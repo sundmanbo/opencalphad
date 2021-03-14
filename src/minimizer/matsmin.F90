@@ -10,7 +10,7 @@ MODULE liboceqplus
   use general_thermodynamic_package
   use minpack
 !
-! Copyright 2012-2020, Bo Sundman, France
+! Copyright 2012-2021, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -190,9 +190,10 @@ MODULE liboceqplus
 ! This is an (failed) attempt to limit Delta-T when having condition on y
   logical ycondTlimit
   double precision deltatycond
-! TZERO calculation need these (CANNOT BE USED IN PARALLEL)
+! TZERO and PARAEQUIL calculation need these (CANNOT BE USED IN PARALLEL)
   type(gtp_equilibrium_data), pointer :: tzceq
   type(gtp_condition), pointer :: tzcond
+  type(gtp_state_variable), target :: musvr,xsvr
   integer tzph1,tzph2
 ! To prevent calculating a dot derivative at a given equilibrium
   integer :: special_circumstances=0
@@ -10173,6 +10174,330 @@ CONTAINS
 1210 format('Error calculating Gibbs energy ',i5)
     iflag=-1; goto 1000
   end subroutine tzcalc_stoich
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_paraeq
+!\begin{verbatim}
+ subroutine calc_paraeq(tupix,icond,xcond,ceq)
+! calculates a paraequilibrium between two phases tupix(1&2)
+! icond is the index of the fast diffusing element
+! xcond are the fractions of the element in the two phases at paraequilibrium
+   implicit none
+   integer tupix(2),icond
+   double precision xcond(2)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+! at paraequilibrium the two phases has the same composition (set as conditions)
+! except for one element fastel which is a fast diffusion element (such as C)
+! It requires solving a nonlinear equation to find a "tie-line" between
+! the two phases which have the same composition except for fastel
+! We have two variables, the composion of "fastel" in each phase
+! We calculate each phase separately with different fractions of fastel, x(C)
+! and extract the chemical potential of fastel, mu(C)
+! and a "combined" chemical potential for all other elements.
+! This is calculated as (G-x(C)*mu(C))/(1-x(C)) where G is the Gibbs energy
+! The two function values are the difference of these two potentials
+! calculated for each phase
+!
+   integer nv,info,ja
+   integer, parameter :: lwa=20,minus1=-1
+   double precision fracs(2),fvec(2),wa(lwa),muval,xsave,ntot,nalpha,nbeta,xtest
+   double precision, parameter :: tol=1.0D-10
+   type(gtp_phasetuple), pointer :: ph1,ph2
+   type(gtp_condition), pointer :: first,pcond
+   type(gtp_state_variable), target :: p1svr,p2svr
+   type(gtp_state_variable), pointer :: svr
+   character encoded*24,fractions*64,elname*24
+   logical verbose
+! We must passing links and info to paraeqfun, the subroutine called by hybrd1
+! THIS DOES NOT WORK IF CALCULATIONS ARE MADE IN PARALLEL
+! tzceq is pointer to equilibrium; tzcond pointer to first condition
+   verbose=.FALSE.
+   xcond=zero
+   tzceq=>ceq
+   tzph1=tupix(1); tzph2=tupix(2)
+!
+!   write(*,*)'MM calc_paraeq',tzph1,tzph2,icond
+! Calculate an equilibrium with the two phases
+   call calceq3(minus1,verbose,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+! exctract various values
+   call get_state_var_value('N ',ntot,encoded,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+! this is quite clumsy ... can it be fixed?
+   call get_component_name(icond,elname,tzceq)
+! do not use this routine, requires a tuple record
+!   call get_phasetuple_name(tzph1,encoded)
+   call get_phasetup_name(tzph1,encoded)
+   fractions='X('//trim(encoded)//','//trim(elname)//') '
+   call get_state_var_value(fractions,fracs(1),encoded,tzceq)
+!   call get_state_var_value('X(FCC,C) ',fracs(1),encoded,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+   call get_phasetup_name(tzph2,encoded)
+   fractions='X('//trim(encoded)//','//trim(elname)//') '
+   call get_state_var_value(fractions,fracs(2),encoded,tzceq)
+!   write(*,*)'MM fraction composition: ',trim(fractions)
+!   call get_state_var_value('X(BCC,C) ',fracs(2),encoded,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'MM Initial fractions: ',fracs(1),fracs(2)
+! tzcond should be the condition for the element tzel
+   first=>ceq%lastcondition%next
+   pcond=>first
+   ja=0
+   findxcond: do while(.true.)
+      if(pcond%active.eq.1) cycle findxcond
+      ja=ja+1
+      if(pcond%statvar(1)%argtyp.eq.1) then
+         if(pcond%statvar(1)%component.eq.icond) then
+            tzcond=>pcond
+            p1svr=pcond%statvar(1)
+            p2svr=pcond%statvar(1)
+! this is the condition on the total amount of fast diffusing element ??
+            xsave=pcond%prescribed
+!            write(*,'(a,F10.6,3i4)')'MM fraction condition',pcond%prescribed,&
+!                 pcond%statvar(1)%statevarid,pcond%statvar(1)%oldstv
+         endif
+      endif
+!      write(*,*)'MM other conditions: ',ja,pcond%statvar%statevarid,&
+!           pcond%statvar%component
+      pcond=>pcond%next
+      if(associated(pcond,first)) exit findxcond
+      if(ja.gt.100) then
+         write(*,*)'Eternal loop exit 1',ja
+         gx%bmperr=4399; goto 1000
+      endif
+   enddo findxcond
+! musvr and xsvr are module global variables used by hybrid subroutine
+! musvr is typically
+! 3 0 0 0 0 1 0 0 1 0 1.0 3
+   musvr%statevarid=3; musvr%norm=0; musvr%unit=0; musvr%phref=0
+   musvr%argtyp=1; musvr%phase=0; musvr%compset=0; musvr%component=icond
+   musvr%constituent=0; musvr%coeff=one; musvr%oldstv=3
+   svr=>musvr
+   call state_variable_val(svr,muval,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+! we should use mole fractions to calculate alloy potential
+! The %oldstv is important!  But completely undocumented
+!=========================================================
+! This assumes fraction is mole fraction
+   xsvr=musvr
+   xsvr%statevarid=17; xsvr%oldstv=111
+! DO NOT CHANGE xsvr, IT IS USED IN THE CALCULATING ROUTINE
+!=========================================================
+   nv=2
+!   call list_conditions(kou,tzceq)
+!
+!==================================
+!
+! solve the non-linear equation (this is the simplified call ....)
+   call hybrd1(paraeqfun,nv,fracs,fvec,tol,info,wa,lwa)
+! nv number of variables and functions; fracs(nv) values of the fractions
+! fvec(nv) returned values of the functions; tol required tolerance
+! info returned information of result
+! ws is workspace with dimension lwa; lwa integer > nv*(3*n+13)/2 (=2*19/2)
+   if(info.ne.1) then
+      if(info.eq.0) write(*,*)'MM hybrd1 called with illegal arguments'
+      if(info.eq.2) write(*,*)'MM hybrd1 fails too many iterations'
+      if(info.eq.3) write(*,*)'MM hybrd1 fails too high tolerance required'
+      if(info.eq.4) write(*,*)'MM hybrd1 fails too slow progress'
+      gx%bmperr=4399; goto 1000
+   endif
+! the phase amounts should be adjusted to a composition in the middle
+   xsave=0.5*(fracs(1)+fracs(2))
+! return solution:
+!   write(*,*)'MM conditions at the solution:'
+!   call list_conditions(kou,tzceq)
+   xcond(1)=fracs(1)
+   xcond(2)=fracs(2)
+! We should set the phase amounts to reproduce the overall condition
+   if(xcond(1).gt.xcond(2)) then
+      nalpha=(xsave-xcond(2))/(xcond(1)-xcond(2))
+   else
+      nalpha=(xsave-xcond(1))/(xcond(2)-xcond(1))
+   endif
+   nbeta=ntot-nalpha
+   if(nalpha.lt.zero .or. nbeta.lt.zero) then
+      write(*,'(a,5(1x,F10.6))')'Paraequil error:',xsave,xcond,nalpha,nbeta
+      gx%bmperr=4399
+   else
+! set amounts of phases correspondng to condition
+!      write(*,'(a,2F10.6)')'calc_paraeq: NP(*): ',nalpha,nbeta
+      call change_phase_status(phasetuple(tzph1)%ixphase,&
+           phasetuple(tzph1)%compset,PHENTSTAB,nalpha,tzceq)
+      call change_phase_status(phasetuple(tzph2)%ixphase,&
+           phasetuple(tzph2)%compset,PHENTSTAB,nbeta,tzceq)
+   endif
+!
+1000 continue
+! restore original condition
+   tzcond%prescribed=xsave
+   return
+ end subroutine calc_paraeq
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine paraeqfun
+!\begin{verbatim}
+ subroutine paraeqfun(nv,fracs,fvec,iflag)
+! called by hydrid1 to solve a nonlinear system of equations setup
+! by calc_paraeq to calculate the difference in chemical potential 
+! for a tow-phase paraequilibrium.  Arguments are:   
+! nv number of variables, fracs the variable values, fvec the functions
+! calculated by this routine
+   implicit none
+   integer nv,iflag
+   double precision fracs(*),fvec(*)
+!\end{verbatim}
+   integer, parameter :: minus1=-1
+   double precision gm,mucmat,muamat,mucgro,muagro,xcmat,xcgro,mutest,xtest,val
+   type(gtp_state_variable), pointer :: svr
+   integer ip
+   character encoded*24
+   logical verbose
+! 
+! The 2 variables are the fractions of the fast diffusing element in 2 phases
+! The functions are the chemical potential of the fast diffusing element
+! and the "extrapolated" chemical potential of an alloy with zero fraction
+! of the fast diffusing element, calculated for each phases as
+!    (G-x(C)*mu(C))/(1-x(C))
+! where G is the Gibbs energy of the phase and x(C) the fraction of C
+! The difference of these potentials calculated for each element in each phase
+! should be zero at paraequilibrium.
+! THIS ROUTINE DOES NOT WORK IF CALCULATIONS IN PARALLEL
+!
+! At paraequilibrium the two phases has the same composition (set as conditions)
+! except for one element fastel which is a fast diffusion element (such as C)
+! It requires solving a nonlinear equation to find a "tie-line" between
+! the two phases which have the same composition except for fastel
+! We have two variables, the composion of "fastel" in each phase
+! We calculate each phase separately with different fractions of fastel, x(C)
+! and extract the chemical potential of fastel, mu(C)
+! and a "combined" chemical potential for all other elements.
+! This is calculated as (G-x(C)*mu(C))/(1-x(C)) where G is the Gibbs energy
+! The two function values are the difference of these two potentials
+! calculated for each phase
+!
+! iflag should not be changed except to force termination by setting iflag=-1
+! NOTE tzceq, tzcond, tzph1 and tzph2 global variables in this module!
+! fractions must be betwee 1E-12 and 1
+   if(fracs(1).lt.1.0D-12) fracs(1)=1.0D-12 
+   if(fracs(1).gt.1.0D0) fracs(1)=1.0D0
+   if(fracs(2).lt.1.0D-12) fracs(2)=1.0D-12 
+   if(fracs(2).gt.1.0D0) fracs(2)=1.0D0
+!   write(*,'(a,2(1pe12.4))')'>>>> Paraeqfun 1: ',fracs(1),fracs(2)
+! calculate the Gibbs energy and the partial Gibbs energies of each phase 
+! for the current set of conditions
+! It is possible to calculate each phase separately ignoring conditions
+! but then it is not trivial to obtain the chemical potentials
+! or call calceq2/calceq7 with all phses except one suspended
+!
+   verbose=.FALSE.
+!   write(*,*)'Matrix and growing phases: ',tzph1,tzph2
+! suspend growing phase and calculate normal equilibrium for matrix
+   call change_phase_status(phasetuple(tzph2)%ixphase,&
+        phasetuple(tzph2)%compset,PHSUS,zero,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+! set condition on composition equal to fracs(1)
+   tzcond%prescribed=fracs(1)
+!   do ip=1,nooftup()
+!      if(test_phase_status(phasetuple(ip)%ixphase,phasetuple(ip)%compset,&
+!           val,tzceq).ge.0) then
+!         write(*,*)'Stable phase (matrix)',phasetuple(ip)%ixphase,&
+!              phasetuple(ip)%compset,val
+!      endif
+!   enddo
+!   write(*,*)'Calculating with matrix phase',phasetuple(tzph1)%ixphase,&
+!        phasetuple(tzph1)%compset
+! calceq3 will modify the fraction of components not set as conditions (Fe)
+   call calceq3(minus1,verbose,tzceq)
+   if(gx%bmperr.ne.0) then
+      write(*,*)'Failed calculation for matrix phase',fracs(1),gx%bmperr
+      goto 1000
+   endif
+! extract value of G and MU(C) and calculate M(X)=(G-x(c)*mu(C))/(1-x(C))   
+!   write(*,*)'Extracting values for matrix phase'
+   call get_state_var_value('GM ',gm,encoded,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+   svr=>musvr
+   call state_variable_val(svr,mucmat,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+   svr=>xsvr
+   call state_variable_val(svr,xcmat,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+! check
+!   call get_state_var_value('MU(C) ',mutest,encoded,tzceq)
+!   if(gx%bmperr.ne.0) goto 1000
+!   call get_state_var_value('X(C) ',xtest,encoded,tzceq)
+!   if(gx%bmperr.ne.0) goto 1000
+!   write(*,'(a,4(1pe12.4))')'Matrix test: ',mucmat,mutest,xcmat,xtest
+!
+   muamat=(gm-xcmat*mucmat)/(one-xcmat)
+!   write(*,'(a,4(1pe12.4))')'Matrix G, x and mu:  ',gm,xcmat,mucmat,muamat
+!
+! suspend matrix phase and calculate normal equilibrium for growing!
+   call change_phase_status(phasetuple(tzph2)%ixphase,&
+        phasetuple(tzph2)%compset,PHENTSTAB,one,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+   call change_phase_status(phasetuple(tzph1)%ixphase,&
+        phasetuple(tzph1)%compset,PHSUS,zero,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+!
+!   set condition on composition equal to fracs(2)
+   tzcond%prescribed=fracs(2)
+!   do ip=1,nooftup()
+!      if(test_phase_status(phasetuple(ip)%ixphase,phasetuple(ip)%compset,&
+!           val,tzceq).ge.0) then
+!         write(*,*)'Stable phase (growing)',phasetuple(ip)%ixphase,&
+!              phasetuple(ip)%compset,val
+!      endif
+!   enddo
+!   write(*,*)'Calculating with growing phase: ',phasetuple(tzph2)%ixphase,&
+!        phasetuple(tzph2)%compset
+! calceq3 will modify the fraction of components not set as conditions (Fe)
+   call calceq3(minus1,verbose,tzceq)
+   if(gx%bmperr.ne.0) then
+      write(*,*)'Failed calculation for growing phase',fracs(2),gx%bmperr
+      goto 1000
+   endif
+! extract value of G and MU(C) and calculate M(X)=(G-x(c)*mu(C))/(1-x(C))   
+!   write(*,*)'Extracting values for growing phase'
+!   call get_stable_state_var_value('GM ',gm,encoded,tzceq)
+   call get_state_var_value('GM ',gm,encoded,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+   svr=>musvr
+   call state_variable_val(svr,mucgro,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+   svr=>xsvr
+   call state_variable_val(svr,xcgro,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+! test
+!   call get_state_var_value('MU(C) ',mutest,encoded,tzceq)
+!   if(gx%bmperr.ne.0) goto 1000
+!   call get_state_var_value('X(C) ',xtest,encoded,tzceq)
+!   if(gx%bmperr.ne.0) goto 1000
+!   write(*,'(a,4(1pe12.4))')'Matrix test: ',mucgro,mutest,xcgro,xtest
+! we have to use mole fraction, to calculate muamat
+   muagro=(gm-xcgro*mucgro)/(one-xcgro)
+!   write(*,'(a,4(1pe12.4))')'Growing G, x and mu: ',gm,xcgro,mucgro,muagro
+
+   fvec(1)=muamat-muagro
+   fvec(2)=mucmat-mucgro
+!   write(*,'(a,4(1pe12.4))')'>>>> Paraeqfun 9: ',fracs(1),fracs(2),&
+!        fvec(1),fvec(2)
+! restore matrix as entered
+   call change_phase_status(phasetuple(tzph1)%ixphase,&
+        phasetuple(tzph1)%compset,PHENTSTAB,one,tzceq)
+   if(gx%bmperr.ne.0) goto 1000
+!
+1000 continue
+   if(gx%bmperr.ne.0) then
+      write(*,*)'MM Error inside paraeqfun',gx%bmperr
+      iflag=-1
+   endif
+!   iflag=-1
+   return
+ end subroutine paraeqfun
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

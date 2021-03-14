@@ -2069,7 +2069,7 @@ end subroutine get_condition
 ! segmentation faults in this routine when locating ceq saved during step/map
 !      write(*,*)'In locate_condition 3',ij
       if(seqz.gt.ij .and. associated(pcond,ceq%lastcondition)) then
-         write(*,*)'Locate condition called with illegal index: ',seqz
+!         write(*,*)'Locate condition called with illegal index: ',seqz
          gx%bmperr=4295; goto 1000
       endif
    enddo

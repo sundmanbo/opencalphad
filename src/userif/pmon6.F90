@@ -59,7 +59,7 @@ contains
     logical :: htmlhelp=.FALSE.
 !    logical :: htmlhelp=.TRUE.
 ! element symbol and array of element symbols for database use
-    character elsym*2,ellist(maxel)*2,elbase(maxel)*2
+    character elsym*2,ellist(maxel)*2,elbase(maxel)*2,parael*2
 ! more texts for various purposes
     character text*72,string*256,ch1*1,chz*1,selection*27,funstring*1024
     character axplot(2)*24,axplotdef(2)*24,quest*20
@@ -121,7 +121,7 @@ contains
 ! used for element data and R*T
     double precision h298,s298,rgast
 ! temporary reals
-    double precision xxx,xxy,xxz,totam,cpham
+    double precision xxx,xxy,xxz,totam,cpham,xpara(2)
 ! input data for grid minimizer
     double precision, dimension(maxel) :: xknown,aphl
 ! arrays for grid minimization results
@@ -131,7 +131,7 @@ contains
 ! selected output mode for results and the default, list output unit lut
     integer listresopt,lrodef,lut,afo
 ! integers used for elements, phases, composition sets, equilibria, defaults
-    integer iel,iph,ics,ieq,idef,iph2
+    integer iel,iph,ics,ieq,idef,iph2,tupix(2),icond
 ! for gradients in MU and interdiffusivities
     integer nend
 ! dimension of mugrad for 16x16 matrix 
@@ -280,7 +280,7 @@ contains
          'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
          'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
          'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ',&
-         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','                ']
+         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','PARAEQUILIBRIUM ']
 !-------------------
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
@@ -563,6 +563,7 @@ contains
 ! clear some other variables
     dummy=' '; name1=' '; name2=' '; name3=' '
     tzcond=0
+    parael=' '
 ! initiallize ploted, it is not done in reset_plotoptions
     graphopt%plotend='pause mouse'
 ! reset plot ranges and their defaults
@@ -1534,8 +1535,8 @@ contains
 !         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
 !         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
 !         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
-!         'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ']
-!         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','                ']
+!         'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ',&
+!         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','PARAEQUILIBRIUM ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8,'?TOPHLP')
        calculate: SELECT CASE(kom2)
@@ -2077,7 +2078,7 @@ contains
           if(temporary) &
                globaldata%status=ibset(globaldata%status,GSNORECALC)
 !-------------------------------------------------------
-       case(11) ! TZERO_POINT
+       case(11) ! CALCUALTE TZERO
 ! The degrees of freedom must be zero
           ll=degrees_of_freedom(ceq)
           if(ll.ne.0) then
@@ -2108,6 +2109,8 @@ contains
           if(gx%bmperr.ne.0) goto 990
           write(*,*)'Equal Gibbs energy at:'
           call list_conditions(kou,ceq)
+! a warning when list equilibria
+          ceq%status=ibset(ceq%status,EQINCON)
 !-------------------------------------------------------
 !       case(12) ! almost same as 14
 !-------------------------------------------------------
@@ -2166,7 +2169,38 @@ contains
 654       format('Final result: ',1pe12.4,' cpu seconds, ',&
                i7,' cc, G=',1pe15.7,' J/mol')
 !-------------------------------------------------------
-       case(15) ! not used (yet)
+       case(15) ! CALCULATE PARAEQUILIBRIUM
+          write(kou,876)
+876       format('You should have calculated an equilibrium',&
+               ' close to the paraequilibrium'/&
+               'and suspended all but the two phases involved')
+! ask for 2 phases and the fast diffusing element
+! try to remember the phases ... user may use the command several times
+          if(dummy(1:1).ne.' ') dummy=name2
+          call gparcdx('Matrix phase ',cline,last,1,name2,dummy,'?TZERO')
+          call find_phasetuple_by_name(name2,tupix(1))
+          if(gx%bmperr.ne.0) goto 990
+          if(dummy(1:1).ne.' ') dummy=name3
+          call gparcdx('Growing phase ',cline,last,1,name3,dummy,'?TZERO')
+          call find_phasetuple_by_name(name3,tupix(2))
+          if(gx%bmperr.ne.0) goto 990
+          dummy=name3
+!          call list_conditions(kou,ceq)
+          call gparcdx('Fast diffusing element',cline,last,1,&
+               elsym,parael,'?PARAEQ')
+          call capson(elsym)
+          call find_element_by_name(elsym,icond)
+          parael=elsym
+          call calc_paraeq(tupix,icond,xpara,ceq)
+! set a warning when list result
+          ceq%status=ibset(ceq%status,EQINCON)
+          if(gx%bmperr.ne.0) goto 990
+          write(kou,877)trim(elsym),xpara
+877       format(/'Paraequilibrium fractions of ',a,': ',2F10.6/&
+               'Please note that the phase amounts are not adjusted,',&
+               ' only the compositions'/)
+! what are the conditions??
+!          call list_conditions(kou,ceq)
        END SELECT calculate
 !=================================================================
 ! SET SUBCOMMANDS
@@ -6263,13 +6297,10 @@ contains
 !          call tzero(iph,iph2,tzcond,xxx,ceq)
           call step_tzero(maptop,noofaxis,axarr,seqxyz,iph,iph2,tzcond,ceq)
           if(gx%bmperr.ne.0) goto 990
-!          write(*,*)'Number of points calculated?',allocated(maptop%linehead)
 ! sum the points calculated
           jp=maptop%linehead(1)%number_of_equilibria+&
                maptop%linehead(2)%number_of_equilibria
           write(kou,'(a,i5,a)')'Calculated ',jp,' points along the tzero line'
-!          write(*,*)'Equal Gibbs energy at:'
-!          call list_conditions(kou,ceq)
 !-----------------------------------------------------------
 ! STEP NPLE
        case(6)
@@ -6316,8 +6347,57 @@ contains
 !-----------------------------------------------------------
 ! STEP PARAEQUILIBRIUM
        case(8)
+          write(kou,874)
+874       format('Before this command you must have set an alloy composition',&
+               ' and calculated',/&
+               'and suspended all phases except the two involved and',&
+               ' you should have'/&
+               'calculated a paraequilibrium')
+          call gparcx('Have you done all that?',cline,last,1,&
+               name1,'NO','?STEP PARAEQ')
+          call capson(name1)
+          if(name1(1:1).ne.'Y') goto 100
+          if(dummy(1:1).ne.' ') dummy=name2
+          call gparcdx('Matrix phase ',cline,last,1,name2,dummy,'?TZERO')
+          call find_phasetuple_by_name(name2,tupix(1))
+          if(gx%bmperr.ne.0) goto 990
+          if(dummy(1:1).ne.' ') dummy=name3
+          call gparcdx('Growing phase ',cline,last,1,name3,dummy,'?TZERO')
+          call find_phasetuple_by_name(name3,tupix(2))
+          if(gx%bmperr.ne.0) goto 990
+          dummy=name3
+          call gparcdx('Fast diffusing element',cline,last,1,&
+               elsym,parael,'?PARAEQ')
+          call find_element_by_name(elsym,icond)
+          parael=elsym
+          write(kou,875)trim(name1)
+875       format('The simulation will vary the axis variable and calulate',&
+               ' compositions'/'of the two phases which have the same',&
+               ' chemical potential of ',a)
+! Delete previous step/map results
+          if(associated(maptop)) then
+             write(kou,*)'Previous map/step results will be deleted'
+             call delete_mapresults(maptop)
+          endif
+          nullify(maptop)
+          nullify(maptopsave)
+! This is to keep trace of the total number of saved equilibria
+          totalsavedceq=0
+! initiate indexing nodes and lines
+          seqxyz=0
+! remove all graphopt settings
+          call reset_plotoptions(graphopt,plotfile,textlabel)
+! set default plot axis
+          axplotdef(1)='W(*,'//trim(parael)//') '
+! one can calculate paraequilibria diagrams at constant T
+!          axplotdef(2)='T '
           stepspecial(4)=.TRUE.
-          write(kou,*)'Not implemented yet'
+          call step_paraequil(maptop,noofaxis,axarr,seqxyz,tupix,icond,ceq)
+          if(gx%bmperr.ne.0) goto 990
+! sum the points calculated
+!          jp=maptop%linehead(1)%number_of_equilibria+&
+!               maptop%linehead(2)%number_of_equilibria
+          write(kou,'(a,2i5,a)')'Paraequilibrium points: ',totalsavedceq
 !-----------------------------------------------------------
 ! STEP ??
        case(9)
@@ -6427,6 +6507,8 @@ contains
           goto 100
        endif
        wildcard=.FALSE.
+! values of stepspecial ...
+!       write(*,*)'stepspecial: ',stepspecial
        pltaxdef: do iax=1,2
           plotdefault: if(axplotdef(iax)(1:1).eq.' ') then
 ! If there is no previous plot axis variable, propose one
@@ -6444,13 +6526,17 @@ contains
                 endif
                 jp=index(text,'=')
                 text(jp:)=' '
-                if(maptop%tieline_inplane.eq.1) then
+                if(.not.(text(1:2).eq.'MU' .or. text(1:2).eq.'AC' .or.&
+                     text(1:4).eq.'LNAC')) then
+                   if(maptop%tieline_inplane.eq.1) then
 ! if tie-lines in the plane is 1 (.e. YES) and calculating axis was x(cu)
 ! then plot axis should be x(*,cu) 
-                   jp=index(text,'(')
-                   if(jp.gt.0) then 
-                      text=text(1:jp)//'*,'//text(jp+1:)
+                      jp=index(text,'(')
+                      if(jp.gt.0) then 
+                         text=text(1:jp)//'*,'//text(jp+1:)
+                      endif
                    endif
+! do not modify axis variables MU(C), AC(C), LNAC(C) !!!
                 endif
              else
 ! this the vertical axis of a STEP calculation, most often T as axis 1
@@ -6460,12 +6546,12 @@ contains
 ! step separate, default vertical axis is GM, horizontal fraction
                    if(iax.eq.2) text='GM(*)'
                 elseif(stepspecial(2)) then
-! Scheil, PFL (Phase Fraction Liquid) is a special function
+! Scheil, PFL (Phase Fraction Liquid) or PFS are special plot functions
                    if(iax.eq.1) text='PFL'
                    if(iax.eq.2) text='T'
                 elseif(stepspecial(3)) then
 ! Tzero, fraction vs T
-                   if(iax.eq.2) text='T'
+                   if(iax.eq.2) text='w(c)'
                 elseif(stepspecial(4)) then
 ! Paraequilibrium, fraction vs T
                    if(iax.eq.2) text='T'
@@ -6529,11 +6615,14 @@ contains
 ! plot ranges and their defaults
              call reset_plotoptions(graphopt,plotfile,textlabel)
 ! check that axis variable is a correct state variable or symbol
-! Code copied from show variable (case(4,17) around line 3273)
-             if(index(axplot(iax),'PFL ').gt.0) then
+! Most code copied from show variable (case(4,17) around line 3273)
+! Avoid capson of axplot(iax) for possible other problems later
+             name1=axplot(iax)
+             call capson(name1)
+             if(name1(1:4).eq.'PFL ' .or. name1(1:4).eq.'PFS ') then
 ! this is a special function allowed in Scheil simulations for phase frac liq
                 if(.not.stepspecial(2)) then
-      write(*,*)'The PFL function is allowed only for Scheil simulations'
+  write(*,*)'The PFL and PFS functions are allowed only for Scheil simulations'
                    goto 100
                 endif
              elseif(index(axplot(iax),'*').gt.0) then
@@ -6622,7 +6711,7 @@ contains
        case(1)
 !2190      continue
 ! use the graphics record to transfer data ...
-          write(*,*)'PMON render plot',associated(maptop%plotlink)
+!          write(*,*)'PMON render plot',associated(maptop%plotlink)
           graphopt%pltax(1)=axplot(1)
           graphopt%pltax(2)=axplot(2)
           if(graphopt%gibbstriangle) then
@@ -6653,7 +6742,7 @@ contains
 ! for step and tie-lines in plane clear the bit
              graphopt%status=ibclr(graphopt%status,GRISOPLETH)
           endif
-          write(*,*)'PMON call ocplot2: ',graphopt%status,grisopleth
+!          write(*,*)'PMON call ocplot2: ',graphopt%status,grisopleth
 ! added ceq in the call to make it possible to handle change of reference states
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
           if(gx%bmperr.ne.0) goto 990

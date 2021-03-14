@@ -33,9 +33,7 @@
     type(map_node), pointer :: mapnode,invar,localtop
     type(map_line), pointer :: mapline
     logical wildcard,hashtag
-!    integer, parameter :: mofapl=100
     character ch1*1,gnuplotline*256,pfd*128,pfc*256
-!    character pfh*64,dummy*24,applines(mofapl)*128,appline*128
     character pfh*128,dummy*24
     double precision, dimension(:,:), allocatable :: anp
     double precision, dimension(:), allocatable :: xax,yyy
@@ -197,23 +195,22 @@
     selectph=.FALSE.
     hashtag=.FALSE.
     selphase=' '
+    if(maptop%type_of_node.eq.3) then
+! this change the order of plotting the lines, maybe needed only for PFL/PFS ??
+       scheilorder=.TRUE.
+    endif
     do iax=1,2
 !       write(*,*)'Allocating for axis: ',iax
        call capson(pltax(iax))
-       if(pltax(iax)(1:4).eq.'PFL ') then
+       if(pltax(iax)(1:4).eq.'PFL ' .or. pltax(iax)(1:4).eq.'PFS ') then
           if(maptop%type_of_node.eq.3) then
-! this is a function only used for plotting phase fraction liquid in Scheil
-! simulations.
-             scheilorder=.TRUE.
+! this is a function only used for plotting phase fraction liquid or solids
+! in Scheil simulations.
              npflval=one
           else
              write(*,*)'Plot axis PFL reserved for Scheil simulations'
              gx%bmperr=4399; goto 1000
           endif
-       endif
-       if(maptop%type_of_node.eq.3) then
-! this should be made before this do-loop but I dare not change anything
-          scheilorder=.TRUE.
        endif
 !       wildcard1: if(index(pltax(iax),'*').gt.0) then
        wildcard1: if(index(pltax(iax),'*').gt.0 .or. &
@@ -531,13 +528,12 @@
 !             skipdotder=.FALSE.; special_circumstances=1
              special_circumstances=1
           endif
-          if(statevar(1:4).eq.'PFL ') then
-             call meq_get_state_varorfun_value('NP(LIQUID) ',&
+          if(statevar(1:4).eq.'PFL ' .or. statevar(1:4).eq.'PFS ') then
+             call meq_get_state_varorfun_value('NPM(LIQUID) ',&
                   value,encoded1,curceq)
              value=npflval*value
-!             write(*,12)'SMP2B calculates PFL',npflval,value,curceq%tpval(1)
-12           format(a,3F10.2)
              npflval=value
+             if(statevar(1:4).eq.'PFS ') value=one-value
           else
              call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
 !          write(*,*)'SMP axis variable 1: ',trim(encoded1),value
@@ -1330,11 +1326,17 @@
 !\end{verbatim}
 !----------------------------------------------------------------------
 ! internal
-    integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk,nofapl
+    integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk,nofapl,iz
     integer, parameter :: mofapl=100
+    integer, parameter :: maxmultiplotlines=100
 ! ltf1 is a LineTypeoFfset for current plot when appending a plot, 0 default
 ! linewp is plotting with points along the line
     integer appfiletyp,lz,ltf1,linewp
+! appending an multiplot in ocplot2B
+    integer multibuffline
+    character multibuffer(maxmultiplotlines)*128
+    logical appendmultiplot
+! other things ...
     character pfc*128,pfh*128,backslash*2,appline*128
     character applines(mofapl)*128,gnuplotline*256,labelkey*64,rotate*16
     character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
@@ -1345,7 +1347,10 @@
 !         (linesep(kk),kk=1,nlinesep)
 !    write(*,*)'smp2b isoplethplot 2: ',btest(graphopt%status,GRISOPLETH)
 10  format(a,4i5,a/(15i4))
-!    write(*,*)'In ocplot2B filename: ',trim(filename)
+    write(*,*)'In ocplot2B filename: ',trim(filename)
+    multibuffline=0
+    nofapl=0
+    appendmultiplot=.FALSE.
     ltf1=0
     if(graphopt%appendfile(1:1).ne.' ') ltf1=10
     if(index(filename,'.plt ').le.0) then 
@@ -1535,7 +1540,7 @@
 !---------------------------------------------------------------
 ! handle appended files here ....
 !
-    appfil1: if(graphopt%appendfile(1:1).eq.' ') then
+    appfildata: if(graphopt%appendfile(1:1).eq.' ') then
        appfil=0
     else
        appfil=23
@@ -1543,7 +1548,8 @@
        open(appfil,file=graphopt%appendfile,status='old',&
             access='sequential',err=1750)
 !
-       write(21,1720)'# APPENDED from '//trim(graphopt%appendfile)
+       write(21,1719)trim(graphopt%appendfile)
+1719   format(//78('#')/'# APPENDED from ',a)
 ! copy all lines up to "plot" to new graphics file
        nnv=0
 1710   continue
@@ -1553,6 +1559,40 @@
        if(appline(1:10).eq.'# GIBBSTRI') then
           write(*,*)'Warning: appended file is in Gibbstriangle format,',&
                ' plot will be strange!'
+          goto 1710
+       endif
+! save lines between "set multiplot" and "unset multiplot" to a buffer
+! appending a file which contains an already appended part
+! copy all lines to a buffer
+       if(appline(1:14).eq.'set multiplot ') then
+!          write(*,*)'ocplot2B Found multiplot in appended file'
+          if(multibuffline.gt.0) then
+             write(*,*)'smp2B appending twice, will probably fail',multibuffline
+          else
+             multibuffline=1
+!             write(*,*)'ocplot2B appending a "set multiplot"'
+          endif
+          appendmultiplot=.TRUE.
+          goto 1710
+       endif
+       if(appline(1:16).eq.'unset multiplot ') then
+          write(*,*)'ocplot2B found "unset multiplot", saved ',&
+               multibuffline,' lines'
+          appendmultiplot=.FALSE.
+!          do iz=1,multibuffline-1
+!             write(*,*)'ocplot2B: 'trim(multibuffer(iz))
+!          enddo
+! pause mouse ??
+          exit appfildata
+!          goto 1710
+       endif
+       if(appendmultiplot) then
+          if(multibuffline.gt.maxmultiplotlines) then
+             write(*,*)'Too many appendbuffer lines',multibuffline
+          else
+             multibuffer(multibuffline)=appline
+             multibuffline=multibuffline+1
+          endif
           goto 1710
        endif
 !------------------------------------------------------------------
@@ -1628,7 +1668,7 @@
           goto 1730
        endif
 ! debug output of saved plot command
-       nofapl=ic
+!       nofapl=ic
 !          write(*,*)(trim(applines(jj)),jj=1,nofapl)
 !          write(*,*)'appline: ',trim(appline),ic
 !          close(appfil)
@@ -1641,11 +1681,13 @@
        goto 1710
 ! error oppening append file
 1750   continue
+       write(21,1719)'# end of append',multibuffline
+!       write(*,1719)' end of append',multibuffline
        write(kou,*)'Error opening or reading the append file, skipping it'
        close(appfil)
        appfil=0
 1770   continue
-    endif appfil1
+    endif appfildata
 ! end of appendfile special
 !-----------------------------------------------
 ! text in lower left corner
@@ -1682,6 +1724,10 @@
 ! remove _ in keys
        call replace_uwh(lid(jj))
     enddo
+    if(graphopt%tielines.gt.0) then
+       write(*,*)'ocplot2 does not plot tielines,',&
+            ' they are perpendicular to the potential axis'
+    endif
 ! Plot grid?
     if(graphopt%setgrid.eq.1) write(21,777)
 777 format('set grid')
@@ -1763,7 +1809,8 @@
           ksep=min(ksep+1,nlinesep)
        endif
     enddo
-    write(21,'(a)')'EOD'
+    write(21,3823)
+3823 format('EOD'//)
     if(appfil.gt.0) then
 ! if there is an appendfile add set multiplot
 ! The "writeback" is important for uniform scaling of multiplots
@@ -1805,6 +1852,7 @@
 !    write(*,*)'SMP2 linespoint increment 1:',graphopt%linewp-1
 ! plot command from appfil
     if(appfil.gt.0) then
+!       write(*,*)'ocplot2B appending a file at label 3912'
 ! try to avoid overlapping keys ...
 ! The "restore" for x/yrange means the scaling from the "plot for"
 ! will be used also for the appended data
@@ -1815,30 +1863,64 @@
 ! just one line with plot for ... 
 ! the data to append is already copied as a table
           write(21,'(a)')trim(applines(1))
+! if applines>0 write those lines before "unset"
+          if(multibuffline.gt.0) then
+             do iz=1,multibuffline-1
+                write(21,'(a)')trim(multibuffer(iz))
+             enddo
+          endif
+          multibuffline=0
+          write(21,'(a)')'unset multiplot #appfiletype 2'
+!          write(21,'(a)')'unset multiplot'
           close(appfil)
           appfil=0
-          write(21,'(a)')'unset multiplot'
        else
+! these are "plot "-" ... lines, not connected to "set multiplot"
+          if(multibuffline.gt.0) then
+             do iz=1,multibuffline-1
+                write(21,'(a)')trim(multibuffer(iz))
+             enddo
+          endif
+          multibuffline=0
           do jj=1,nofapl
              write(21,'(a)')trim(applines(jj))
           enddo
+          write(21,'(a)')'unset multiplot #appfiletype 1'
+!          write(21,'(a)')'unset multiplot'
        endif
     endif
 ! if the plot command is "plot '-' ... then
 ! copy the data from the append file, it should be correctly formatted
+! as I understand appfil muste always be 0 here ...
     if(appfil.gt.0) then
+       if(multibuffline.gt.0) then
+          write(*,*)' *** ocplot2B appending multiplot',multibuffline
+          do iz=1,multibuffline-1
+             write(21,'(a)')trim(multibuffer(iz))
+          enddo
+          multibuffline=0
+          write(21,'(a)')'unset multiplot # closing appfil'
+       endif
        ic=0
 1900   continue
 ! this is copying the actual data to plot from the append file.
        read(appfil,884,end=1910)appline
 884    format(a)
        ic=ic+1
-       if(appline(1:11).eq.'pause mouse') goto 1900
+       if(appline(1:12).eq.'pause mouse ') goto 1900
        write(21,884)trim(appline)
        goto 1900
 1910   continue
 !       write(*,*)'Appended ',ic,' data lines'
-       write(21,'(a)')'unset multiplot'
+!       if(multibuffline.gt.0) then
+! ocplot2B  add multiple plot "multplot" commands ....
+!          write(*,*)'ocplot2B adding prevous multplot ...',multibuffline
+!          do iz=1,multibuffline-1
+!             write(21,884)trim(multibuffer(iz))
+!          enddo
+!       endif
+!       write(21,'(a)')'unset multiplot'
+!       write(21,'(a)')'unset multiplot # closing appfil'
        close(appfil)
        appfil=0
     endif
@@ -3153,7 +3235,7 @@
        read(appfil,884,end=1910)appline
 884    format(a)
        ic=ic+1
-       if(appline(1:11).eq.'pause mouse') then
+       if(appline(1:12).eq.'pause mouse ') then
           write(*,*)'reading appendfile ends at "puase mouse"'
           goto 1910
        else
@@ -3161,7 +3243,7 @@
           goto 1900
        endif
 1910   continue
-!       write(*,*)'Appended ',ic,' data lines'
+       write(*,*)'Appended ',ic,' data lines'
        close(appfil)
        appfil=0
     endif
@@ -4031,8 +4113,17 @@
           enddo loop2
 ! if we come here we have a new title in the appfiles,
 ! that should be assigned newls
-          write(*,*)'New label in appfiles: ',trim(applines(j1))
-          stop
+          ip=index(applines(j1),' lines ls ')+10
+          if(ip.le.0) then
+             write(*,*)'Old color in appfile: ',trim(applines(j1))
+             stop
+          else
+! reuse the same color for something else
+! changing like this created problems below ... try reuse old color
+!             write(applines(j1)(ip:ip+1),'(i2)')same+1
+             applines(j1)(ip:ip+1)='01'
+             write(*,*)'New color in appfile: ',trim(applines(j1))
+          endif
        else
 ! this is a line without title but we may have to change number after "line ls"
           ip=index(applines(j1),' lines ls ')
@@ -4056,15 +4147,20 @@
              enddo getls
 ! if k1>found then we have not found oldls
              if(k1.gt.found) then
-                write(*,79)'Cannot find oldls: ',oldls,k1,found,j1,&
+                write(*,79)'Cannot find old ls: ',oldls,k1,found,j1,&
                      trim(applines(j1))
 79              format(a,4i3,' in ',a)
                 write(*,'(10(i2,i3))')(changels(1,k1),changels(2,k1),k1=1,found)
-                stop
+! replace colow with 01
+                ip=index(applines(j1),' lines ls ')
+                applines(j1)(ip+10:ip+11)='01'
+!                stop
              endif
 ! write the new ls number in applines(j1)
 100          continue
-             write(applines(j1)(ip:ip+1),'(i2)')changels(2,k1)
+!             write(applines(j1)(ip:ip+1),'(i2)')changels(2,k1)
+! line above must be wrong, changed to that below 2021.03.08/BoS, then removed 
+!             write(applines(j1)(ip+10:ip+11),'(i2)')changels(2,k1)
 !             write(*,*)'Changed ls: ',trim(applines(j1))
 !          else
 !             write(*,*)'skipping: ',trim(applines(j1))
