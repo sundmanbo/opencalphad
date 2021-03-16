@@ -8833,7 +8833,7 @@
 !    type(smp_paraequil_condval), dimension(20) :: paraval
 !    TYPE(gtp_state_variable), target, dimension(20) :: parasvr
 !
-    write(*,*)'In step_paraequil',tupix(1),tupix(2),fastelno
+!    write(*,*)'In step_paraequil',tupix(1),tupix(2),fastelno
     if(noofaxis.ne.1) then
        write(kou,*)'Paraequilibrium simulations one axis variable'
        goto 1000
@@ -8864,16 +8864,16 @@
        endif
 ! avoid eternal loop?
        jp=jp+1
-       if(jp.gt.20) stop 'eternal loop'
+       if(jp.gt.20) stop 'eternal loop in step_paraeq'
     enddo findxcond
-    write(*,*)'Calling calc_paraeq first time',tupix(1),tupix(2),fastelno
+!    write(*,*)'Calling calc_paraeq first time',tupix(1),tupix(2),fastelno
 ! check we can calculate a paraequilibrium
     call calc_paraeq(tupix,fastelno,xpara,starteq)
     if(gx%bmperr.ne.0) then
        write(*,*)'Sorry, cannot calculate an initial paraequilibrium',gx%bmperr
        goto 1000
     endif
-    write(*,'(a,2F10.6)')'first paraeq:',xpara(1),xpara(2)
+!    write(*,'(a,2F10.6)')'first paraeq:',xpara(1),xpara(2)
 !
 !    gx%bmperr=4399; goto 1000
 ! =================================================================    
@@ -8884,14 +8884,14 @@
     call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,starteq)
     if(gx%bmperr.ne.0) goto 1000
 ! create storage area for results
-    write(*,*)'Back from map_startpoint'
+!    write(*,*)'Back from map_startpoint'
     call create_saveceq(maptop%saveceq,maxsavedceq)
     if(gx%bmperr.ne.0) goto 1000
 ! Mark this as a paraequil step
     maptop%type_of_node=4
 ! ensure plotlink is nullified!!
     nullify(maptop%plotlink)
-    write(*,*)'Taking the first line'
+!    write(*,*)'Taking the first line'
 ! take the first line created by map_startpoint
     call map_findline(maptop,axarr,mapfix,mapline)
     if(gx%bmperr.ne.0) goto 1000
@@ -8915,7 +8915,7 @@
 ! first argument 1 means to get the value
        call condition_value(1,axcond,xxx,ceq)
        if(gx%bmperr.ne.0) goto 1000
-       write(*,'(a,F12.6,": ",2F10.6)')'step paraeq:',xxx,xpara(1),xpara(2)
+       write(*,'(a,F12.6,": ",2F10.6)')'paraeq:',xxx,xpara(1),xpara(2)
 ! calculation OK, save it
        call map_store(mapline,axarr,1,maptop%saveceq)
 !       write(*,*)'Stored calculated equilibrium'
@@ -8953,15 +8953,15 @@
        endif
        ceq=>mapline%lineceq
 ! axcond changed because ceq changed!!
-       write(*,*)'New line, change axis condition record'
-       call list_conditions(kou,ceq)
+!       write(*,*)'New line, change axis condition record'
+!       call list_conditions(kou,ceq)
        call locate_condition(axarr(1)%seqz,axcond,ceq)
        if(gx%bmperr.ne.0) goto 1000
 ! Wow, forgot > 
        svr=>axcond%statvar(1)
        call state_variable_val(svr,xxx,ceq)
        if(gx%bmperr.ne.0) goto 1000
-       write(*,*)'Next line start at: ',xxx
+!       write(*,*)'Next line start at: ',xxx
 !       call list_conditions(kou,ceq)
 ! first argument 0 means to set the value NOT ALWAYS T BEWARE
 !       call condition_value(0,axcond,xxx,ceq)

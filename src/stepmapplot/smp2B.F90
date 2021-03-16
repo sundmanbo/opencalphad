@@ -75,6 +75,7 @@
     type(graphics_textlabel), pointer :: textlabel
 ! line identification (title)
     character*16, dimension(:), allocatable :: lid
+!    character*32, dimension(:), allocatable :: lid
 !
 !    write(*,*)'In ocplot2 graphopt%status: ',maptop%status,MAPINVARIANT
 !    if(btest(maptop%mapinvariant) &
@@ -195,6 +196,7 @@
     selectph=.FALSE.
     hashtag=.FALSE.
     selphase=' '
+    graphopt%specialdiagram=0
     if(maptop%type_of_node.eq.3) then
 ! this change the order of plotting the lines, maybe needed only for PFL/PFS ??
        scheilorder=.TRUE.
@@ -207,8 +209,12 @@
 ! this is a function only used for plotting phase fraction liquid or solids
 ! in Scheil simulations.
              npflval=one
+! this indicates to ocplot2B that one must use plot "-" ...etc
+! to have different colors and labels on different lines
+!             write(*,*)'ocplot2: Setting graphopt%specialdiagram=2'
+             graphopt%specialdiagram=2
           else
-             write(*,*)'Plot axis PFL reserved for Scheil simulations'
+             write(*,*)'Plot axis PFL/PFS are reserved for Scheil simulations'
              gx%bmperr=4399; goto 1000
           endif
        endif
@@ -505,6 +511,9 @@
                    endif stableph1
                 enddo
              enddo phloop
+! finding place to change color of line in Scheil simulations
+!             write(*,'(a,i3,2x,a)')'ocplot2 extract stable phases ',&
+!                  nlinesep,trim(phaseline(nlinesep))
 !             do kkk=1,nlinesep
 !                write(*,'(a,i3,3i5)')'smp2b color: ',nlinesep,&
 !                     kkk,phamfu(1,kkk),phamfu(2,kkk)
@@ -748,15 +757,27 @@
 !                write(*,*)'smp2B skipping point B: ',trim(statevar),nv
                 skipdotder=.FALSE.; special_circumstances=1
              endif
-             call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
+! special Scheil simulation 
+             if(statevar(1:4).eq.'PFL ' .or. statevar(1:4).eq.'PFS ') then
+                call meq_get_state_varorfun_value('NPM(LIQUID) ',&
+                     value,encoded1,curceq)
+                value=npflval*value
+                npflval=value
+                if(statevar(1:4).eq.'PFS ') value=one-value
+                encoded1=statevar
+             else
+! end special Scheil, evaluate function normally
+                call meq_get_state_varorfun_value(statevar,value,&
+                     encoded1,curceq)
 ! encoded1 here is wrong?? not Cp when it should be, also when no error
 !             write(*,*)'SMP axis value 7: ',trim(encoded1),value
-             if(gx%bmperr.ne.0) then
+                if(gx%bmperr.ne.0) then
 ! SECOND Skipping
-                if(gx%bmperr.ne.4373) &
-                     write(*,212)'SMP Skipping a point 2, error evaluating: ',&
-                     statevar(1:10),curceq%tpval(1),nv,nr
-                nv=nv-1; goto 215
+                   if(gx%bmperr.ne.4373) &
+                       write(*,212)'SMP Skipping a point 2,error evaluating: ',&
+                        statevar(1:10),curceq%tpval(1),nv,nr
+                   nv=nv-1; goto 215
+                endif
              endif
 ! save to use in lid if not allocated
              funsym=encoded1
@@ -1005,6 +1026,7 @@
 !                  localtop%next%seqx,localtop%previous%seqx
              localtop=>localtop%previous
              mapline=>localtop%linehead(1)
+!             write(*,*)'ocplot2 newline ',nlinesep,linesep(nlinesep)
              goto 110
           endif
           line=2
@@ -1227,38 +1249,40 @@
     endif
 !------------------------------------------------------------
     if(.not.allocated(lid)) then
+! lid is "LineIdenifier and changes color for each line with different meaning
 !       if(np.ge.1) then
 ! lid should always be allocated if np>1, but ... one never knows 
-!       write(*,*)'SMP: allocate lid 4: ',np
+!       write(*,*)'ocplot2 allocate lid 4: ',np,nlinesep
+!       if(scheilorder) then
+! for Scheil simulations phaseline(1..nlinesep) are phase names
+!          allocate(lid(nlinesep-1),stat=errall)
+!          do i=1,nlinesep-1
+!             jj=len_trim(phaseline(i))
+!             if(jj.le.32) then
+!                lid(i)=phaseline(i)
+!             else
+! Too long list, replace the middle by ...
+!                lid(i)=phaseline(i)(1:22)//'...'//phaseline(i)(jj-6:jj)
+!             endif
+!             write(*,*)'ocplot2 phaseline: ',trim(lid(i))
+!          enddo
+! Wow, set np=nlinesep-1 to have separate colors of Scheil lines
+!          write(*,*)'ocplot2 change np to nphaseline: '
+!          np=nlinesep-1
+!       else
 ! normally np=1 if we come here, plotting a single value
+!          write(*,*)'Allocating lid: ',trim(encoded1),':',trim(funsym),np
        allocate(lid(np),stat=errall)
        if(errall.ne.0) then
           write(*,*)'SMP2B Allocation error 11: ',errall
           gx%bmperr=4370; goto 1000
        endif
-!       write(*,*)'Allocating lid: ',trim(encoded1),trim(funsym),np
        do i=1,np
-!          lid(i)='appended '
           lid(i)=funsym
        enddo
     endif
+!    endif
 !------------------------------------------------------------
-!    write(*,*)'We are here removing _ ',np
-! replace _ by - in lid
-!    do i=1,np
-! lid may contain phase names with _
-! replace _ by - in lid because _ is interpreted as subscript (as LaTeX)
-798    continue
-!       write(*,*)'lid: ',i,': ',trim(lid(i))
-!       nv=index(lid(i),'_')
-!       if(nv.gt.0) then
-!          lid(i)(nv:nv)='-'
-!          goto 798
-!       endif
-!    enddo
-! move data output to the end of PLT file ...
-!    write(*,*)'smp2B ocplot2 We jump to 2000'    
-!    goto 2000
 2000 continue
 !    write(*,*)'We are at 2000 '
 !----------------------------------------------------------------------
@@ -1337,7 +1361,7 @@
     character multibuffer(maxmultiplotlines)*128
     logical appendmultiplot
 ! other things ...
-    character pfc*128,pfh*128,backslash*2,appline*128
+    character pfc*128,pfh*128,backslash*2,appline*128,inline*8,colord*5
     character applines(mofapl)*128,gnuplotline*256,labelkey*64,rotate*16
     character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
     logical isoplethplot
@@ -1347,7 +1371,14 @@
 !         (linesep(kk),kk=1,nlinesep)
 !    write(*,*)'smp2b isoplethplot 2: ',btest(graphopt%status,GRISOPLETH)
 10  format(a,4i5,a/(15i4))
-    write(*,*)'In ocplot2B filename: ',trim(filename)
+! graphopt%specialdiagram=2 is a Scheil plot phase amount/vs T
+!    if(graphopt%specialdiagram.eq.2) then
+!       write(*,*)'In ocplot2B scheil: ',graphopt%specialdiagram
+! just check all is OK
+!       do kk=1,nlinesep-1
+!          write(*,*)'phaseline: ',kk,': ',trim(phaseline(kk))
+!       enddo
+!    endif
     multibuffline=0
     nofapl=0
     appendmultiplot=.FALSE.
@@ -1362,9 +1393,7 @@
        kk=index(pfc,'.')-1
        kkk=len_trim(filename)+1
     endif
-!    write(*,*)'In OCPLOT2B opening ',trim(pfc)
     open(21,file=pfc,access='sequential',status='unknown')
-!    write(*,*)'In OCPLOT2B after opening ',trim(pfc)
     write(21,1600)trim(title)
 1600 format('# GNUPLOT file generated by OpenCalphad'/'# ',a)
 ! if there is just one curve do not write any key.  May be overriiden later ..
@@ -1401,8 +1430,10 @@
 ! dark-yellow: #C8C800, royal-blue: #4169E1, steel-blue #306080,
 ! gray: #C0C0C0, cyan: #00FFFF, orchid4: #804080, chartreuse: 7CFF40
 ! if just one line set key off for that line.
-    if(npx.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
-!    if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
+    if(graphopt%specialdiagram.eq.2) then
+! for Scheil
+       labelkey=' on font "Arial,12" '
+    elseif(npx.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
        labelkey=' off'
     else
        labelkey=graphopt%labelkey
@@ -1576,8 +1607,8 @@
           goto 1710
        endif
        if(appline(1:16).eq.'unset multiplot ') then
-          write(*,*)'ocplot2B found "unset multiplot", saved ',&
-               multibuffline,' lines'
+!          write(*,*)'ocplot2B found "unset multiplot", saved ',&
+!               multibuffline,' lines'
           appendmultiplot=.FALSE.
 !          do iz=1,multibuffline-1
 !             write(*,*)'ocplot2B: 'trim(multibuffer(iz))
@@ -1646,7 +1677,7 @@
           endif
        endif
 ! we have now found the plot command in the append file. There can be more
-!       write(*,*)'SMP appfiletyp: ',appfiletyp
+       write(*,*)'SMP appfiletyp: ',appfiletyp
 ! here we save the actual plot commands from the appendfile!!
        applines(1)=appline
 !       write(*,*)'SMP appline1: ',trim(applines(1))
@@ -1655,8 +1686,8 @@
 ! if line ends with \ then read more
        ii=len_trim(appline)
 ! write(*,*)'There are more? ',appline(i:ii),ii,ic
-!       if(appline(ii:ii).eq.'\') then
-       if(appline(ii:ii).eq.' ') then
+       if(appline(ii:ii).eq.'\') then
+!       if(appline(ii:ii).eq.' ') then
 ! continuation lines !! NOTE EACH plot expected at the beginning of the line
           read(appfil,1720,end=1750)appline
           ic=ic+1
@@ -1667,6 +1698,8 @@
           endif
           goto 1730
        endif
+       nofapl=ic
+       write(*,*)'Read applines header lines: ',nofapl
 ! debug output of saved plot command
 !       nofapl=ic
 !          write(*,*)(trim(applines(jj)),jj=1,nofapl)
@@ -1711,6 +1744,58 @@
     else
        scalem=graphopt%scalefact(1)
        scale1=graphopt%scalefact(2)
+    endif
+    if(graphopt%specialdiagram.eq.2) then
+!============================================== start Scheil
+! Handle Scheil diagram with color changes along a single line
+! ONLY if one axis is PFL or PFS!!! NOT if one plot composition of a phase
+!       write(*,*)'ocplot2B special for Scheil with PFL or PFS',nlinesep
+! if there is an appended file we must set multiplot here ...
+       if(appfil.gt.0) then
+          write(*,*)'ocplot2B adding set multiplot'
+          write(21,3828)
+       endif
+       backslash=',\'
+       inline='plot "-"'
+! All lines to plot, colord can be 2:3 or 3:2 depending what is on the axis
+          colord=' 2:3 '
+! no need to change, evidently xax and anp are already shifted ... suck
+!       write(*,'(a,a,2F12.6)')'ocplot2B colord: ',colord,xax(1),anp(1,1)
+       do kk=1,nlinesep-1
+          call replace_uwh(phaseline(kk))
+          write(21,2000)inline,colord,kk,trim(phaseline(kk)),backslash
+2000      format(a,' using 'a,' with lines ls ',i2,' title "',a,'"',a)
+          inline='""'
+          if(kk.eq.nlinesep-2) backslash=' '
+       enddo
+! Then all data with an empty line and a line with a single  "e"       
+! between each line.
+! nlinesep is number of separate lines to plot (with different sets of phases)
+! linesep(1..nlinesep) is number of lines of data for each line to plot
+! nrv is total lines with lines with data to write
+!       write(*,*)'ocplot2B linesep: ',(linesep(jj),jj=1,nlinesep)
+       write(21,'(a)')'# Line   1, phases: '//trim(phaseline(1))
+       jj=2
+       ltw: do nv=1,nrv
+!          write(*,'(3i4,1pe12.4)')'ocgnu2B data: ',jj,nv,linesep(jj),xax(nv)
+          if(nv.eq.linesep(jj)) then
+! a new line start
+             if(jj.eq.nlinesep) exit ltw
+             write(21,'(i4,2F12.6)')nv,xax(nv),anp(1,nv)
+             write(21,2100)jj,trim(phaseline(jj))
+2100         format(/'e'/'# Line ',i3,' phases ',a)
+             jj=jj+1
+          endif
+          write(21,'(i4,2F12.6)')nv,xax(nv),anp(1,nv)
+       enddo ltw
+       write(21,2110)
+2110   format(/'e'/)
+!2110   format(/'e'/'pause mouse')
+!       close(21)
+! Finished writing plot file
+!       stop 'test'
+       goto 4000
+!============================================== end Scheil
     endif
 ! now write all data once as a table ended with EOD
     write(21,3000)nrv,trim(tablename)
@@ -1813,7 +1898,9 @@
 3823 format('EOD'//)
     if(appfil.gt.0) then
 ! if there is an appendfile add set multiplot
+       write(*,*)'ocpolt2B trying to include appfile ...'
 ! The "writeback" is important for uniform scaling of multiplots
+! NOTE this is also used for Scheil above
        write(21,3828)
 3828   format('set multiplot'/&
             'set xrange [] writeback'/'set yrange [] writeback')
@@ -1850,6 +1937,10 @@
        endif
     endif
 !    write(*,*)'SMP2 linespoint increment 1:',graphopt%linewp-1
+!=================================================================
+! we come here after plotting a Scheil diagram above, try including appfiles
+4000 continue
+!=================================================================
 ! plot command from appfil
     if(appfil.gt.0) then
 !       write(*,*)'ocplot2B appending a file at label 3912'
@@ -1874,24 +1965,25 @@
 !          write(21,'(a)')'unset multiplot'
           close(appfil)
           appfil=0
-       else
+       elseif(multibuffline.gt.0) then
 ! these are "plot "-" ... lines, not connected to "set multiplot"
-          if(multibuffline.gt.0) then
-             do iz=1,multibuffline-1
-                write(21,'(a)')trim(multibuffer(iz))
-             enddo
-          endif
+          write(21,'(a,2i7)')'# not appfiletype 2, multibufline, nofapl',&
+               multibuffline,nofapl
+          do iz=1,multibuffline-1
+             write(21,'(a)')trim(multibuffer(iz))
+          enddo
           multibuffline=0
           do jj=1,nofapl
              write(21,'(a)')trim(applines(jj))
           enddo
           write(21,'(a)')'unset multiplot #appfiletype 1'
-!          write(21,'(a)')'unset multiplot'
+          close(appfil)
+          appfil=0
        endif
     endif
 ! if the plot command is "plot '-' ... then
 ! copy the data from the append file, it should be correctly formatted
-! as I understand appfil muste always be 0 here ...
+! as I understand appfil muste always be 0 here ... no
     if(appfil.gt.0) then
        if(multibuffline.gt.0) then
           write(*,*)' *** ocplot2B appending multiplot',multibuffline
@@ -1899,19 +1991,29 @@
              write(21,'(a)')trim(multibuffer(iz))
           enddo
           multibuffline=0
-          write(21,'(a)')'unset multiplot # closing appfil'
+!          write(21,'(a)')'unset multiplot # closing appfil'
        endif
+! appfile header lines
+       write(*,*)'Appfile header lines: ',nofapl
        ic=0
+       write(21,'(a)')'# Copying appfile data'
+! these line contain the 'plot "-" ..."
+       do jj=1,nofapl
+          write(21,'(a)')trim(applines(jj))
+       enddo
 1900   continue
 ! this is copying the actual data to plot from the append file.
+!       write(*,*)'Copying appfile data'
        read(appfil,884,end=1910)appline
 884    format(a)
        ic=ic+1
+! skip pause mouse
        if(appline(1:12).eq.'pause mouse ') goto 1900
        write(21,884)trim(appline)
        goto 1900
+! end of copying appfile data
 1910   continue
-!       write(*,*)'Appended ',ic,' data lines'
+       write(*,*)'Appended ',ic,' data lines'
 !       if(multibuffline.gt.0) then
 ! ocplot2B  add multiple plot "multplot" commands ....
 !          write(*,*)'ocplot2B adding prevous multplot ...',multibuffline
@@ -1920,7 +2022,7 @@
 !          enddo
 !       endif
 !       write(21,'(a)')'unset multiplot'
-!       write(21,'(a)')'unset multiplot # closing appfil'
+       write(21,'(a)')'unset multiplot # closing appfil 3'
        close(appfil)
        appfil=0
     endif

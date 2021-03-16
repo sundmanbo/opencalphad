@@ -319,10 +319,15 @@ MODULE ocsmp
 ! The default and current ending of a plot
      character*12 :: plotenddefault='pause mouse '
      character plotend*36
-! added 180924 text at lower left corner
+! added 18.09.24 text at lower left corner
      character (len=6) :: lowerleftcorner='      '
 ! added to have larger axis texts and line titles
      integer:: textonaxis=0
+! nothing special 0, other as stepspecial: 1=separate; 2=Scheil; 3=Tzero;
+!                                          4=paraequil; 5=NPLE
+! but stepseparate, Tzero and paraequil works without using this.
+! For Schiel I am trying to change line color for different parts of the line
+     integer :: specialdiagram=0
 ! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}

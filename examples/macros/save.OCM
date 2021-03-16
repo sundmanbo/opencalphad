@@ -138,7 +138,7 @@ l,,,,,
 @$ Just to test that one can set the fraction of any component
 @$ as the "rest" or "balance"
 
-c p liq 1 n 
+c ph liq 1 n 
 .02
 .05
 rest

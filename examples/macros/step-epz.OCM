@@ -54,7 +54,7 @@ set ref fe bcc * 1e5
 @$ Set axis to calculate the equilibrium isopleth
 
 set ax 1 w(c) 0 .02 0.0005
-set ax 2 t 800 1200 10
+set ax 2 t 750 1200 10
 
 @&
 
@@ -138,7 +138,7 @@ l,,,,
 
 @$ set an axis to calculate the paraequilibrium for various T
 @$ Remove the second axis
-set ax 1 t 800 1200 5
+set ax 1 t 750 1200 5
 set ax 2 none
 
 @&
@@ -174,7 +174,7 @@ plot
 
 
 app ./epzpd
-scale y n 800 1200
+scale y n 750 1200
 out ./epzpdtz
 y
 
@@ -201,7 +201,7 @@ bcc
 @&
 
 @$ For the tzero diagram the axis must be w(c) !!
-set ax 1 w(c) 0 .006 .0001
+set ax 1 w(c) 0 .008 .0001
 
 step tz
 y
@@ -236,8 +236,6 @@ plot
 
 
 app ./epzpdtz
-out ./epzall
-y
 
 
 
@@ -246,6 +244,17 @@ y
 @$ This gives some indication of possible transitions
 @$ because carbon can diffuse rapidly even at low T
 @$ *************************************
+
+plot
+
+
+scale y n
+750
+1150
+out ./epzall
+y
+
+
 
 set inter
 
