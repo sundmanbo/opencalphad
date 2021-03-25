@@ -5534,6 +5534,15 @@
           newnode%linehead(jj)%axandir=stepax
 ! this dimensioning is OK for two axis, if 3 axis it should be 2 etc.
           newnode%linehead(jj)%nfixphases=1
+          if(allocated(newnode%linehead(jj)%linefixph)) then
+             write(*,*)'SMP2A line 5537: Strange allocated error in map17',&
+                  jj,jphr
+             deallocate(newnode%linehead(jj)%linefixph)
+             deallocate(newnode%linehead(jj)%linefix_phr)
+             if(allocated(newnode%linehead(jj)%stableph)) then
+                write(*,*)'SMP2A line 5537: skipping!'
+             endif
+          endif
           allocate(newnode%linehead(jj)%linefixph(1))
           allocate(newnode%linehead(jj)%linefix_phr(1))
 ! There will be the same number of stable phases in all lines 
@@ -5892,7 +5901,8 @@
     allocate(test(ncomp1,ncomp1))
     allocate(rhs(ncomp1))
     allocate(ipiv(ncomp1))
-    allocate(jphase(ncomp1))
+! I am not certain of this dimensioning ...
+    allocate(jphase(ncomp1*(ncomp1+1)))
 !    allocate(lukas(ncomp1+1,ncomp1))
 ! All possible ncomp x ncomp marices from phaseval are solved for phase amounts
 ! for the correct content of the components.  One should find phin!

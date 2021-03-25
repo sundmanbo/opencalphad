@@ -1,7 +1,7 @@
 !
 MODULE cmon1oc
 !
-! Copyright 2012-2020, Bo Sundman, France
+! Copyright 2012-2021, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ contains
 ! various symbols and texts, version 6
     character :: ocprompt*8='--->OC6:'
     character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort*1
-    integer, parameter :: ocmonversion=55
+    integer, parameter :: ocmonversion=71
 ! for the on-line help, at present turn off by default, if a HTML file set TRUE
     character*128 browser,latexfile,htmlfile,unformfile
     logical :: htmlhelp=.FALSE.
@@ -256,7 +256,7 @@ contains
          'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
-         'ACTIVE_EQUILIBR ','ELEMENTS        ','TABLE_CSV_TYPE  ',&
+         'ACTIVE_EQUILIBR ','ELEMENTS        ','EXCELL_CSV_FILE ',&
          '                ','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
@@ -412,7 +412,7 @@ contains
           'QUIT_INFO       ','COMPOSITION_SET ','EQUILIBRIUM     ',&
           'HELP_SYSTEM     ','CONDITIONS      ','DATABASES       ',&
           'CHANGES         ','PHASE_DIAGRAM   ','PROPERTY_DIAGRAM',&
-          '                ','                ','                ']
+          'STATE_VARIABLES ','                ','                ']
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
 ! Now there are two levels (using EXTRA) but still a mess
@@ -470,7 +470,7 @@ contains
          'either version 2 of the License, or any later version.'/&
          'It includes the General Thermodynamic Package, version ',A,','/&
          "Hillert's equilibrium calculation algorithm version ",A,','/&
-         'step/map/plot software version ',A,' using GNUPLOT 5.0 graphics.'/&
+         'step/map/plot software version ',A,' using GNUPLOT 5.2 graphics.'/&
          'Numerical routines are extracted from LAPACK and BLAS and'/&
          'the assessment procedure uses LMDIF from ANL.'/)
 !
@@ -886,7 +886,7 @@ contains
 ! before the parallelization, testing bit EQNOTHREAD
              ll=ceq%eqno
              call gparidx('Specify equilibrium number:',cline,last,&
-                  neqdef,ll,'?AMEND EVALUATE AT EQUILIB')
+                  neqdef,ll,'?Amend symbol evaluated at equilib')
 ! UNFINISHED! Check equilibrium exist or only allow current?
              if(neqdef.le.1 .or. neqdef.gt.noeq()) then
                 write(*,*)'No such equilibrium'; goto 100
@@ -907,18 +907,18 @@ contains
 !-------------------------
        case(3) ! amend species
           call gparcx('Species symbol: ',cline,last,1,name1,' ',&
-               '?AMEND species')
+               '?Amend species')
           call find_species_record(name1,loksp)
           if(gx%bmperr.ne.0) goto 100
           write(*,'(a)')'You can only amend UNIQAC area and segments'
           call gparrdx('UNIQAC surface area (q): ',cline,last,xxx,one,&
-               '?AMEND species')
+               '?Amend species')
           if(xxx.le.zero) then
              write(*,'(a)')'Area must be >0, set to default 1.00'
              xxx=one
           endif
           call gparrdx('UNIQAC segments (r): ',cline,last,xxy,one,&
-               '?AMEND species')
+               '?Amend species')
           if(xxy.le.zero) then
              write(*,'(a)')'Segments must be >0, set to default 1.00'
              xxy=one
@@ -931,7 +931,7 @@ contains
           if(gx%bmperr.ne.0) goto 100
 !-------------------------
        case(4) ! amend phase subcommands
-          call gparcx('Phase name: ',cline,last,1,name1,' ','?AMEND for phase')
+          call gparcx('Phase name: ',cline,last,1,name1,' ','?Amend for phase')
           if(buperr.ne.0) goto 990
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
@@ -977,9 +977,9 @@ contains
                 if(j4.eq.0) then
 ! Qing, Xiong modification of Inden-Hillert-Jarl magnetic model has AFF=0
                    call gparcdx('BCC type phase: ',cline,last,1,ch1,'N',&
-                        '?Amend magnetsm')
+                        '?Amend magnetism')
                    call gparcdx('Using individual Bohr magnetons: ',&
-                        cline,last,1,ch1,'N','?Amend magnetsm')
+                        cline,last,1,ch1,'N','?Amend magnetism')
                    if(ch1.ne.'N') then
                       call set_phase_status_bit(lokph,PHBMAV)
                    endif
@@ -1019,7 +1019,7 @@ contains
                 endif
 !\hypertarget{Amend phase Gaddition}{}
                 call gparrdx('Addition to G in J/FU (formula units): ',&
-                     cline,last,xxx,xxy,'?Amend gaddition')
+                     cline,last,xxx,xxy,'?Amend Gaddition')
                 ceq%phase_varres(lokcs)%addg(1)=xxx
 ! set bit that this should be calculated
                 ceq%phase_varres(lokcs)%status2=&
@@ -1032,7 +1032,7 @@ contains
                      ' for the transition to the liquid state.')
 ! NEW set bit to allow G2 to be composition independent
                 call gparcdx('Is G2 composition dependent? ',&
-                     cline,last,1,ch1,'Y','?G2 composition dependent')
+                     cline,last,1,ch1,'Y','?Amend twostate liquid')
 ! ensure ch1 is a captial letter!
                 call capson(ch1)
 ! if ch1 is N then the addition record will have the twostatemodel2(=12) value
@@ -1178,10 +1178,10 @@ contains
              endif
              write(kou,677)
 677 format('Adding a ternary extrapolation method is fragile and',/&
-         'only limited tests for duplicate entries or other errors')
+         'only limited tests made for duplicate entries or other errors.')
              do while(.true.)
                 call gparcdx('Ternary extrapolation (K, T or Q to quit)',&
-                     cline,last,1,ch1,dummy,'?Ternary extrapol')
+                     cline,last,1,ch1,dummy,'?Amend phase ternary extrapol')
                 dummy='Q'
                 call capson(ch1)
                 if(ch1.eq.'Q') then
@@ -1191,15 +1191,15 @@ contains
                 else
                    if(ch1.eq.'T') then
                       call gparcx('Toop constituent: ',cline,last,1,&
-                           xspecies(1),' ','?Ternary extrapol')
+                           xspecies(1),' ','?Amend phase ternary extrapol')
                    else
                       call gparcx('First constituent: ',cline,last,1,&
-                           xspecies(1),' ','?Ternary extrapol')
+                           xspecies(1),' ','?Amend phase ternary extrapol')
                    endif
                    call gparcx('Second constituent: ',cline,last,1,&
-                        xspecies(2),' ','?Ternary extrapol')
+                        xspecies(2),' ','?Amend phase ternary extrapol')
                    call gparcx('Third constituent: ',cline,last,1,&
-                        xspecies(3),' ','?Ternary extrapol')
+                        xspecies(3),' ','?Amend phase ternary extrapol')
 ! lokph is index of phase record, some error checks inside subroutine
 ! the routine is in gtp3H.F90.  toop argument to handle strange bug ...
                    if(.not.allocated(toop)) allocate(toop)
@@ -1266,7 +1266,7 @@ contains
        case(7) ! amend TPFUN symbol
           write(kou,*)' *** Dangerous if you have several equilibria!'
           call gparcx('TP-fun symbol: ',cline,last,1,name1,' ',&
-               '?Amend tpfun')
+               '?Amend TPfun')
           call find_tpsymbol(name1,idef,xxx)
           if(gx%bmperr.ne.0) then
              write(*,*)'Ambiguouos or unknown symbol'; goto 990
@@ -1288,7 +1288,7 @@ contains
              goto 100
           else
 ! it is a constant, you can change if
-             call gparrdx('Value: ',cline,last,xxy,xxx,'?Amend tpfun')
+             call gparrdx('Value: ',cline,last,xxy,xxx,'?Amend TPfun')
              call capson(name1)
              call store_tpconstant(name1,xxy)
           endif
@@ -1545,7 +1545,7 @@ contains
           goto 100
 !-------------------------
        CASE(1) ! calculate TPFUN symbols , use current values of T and P
-          call gparcdx('name: ',cline,last,5,name1,'*','?Calculate tpfun')
+          call gparcdx('name: ',cline,last,5,name1,'*','?Calculate TPfun')
           lrot=0
           iel=index(name1,'*')             
           if(iel.gt.1) name1(iel:)=' '
@@ -1654,7 +1654,7 @@ contains
 !.......................................................
           case(3) ! calculate phase < > all derivatives
              call gparidx('Number of times: ',cline,last,times,1,&
-                  '?Calculate phase loop')
+                  '?Calculate phase ... loop')
 ! attempt to measure calcg_interal bottlenecks
 !             call cpu_time(starting)
 !             zputime=starting
@@ -2090,11 +2090,11 @@ contains
 ! ask for 2 phases and which condition to vary
 ! try to remember the phases ... user may try several times
           if(dummy(1:1).ne.' ') dummy=name2
-          call gparcdx('First phase ',cline,last,1,name2,dummy,'?TZERO')
+          call gparcdx('First phase ',cline,last,1,name2,dummy,'?Tzero')
           call find_phase_by_name(name2,iph,ics)
           if(gx%bmperr.ne.0) goto 990
           if(dummy(1:1).ne.' ') dummy=name3
-          call gparcdx('Second phase ',cline,last,1,name3,dummy,'?TZERO')
+          call gparcdx('Second phase ',cline,last,1,name3,dummy,'?Tzero')
           call find_phase_by_name(name3,iph2,ics)
           if(gx%bmperr.ne.0) goto 990
           dummy=name3
@@ -2104,7 +2104,7 @@ contains
           else
              j2=tzcond
           endif
-          call gparidx('Release condition number',cline,last,tzcond,j2,'?TZERO')
+          call gparidx('Release condition number',cline,last,tzcond,j2,'?Tzero')
           call tzero(iph,iph2,tzcond,xxx,ceq)
           if(gx%bmperr.ne.0) goto 990
           write(*,*)'Equal Gibbs energy at:'
@@ -2177,17 +2177,19 @@ contains
 ! ask for 2 phases and the fast diffusing element
 ! try to remember the phases ... user may use the command several times
           if(dummy(1:1).ne.' ') dummy=name2
-          call gparcdx('Matrix phase ',cline,last,1,name2,dummy,'?TZERO')
+          call gparcdx('Matrix phase ',cline,last,1,name2,dummy,&
+               '?Calculate paraeq')
           call find_phasetuple_by_name(name2,tupix(1))
           if(gx%bmperr.ne.0) goto 990
           if(dummy(1:1).ne.' ') dummy=name3
-          call gparcdx('Growing phase ',cline,last,1,name3,dummy,'?TZERO')
+          call gparcdx('Growing phase ',cline,last,1,name3,dummy,&
+               '?Calculate paraeq')
           call find_phasetuple_by_name(name3,tupix(2))
           if(gx%bmperr.ne.0) goto 990
           dummy=name3
 !          call list_conditions(kou,ceq)
           call gparcdx('Fast diffusing element',cline,last,1,&
-               elsym,parael,'?PARAEQ')
+               elsym,parael,'?Calculate paraeq')
           call capson(elsym)
           call find_element_by_name(elsym,icond)
           parael=elsym
@@ -2391,7 +2393,7 @@ contains
                 goto 100
              endif
              call gparcx('Symbol name: ',cline,last,1,name1,' ',&
-                  '?SET ADV SYMBOL')
+                  '?Set adv symbol')
              call capson(name1)
              do svss=1,nosvf()
                 if(name1(1:16).eq.svflista(svss)%name) exit
@@ -2404,7 +2406,7 @@ contains
              endif
 ! Here the symbols can be set to be EXPORTED or EXPORTED to assess coeff
              call gparix('Coefficient index, 0-99?',cline,last,jp,0,&
-                  '?EXPORT SYMBOL')
+                  '?Export symbol')
              if(jp.le.0 .or. jp.gt.size(firstash%coeffvalues)) then
                 write(*,*)'No such coefficent'; goto 100
              endif
@@ -2618,7 +2620,7 @@ contains
 !.................................................................
           case(13) ! STOP_ON_MACRO on/off
              call gparcdx('Ignore macro @&: ',cline,last,1,ch1,'Y',&
-                     '?Set adv macro stop')
+                     '?Set adv no-macro-stop')
 ! iox(8) is declared in metlib4
              if(ch1.ne.'Y') then
                 iox(8)=0
@@ -3643,7 +3645,7 @@ contains
 !---------------------------------------------------------------
 ! maybe change order of questions, maybe check name exits etc ....
        CASE(1) ! enter TPFUN symbol (constants, functions, tables)
-          call gparcx('TPfun name: ',cline,last,1,name1,' ','?Enter tpfun')
+          call gparcx('TPfun name: ',cline,last,1,name1,' ','?Enter TPfun')
           if(buperr.ne.0) goto 990
 !  if(badsymname(name1)) then
           if(.not.proper_symbol_name(name1,0)) then
@@ -3656,7 +3658,7 @@ contains
 ! new symbol, can be function, constant or table (??)
              gx%bmperr=0
              call gparcdx('Function, constant or table? ',cline,last,1,name2,&
-                  'FUNCTION ','?ENTER TPfun')
+                  'FUNCTION ','?Enter TPfun')
              if(buperr.ne.0) goto 990
              call capson(name2)
              if(compare_abbrev(name2,'FUNCTION ')) then
@@ -3671,7 +3673,7 @@ contains
                 if(gx%bmperr.ne.0) goto 990
              elseif(compare_abbrev(name2,'CONSTANT ')) then
 ! Enter a numeric constant
-                call gparrdx('Value: ',cline,last,xxx,zero,'?Enter tpfun')
+                call gparrdx('Value: ',cline,last,xxx,zero,'?Enter TPfun')
                 call store_tpconstant(name1,xxx)
              elseif(compare_abbrev(name2,'TABLE ')) then
                 write(kou,*)'Tables are not implemented yet'
@@ -3687,7 +3689,7 @@ contains
                      'coefficients this way'
              else
 ! Values of constants can be changed here
-                call gparrdx('New value: ',cline,last,xxy,xxx,'?Enter tpfun')
+                call gparrdx('New value: ',cline,last,xxy,xxx,'?Enter TPfun')
                 if(buperr.ne.0) goto 990
                 call capson(name1)
                 call store_tpconstant(name1,xxy)
@@ -3700,7 +3702,7 @@ contains
              goto 990
           endif
           call gparcx('Element symbol: ',cline,last,1,elsym,' ',&
-               '?enter element')
+               '?Enter element')
           if(buperr.ne.0) goto 990
           call capson(elsym)
           if(.not.(elsym(1:1).ge.'A' .and. elsym(1:1).le.'Z')) then
@@ -3708,16 +3710,16 @@ contains
              goto 100
           endif
           call gparcdx('Element full name: ',cline,last,1,name1,elsym,&
-               '?enter element')
+               '?Enter element')
           call gparcdx('Element reference phase: ',cline,last,1,&
-               name2,'SER ','?enter element')
+               name2,'SER ','?Enter element')
           call gparrdx('Element mass (g/mol): ',cline,last,mass,one,&
                '?Enter element')
           if(buperr.ne.0) goto 990
           call gparrdx('Element H298-H0: ',cline,last,h298,zero,&
-               '?Enter Element')
+               '?Enter element')
           if(buperr.ne.0) goto 990
-          call gparrdx('Element S298: ',cline,last,s298,one,'?ENTER ELEMENT')
+          call gparrdx('Element S298: ',cline,last,s298,one,'?Enter element')
           if(buperr.ne.0) goto 990
 !          call enter_element(elsym,name1,name2,mass,h298,s298)
           call store_element(elsym,name1,name2,mass,h298,s298)
@@ -3927,7 +3929,7 @@ contains
 ! the file ocmanyi.plt with unit plotdataunit(i) must already be open!
 ! it is opened in the enter_many_equilibria if there is a plot_data command
        case(17)
-          call gparidx('Dataset number:',cline,last,i1,1,'?Enter plot-data')
+          call gparidx('Dataset number:',cline,last,i1,1,'?Enter plot data')
 ! here only the normal plotdata units 1 to 9 are legal
           if(i1.gt.0 .and. i1.lt.10) then
              if(plotdataunit(i1).lt.10) then
@@ -4184,18 +4186,20 @@ contains
           if(kom.eq.25) then
 ! the command is SHOW             
 !             write(*,*)'PMON: show xliqni should come here ... YES '
-             call gparcx('Property: ',cline,last,5,line,' ','?SHOW')
+             call gparcx('Property: ',cline,last,5,line,' ','?Show property')
           else
 ! the command is LIST STATE_VARIABLES
              if(kom2.eq.4) then
-                call gparcx('State variable: ',cline,last,5,line,' ','?SHOW')
+                call gparcx('State variable: ',cline,last,5,line,' ',&
+                     '?List state variables')
              else
 ! the command is LIST MODEL_PARAMETER_VALUE                
                 if(once) then
                    write(kou,*)'Remember always to specify the phase!'
                    once=.FALSE.
                 endif
-                call gparcx('Parameter ident: ',cline,last,5,line,' ','?SHOW')
+                call gparcx('Parameter ident: ',cline,last,5,line,' ',&
+                     '?List model parameter val')
              endif
           endif
 ! if line empty return to command level
@@ -4325,7 +4329,7 @@ contains
           enddo
 !-----------------------------------------------------------
        case(8) ! list tpfun symbol
-          call gparcdx('name: ',cline,last,5,name1,'*','?LIST tpfun')
+          call gparcdx('name: ',cline,last,5,name1,'*','?List TPfun')
           lrot=0
           iel=index(name1,'*')             
           if(iel.gt.1) name1(iel:)=' '
@@ -4427,7 +4431,7 @@ contains
              write(kou,*)' *** Last calculation was not a full equilibrium'
           endif
           call gparidx('Results output mode: ',cline,last,&
-               listresopt,lrodef,'?LIST results')
+               listresopt,lrodef,'?List results')
           if(buperr.ne.0) then
              write(kou,*)'No such mode, using default'
              buperr=0
@@ -4591,7 +4595,7 @@ contains
        case(14) ! list symbols (state variable functions, not TP funs)
           call list_all_svfun(lut,ceq)
 !------------------------------
-! list lines, output of calculated and stored equilibria
+! list line_equilibria, (line-equilibria) of calculated and stored equilibria
        case(15)
 ! temporary listing of all stored equilibria as test
 ! IDEA: Add question for symbols and state variables to be listed!!
@@ -4750,10 +4754,10 @@ contains
        case(20)
           call list_all_elements(kou)
 !------------------------------
-! list CSV table, code copied from PLOT
+! list Excell CSV file, code copied from PLOT
        case(21)
           if(noofaxis.gt.1 .or. .not.associated(maptop)) then
-             write(kou,*)'You must give a STEP command before list table_csv'
+             write(kou,*)'You must give a STEP command before list excell_csv'
              goto 100
           endif
           wildcard=.FALSE.
@@ -4790,11 +4794,11 @@ contains
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
           iax=1
           call gparcdx('Independent variable',&
-               cline,last,7,axplot(iax),axplotdef(iax),'?Plot command')
+               cline,last,7,axplot(iax),axplotdef(iax),'?List excell CSV')
 ! dependent variables, can be wildcard
           iax=2
           call gparcdx('Dependent values',&
-               cline,last,7,axplot(iax),axplotdef(iax),'?Plot command')
+               cline,last,7,axplot(iax),axplotdef(iax),'?List excell CSV')
           if(buperr.ne.0) goto 990
           if(index(axplot(iax),'*').gt.0 .or. index(axplot(iax),'#').gt.0) then
              wildcard=.TRUE.
@@ -4837,8 +4841,9 @@ contains
           endif
 ! output file
           if(buperr.ne.0) buperr=0
+! What does -5 as argument mean?? Well, open for write!!
           call gparfilex('Output file: ',cline,last,1,plotfile,' ',-5,&
-               '?CSV file')
+               '?List excell CSV')
 ! make sure there is a plt extention
           if(len_trim(plotfile).le.0) then
              plotfile=' '
@@ -4900,7 +4905,7 @@ contains
 ! quit
     case(7)
        if(cline(1:1).eq.'q') then
-          call gparcdx('Are you sure?',cline,last,1,ch1,'N','?QUIT')
+          call gparcdx('Are you sure?',cline,last,1,ch1,'N','?Quit')
        else
 ! upper case Q will quit without question
           ch1='y'
@@ -4944,12 +4949,12 @@ contains
           if(ocufile(1:1).ne.' ') then
              text=ocufile
              call gparcdx('File name: ',cline,last,1,ocufile,text,&
-                  '?READ unformatted')
+                  '?Read unformatted')
           else
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
              call gparfilex('File name: ',cline,last,1,ocufile,' ',2,&
-                  '?READ unformatted')
+                  '?Read unformatted')
           endif
           call gtpread(ocufile,text)
           if(gx%bmperr.ne.0) then
@@ -4982,12 +4987,12 @@ contains
           if(tdbfile(1:1).ne.' ') then
 ! set previous tdbfil as default
              text=tdbfile
-             call gparcdx('File name: ',cline,last,1,tdbfile,text,'?READ TDB')
+             call gparcdx('File name: ',cline,last,1,tdbfile,text,'?Read TDB')
           else
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, 8=LOG
 ! negative is for write, 0 read without filter, -100 write without filter
              call gparfilex('File name: ',cline,last,1,tdbfile,' ',1,&
-                  '?READ TDB')
+                  '?Read TDB')
           endif
 ! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
 !          write(*,*)'PMON tdbfile: ',trim(tdbfile)
@@ -5021,7 +5026,7 @@ contains
           jp=1
           selection='Select elements /all/:'
 8210      continue
-          call gparcx(selection,cline,last,1,ellist(jp),' ','?READ TDB')
+          call gparcx(selection,cline,last,1,ellist(jp),' ','?Read TDB')
           if(jp.eq.1 .and. cline(1:4).eq.'all ') then
 ! this is if someone actually types "all".  If he types "ALL" that will be AL
              jp=0
@@ -5077,7 +5082,7 @@ contains
 ! ignore any type ahead
              last=len(cline)
              call gparcdx('Do you want to continue anyway?',&
-                  cline,last,1,ch1,'N','?READ TDB error')
+                  cline,last,1,ch1,'N','?Read TDB error')
              if(ch1.ne.'Y') then
                 stop 'Good luck fixing the TDB file'
              endif
@@ -5103,12 +5108,12 @@ contains
        case(5) ! read PDB 
           if(tdbfile(1:1).ne.' ') then
              text=tdbfile
-             call gparcdx('File name: ',cline,last,1,tdbfile,text,'?READ PDB')
+             call gparcdx('File name: ',cline,last,1,tdbfile,text,'?Read PDB')
           else
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
              call gparfilex('File name: ',cline,last,1,tdbfile,' ',6,&
-                  '?READ PDB')
+                  '?Read PDB')
           endif
 ! this call checks the file exists and returns the elements
           call checkdb2(tdbfile,'.pdb',jp,ellist)
@@ -5123,7 +5128,7 @@ contains
           jp=1
           selection='Select elements /all/:'
 8217      continue
-          call gparcx(selection,cline,last,1,ellist(jp),' ','?READ PDB')
+          call gparcx(selection,cline,last,1,ellist(jp),' ','?Read PDB')
           if(ellist(jp).ne.'  ') then
              call capson(ellist(jp))
              jp=jp+1
@@ -5151,7 +5156,7 @@ contains
        case(6) ! read SELECTED_PHASES
 ! Ask if TDB or PDB
           call gparcdx('Database format: ',&
-               cline,last,1,name1,'TDB','?READ SEL_PHASE')
+               cline,last,1,name1,'TDB','?Read select phase')
           call capson(name1)
           if(name1(1:1).ne.'T') then
              write(*,*)'Only TDB files currently implemented'
@@ -5161,12 +5166,12 @@ contains
           if(tdbfile(1:1).ne.' ') then
 ! set previous tdbfil as default
              text=tdbfile
-             call gparcdx('File name: ',cline,last,1,tdbfile,text,'?READ TDB')
+             call gparcdx('File name: ',cline,last,1,tdbfile,text,'?Read TDB')
           else
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, 8=LOG
 ! negative is for write, 0 read without filter, -100 write without filter
              call gparfilex('File name: ',cline,last,1,tdbfile,' ',1,&
-                  '?READ TDB')
+                  '?Read TDB')
           endif
 ! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
 !          write(*,*)'PMON tdbfile: ',trim(tdbfile)
@@ -5200,7 +5205,7 @@ contains
           jp=1
           selection='Select elements /all/:'
 8219      continue
-          call gparcx(selection,cline,last,1,ellist(jp),' ','?READ TDB')
+          call gparcx(selection,cline,last,1,ellist(jp),' ','?Read TDB')
           if(jp.eq.1 .and. cline(1:4).eq.'all ') then
 ! this is if someone actually types "all".  If he types "ALL" that will be AL
              jp=0
@@ -5245,13 +5250,13 @@ contains
 !8220         format('Selected ',i2,' elements: ',20(a,1x))
           endif
 ! SPECIAL SELECT_PHASES
-! ask for phses to be selected, max 100
+! ask for phses to be selected, max 100, seltdbph global variable
           allocate(seltdbph(100))
           j4=0
           selection='Select phase(s) /all/:'
           selph: do while (.TRUE.)
              call gparcdx(selection,&
-                  cline,last,1,line,' ','?READ SEL_PHASE LIST')
+                  cline,last,1,line,' ','?Read select phase')
              if(line(1:1).eq.' ') exit selph
              selection='Select more phase(s):'
 ! There is at least one phase name in line
@@ -5294,7 +5299,7 @@ contains
 ! ignore any type ahead
              last=len(cline)
              call gparcdx('Do you want to continue anyway?',&
-                  cline,last,1,ch1,'N','?READ TDB error')
+                  cline,last,1,ch1,'N','?Read TDB error')
              if(ch1.ne.'Y') then
                 stop 'Good luck fixing the TDB file'
              endif
@@ -5347,7 +5352,7 @@ contains
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
           call gparfilex('File name: ',cline,last,1,filename,text,-7,&
-               '?SAVE SOLGAS')
+               '?Save SOLGAS')
           kl=max(index(filename,'.dat '),index(filename,'.DAT '))
           if(kl.le.0) then
              kl=len_trim(filename)+1
@@ -5369,12 +5374,12 @@ contains
 ! probably never to be implemented, save UNFORMATTED can include STEP/MAP
           if(ocdfile(1:1).ne.' ') then
              text=ocdfile
-            call gparcdx('File name: ',cline,last,1,ocdfile,text,'?SAVE DIRECT')
+            call gparcdx('File name: ',cline,last,1,ocdfile,text,'?Save direct')
           else
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
              call gparfilex('File name: ',cline,last,1,ocdfile,' ',-4,&
-                  '?SAVE DIRECT')
+                  '?Save direct')
           endif
           jp=0
           kl=index(ocdfile(2:),'.')+1
@@ -5397,12 +5402,12 @@ contains
           if(ocufile(1:1).ne.' ') then
              text=ocufile
              call gparcdx('File name: ',cline,last,1,ocufile,text,&
-                  '?SAVE unformatted')
+                  '?Save unformatted')
           else
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
              call gparfilex('File name: ',cline,last,1,ocufile,' ',-2,&
-                  '?SAVE unformatted')
+                  '?Save unformatted')
           endif
           jp=0
 ! ignore first letter as in macro files a file name may start with ./
@@ -5423,7 +5428,7 @@ contains
           inquire(file=ocufile,exist=logok)
           if(logok) then
              call gparcdx('File exists, overwrite?',cline,last,1,ch1,'N',&
-                  '?SAVE overwite')
+                  '?Save overwite')
              if(ch1.ne.'Y') then
                 write(*,133)
 133             format('Please use another file name')
@@ -5451,7 +5456,7 @@ contains
 !         'QUIT-INFO        ','COMPOSITION_SET ','EQUILIBRIUM     ',&
 !         'HELP_SYSTEM      ','CONDITIONS      ','DATABASES       ',&
 !         'CHANGES          ','PHASE_DIAGRAM   ','PROPERTY_DIAGRAM',&
-!          '                ','                ','                ']
+!         'STATE_VARIABLES  ','                ','                ']
     case(11)
 !       kom2=submenu(cbas(kom),cline,last,cinf,ninf,10,'?TOPHLP')
 ! initial default is CHANGES
@@ -5473,7 +5478,7 @@ contains
                   'Normally the components are the same as the elemets but',&
                   ' the user',/'can define any orthogonal set of species as',&
                   ' components.')
-             call q4help('INFO elements',jp)
+             call q4help('Info elements',jp)
 !--------------------------------------------------------
 ! info species
           case(2)
@@ -5482,11 +5487,11 @@ contains
                   ' fixed stoichiometry.',/'The elements are the simplest',&
                   ' species.'/'The constituents of a phase are a subset of',&
                   ' the species.')
-             call q4help('INFO species',jp)
+             call q4help('Info species',jp)
 !--------------------------------------------------------
 ! info phases
           case(3)
-             call q4help('INFO phases',jp)
+             call q4help('Info phases',jp)
 !--------------------------------------------------------
 ! quit, we must exit to top level here !!
           case(4)
@@ -5494,23 +5499,23 @@ contains
 !--------------------------------------------------------
 ! info composition set
           case(5)
-             call q4help('INFO compset',jp)
+             call q4help('Info compset',jp)
 !--------------------------------------------------------
 ! info equilibrium
           case(6)
-             call q4help('INFO equilibrium',jp)
+             call q4help('Info equilibrium',jp)
 !--------------------------------------------------------
 ! INFO help system
           case(7) ! none
-             call q4help('INFO helpsystem',jp)
+             call q4help('Info helpsystem',jp)
 !--------------------------------------------------------
 ! INFO conditions
           case(8) ! none
-             call q4help('INFO conditions',jp)
+             call q4help('Info conditions',jp)
 !--------------------------------------------------------
 ! INFO databases
           case(9) ! none
-             call q4help('INFO databases',jp)
+             call q4help('Info databases',jp)
 !--------------------------------------------------------
 ! changes
           case(10)
@@ -5530,23 +5535,23 @@ contains
 !--------------------------------------------------------
 ! INFO phase diagram
           case(11) ! none
-             call q4help('INFO phasediagram',jp)
+             call q4help('Info phasediagram',jp)
 !--------------------------------------------------------
 ! INFO property diagram
           case(12) ! none
-             call q4help('INFO propertydiagram',jp)
+             call q4help('Info propertydiagram',jp)
 !--------------------------------------------------------
-! INFO 
+! INFO statevariables
           case(13) ! none
-             call q4help('INFO ',jp)
+             call q4help('Info statevariables',jp)
 !--------------------------------------------------------
 ! INFO 
           case(14) ! none
-!             call q4help('INFO ',jp)
+!             call q4help('Info ',jp)
 !--------------------------------------------------------
 ! INFO 
           case(15) ! none
-!             call q4help('INFO ',jp)
+!             call q4help('Info ',jp)
           end select information
        goto 207
 !=================================================================
@@ -5559,7 +5564,7 @@ contains
     case(13)
 ! one must deallocate everyting explicitly to use memory again
        call gparcdx('All data will be removed, are you sure?',cline,last,&
-            1,ch1,'N','?NEW')
+            1,ch1,'N','?New')
        if(ch1.ne.'Y') then
           write(kou,*)'*** NO CHANGE, upper case Y needed for NEW'
           goto 100
@@ -5739,7 +5744,7 @@ contains
 !---------------------------------
 ! debug tpfun
        case(5)
-          call gparidx('Function index:',cline,last,ll,-1,'?DEBUG TPfun')
+          call gparidx('Function index:',cline,last,ll,-1,'?Debug TPfun')
           call list_tpfun_details(ll)
 !---------------------------------
 ! debug browser
@@ -5753,7 +5758,7 @@ contains
 ! the html window at label!!
 ! the label "selectname" is in the html file ...
           call gparcdx('File name: ',cline,last,5,model,&
-               './manual\html\ochelp.html#selectelement ','?DEBUG browser')
+               './manual\html\ochelp.html#selectelement ','?Debug browser')
 !          browser='"C:\Program Files\Mozilla firefox\firefox.exe" '
 ! this browser can be opened without ""
           browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
@@ -5795,13 +5800,13 @@ contains
 !---------------------------------
 ! debug trace
        case(7)
-          call gparcdx('HTML help?',cline,last,1,ch1,'Y','?DEBUG trace')
+          call gparcdx('HTML help?',cline,last,1,ch1,'Y','?Debug trace')
           if(ch1.eq.'Y') then
              helptrace=.TRUE.
           else
              helptrace=.FALSE.
           endif
-          call gparcdx('plotting?',cline,last,1,ch1,'N','?DEBUG plot')
+          call gparcdx('plotting?',cline,last,1,ch1,'N','?Debug plot')
           if(ch1.eq.'Y') then
              plottrace=.TRUE.
           else
@@ -5812,10 +5817,10 @@ contains
        case(8)
 ! this allows a command "debug symbol value" which will test if symbol
 ! has the specified value (+/- 10^(-6).  
-! Should be usefil in the test macros ...
+! Should be useful in the test macros ...
 ! 4th argument 2 means terminate at " ", ignore any ,
-          call gparcx('Symbol: ',cline,last,2,name1,' ','?DEBUG symbol value')
-          call gparrx('Value: ',cline,last,xxy,zero,'?DEBUG symbol value')
+          call gparcx('Symbol: ',cline,last,2,name1,' ','?Debug symbol value')
+          call gparrx('Value: ',cline,last,xxy,zero,'?Debug symbol value')
           call capson(name1)
 ! code below copied from SHOW command
           model=' '
@@ -5868,7 +5873,7 @@ contains
 !          jp=0
 !          mqmqa: do while(.true.)
 !             call gparcdx('MQMQA quadrupoles: ',&
-!                  cline,last,5,aline,' ','?MQMQA specific')
+!                  cline,last,5,aline,' ','?Debug MQMQA')
 !             if(aline(1:1).eq.' ') exit mqmqa
 !             call mqmqa_constituents(aline,const,jp)
 !             jp=1
@@ -5881,7 +5886,8 @@ contains
              write(*,*)'Sorry, no MQMQA data entered'
              goto 100
           endif
-          call gparcx('Phase name: ',cline,last,1,name1,'LIQUID ','?debug mqmq')
+          call gparcx('Phase name: ',cline,last,1,name1,'LIQUID ',&
+               '?Debug mqmqa')
           if(buperr.ne.0) goto 990
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
@@ -5917,7 +5923,7 @@ contains
              name1='DEFAULT'
           endif
           call gparcdx('Give name or number?',cline,last,1,text,&
-               name1,'?SELECT equilibrium')
+               name1,'?Select equilibrium')
           if(buperr.ne.0) goto 990
 ! if the user types "next" in lower case or an abbrev it does not work
           call capson(text)
@@ -5977,7 +5983,7 @@ contains
 844       format('Available optimizers: '/,(2x,a,2x,a,2x,a))
 845       format('Current optimizer is: '/,2x,a)
           call gparcdx('Do you want to use LMDIF?',cline,last,1,ch1,'Y',&
-               '?SELECT optimizer')
+               '?Select optimizer')
           if(ch1.eq.'Y') then
              optimizer=1
           else
@@ -6030,7 +6036,7 @@ contains
 !-----------------------------------------------------------
 ! delete composition set, always that with higest number
        case(5)
-          call gparcx('Phase name: ',cline,last,1,name1,' ','?DELETE phase')
+          call gparcx('Phase name: ',cline,last,1,name1,' ','?Delete phase')
           if(buperr.ne.0) goto 990
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
@@ -6040,7 +6046,7 @@ contains
 ! delete equilibria
        case(6)
           call gparcx('Equilibrium name or abbr.:',cline,last,1,name1,' ',&
-               '?DELETE equilibria')
+               '?Delete equilibrium')
           if(buperr.ne.0) goto 990
           call delete_equilibria(name1,ceq)
           if(gx%bmperr.ne.0) goto 990
@@ -6116,7 +6122,7 @@ contains
        if(associated(maptop)) then
           write(kou,833)
 833       format('There are previous results from step or map')
-          call gparcdx('Delete them?',cline,last,1,ch1,'Y','?STEP old data')
+          call gparcdx('Delete them?',cline,last,1,ch1,'Y','?Step old data')
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
 ! there should be a more careful deallocation to free memory
              call delete_mapresults(maptop)
@@ -6156,6 +6162,8 @@ contains
              write(*,'(a,2i4)')'Previous results kept',seqxyz
           endif
        endif
+! indicate to graphics that we have a step calculation
+       graphopt%noofcalcax=1
        step: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
@@ -6256,11 +6264,11 @@ contains
                ' have specified an axis'/&
                'with the composition of the fast diffusing element.')
           call gparcx('Have you done all that?',cline,last,1,&
-               name1,'NO','?STEP TZERO')
+               name1,'NO','?Step Tzero')
           call capson(name1)
           if(name1(1:1).ne.'Y') goto 100
           call gparcx('First phase name: ',cline,last,1,name1,' ',&
-               '?STEP TZERO')
+               '?Step Tzero')
           if(buperr.ne.0) goto 990
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
@@ -6269,7 +6277,7 @@ contains
              goto 100
           endif
           call gparcx('Second phase name: ',cline,last,1,name2,' ',&
-               '?STEP TZERO')
+               '?Step Tzero')
           call find_phase_by_name(name2,iph2,ics)
           if(gx%bmperr.ne.0) goto 990
           if(ics.ne.1) then
@@ -6278,7 +6286,8 @@ contains
           endif
 ! normally T is the first condition
           j2=1
-          call gparidx('Release condition number',cline,last,tzcond,j2,'?TZERO')
+          call gparidx('Release condition number',cline,last,tzcond,j2,&
+               '?Step Tzero')
 ! Delete previous step/map results
           if(associated(maptop)) then
              write(kou,*)'Previous map/step results will be deleted'
@@ -6314,7 +6323,7 @@ contains
                'an equilibrium in the liquid and have set an axis with T',&
                ' as variable.')
           call gparcx('Have you done all that?',cline,last,1,&
-               name1,'NO','?STEP SCHEIL')
+               name1,'NO','?Step Scheil')
           call capson(name1)
           if(name1(1:1).ne.'Y') goto 100
 ! Delete previous step/map results
@@ -6354,20 +6363,20 @@ contains
                ' you should have'/&
                'calculated a paraequilibrium')
           call gparcx('Have you done all that?',cline,last,1,&
-               name1,'NO','?STEP PARAEQ')
+               name1,'NO','?Step paraeq')
           call capson(name1)
           if(name1(1:1).ne.'Y') goto 100
           if(dummy(1:1).ne.' ') dummy=name2
-          call gparcdx('Matrix phase ',cline,last,1,name2,dummy,'?TZERO')
+          call gparcdx('Matrix phase ',cline,last,1,name2,dummy,'?Step paraeq')
           call find_phasetuple_by_name(name2,tupix(1))
           if(gx%bmperr.ne.0) goto 990
           if(dummy(1:1).ne.' ') dummy=name3
-          call gparcdx('Growing phase ',cline,last,1,name3,dummy,'?TZERO')
+          call gparcdx('Growing phase ',cline,last,1,name3,dummy,'?Step paraeq')
           call find_phasetuple_by_name(name3,tupix(2))
           if(gx%bmperr.ne.0) goto 990
           dummy=name3
           call gparcdx('Fast diffusing element',cline,last,1,&
-               elsym,parael,'?PARAEQ')
+               elsym,parael,'?Step paraeq')
           call find_element_by_name(elsym,icond)
           parael=elsym
           write(kou,875)trim(name1)
@@ -6411,9 +6420,15 @@ contains
           write(kou,*)'You must set two axis with independent variables'
           goto 100
        endif
+       if(noofaxis.gt.2) then
+          write(kou,*)'More than 2 axis not implemented yet'
+          goto 100
+       endif
 !       tzeroline=.FALSE.
 !       separate=.FALSE.
        stepspecial=.FALSE.
+! indicate to graphics we have calculated with 2 axis
+       graphopt%noofcalcax=noofaxis
        write(kou,20014)
 20014   format('The map command is fragile, please send problematic diagrams',&
             ' to the',/'OC development team'/)
@@ -6421,7 +6436,7 @@ contains
 !       write(*,*)'PMON maptop bug 3?',associated(maptop)
        if(associated(maptop)) then
           write(kou,833)
-          call gparcdx('Reinitiate?',cline,last,1,ch1,'Y','?MAP old data')
+          call gparcdx('Reinitiate?',cline,last,1,ch1,'Y','?Map old data')
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
              call delete_mapresults(maptop)
 !             deallocate(maptop%saveceq)
@@ -6755,7 +6770,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT SCALE_RANGE of either X or Y
        case(2)
-          call gparcdx('For X or Y axis? ',cline,last,1,ch1,'Y','?PLOT limits')
+          call gparcdx('For X or Y axis? ',cline,last,1,ch1,'Y','?Plot limits')
           if(ch1.eq.'X' .or. ch1.eq.'x') then
 !             if(graphopt%axistype(1).eq.1) then
 !                write(kou,*)'The x axis set to linear'
@@ -6778,7 +6793,7 @@ contains
           goto 21100
 !............................................ user limits X axis (1)
 21120     continue
-          call gparcdx('Default limits',cline,last,1,ch1,'N','?PLOT limits')
+          call gparcdx('Default limits',cline,last,1,ch1,'N','?Plot limits')
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
              graphopt%rangedefaults(1)=0
           else
@@ -6786,7 +6801,7 @@ contains
              twice=.FALSE.
 21104        continue
              call gparrdx('Low limit',cline,last,xxx,graphopt%dfltmin(1),&
-                  '?PLOT limits')
+                  '?Plot limits')
              if(graphopt%gibbstriangle .and. xxx.ne.zero) then
                 write(*,*)'Lower limit of a Gibbs triangle plot must be zero'
                 goto 21100
@@ -6796,7 +6811,7 @@ contains
              once=.TRUE.
 21105        continue
              call gparrdx('High limit',cline,last,xxx,&
-                  graphopt%dfltmax(1),'?PLOT limits')
+                  graphopt%dfltmax(1),'?Plot limits')
              if(xxx.le.graphopt%plotmin(1)) then
                 if(once) then
                    write(kou,*)'Think before typing'
@@ -6819,7 +6834,7 @@ contains
           goto 21100
 !---------------------------------------------- user limits Y axis (2)
 21130     continue
-          call gparcdx('Default limits',cline,last,1,ch1,'N','?PLOT limits')
+          call gparcdx('Default limits',cline,last,1,ch1,'N','?Plot limits')
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
              graphopt%rangedefaults(2)=0
           else
@@ -6827,7 +6842,7 @@ contains
              twice=.FALSE.
 21107        continue
              call gparrdx('Low limit',cline,last,xxx,graphopt%dfltmin(2),&
-                  '?PLOT limits')
+                  '?Plot limits')
              if(graphopt%gibbstriangle .and. xxx.ne.zero) then
                 write(*,*)'Lower limit of a Gibbs triangle plot must be zero'
                 goto 21100
@@ -6837,7 +6852,7 @@ contains
              once=.TRUE.
 21108        continue
              call gparrdx('High limit',cline,last,xxx,&
-                  graphopt%dfltmax(2),'?PLOT limits')
+                  graphopt%dfltmax(2),'?Plot limits')
              if(xxx.le.graphopt%plotmin(2)) then
                 if(once) then
                    write(*,*)'Think before typing'
@@ -6861,11 +6876,10 @@ contains
 ! PLOT unused select FONT
        case(3)
           call gparcdx('Font (check what your GNUPLOT has): ',&
-               cline,last,1,name1,graphopt%font,'?PLOT font')
-!               cline,last,1,name1,'Arial','?PLOT font')
+               cline,last,1,name1,graphopt%font,'?Plot font')
           graphopt%font=name1
 ! font size ignored but it is better to have the question now ...
-          call gparidx('Font size: ',cline,last,iz,16,'?PLOT font')
+          call gparidx('Font size: ',cline,last,iz,16,'?Plot font')
           write(*,*)'Size is ignored at present ...'
 !          write(*,*)'Font is now: ',graphopt%font
 ! we have to change "font" in all terminals and key
@@ -6893,15 +6907,15 @@ contains
 ! PLOT AXIS_LABELS
        case(4)
           call gparcdx('For X or Y axis? ',cline,last,1,ch1,'X',&
-               '?PLOT axis text')
+               '?Plot axis labels')
           if(ch1.eq.'X' .or. ch1.eq.'x') then
              call gparcdx('Axis label: ',cline,last,5,&
-                  graphopt%plotlabels(2),axplot(1),'?PLOT axis text')
+                  graphopt%plotlabels(2),axplot(1),'?Plot axis labels')
 ! remember that plotlabel(1) is the title
              graphopt%labeldefaults(2)=len(graphopt%plotlabels(2))
           elseif(ch1.eq.'Y' .or. ch1.eq.'y') then
              call gparcdx('Axis label: ',cline,last,5,&
-                  graphopt%plotlabels(3),axplot(2),'?PLOT axis text')
+                  graphopt%plotlabels(3),axplot(2),'?Plot axis labels')
 ! remember that plotlabel(1) is the title
              graphopt%labeldefaults(3)=len(graphopt%plotlabels(3))
           else
@@ -6914,7 +6928,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT TITLE
        case(6)
-          call gparcdx('Plot title',cline,last,5,line,'DEFAULT','?PLOT title')
+          call gparcdx('Plot title',cline,last,5,line,'DEFAULT','?Plot title')
           if(line(1:8).eq.'DEFAULT ') then
              graphopt%labeldefaults(1)=0
           else
@@ -6931,7 +6945,7 @@ contains
 ! subroutine TOPHLP forces return with ? in position cline(1:1)
 29130        continue
              call gparidx('Graphics format index:',cline,last,grunit,1,&
-                  '?PLOT formats')
+                  '?Plot formats')
              if(cline(1:1).eq.'?' .or. &
                   grunit.lt.1 .or. grunit.gt.graphopt%gnutermax) then
                 write(kou,29133)
@@ -6951,7 +6965,7 @@ contains
 ! negative is for write, 0 read without filter, -100 write without filter
 ! DO NOT USE tinyfiledialog here ...
           write(*,*)'To use file the browser give just a <'
-          call gparcdx('Plot file',cline,last,1,plotfile,'ocgnu','?PLOT file')
+          call gparcdx('Plot file',cline,last,1,plotfile,'ocgnu','?Plot file')
 ! to avoid confusion abot use of > and <
           if(plotfile(1:1).eq.'<' .or. plotfile(1:1).eq.'>') then
 ! use the file browser
@@ -7027,13 +7041,13 @@ contains
           write(kou,21200)
 21200     format('Key to lines can be positioned: '/&
                'top/bottom left/center/right inside/outside on/off')
-          call gparcdx('Position?',cline,last,5,line,'top right','?PLOT keys')
+          call gparcdx('Position?',cline,last,5,line,'top right','?Plot keys')
 !          iz=min(index(line,',')-1,len_trim(line))
           graphopt%labelkey=trim(line)
 !          call gparcdx('Font,size: ',cline,last,5,line,'arial,12',&
-!               '?PLOT keys')
+!               '?Plot keys')
           if(line(1:3).ne.'off') then
-             call gparidx('Size: ',cline,last,iz,12,'?PLOT keys')
+             call gparidx('Size: ',cline,last,iz,12,'?Plot keys')
              graphopt%labelkey=trim(graphopt%labelkey)//' font "'&
                   //trim(graphopt%font)//','
              ll=len_trim(graphopt%labelkey)+1
@@ -7051,10 +7065,10 @@ contains
 !          if(len_trim(graphopt%appendfile).gt.1) then
 !             text=trim(graphopt%appendfile)
 !             call gparfilex('File name',cline,last,1,filename,text,5,&
-!                  '?PLOT append')
+!                  '?Plot append')
 !          else
              call gparfilex('File name',cline,last,1,filename,'  ',5,&
-                  '?PLOT append')
+                  '?Plot append')
 !          endif
 ! check it is OK and add .plt if necessary ...
           jp=index(filename,'.plt ')
@@ -7082,7 +7096,7 @@ contains
           labelp=>graphopt%firsttextlabel
           if(associated(labelp)) then
              call gparcdx('Modify existing text?',cline,last,1,ch1,'NO',&
-                  '?PLOT texts')
+                  '?Plot texts')
              if(ch1.eq.'y' .or. ch1.eq.'Y') then
                 jp=0
                 do while(associated(labelp))
@@ -7093,7 +7107,7 @@ contains
 2310               format(i3,2(1pe12.4),2x,0pF5.2,2x,i4,5x,a)
                    labelp=>labelp%nexttextlabel
                 enddo
-                call gparidx('Which text index?',cline,last,kl,1,'?PLOT texts')
+                call gparidx('Which text index?',cline,last,kl,1,'?Plot texts')
                 if(kl.lt.1 .or. kl.gt.jp) then
                    write(*,*)'No such text label'
                    goto 21100
@@ -7103,17 +7117,17 @@ contains
                    labelp=>labelp%nexttextlabel
                 enddo
                 call gparcdx('New text: ',cline,last,5,text,&
-                     labelp%textline,'?PLOT texts')
+                     labelp%textline,'?Plot texts')
                 labelp%textline=trim(text)
                 call gparrdx('New X position: ',cline,last,xxx,&
-                     labelp%xpos,'?PLOT texts')
+                     labelp%xpos,'?Plot texts')
                 call gparrdx('New Y position: ',cline,last,xxy,&
-                     labelp%ypos,'?PLOT texts')
+                     labelp%ypos,'?Plot texts')
                 call gparrdx('New Fontscale: ',cline,last,&
-                     textfontscale,labelp%textfontscale,'?PLOT texts')
+                     textfontscale,labelp%textfontscale,'?Plot texts')
                 if(textfontscale.lt.0.2) textfontscale=0.2
                 call gparidx('New angle (degrees): ',cline,last,j4,&
-                     labelp%angle,'?PLOT texts')
+                     labelp%angle,'?Plot texts')
                 if(buperr.ne.0) then
                    write(*,*)'Error reading coordinates'; buperr=0; goto 21100
                 endif
@@ -7126,12 +7140,12 @@ contains
              endif
           endif
 ! input a new label
-          call gparrdx('X position: ',cline,last,xxx,zero,'?PLOT texts')
-          call gparrdx('Y position: ',cline,last,xxy,zero,'?PLOT texts')
+          call gparrdx('X position: ',cline,last,xxx,zero,'?Plot texts')
+          call gparrdx('Y position: ',cline,last,xxy,zero,'?Plot texts')
           call gparrdx('Fontscale: ',cline,last,textfontscale,0.8D0,&
-               '?PLOT texts')
+               '?Plot texts')
           if(textfontscale.le.0.2) textfontscale=0.2
-          call gparidx('Angle (degree): ',cline,last,j4,0,'?PLOT texts')
+          call gparidx('Angle (degree): ',cline,last,j4,0,'?Plot texts')
           if(buperr.ne.0) then
              write(*,*)'Error reading coordinates'; buperr=0; goto 21100
           endif
@@ -7143,7 +7157,7 @@ contains
                   'axis variables for which',/11x,'the diagram was calculated',&
                   ' even if you plot with other variables!')
              call gparcdx('Do you want to calculate the equilibrium? ',&
-                  cline,last,1,ch1,'Y','?PLOT texts')
+                  cline,last,1,ch1,'Y','?Plot texts')
              if(ch1.eq.'y' .or. ch1.eq.'Y') then
 ! Check if plotted diagram (axplot) has same axis as calculated (axarr)??
 ! Or better, calculate using the plot axis ...
@@ -7159,7 +7173,7 @@ contains
           endif
 ! There is no gparcd which allows editing the existing text ... use emacs!!
           text=' '
-          call gparcdx('Text: ',cline,last,5,text,line,'?PLOT texts')
+          call gparcdx('Text: ',cline,last,5,text,line,'?Plot texts')
           if(text(1:1).eq.' ') then
              write(*,*)'Label ignored'
              goto 21100
@@ -7191,7 +7205,7 @@ contains
 !---------------------------------------------------------
 ! PLOT EXTRA, subsubcommand
        case(15)
-! subsubcommands to PLOT
+! subsubcommands to PLOT (may not be updated!!)
 !    character (len=16), dimension(nplt2) :: cplot2=&
 !        ['COLOR           ','LOGSCALE        ','RATIOS_XY       ',&
 !         'LINE_TYPE       ','MANIPULATE_LINES','PAUSE_OPTION    ',&
@@ -7209,12 +7223,28 @@ contains
              cline=' '
              last=len(cline)
              goto 21100
+!...............................................
+! PLOT EXTRA axis_factor for example to plot kJ or GPa instead of J and Pa
+          case(13)
+             call gparcdx('Wich axis?',cline,last,1,ch1,'Y',&
+                  '?Plot extra factor')
+             call capson(ch1)
+             if(ch1.eq.'Y' .or. ch1.eq.'X') then
+                call gparrdx('Factor?',cline,last,xxx,1.0D-3,&
+                     '?Plot extra factor')
+                if(ch1.eq.'X') graphopt%scalefact(1)=abs(xxx)
+                if(ch1.eq.'Y') graphopt%scalefact(2)=abs(xxx)
+!                write(*,*)'PMON: ',graphopt%scalefact(1),graphopt%scalefact(2)
+             else
+                write(*,*)'No such axis'
+             endif
+             goto 21100
 !...............................
 ! PLOT EXTRA COLOR ... and some more things ...
           case(1)
 ! monovariant and tielinecolor declared in smp2.F90
              call gparcdx('Monovariant color ',cline,last,1,&
-                  name1,monovariant,'?PLOT color')
+                  name1,monovariant,'?Plot color')
              call capson(name1)
              do kl=1,6
                 if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
@@ -7227,7 +7257,7 @@ contains
              enddo
              monovariant=name1(1:6)
              call gparcdx('Tie-line color ',cline,last,1,&
-                  name1,tielinecolor,'?PLOT font')
+                  name1,tielinecolor,'?Plot font')
              call capson(name1)
              do kl=1,6
                 if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
@@ -7240,10 +7270,64 @@ contains
              tielinecolor=name1(1:6)
              goto 21100
 !...............................................
+! PLOT EXTRA Gibbs triangle
+          case(9)
+             chz='Y'
+             if(graphopt%gibbstriangle) chz='N'
+             call gparcdx('A Gibbs triangle diagram?',cline,last,5,ch1,chz,&
+                  'PLOT Gibbs triangle')
+             if(ch1.eq.'y' .or. ch1.eq.'Y') then
+                graphopt%gibbstriangle=.TRUE.
+                write(*,22500)
+22500           format('The Gibbs triangle layout courtesy of',&
+                     ' Catalina Pineda Heresi at RUB, Germany')
+             else
+                graphopt%gibbstriangle=.FALSE.
+             endif
+             goto 21100
+!...............................................
+! PLOT EXTRA GRID
+          case(14)
+             call gparcdx('Plot grid?',cline,last,1,ch1,'Y',&
+                  '?Plot extra factor')
+             call capson(ch1)
+             if(ch1.eq.'Y') then
+                graphopt%setgrid=1
+             else
+                graphopt%setgrid=0
+             endif
+             goto 21100
+!...............................................
+! PLOT EXTRA LINE_TYPE
+          case(4)
+             j4=last
+             if(eolch(cline,j4)) then
+! write this only if the lime is empty
+                write(*,22300)
+22300           format('Default 1 restore normal line types:',/&
+                     ' 0 means dashed lines,'/,' 1 means full line',/&
+                     '>1 means symbol at each calculated point')
+             endif
+             call gparidx('Line type?',cline,last,iz,1,'?Plot line symbols')
+             if(iz.eq.0) then
+! this means dashed lines and possibly symbols if already set ..
+                graphopt%linetype=0
+             elseif(iz.gt.1) then
+!                graphopt%linetype=iz
+! this means symboles and possibly dashed lines if already set
+                graphopt%linewp=iz
+             else
+! this means full lines and no symbols
+                graphopt%linewp=1
+                graphopt%linetype=1
+             endif
+!             write(*,*)'Only partially implemented'
+             goto 21100
+!...............................................
 ! PLOT EXTRA LOGSCALE
           case(2)
              call gparcdx('For x or y axis? ',cline,last,1,ch1,'y',&
-                  '?PLOT logax')
+                  '?Plot logax')
              if(ch1.eq.'x') then
                 if(graphopt%axistype(1).eq.1) then
                    write(kou,*)'The x axis set to linear'
@@ -7267,10 +7351,66 @@ contains
              endif
              goto 21100
 !...............................................
+! PLOT EXTRA text in lower left corner
+          case(7)
+             call gparcx('Text in lower left corner?',cline,last,1,text,' ',&
+                  '?Extra lower-left-corner')
+             graphopt%lowerleftcorner=text
+             goto 21100
+!...............................................
+! PLOT EXTRA MANIPULATE LINE COLORS
+          case(5)
+             write(kou,22400)
+22400        format('OC uses GNUPLOT and it is possible to edit',&
+                  ' the file "ocgnu.plt" file'/&
+                  'generated by OC to use extensive facilities',&
+                  ' provided by GNUPLOT.'/&
+                  'Only a few of them is provided here.'/&
+                  'OC has 10 different colors to identify the lines plotted.',&
+                  ' Line 11 or'/' higher will repeat these colors.  With',&
+                  ' this command you can select'/' one of these 10 colors',&
+                  ' to be used for the first line plotted.')
+             call gparidx('The color index should be on the first line?',&
+                  cline,last,flc,1,'?Plot manipulate colors')
+             if(flc.lt.1 .or. flc.gt.10) then
+                write(*,*)'Number must be between 1 and 10'
+             else
+                graphopt%linett=flc
+             endif
+             goto 21100
+!...............................................
+! PLOT EXTRA remove headings
+          case(12)
+             call gparcdx('Remove headings?',cline,last,1,ch1,'N',&
+                  '?Plot no heading')
+             if(ch1.ne.'N') then
+                write(*,*)'No title set!',ch1
+                graphopt%status=ibset(graphopt%status,GRNOTITLE)
+             else
+                graphopt%status=ibclr(graphopt%status,GRNOTITLE)
+             endif
+             goto 21100
+!...............................................
+! PLOT EXTRA PAUSE_OPTIONS uselss??
+          case(6)
+             write(kou,*)'Specify option after pause !'
+             call gparcx('GNUPLOT pause option?',cline,last,5,text,' ',&
+                  '?Plot pause')
+             if(len_trim(text).eq.0) then
+                write(kou,*)'Warning, plot will exit directly!'
+!             text='-1'
+             endif
+             graphopt%plotend='pause '//text
+             goto 21100
+!...............................................
+! PLOT EXTRA QUIT
+          case(10)
+             goto 21100
+!...............................................
 ! PLOT EXTRA RATIOS
           case(3)
              call gparrdx('X-axis plot ratio',cline,last,xxx,graphopt%xsize,&
-                  '?PLOT ratios')
+                  '?Plot ratios')
              if(xxx.le.0.1) then
                 write(*,*)'Ratio set to 0.1'
                 xxx=0.1D0
@@ -7285,103 +7425,9 @@ contains
              graphopt%ysize=xxx
              goto 21100
 !...............................................
-! PLOT EXTRA LINE_TYPE
-          case(4)
-             j4=last
-             if(eolch(cline,j4)) then
-! write this only if the lime is empty
-                write(*,22300)
-22300           format('Default 1 restore normal line types:',/&
-                     ' 0 means dashed lines,'/,' 1 means full line',/&
-                     '>1 means symbol at each calculated point')
-             endif
-             call gparidx('Line type?',cline,last,iz,1,'?PLOT line symbols')
-             if(iz.eq.0) then
-! this means dashed lines and possibly symbols if already set ..
-                graphopt%linetype=0
-             elseif(iz.gt.1) then
-!                graphopt%linetype=iz
-! this means symboles and possibly dashed lines if already set
-                graphopt%linewp=iz
-             else
-! this means full lines and no symbols
-                graphopt%linewp=1
-                graphopt%linetype=1
-             endif
-!             write(*,*)'Only partially implemented'
-             goto 21100
-!...............................................
-! PLOT EXTRA MANIPULATE LINE COLORS
-          case(5)
-             write(kou,22400)
-22400        format('OC uses GNUPLOT and it is possible to edit',&
-                  ' the file "ocgnu.plt" file'/&
-                  'generated by OC to use extensive facilities',&
-                  ' provided by GNUPLOT.'/&
-                  'Only a few of them is provided here.'/&
-                  'OC has 10 different colors to identify the lines plotted.',&
-                  ' Line 11 or'/' higher will repeat these colors.  With',&
-                  ' this command you can select'/' one of these 12 colors',&
-                  ' to be used for the first line plotted.')
-             call gparidx('The color index should be on the first line?',&
-                  cline,last,flc,1,'?PLOT line colors')
-             if(flc.lt.1 .or. flc.gt.10) then
-                write(*,*)'Number must be between 1 and 10'
-             else
-                graphopt%linett=flc
-             endif
-             goto 21100
-!...............................................
-! PLOT EXTRA PAUSE_OPTIONS uselss??
-          case(6)
-             write(kou,*)'Specify option after pause !'
-             call gparcx('GNUPLOT pause option?',cline,last,5,text,' ',&
-                  '?PLOT pause')
-             if(len_trim(text).eq.0) then
-                write(kou,*)'Warning, plot will exit directly!'
-!             text='-1'
-             endif
-             graphopt%plotend='pause '//text
-             goto 21100
-!...............................................
-! PLOT EXTRA text in lower left corner
-          case(7)
-             call gparcx('Text in lower left corner?',cline,last,1,text,' ',&
-                  '?extra lower-left-corner')
-             graphopt%lowerleftcorner=text
-             goto 21100
-!...............................................
-! PLOT EXTRA Tie-line plot increment
-          case(8)
-             call gparidx('Tie-line plot increment?',cline,last,kl,3,&
-                  '?PLOT tieline')
-             if(kl.lt.0) kl=0
-             graphopt%tielines=kl
-             goto 21100
-!...............................................
-! PLOT EXTRA Gibbs triangle
-          case(9)
-             chz='Y'
-             if(graphopt%gibbstriangle) chz='N'
-             call gparcdx('A Gibbs triangle diagram?',cline,last,5,ch1,chz,&
-                  'PLOT Gibbs triangle')
-             if(ch1.eq.'y' .or. ch1.eq.'Y') then
-                graphopt%gibbstriangle=.TRUE.
-                write(*,22500)
-22500           format('The Gibbs triangle layout courtesy of',&
-                     ' Catalina Pineda Heresi at RUB, Germany')
-             else
-                graphopt%gibbstriangle=.FALSE.
-             endif
-             goto 21100
-!...............................................
-! PLOT EXTRA QUIT
-          case(10)
-             goto 21100
-!...............................................
 ! PLOT EXTRA spawn plot
           case(11)
-             call gparcdx('Spawn plot?',cline,last,1,ch1,'N','?PLOT misc')
+             call gparcdx('Spawn plot?',cline,last,1,ch1,'N','?Plot extra')
              if(ch1.eq.'Y') then
                 graphopt%status=ibset(graphopt%status,GRKEEP)
              else
@@ -7389,43 +7435,12 @@ contains
              endif
              goto 21100
 !...............................................
-! PLOT EXTRA remove headings
-          case(12)
-             call gparcdx('Remove headings?',cline,last,1,ch1,'N','?PLOT misc')
-             if(ch1.ne.'N') then
-                write(*,*)'No title set!',ch1
-                graphopt%status=ibset(graphopt%status,GRNOTITLE)
-             else
-                graphopt%status=ibclr(graphopt%status,GRNOTITLE)
-             endif
-             goto 21100
-!...............................................
-! PLOT EXTRA axis_factor for example to plot kJ or GPa instead of J and Pa
-          case(13)
-             call gparcdx('Wich axis?',cline,last,1,ch1,'Y',&
-                  '?PLOT extra factor')
-             call capson(ch1)
-             if(ch1.eq.'Y' .or. ch1.eq.'X') then
-                call gparrdx('Factor?',cline,last,xxx,1.0D-3,&
-                     '?PLOT extra factor')
-                if(ch1.eq.'X') graphopt%scalefact(1)=abs(xxx)
-                if(ch1.eq.'Y') graphopt%scalefact(2)=abs(xxx)
-!                write(*,*)'PMON: ',graphopt%scalefact(1),graphopt%scalefact(2)
-             else
-                write(*,*)'No such axis'
-             endif
-             goto 21100
-!...............................................
-! PLOT EXTRA GRID
-          case(14)
-             call gparcdx('Plot grid?',cline,last,1,ch1,'Y',&
-                  '?PLOT extra factor')
-             call capson(ch1)
-             if(ch1.eq.'Y') then
-                graphopt%setgrid=1
-             else
-                graphopt%setgrid=0
-             endif
+! PLOT EXTRA Tie-line plot increment
+          case(8)
+             call gparidx('Tie-line plot increment?',cline,last,kl,3,&
+                  '?Plot tieline')
+             if(kl.lt.0) kl=0
+             graphopt%tielines=kl
              goto 21100
 !...............................................
 ! PLOT EXTRA unused
@@ -7465,7 +7480,7 @@ contains
 ! OPTIMIZE and CONTINUE.  Current optimizer is optimizers(optimizer)
     case(24)
        call gparidx('Number of iterations: ',cline,last,i1,nopt1,&
-            '?OPTIMIZE')
+            '?Optimize')
        if(buperr.ne.0) goto 100
        nopt1=i1
        nopt=i1

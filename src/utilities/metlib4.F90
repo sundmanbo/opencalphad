@@ -14,7 +14,7 @@
 !
 MODULE METLIB
 !
-! Copyright 1980-2020, Bo Sundman and others, bo.sundman@gmail.com 
+! Copyright 1980-2021, Bo Sundman bo.sundman@gmail.com 
 ! 
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -2963,7 +2963,7 @@ CONTAINS
     integer last,unused
 ! local variables
 !    integer i,ijp,j,jjp,l1,l2,llq,llp,llz,m,kxy,iqq,ityp,idef,kk,nw,kl
-    integer i,ijp,j,jjp,l1,l2,llq,llp,llz,m,ityp,idef,kk,nw,kl
+    integer i,ijp,j,jjp,l1,l2,llq,llp,llz,m,ityp,idef,kk,nw,kl,qz
     double precision rdef,x
     character hypertarget*(40)
     logical once
@@ -3153,6 +3153,9 @@ CONTAINS
                 if(cdef(1:1).ne.' ') then
                    hypertarget(kl+2:)=trim(cdef)
                 endif
+! convert prompt to lower case except first letter
+!                qz=len_trim(hypertarget)
+                call lowercase1(hypertarget)
 !                write(*,*)'gparallx hypertarget: "',&
 !                     trim(hypertarget),'" and "',trim(cdef),'"',nw,kl
              endif
@@ -3282,6 +3285,30 @@ CONTAINS
     GOTO 900
   END SUBROUTINE GPARALLX
 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine lowercase1 & convert character to lower case
+!\begin{verbatim}
+  subroutine lowercase1(text)
+    character text*(*)
+!\end{verbatim}
+    integer ip,jp,kp,ichA,ichZ,chlower,ich1
+    ichA=ichar('A')
+    ichZ=ichar('Z')
+! cha = chA+chlower
+    chlower=ichar('a')-ichA
+!    write(*,*)'ML text: "',trim(text),'"'
+! do not convert first 2 characters or any character not between chA and chZ
+    do ip=3,len(text)
+       ich1=ichar(text(ip:ip))
+       if(ich1.ge.ichA .and. ich1.le.ichZ) then
+          text(ip:ip)=char(ich1+chlower)
+       endif
+    enddo
+!    write(*,*)'ML text: "',trim(text),'"'
+900 return
+  end subroutine lowercase1
+    
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
 !\addtotable subroutine gparfilex & Ask for file name

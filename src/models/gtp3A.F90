@@ -1460,7 +1460,7 @@ end function find_phasetuple_by_indices
       enddo sploop
    enddo lloop
 90 continue
-!   write(*,*)'3A current: ',icon,first,loksp
+!   write(*,*)'3A current: ',icon,first,loksp,' "',trim(spname1),'"'
    if(first.eq.0) then
 ! no such constituent
       gx%bmperr=4096
@@ -1503,6 +1503,7 @@ end function find_phasetuple_by_indices
 !      write(*,*)'No such constituent'
       gx%bmperr=4096
    endif
+!   write(*,*)'3A get_constituent_name: ',iph,iseq,' "',trim(spname),'"'
 1000 continue
    return
  end subroutine get_constituent_name

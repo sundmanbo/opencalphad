@@ -19,6 +19,16 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.03.25 OC version 6.025: User guide (prerelease version 7) and
+news-OC7 added.  User Guide and online help system slightly improved
+and help for the new commands added.
+
+An attempt has been made to fix several spurious bugs in the plotting
+but as previously noted the step/map/plot routines are very fragile.
+
+A bug handling expressions used as conditions , for example
+y(bcc,al#2)-y(bcc,Al#3) used in macro map17 has been fixed.
+
 2021.03.14 OC version 6.024: Some minor improvement of the
 Scheil-Gulliver and paraequilibrium calculations and plotting made.
 

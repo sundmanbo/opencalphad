@@ -46,7 +46,7 @@ l , 2
 
 @&
 
-@$ Change to condition in difference of y
+@$ Change to condition in difference of y to the current value
 set c y(bcc,fe#3)-y(bcc,fe#2)
 
 l c
@@ -57,8 +57,8 @@ c e
 
 l,,,,
 
-@$ We can use "c e" as the gridminimizer cannot be used
-@$ with these conditions
+@$ We must not use the gridminimizer but with the current
+@$ conditions it is not allowed.  We can use "c e" but safer with "c n"
 @$
 @$ The phase has B2 ordering as two sublattices have equal and high Fe content
 @$ and the other equal but lower Fe content.
@@ -69,25 +69,29 @@ l,,,,
 @&
 
 @$ Change the value of the difference in y
-@$ Note the previous difference is kept and must be removed explicitly
 @$ That is easy using the notation specifying the condition number
-set c y(bcc,fe#3)-y(bcc,fe#2)=.5
 l c
-set c 4:=none
 
-@$ We can use c e as gridmin is not possible with these conditions
-c e
+
+set c 4:=.2
+
+l c
+
+@&
+c n
 
 l,,,,
+
 
 @$ The overall composition has changed as we are closer to the A2/B2 line
 @$ Decrease the difference again
 @&
 
-set c y(bcc,fe#3)-y(bcc,fe#2)=.01
-set c 4:=none
+set c 4:=.01
 
 l c
+
+
 
 @&
 @$ We are now sufficiently close to the A2/B2 transition line

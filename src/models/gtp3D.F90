@@ -20,13 +20,15 @@
    integer knl(maxsubl),knr(maxcons2)
    character line*64,ch1*1,crest*24
    character :: lastph*24='                        '
-   character*1 :: chd='Y'
+! changed default to N
+!   character*1 :: chd='Y'
+   character*1 :: chd='N'
    integer qph,lokph,nsl,kkk,loksp,ip,ll,nr,yrest
    TYPE(gtp_equilibrium_data), pointer :: ceq
    logical once
 ! save here to use the same default as last time
    save chd,lastph
-   call gparcdx('Phase name: ',cline,last,1,name1,lastph,'?AMEND phase constit')
+   call gparcdx('Phase name: ',cline,last,1,name1,lastph,'?Amend phase constit')
    if(name1(1:2).eq.'* ') then
 ! this means all phases and composition sets
 ! If iph is -1 than this is not allowed!!
@@ -72,7 +74,7 @@
 ! ask if we should set the current constitution, ignore default
 !   write(*,*)'3D we are here!'
    call gparcdx('Current (Y), default (D) or new (N) constitution?',&
-        cline,last,1,ch1,chd,'?AMEND phase constit')
+        cline,last,1,ch1,chd,'?Amend phase constit')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       chd='Y'
 ! set the old constitution explicitly!!
@@ -112,7 +114,7 @@
          once=.true.
 20        continue
          ydef=min(yarr(kkk),ydef)
-         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?AMEND phase constit')
+         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?Amend phase constit')
          if(buperr.ne.0) then
 !            write(*,*)'3D Allow REST: ',trim(cline),last,buperr,yrest
             buperr=0
@@ -247,7 +249,7 @@
 ! ask if we should set the default constitution
 !   write(*,*)'3D we are really here?'
    call gparcdx('Default constitution?',cline,last,1,ch1,chd,&
-        '?AMEND phase constit')
+        '?Amend phase constit')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       call set_default_constitution(iph,ics,ceq)
       if(gx%bmperr.ne.0) goto 1000
@@ -273,7 +275,7 @@
          once=.true.
 20        continue
          ydef=min(yarr(kkk),ydef)
-         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?AMEND phase constit')
+         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?Amend phase constit')
          if(xxx.lt.zero) then
             if(once) then
                write(*,*)'A fraction must be greater than zero'
@@ -351,7 +353,7 @@
 !
    lk3=0
 10  continue
-   call gparcx('Parameter name: ',cline,ip,7,parname,' ','?ENTER parameter')
+   call gparcx('Parameter name: ',cline,ip,7,parname,' ','?Enter parameter')
 ! simple parameter names are like G(SIGMA,FE:CR:FE,CR;1)
    kp=index(parname,' ')
    parname(kp:)=' '
@@ -573,7 +575,7 @@
 ! If parameter has no T dependendence just ask for value
    if(btest(propid(typty1)%status,IDNOTP)) then
       write(kou,*)'This parameter can only be a constant'
-      call gparrx('Value: ',cline,ip,xxx,zero,'?ENTER parameter')
+      call gparrx('Value: ',cline,ip,xxx,zero,'?Enter parameter')
       if(buperr.ne.0) then
          xxx=zero; buperr=0
       endif
@@ -589,7 +591,7 @@
 !-------------------------------------------------
 ! now read the function.
    call gparrx('Low  temperature limit /298.15/:',cline,ip,xxx,2.9815D2,&
-        '?ENTER parameter')
+        '?Enter parameter')
    if(buperr.ne.0) then
       buperr=0; longline=' 298.15 '
       jp=8
@@ -606,7 +608,7 @@
    lsc=1
 115 continue
    call gparcx('Expression, end with ";":',cline,ip,6,line,';',&
-        '?ENTER parameter')
+        '?Enter parameter')
    if(buperr.ne.0) then
       buperr=0; line=';'
    endif
@@ -615,7 +617,7 @@
    jp=len_trim(longline)+1
 !   write(*,152)0,jp,longline(1:jp)
    if(index(longline(lsc:),';').le.0) then
-      call gparcx('&',cline,ip,6,line,';','?ENTER parameter')
+      call gparcx('&',cline,ip,6,line,';','?Enter parameter')
       if(buperr.ne.0) then
          buperr=0; line=';'
       endif
@@ -630,13 +632,13 @@
    lsc=jp
 !    write(*,152)1,ip,cline(1:ip)
    call gparrx('Upper temperature limit /6000/:',cline,ip,xxx,6.0D3,&
-        '?ENTER parameter')
+        '?Enter parameter')
    if(buperr.ne.0) then
       buperr=0; xxx=6.0D3
    endif
    call wrinum(longline,jp,8,0,xxx)
    if(buperr.ne.0) goto 1000
-   call gparcdx('Any more ranges',cline,ip,1,ch1,'N','?ENTER parameter')
+   call gparcdx('Any more ranges',cline,ip,1,ch1,'N','?Enter parameter')
    if(ch1.eq.'n' .or. ch1.eq.'N') then
       longline(jp:)=' N'
       jp=jp+3
@@ -648,7 +650,7 @@
 ! jump here for parameters that are constants
 200 continue
    call gparcdx('Reference symbol:',cline,ip,1,refx,'UNKNOWN',&
-        '?ENTER parameter')
+        '?Enter parameter')
    call capson(refx)
    longline(jp:)=refx
    jp=len_trim(longline)+1
@@ -774,7 +776,7 @@
    character line*256,refid*16,L80*80
    integer jl,ip
    call gparcx('Reference identifier:',cline,last,1,refid,' ',&
-        '?AMEND bibliography')
+        '?Amend bibliography')
    if(buperr.ne.0 .or. refid(1:1).eq.' ') then
 !      write(kou,*)'There must be an identifier'
       gx%bmperr=4155; goto 1000
@@ -803,7 +805,7 @@
 100 continue
 !   call gparc('Reference text, end with ";":',cline,last,5,l80,';',q1help)
    call gparcx('Reference text, end with ";":',cline,last,5,l80,';',&
-        '?AMEND bibliography')
+        '?Amend bibliography')
    line(ip:)=l80
    ip=len_trim(line)
    if(ip.le.1 .and. twotries) then
@@ -879,7 +881,7 @@
 ! NOTE that gparcd increments ip before seaching for value
 !      write(*,*)'3D Calling gparcd: ',trim(cline),ip
       call gparcdx('Uncertainty: ',cline,ip,1,usymbol,'1.0',&
-           '?ENTER experiment')
+           '?Enter experiment')
 !      write(*,*)'3D extracted uncertainity: ',ip,buperr,'"'//usymbol//'"'
       jc=1
       call getrel(usymbol,jc,xxx)
@@ -1076,7 +1078,7 @@
 56 format(a,2i3,' "',a,'" ')
    if(nterm.eq.0) then
 ! the whole line is read into stvexp, ip is increemented by 1
-      call gparcdx('State variable: ',cline,ip,5,stvexp,'T','?SET condition')
+      call gparcdx('State variable: ',cline,ip,5,stvexp,'T','?Set condition')
    else
 ! the whole expression must have been entered on the same line
 ! note cline is updated below !!
@@ -1113,7 +1115,7 @@
 48 format(a,3i4,' "',a,'" >',a,'< ',1pe12.4)
    if(ich.eq.6) then
 ! special case when condition number provided, extract the number, can be *
-! no longer UNFINISHED for *
+! meaning "all conditions", for example *:=NONE
       if(notcond.ne.0) then
 !         write(*,*)'Experiments have no number'
          gx%bmperr=4131; goto 1000
@@ -1355,7 +1357,7 @@
    colon=index(stvexp,':')
 !   colon=index(cline,':')
 !   write(*,*)'3D value: ',ip,' "',trim(stvexp),'" ',defval,colon
-   call gparcdx('Value: ',stvexp,ip,1,textval,defval,'?SET condition')
+   call gparcdx('Value: ',stvexp,ip,1,textval,defval,'?Set condition')
 !   write(*,*)'3D value: ',textval
    c5=textval(1:5)
    call capson(c5)
@@ -1411,11 +1413,16 @@
 !
    findrecord: if(notcond.eq.0) then
 ! remove a condition
+!      write(*,*)'3D avoiding creating expression:',associated(new)
       if(.not.associated(new)) then
 ! search if condition already exist
 !         write(*,*)'3D searching for condition or experiment?'
          temp=>ceq%lastcondition
-         call get_condition(nterm,svr,temp)
+         if(nterm.eq.1) then
+            call get_condition(nterm,svr,temp)
+         else
+            call get_condition_expression(nterm,svrarr,temp)
+         endif
          if(gx%bmperr.ne.0 .and. inactivate) then
             write(kou,140)
 140         format('Attempt to remove a non-existing condition')
@@ -1803,6 +1810,64 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine get_condition_expression
+!\begin{verbatim}
+ subroutine get_condition_expression(nterm,svrarr,pcond)
+! I do not want to change get_condition ,,,,, suck
+! finds a condition/experiment record with the given state variable expression
+! If nterm<0 svr is irrelevant, the absolute value of nterm is the sequential
+! number of the ACTIVE conditions
+   implicit none
+   integer nterm
+   type(gtp_state_variable), dimension(*), target :: svrarr
+! NOTE: pcond must have been set to ceq%lastcondition before calling this
+! pcond: pointer, to a gtp_condition record for this equilibrium
+   type(gtp_condition), pointer :: pcond
+!\end{verbatim} %+
+   type(gtp_condition), pointer :: last
+   type(gtp_state_variable), pointer :: svr,condvar
+   integer jj
+!
+!   write(*,*)'3D get_condition_expression: ',nterm
+! start from first equilibrium in circular list
+   pcond=>pcond%next
+   last=>pcond
+100 continue
+   ploop: do while(.true.)
+      terms: do jj=1,nterm
+         svr=>svrarr(jj)
+!         write(*,*)'3D gce: ',jj,svr%component
+         condvar=>pcond%statvar(jj)
+!         write(*,*)'3D get_condition: ',jj,condvar%oldstv,condvar%argtyp
+! dissapointment, one cannot compare two structures ... unless pointers same
+         if(condvar%oldstv.ne.svr%oldstv) goto 200
+         if(condvar%argtyp.ne.svr%argtyp) goto 200
+         if(condvar%phase.ne.svr%phase) goto 200
+         if(condvar%compset.ne.svr%compset) goto 200
+! skip fix phases
+         if(condvar%statevarid.lt.0) goto 1000
+! most conditions with 2 terms are x(a)-x(b) ore similar
+!         write(*,*)'3D component: ',condvar%component,svr%component
+         if(condvar%component.ne.svr%component) goto 200
+         if(condvar%constituent.ne.svr%constituent) goto 200
+         if(condvar%norm.ne.svr%norm) goto 200
+         if(condvar%unit.ne.svr%unit) goto 200
+      enddo terms
+! we have found a condition with these state variables
+!      write(*,*)'3D Found condition',pcond%active
+      goto 1000
+200   continue
+      pcond=>pcond%next
+      if(associated(pcond,last)) exit ploop
+   enddo ploop
+! we did not find this condition, maybe create it?
+   gx%bmperr=4131; goto 1000
+1000 continue
+   return
+ end subroutine get_condition_expression
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !\addtotable subroutine get_condition
 !\begin{verbatim}
  subroutine get_condition(nterm,svr,pcond)
@@ -1820,8 +1885,8 @@
    type(gtp_state_variable), pointer :: condvar
    integer j1,num,iact
    if(.not.associated(pcond)) goto 900
-!   write(*,*)'3D in get_condition: ',svr%statevarid,svr%oldstv,svr%argtyp
-   if(nterm.lt.0) write(*,*)'3D Condition number: ',-nterm
+!   write(*,*)'3D in get_condition: ',svr%statevarid,svr%oldstv,svr%argtyp,nterm
+!   if(nterm.lt.0) write(*,*)'3D Condition number: ',-nterm
 !   last=>pcond
 ! start from first equilibrium in circular list
    pcond=>pcond%next
@@ -1850,30 +1915,29 @@
 !         goto 200
          continue
       elseif(pcond%noofterms.eq.nterm) then
+! we should never be here if nterm>1
+         if(nterm.gt.1) then
+            write(*,*)'3D call to get_contition with nterm: ',nterm
+            gx%bmperr=4399; goto 1000
+         endif
 !         write(*,*)'3D nterm: ',nterm,pcond%noofterms
 ! experiments that are symbols have not allocated any coefficent record
          do j1=1,nterm
+! if nterm>1 compare just nterm as this routine called for each term!!
             condvar=>pcond%statvar(j1)
-!            write(*,*)'3D get_condition: ',num,condvar%oldstv,condvar%argtyp
+!            write(*,*)'3D get_condition: ',j1,num,condvar%oldstv,condvar%argtyp
 ! dissapointment, one cannot compare two structures ... unless pointers same
 !            if(condvar.ne.svr) goto 200
-!            j2=1
             if(condvar%oldstv.ne.svr%oldstv) goto 200
-!            j2=2
             if(condvar%argtyp.ne.svr%argtyp) goto 200
-!            j2=3
             if(condvar%phase.ne.svr%phase) goto 200
-!            j2=4
             if(condvar%compset.ne.svr%compset) goto 200
             if(condvar%statevarid.lt.0) goto 1000
 ! for fix phase the remaining have no importance
-!            j2=5
+!            write(*,*)'3D component: ',condvar%component,svr%component
             if(condvar%component.ne.svr%component) goto 200
-!            j2=6
             if(condvar%constituent.ne.svr%constituent) goto 200
-!            j2=7
             if(condvar%norm.ne.svr%norm) goto 200
-!            j2=8
             if(condvar%unit.ne.svr%unit) goto 200
 ! we must have experimenttype=0 ??
 !            if(condvar%experimenttype.ne.0) goto 200
@@ -1886,7 +1950,7 @@
 !              nterm,pcond%noofterms
       endif
 200   continue
-!      write(*,*)'Failed at argument: ',j2
+!      write(*,*)'Conditions not same'
       pcond=>pcond%next
       if(.not.associated(pcond,last)) goto 100
 900 continue
@@ -2372,7 +2436,7 @@ end subroutine get_condition
 ! modified for new online help
 !            call gparcd(quest,cline,last,1,fdef,vdef,q1help)
             call gparcdx(quest,cline,last,1,fdef,vdef,&
-                 '?AMEND phase default constit')
+                 '?Amend phase default constit')
             jy=1
             if(fdef(1:4).eq.'NONE') then
                xxx=0
@@ -2474,7 +2538,7 @@ end subroutine get_condition
 100 continue
    addval=zero
    call gparcx('Species and amount as N(..)= or B(...)= : ',&
-        cline,lpos,1,species,' ','?SET input amounts')
+        cline,lpos,1,species,' ','?Set input amounts')
    call capson(species)
    statevar=species(1:1)
    if(statevar.ne.'    ') then
@@ -2509,7 +2573,7 @@ end subroutine get_condition
 ! the user can also give values without = or with a space before =
 ! but no space allowed after =
 !   write(*,*)'3D cline: ',trim(cline),lpos
-   call gparcx('Amount: ',cline,lpos,1,cval,' ','?SET input amounts')
+   call gparcx('Amount: ',cline,lpos,1,cval,' ','?Set input amounts')
 300 continue
    if(cval(1:1).eq.'=') cval(1:1)=' '
    ip=1
@@ -2836,7 +2900,7 @@ end subroutine get_condition
          bline(j2:)=ellista(j1)%symbol
          xxy=xalloy(j1)
 60       continue
-         call gparrdx(bline,cline,last,xxx,xxy,'?ENTER Material')
+         call gparrdx(bline,cline,last,xxx,xxy,'?Enter Material')
          if(buperr.ne.0 .or. xxx.le.zero) then
             write(*,*)'Illegal value for composition'
             goto 60
@@ -2846,7 +2910,7 @@ end subroutine get_condition
       enddo
    else
       ext='.TDB'
-      call gparcx('Database: ',cline,last,1,database,' ','?ENTER matrial')
+      call gparcx('Database: ',cline,last,1,database,' ','?Enter matrial')
 ! this extracts all element symbols from database
       call checkdb(database,ext,nel,selel)
       if(gx%bmperr.ne.0) goto 1000
@@ -2864,7 +2928,7 @@ end subroutine get_condition
       goto 1000
 100   continue
       call gparcdx('Input in mass percent? ',cline,last,1,ftype,'Y',&
-           '?ENTER material')
+           '?Enter material')
       if(ftype.eq.'Y') then
          rest=1.0D2
          write(*,102)'mass percent'
@@ -2875,7 +2939,7 @@ end subroutine get_condition
 102   format('Input expected in ',a/)
 110   continue
       call gparcx('First alloying element:',cline,last,1,alloy(1),' ',&
-           '?ENTER matrial')
+           '?Enter matrial')
       nv=0
       call capson(alloy(1))
       do j1=1,nel
@@ -2895,14 +2959,14 @@ end subroutine get_condition
 220   continue
       if(ftype.eq.'Y') then
          call gparrdx('Mass percent: ',cline,last,xalloy(nv),one,&
-              '?ENTER material')
+              '?Enter material')
          if(buperr.ne.0) then
             write(*,*)'Give a numeric value'; buperr=0
             goto 220
          endif
       else
          call gparrdx('Mole fraction: ',cline,last,xalloy(nv),1.0D-2,&
-              '?ENTER material')
+              '?Enter material')
          if(buperr.ne.0) then
             write(*,*)'Give a numeric value'; buperr=0
             goto 220
@@ -2923,15 +2987,15 @@ end subroutine get_condition
 250 continue
       if(nv.eq.1) then
          call gparcx('Second alloying element:',cline,last,1,alloy(2),' ',&
-              '?ENTER material')
+              '?Enter material')
          if(alloy(2).eq.'  ') goto 500
       elseif(nv.eq.2) then
          call gparcx('Third alloying element:',cline,last,1,alloy(3),' ',&
-              '?ENTER material')
+              '?Enter material')
          if(alloy(3).eq.'  ') goto 500
       else
          call gparcx('Next alloying element:',cline,last,1,&
-              alloy(nv+1),' ','?ENTER material')
+              alloy(nv+1),' ','?Enter material')
          if(alloy(nv+1).eq.'  ') goto 500
       endif
       call capson(alloy(nv+1))

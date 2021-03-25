@@ -91,7 +91,7 @@
     lastplotline%type=-1
     plotline1=>lastplotline
     isopleth=btest(graphopt%status,GRISOPLETH)
-    if(isopleth) write(*,*)'smp2b plotting isoplteh'
+    if(isopleth) write(*,*)'smp2b plotting isopleth'
 ! when creating a new plotline: ??
 ! 1: allocate(plotline%nextline)
 ! 2: plotline%nextline%nextline=>plotline1
@@ -359,6 +359,8 @@
 !------------------------------------------- begin loop 100
 ! loop back here from ??
 100    continue
+!       write(*,*)'SMP2B ocplot2 at label 100',localtop%seqx,line,&
+!            size(localtop%linehead)
        mapline=>localtop%linehead(line)
 ! TRYING TO UNDERSTAND WHAT IS HAPPENING HERE ....
        ttunodeid=localtop%seqx
@@ -433,7 +435,9 @@
 ! skip this equilibrium!!
              nr=0
              write(*,*)'Skipping last point of a line in the plot'
-             cycle plot1
+! same as cycle plot1 but maybe safer??
+             goto 220
+!             cycle plot1
           endif
           nv=nv+1
           if(nv.ge.maxval) then
@@ -962,9 +966,10 @@
 ! jump here if no wildcard
 225       continue
        endif invariant_lines
+!       
        if(invnode.ne.0) then
-!          write(*,'(a,3i4,2(1pe12.4))')'Invariant isopleth node: ',invnode,&
-!               ninv,nrett,xax(nrett),anp(1,nrett)
+!          write(*,'(a,3i4,2(1pe12.4))')'ocplot2 Invariant isopleth node: ',&
+!               invnode,ninv,nrett,xax(nrett),anp(1,nrett)
           if(ninv.eq.0) then
 ! the first invariant isopleth 
              ninv=ninv+1
@@ -1003,7 +1008,8 @@
           seqx=0
        endif
 240    continue
-!       write(*,*)'Next node: ',seqx
+!       write(*,'(a,5i5,l2)')'ocplot2 next node: ',seqx,nlinesep,&
+!            linesep(nlinesep),nv,line,scheilorder
        if(seqx.eq.0) then
           if(nlinesep.gt.0) then
              if(linesep(nlinesep).lt.nv) then
@@ -1048,10 +1054,12 @@
              invnode=size(mapnode%linehead)
 !             write(*,*)'ocplot2 invariant node 2',invnode
           endif
-!          write(*,*)'In ocplot2, looking for segmentation fault 4M'
 ! loop through all mapnodes
 250       continue
-          if(mapnode%seqx.eq.seqx) then
+!          write(*,*)'ocplot2, at label 250: ',mapnode%seqx,seqx
+!          if(mapnode%seqx.eq.seqx) then
+! If just for STEP then check number of axis for calculation
+          if(graphopt%noofcalcax.eq.1 .and. mapnode%seqx.eq.seqx) then
 ! >>> this is just for step, for map one must find line connected
              do haha=1,size(mapnode%linehead)
                 mapline=>mapnode%linehead(haha)
@@ -1066,13 +1074,16 @@
                 endif
              enddo
           endif
+!          write(*,*)'ocplot2 associated?  ',associated(mapnode,localtop),&
+!               mapnode%seqx,seqx
           if(.not.associated(mapnode,localtop)) then
              mapnode=>mapnode%next
              invnode=0
              if(btest(mapnode%status,MAPINVARIANT)) then
                 invnode=size(mapnode%linehead)
-! All invariant nodes have the same number of stable phases !!
-!                write(*,*)'ocplot2 invariant node 3',invnode
+! Does all invariant nodes have the same number of stable phases YES!
+! But they can have different number of line exits
+!                write(*,*)'ocplot2 invariant node 3',invnode,mapnode%seqx
              endif
              goto 250
           else
@@ -1085,7 +1096,7 @@
 !------------------------------------------- end loop 100
 ! check if we can find any lines not starting from localtop to be plotted
 500    continue
-!       write(*,*)'Checking for unplotted lines'
+!       write(*,*)'ocplot2 at 500 ',seqx
 !       write(*,*)'In ocplot2, looking for segmentation fault 5'
 !       mapnode=>localtop%next
 ! when we have several plots localtop is the important one!!

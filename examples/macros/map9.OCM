@@ -500,7 +500,7 @@ list phase chi model
 @&
 @$ Finally calculate the Gibbs energy of an endmember
 
-c p
+c ph
 sigma
 1
 n

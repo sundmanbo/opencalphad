@@ -3298,7 +3298,7 @@
    last=1
 100 continue
    call gparcdx('Type of diffusion model: ',text,last,1,typ,'SIMPLE',&
-        '?AMEND diffusion')
+        '?Amend diffusion')
    call capson(typ)
 !   write(*,*)'3H typ: ',index('MAGNETIC',trim(typ)),trim(typ)
    if(index('SIMPLE',trim(typ)).eq.1) then
@@ -3329,7 +3329,7 @@
 200   continue
       loksp=phlista(lokph)%constitlist(is)
       spname=splista(loksp)%symbol
-      call gparcdx(quest,text,last,1,typ,spname,'?AMEND diffusion')
+      call gparcdx(quest,text,last,1,typ,spname,'?Amend diffusion')
       call find_species_record(typ,loksp2)
       if(gx%bmperr.ne.0) then
          if(once) then
@@ -3356,7 +3356,7 @@
 ! for jj=3 we must ask for ALPHA and ALPHA2 (with species names)
    if(jj.eq.3) then
       allocate(diffcoef%alpha(phlista(lokph)%nooffr(2)))
-      call gparrdx('Value of ALPHA: ',text,last,alpha,0.3D0,'?AMEND diffusion')
+      call gparrdx('Value of ALPHA: ',text,last,alpha,0.3D0,'?Amend diffusion')
       diffcoef%alpha(1)=alpha
       if(nsl.eq.2 .and. phlista(lokph)%nooffr(2).gt.1) then
          ks=2
@@ -3367,7 +3367,7 @@
             if(.not.btest(splista(loksp)%status,SPVA)) then
                spname=splista(loksp)%symbol
                quest='Value of ALPHA2&'//trim(spname)
-               call gparrdx(quest,text,last,alpha,1.0D0,'?AMEND diffusion')
+               call gparrdx(quest,text,last,alpha,1.0D0,'?Amend diffusion')
                if(ks.le.size(diffcoef%alpha)) diffcoef%alpha(ks)=alpha
                ks=ks+1
             endif

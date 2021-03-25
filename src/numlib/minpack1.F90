@@ -1,6 +1,6 @@
 ! This extract from MINPACK contains:
 ! LMDIF1: least square routine
-! HYBRD1: solving non-linear system of equations
+! HYBRD1: solving systems of non-linear equations
 ! and some support routines
 ! and calfun calling OC for assessment_calfun for optimization
 !

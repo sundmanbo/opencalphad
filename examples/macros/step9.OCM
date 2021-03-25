@@ -61,6 +61,7 @@ c e
 l , 2
 
 
+
 @$ We have an ordered constitution
 @&
 @$ Set a T axis with very small step
@@ -123,10 +124,7 @@ l,,,,
 set c y(b2,b)-y(b2,b#2)=.01
 
 l c
-@$ We have too many conditions as the y differnce appears twice
-@$ We can easily remove the old one, condition 4, with this command
 
-set c 4:=none
 
 @&
 
@@ -134,7 +132,7 @@ c e
 
 l,,,,,
 
-@$ In priciple we could also relase the condition on T
+@$ In priciple we could also release the condition on T
 @$ but the convergence is then very bad, better to keep T constant.
 @$
 

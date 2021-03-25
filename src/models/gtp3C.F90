@@ -1419,9 +1419,9 @@
 !      write(*,*)'3C back from gpafilex',ftyp,' "',trim(fil),'"'
       ipos=len_trim(fil)
       if(ipos.le.0) then
-         write(*,*)'No file name, using "database"'
-         fil='database'
-         ipos=8
+         write(*,*)'No file name, quit'
+         gx%bmperr=4399
+         goto 1000
       endif
 ! if there is a segmentation fault it is inside gparfilex  SUCK
 !      write(*,*)'3C file name: ',trim(fil)

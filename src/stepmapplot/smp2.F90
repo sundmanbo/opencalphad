@@ -2,7 +2,7 @@
 !
 MODULE ocsmp
 !
-! Copyright 2012-2020, Bo Sundman, France
+! Copyright 2012-2021, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -281,6 +281,8 @@ MODULE ocsmp
      integer :: status=0,rangedefaults(3)=0,axistype(2)=0,setgrid=0
      double precision, dimension(3) :: plotmin,plotmax
      double precision, dimension(3) :: dfltmin,dfltmax
+! number of axis used for calculation (STEP=1 MAP=2 or more)
+     integer noofcalcax
 ! scalefact is by defailt 1.0 and can be used to scale ais value, fore
 ! example to plot kJ rather than J for reasonable axis
      double precision, dimension(3) :: scalefact=one
@@ -360,12 +362,6 @@ MODULE ocsmp
   integer, parameter :: maxsavedceq=1999
 ! To warn that some calculated lines are excluded from plot
   integer :: lines_excluded=0
-! save intial values of conditions for MAP, with 2 or more axis array needed
-!  type condarray
-!     type(gtp_condition), pointer :: cond
-!     double precision condval
-!  end type condarray
-!  type(condarray), allocatable, dimension(:) :: saveaxcond
 !
 !-------------------------------------------------
 !

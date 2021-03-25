@@ -174,6 +174,7 @@
 ! and the same column in that phase must be the same phase ...
 ! so I have to have the same number of phases from each equilibria.
 ! tentative added feature: # instead of * means also metastable phases
+! BEWHERE # is used also for composition set and sublattice index!
 !
 ! CURRENTLY if x(*,*) and x(*,A) mole fractions only in stable phases
 !
@@ -1004,6 +1005,7 @@
 !            write(*,*)'3F findconst 2: ',trim(arg2),cmass,icc
             if(gx%bmperr.ne.0) goto 1000
          endif
+         svr%component=0
          svr%constituent=icc
          svr%argtyp=4
       else
@@ -1790,7 +1792,7 @@
          call get_constituent_name(indices(1),indices(3),&
               stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
-!         write(*,*)'3F y:',indices,sublat
+!         write(*,*)'3F encode y:',indices,sublat
 ! sublattice is the last argument
          jp=len_trim(stsymb)+1
          if(sublat.gt.1) then
@@ -1800,6 +1802,7 @@
             stsymb(jp:jp)=')'
             jp=jp+1
          endif
+!         write(*,*)'3F encode: "',trim(stsymb),'"'
       elseif(kstv.ge.16 .and. kstv.le.19) then
 ! allow for percent or %
          if(iunit.eq.100) then
@@ -1871,6 +1874,7 @@
  subroutine findsublattice(iph,constix,sublat)
 ! find sublattice of constituent constix in phase lokph
 ! is lokph index to gtp_phaserecord or gtp_phase_varres??
+! constix is constituent index
    implicit none
    integer iph,constix,sublat
 !\end{verbatim}
@@ -1886,7 +1890,9 @@
       write(*,*)'3F no such constituent in this phase',constix
       gx%bmperr=4399; goto 1000
    endif
-   nn=1
+!   nn=1
+! BUG!! found 21.03.18 after 5 years !!
+   nn=0
    loop: do sublat=1,phlista(lokph)%noofsubl
       nn=nn+phlista(lokph)%nooffr(sublat)
       if(constix.le.nn) exit loop
