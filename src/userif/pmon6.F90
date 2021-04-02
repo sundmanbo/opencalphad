@@ -4224,13 +4224,15 @@ contains
           call capson(name1)
 ! dot derivatives not allowed explicitly, must be entered as symbols
           if(index(name1,'.').gt.0) then
-             write(kou,*)'Dot derivatives must be entered as symbols!'
+             write(kou,*)'You must enter dot derivatives as symbols!'
              goto 100
           endif
 ! note gparc etc increment last before looking for answer, keep space in cline
           cline=line(j4:)
           last=1
-          if(index(name1,'*').gt.0) then
+!          if(index(name1,'*').gt.0) then
+! allow also DGM(#) to generate many values ...
+          if(index(name1,'*').gt.0 .or. index(name1,'DGM(#)').gt.0) then
 ! generate many values
 ! i1 values are resturned in yarr with dimension maxconst. 
 ! longstring are the state variable symbols for the values ...
@@ -6751,8 +6753,15 @@ contains
 !               graphopt%status
           if(maptop%tieline_inplane.lt.0) then
 ! set the isopleth bit
-             graphopt%status=ibset(graphopt%status,GRISOPLETH)
-!             write(*,*)'PMON6 graphopt: ',graphopt%status,grisopleth
+             if(index(graphopt%pltax(1),'*').eq.0 .and. &
+                  index(graphopt%pltax(1),'*').eq.0) then
+                graphopt%status=ibset(graphopt%status,GRISOPLETH)
+!                write(*,*)'PMON6 isopleth: ',graphopt%status,grisopleth
+             else
+! Probably meaningless to plot fractions ... but who knows?
+                graphopt%status=ibclr(graphopt%status,GRISOPLETH)
+!                write(*,*)'PMON6 not isopleth: ',graphopt%status,grisopleth
+             endif
           else
 ! for step and tie-lines in plane clear the bit
              graphopt%status=ibclr(graphopt%status,GRISOPLETH)

@@ -101,10 +101,13 @@
           gx%bmperr=0
           goto 900
        endif
+! I have not really implemented several startpoint, I am not sure
+! if each does each have separate maptop and savesec ....
 ! error if no startpoints 
        if(.not.associated(maptop)) then
-          write(*,*)'Cound not find a single start equilibria'
-          gx%bmperr=4224; goto 1000
+          write(*,*)'Cound not find a single start equilibria for',ceqlista
+!          gx%bmperr=4224; goto 1100
+          goto 900
        endif
 !       write(*,*)'There is a MAPTOP record ...'
 ! create array of equilibrium records for saving results
@@ -119,18 +122,27 @@
 !       write(*,*)'savesize: ',size(maptop%saveceq%savedceq)
 ! if there are more startpoints try to convert these to start equilibria
 900    continue
-!       write(*,*)'At label 900: ',ceqlista
-!       if(ceqlista.gt.0) then
-!          ceq=>eqlista(ceqlista)
-!          ceqlista=ceq%nexteq
-!       endif
+!       write(*,*)'At label 900: ',gx%bmperr
     enddo
-! end indentation starting at label 100
+!    write(*,*)'SMP Finished loop',associated(maptop)
+    if(associated(maptop)) then
+       if(allocated(maptop%linehead)) then
+! Clear any error code if we have linhead allocated
+          if(gx%bmperr.ne.0) gx%bmperr=0
+       else
+          write(*,*)'Failed to find any lines to calculate'
+          goto 1000
+       endif
+    else
+! no maptop record
+       write(*,*)'Failed finding startpoints for step/map'
+       goto 1100
+    endif
 !-----------------------------------------------------
 ! now we should calculate all lines stored as start equilibria       
 ! but maybe there are no start equilibria??
 ! starteq is a ceq record, mapping will use maptop record ....
-!    write(*,*)'SMP2A call map_doallines'
+    write(*,*)'SMP2A call map_doallines'
     call map_doallines(maptop,nax,axarr,seqxyz,starteq)
 !    write(*,*)'SMP2A back from map_doallines'
 !-----------------------------------------------------
@@ -161,6 +173,7 @@
        call set_condition(savedconditions,ij,starteqs(1)%p1)
        if(gx%bmperr.ne.0) write(*,*)'Error restoring conditions',gx%bmperr
     endif
+1100 continue
     return
   end subroutine map_setup
   

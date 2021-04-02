@@ -78,9 +78,6 @@
 !    character*32, dimension(:), allocatable :: lid
 !
 !    write(*,*)'In ocplot2 graphopt%status: ',maptop%status,MAPINVARIANT
-!    if(btest(maptop%mapinvariant) &
-!         graphopt%status=ibset(graphopt%status,GRISOPLETH)
-!    write(*,*)'smp2b isoplethplot 0: ',btest(graphopt%status,GRISOPLETH)
 ! transfer from graphics record to local variables
 ! initiate lines_excluded
     lines_excluded=0
@@ -90,8 +87,6 @@
     nullify(lastplotline%nextline)
     lastplotline%type=-1
     plotline1=>lastplotline
-    isopleth=btest(graphopt%status,GRISOPLETH)
-    if(isopleth) write(*,*)'smp2b plotting isopleth'
 ! when creating a new plotline: ??
 ! 1: allocate(plotline%nextline)
 ! 2: plotline%nextline%nextline=>plotline1
@@ -99,13 +94,19 @@
 ! transfer from graphics record to local variables
     pltax(1)=graphopt%pltax(1)
     pltax(2)=graphopt%pltax(2)
+    isopleth=btest(graphopt%status,GRISOPLETH)
+!    write(*,*)'ocplot2 wildcard: ',trim(pltax(1)),' & ',trim(pltax(2))
+!    if(index(pltax(1),'*').gt.0 .or. index(pltax(2),'*').gt.0) then
+! fixed in PMON6
+! allow plotting phase compositions also for isopleths ...
+!       isopleth=.FALSE.
+!    endif
+    if(isopleth) write(*,*)'smp2b plotting isopleth'
     filename=graphopt%filename
     funsym=' '
 ! for isopleths this value determine the line color
     fixphasecolor=1
-!    write(*,*)'In ocplot2: ',trim(filename)
-!    pform=graphopt%pform
-! continue as before ...
+! If wildcard on two axis use ocplot3 to extract data (tie-lines in plane)
     if(index(pltax(1),'*').gt.0 .and. index(pltax(2),'*').gt.0) then
 !       write(*,*)'Using ocplot3'
        call ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,&
@@ -1298,7 +1299,6 @@
 !    write(*,*)'We are at 2000 '
 !----------------------------------------------------------------------
 !
-!    write(*,*)'smp2b isoplethplot 1: ',btest(graphopt%status,GRISOPLETH)
     call get_plot_conditions(encoded1,maptop%number_ofaxis,axarr,ceq)
 !
 ! option to create a CSV table
@@ -1524,12 +1524,13 @@
           '# set label "text" at 0.5, 0.5 rotate by 60 font "arial,12"'/&
           '# set xrange [0.5 : 0.7] '/&
           '# Adding manually a line and keep scaling:'/&
+          '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
           '# set multiplot'/&
           '# set xrange [] writeback'/&
           '#  ... plot someting'/&
           '# set xrange restore'/&
           '#  ... plot more using same axis scaling '/&
-          '# set nomultiplot'/)
+          '# unset multiplot'/)
 !
     if(graphopt%rangedefaults(1).ne.0) then
 ! user defined ranges for x axis
@@ -2182,8 +2183,8 @@
 ! %tieline_tieline_inplane <0 means step, 0 means isopleth
     if(graphopt%tielines.gt.0) then
        if(maptop%tieline_inplane.le.0) then
-          write(kou,*)'No tie-lines can be plotted'
-          graphopt%tielines=0
+          write(kou,*)' Warning, tie-lines may be wrong'
+!          graphopt%tielines=0
        endif
     endif
 ! same is incremented for each line
@@ -2721,6 +2722,7 @@
           '# set label "text" at 0.5, 0.5 rotate by 60 font "arial,12"'/&
           '# set xrange [0.5 : 0.7] '/&
           '# Adding manually a line and keep scaling:'/&
+          '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
           '# set multiplot'/&
           '# set xrange [] writeback'/&
           '#  ... plot someting'/&

@@ -19,15 +19,25 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.04.02 OC version 6.026: Some new interest in the 3rd generation
+unaries, I have fixed some problems with the composition dependent
+THETA (the Einstein temperature) for the low T model.
+
+I have also added some new facilities for plotting results from
+isopleth calculations, previously one could not plot the phase
+compositions, only the composition on the lines separating phase
+regions in the plane of the calculation.  Evidently such diagrams
+(they are not phase diagrams!) can be useful in some cases.
+
 2021.03.25 OC version 6.025: User guide (prerelease version 7) and
 news-OC7 added.  User Guide and online help system slightly improved
-and help for the new commands added.
+and help added for some new (sub)commands and questions.
 
 An attempt has been made to fix several spurious bugs in the plotting
-but as previously noted the step/map/plot routines are very fragile.
+but as previously noted the step/map/plot routines are still very fragile.
 
-A bug handling expressions used as conditions , for example
-y(bcc,al#2)-y(bcc,Al#3) used in macro map17 has been fixed.
+A bug handling expressions used as conditions, for example
+y(bcc,Al#2)-y(bcc,Al#3) used in macro map17 has been fixed.
 
 2021.03.14 OC version 6.024: Some minor improvement of the
 Scheil-Gulliver and paraequilibrium calculations and plotting made.

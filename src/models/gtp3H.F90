@@ -1449,12 +1449,13 @@
    type(gtp_phase_add), pointer :: addrec
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer ith,noprop,extreme,j1
+   integer ith,noprop,extreme,j1,j2
    double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1,fact
 !   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2,theta
    double precision gein,dgeindt,d2geindt2,msize,theta,test
    double precision addphm(6)
    logical addpermole
+   double precision, allocatable :: dthet(:),d2thet(:),dein(:),d2ein(:)
 !
    noprop=phres%listprop(1)-1
 !   write(*,*)'3H thet: ',phres%listprop(2),addrec%need_property(1)
@@ -1482,7 +1483,41 @@
    endif
 ! The exp( ) because the parameter value is LN(THETA)   
    theta=exp(phres%gval(1,ith))
-   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+!   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+   kvot=theta/ceq%tpval(1)
+!   write(*,*)'3H LN(THET): ',trim(phlista(lokph)%name),phres%gval(1,ith),theta
+!   write(*,'(a,4(1pe11.3))')'3H dTH/dyi: ',(phres%dgval(1,j1,ith),j1=1,mc)
+!   write(*,'(a,4(2i2,1pe11.3))')'3H d2TH/dyidyj: ',&
+!        ((j1,j2,phres%d2gval(ixsym(j1,j2),ith),j2=j1,mc),j1=1,mc)
+! We must convert all derivatives to real THET ?? no ??
+   allocate(dthet(mc))
+   allocate(d2thet(mc*(mc+1)/2))
+   do j1=1,mc
+      do j2=j1,mc
+         d2thet(ixsym(j1,j2))=phres%d2gval(ixsym(j1,j2),ith)
+      enddo
+      dthet(j1)=phres%dgval(1,j1,ith)
+   enddo
+!   do j1=1,mc
+!      do j2=j1,mc
+!         d2thet(ixsym(j1,j2))=exp(phres%d2gval(ixsym(j1,j2),ith))
+!      enddo
+!      dthet(j1)=exp(phres%dgval(1,j1,ith))
+!   enddo
+!   write(*,'(a,4(1pe11.3))')'3H A dTH/dyi: ',(dthet(j1),j1=1,mc)
+!   write(*,'(a,4(2i2,1pe11.3))')'3H A d2TH/dyidyj: ',&
+!        ((j1,j2,d2thet(ixsym(j1,j2)),j2=j1,mc),j1=1,mc)
+! simpler .... if it is correct??  
+!  dTHETA/dy_i = d/dyi(exp(LNTH))= exp(LNTH)*d/dy1(LNTH) = THETA*dLNTH/dy1 ??
+!   do j1=1,mc
+!      do j2=j1,mc
+!         d2thet(ixsym(j1,j2))=theta*phres%d2gval(ixsym(j1,j2),ith)
+!      enddo
+!      dthet(j1)=theta*phres%dgval(1,j1,ith)
+!   enddo
+!   write(*,'(a,4(1pe11.3))')'3H B dTH/dyi: ',(dthet(j1),j1=1,mc)
+!   write(*,'(a,4(2i2,1pe11.3))')'3H B d2TH/dyidyj: ',&
+!        ((j1,j2,d2thet(ixsym(j1,j2)),j2=j1,mc),j1=1,mc)
 !   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
 !        phres%gval(3,1),phres%gval(4,1),kvot
 ! we should be careful with numeric overflow, for small T or large T
@@ -1566,13 +1601,33 @@
 !   write(*,77)'3H Einstein dE/dy',lokph,1,theta,phres%dgval(1,1,ith),fact,&
 !        phres%dgval(1,1,1),phres%dgval(1,1,1)+fact*phres%dgval(1,1,ith)
 77 format(a,2i2,5(1pe12.4))
+!   allocate(dein(mc))
+!   allocate(d2ein(mc*(mc+1)/2))
+! VERY MESSY CODING AND I DO NOT UNDERSTAND IT/BoS 2021.04.02
    do j1=1,mc
 !     write(*,77)'3H Einstein dE/dy',lokph,j1,theta,phres%dgval(1,j1,ith),fact,&
 !           phres%dgval(1,j1,1),phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith)
-      phres%dgval(1,j1,1)=msize*(phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith))
-!      test=test+fact*phres%dgval(1,j1,ith)
+! we must use dthet(j1)=THETA*dgval(1,j1,ith) and not dgval(1,j1,ith) !!
+! old phres%dgval(1,j1,1)=msize*(phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith))
+      phres%dgval(1,j1,1)=phres%dgval(1,j1,1)+msize*fact*dthet(j1)
+!      write(*,*)'3H second derivatives missing for Einstein, SUCK'
+!      dein(j1)=msize*fact*dthet(j1)
+      do j2=j1,mc
+! d2Ein/dy1dy2 = (1.5R*theta+3*R*(exp(kvot)-1)**(-1))*d2theta/dy1dy2 -
+!                 3*R*exp(kvot)/(T*(exp(kvot)-1))**2*dtheta/dy1*dtheta/dy2
+         phres%d2gval(ixsym(j1,j2),1)=phres%d2gval(ixsym(j1,j2),1)+&
+              msize*(fact*d2thet(ixsym(j1,j2))-&
+              3.0d0*exp(kvot)*(ceq%tpval(1)*(exp(kvot)-one))**(-2)*&
+              dthet(j1)*dthet(j2))
+!         d2ein(ixsym(j1,j2))=msize*(fact*d2thet(ixsym(j1,j2))-&
+!              3.0d0*exp(kvot)*(ceq%tpval(1)*(exp(kvot)-one))**(-2)*&
+!              dthet(j1)*dthet(j2))
+      enddo
    enddo
-! This seems a small efect, ignore second derivatives ...
+! listing ....
+!   write(*,'(a,4(1pe11.3))')'3H dein: ',(dein(j1),j1=1,mc)
+!   write(*,'(a,4(2i2,1pe11.3))')'3H d2ein: ',&
+!        ((j1,j2,d2ein(ixsym(j1,j2)),j2=j1,mc),j1=1,mc)
 !
 ! END NEW CODE ----------------------------------------------------------
 ! debug value of G
@@ -1599,6 +1654,7 @@
    addphm(1)=gein
    addphm(2)=dgeindt
    addphm(4)=d2geindt2
+! correct for formula unit
    call add_size_derivatives(moded,phres,addphm,lokph,mc,ceq)
 !
 1000 continue
