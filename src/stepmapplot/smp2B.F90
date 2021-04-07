@@ -591,6 +591,7 @@
 ! probably because new composition set created
 !                write(*,*)'SMP2B get_many ',trim(statevar),nzp,selectph,hashtag
 ! nzp is dimentsion of yyy, np is number of values
+!                write(*,*)'SMP2B calling get_many_svar: ',trim(statevar)
                 call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
 !                write(*,*)'In ocplot2, segmentation fault search: '
                 if(gx%bmperr.ne.0) then

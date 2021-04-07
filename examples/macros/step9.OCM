@@ -120,8 +120,13 @@ l,,,,
 
 @$ We have the same equilibrium but with different conditions
 @&
+@$ Make the difference smaller, i.e. closer to order/diorder transition
 
-set c y(b2,b)-y(b2,b#2)=.01
+l c
+
+@$ set c y(b2,b)-y(b2,b#2)=.01
+@$ This rather crypric command change the value of condition 4
+set c 4:=0.01
 
 l c
 

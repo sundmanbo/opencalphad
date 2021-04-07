@@ -19,6 +19,18 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.04.07 OC version 6.027: Finally it is possible to enter symbols
+that include values of model parameter identifiers.  This may not be
+something everyone does every day and I had nvere tested it but
+sometimes it may be useful.  I have also fixed that one can use
+conditions on constituent fractions in phass with ionic constituent.
+I was surprised it was not already allowed but it is true I had never
+had any reason to tested it.  A number of minor bugs fixed.
+
+I have had a look at TQlib and slightly updated the crfe example.
+Note that on Github there are several Python-OC libraries which may be
+simpler to use for those not familiar with Fortran.
+
 2021.04.02 OC version 6.026: Some new interest in the 3rd generation
 unaries, I have fixed some problems with the composition dependent
 THETA (the Einstein temperature) for the low T model.

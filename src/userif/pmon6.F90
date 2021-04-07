@@ -319,9 +319,10 @@ contains
          'LINES           ','                ','                ']
 !-------------------
 ! subsubcommands to AMEND PHASE
+! the UNIQUAC model specified when entering the phase
     character (len=16), dimension(ncamph) :: camph=&
          ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
-         'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
+         '                ','DIFFUSION       ','DEFAULT_CONSTIT ',&
          'TERNARY_EXTRAPOL','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
          'REMOVE_COMPSETS ','                ','AQUEUS_MODEL    ',&
          'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
@@ -945,7 +946,7 @@ contains
           amendphase: SELECT CASE(kom3)
 ! subsubcommands to AMEND PHASE
 !         ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
-!         'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
+!         '                 ','DIFFUSION       ','DEFAULT_CONSTIT ',&
 !         'TERNARY_EXTRAPOL','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
 !         'REMOVE_COMPSETS ','                ','AQUEUS_MODEL    ',&
 !         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','                ',&
@@ -1126,11 +1127,14 @@ contains
                 goto 990
              endif
 ! we should check the number of sublattices of the phase ...
-             idef=4
+!             idef=4
+             lokcs=phasetuple(iph)%lokvares
+             idef=size(firsteq%phase_varres(lokcs)%sites)
+             write(*,*)'PMON idef: ',idef
              call gparidx('Sum up to sublattice: ',cline,last,ndl,idef,&
                   '?Amend phase disordfrac')
              if(buperr.ne.0) goto 990
-             call gparcdx('Should ordered part cancel when disordered? ',&
+             call gparcdx('Should the ordered part cancel when disordered? ',&
                   cline,last,1,ch1,'N','?Amend phase disordfrac')
              if(buperr.ne.0) goto 990
              if(ch1.eq.'N' .or. ch1.eq.'n') then
@@ -1155,7 +1159,7 @@ contains
 !             write(*,*)'pmon6: ',ndl,xxx
              if(gx%bmperr.ne.0) goto 990
 !....................................................
-          case(4) ! UNIQUAC model
+          case(4) ! Not used
              write(*,*)'Not implemented yet'
 !....................................................
           case(5) ! DIFUSION properties
@@ -1247,7 +1251,7 @@ contains
 !                call set_phase_status_bit(lokph,PHCVMCE)
 !....................................................
           case(15) ! amend phase ... unused
-             write(kou,*)'Not implemented, use UNIQUAC'
+             write(kou,*)'Not implemented'
 !....................................................
           case(16) ! moved
 !....................................................

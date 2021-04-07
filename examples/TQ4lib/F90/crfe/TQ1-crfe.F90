@@ -1,6 +1,15 @@
 !
 ! The first test program of programming interface LIBOCTQ using Cr-Fe binary
 !
+! Before compiling this you must first compile to OC program without omp
+! Then copy the library file ..\..\..\lib\liboctq.a
+! and                        ..\..\..\liboceqplus.mod
+! and                              ..\liboctq.F90
+! then compile gfortran -c liboctq.F90
+! the compile this file and link with tqoctq.o and liboceq.a
+!
+! check the file link-tqtest1
+!
 program octq1
 !
   use liboctq
@@ -14,7 +23,7 @@ program octq1
   character target*60,phcsname*24
   double precision value,temp,tp(2),mel(maxel)
   double precision xf(maxel),pxf(10*maxph),npf(maxph),mu(maxel),mus(maxel)
-  double precision tpref(2)
+  double precision tpref(2),dgm(maxph)
   type(gtp_equilibrium_data), pointer :: ceq
 ! DUMMY target for on-line help reference
   character :: dummy*10='          '
@@ -132,7 +141,7 @@ program octq1
 !
 !------------------------------------------------
 ! list some results using TQ routines
-! amount of all phases
+! amount and DGM of all phases
   statevar='NP'
   n1=-1
   n2=0
@@ -143,14 +152,21 @@ program octq1
   n3=size(npf)
   call tqgetv(statevar,n1,n2,n3,npf,ceq)
   if(gx%bmperr.ne.0) goto 1000
+! list DGM for all phases
+  statevar='DGM '
+  call tqgetv(statevar,n1,n2,n3,dgm,ceq)
+  if(gx%bmperr.ne.0) then
+     write(*,*)'Error extrating DGM',gx%bmperr
+     goto 1000
+  endif
 ! here n3 is the number of phase tuples!
   write(*,502)
-502 format('Tuple index  Phase name                 Amount')
+502 format('Tuple index  Phase name                 Amount      DGM')
   do n=1,n3
      call tqgpn(n,phcsname,ceq)
      if(gx%bmperr.ne.0) goto 600
-     write(*,505)n,phcsname,npf(n)
-505  format(i3,10x,a,2x,F7.4)
+     write(*,505)n,phcsname,npf(n),dgm(n)
+505  format(i3,10x,a,2x,2(1pe12.4))
   enddo
 !------------------------------------------------
 ! composition of stable phases

@@ -170,8 +170,20 @@
 !       write(*,*)trim(savedconditions)
 ! ij is incremented by 1 inside set_condition
        ij=0
+! SUCK, I fixed that conditions with 2 terms was not entered again but
+!       after other changes to handle condition with species such as O-2
+!       the same problem!  Just remove all conditions and set those saved!!
+!       write(*,*)'SMP2A conditions at end of step/map'
+!       It may create loss of memory but ... what the heck ... buy more!
+!       call list_conditions(kou,ceq)
+!       write(*,*)'SMP2A remove all conditions'
+       call set_condition('*:=none ',ij,starteqs(1)%p1)
+!       call list_conditions(kou,ceq)
+       ij=0
        call set_condition(savedconditions,ij,starteqs(1)%p1)
        if(gx%bmperr.ne.0) write(*,*)'Error restoring conditions',gx%bmperr
+!       write(*,*)'SMP2A restored conditions'
+!       call list_conditions(kou,ceq)
     endif
 1100 continue
     return

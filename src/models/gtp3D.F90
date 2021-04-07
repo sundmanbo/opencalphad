@@ -1053,7 +1053,7 @@
    iunit=0
    iref=0
    actual_arg=' '
-!   write(*,*)'3D set cond or enter exper: ',trim(cline)
+!   write(*,*)'3D set cond or enter exper: ',trim(cline),ip
 ! return here to deconde another condition on the same line
 50 continue
    nterm=0
@@ -1061,6 +1061,7 @@
 !==========================================================================
 ! return here to decode anther state variable term for condition
 ! step 1 extract the state variable termintade by + - = > < or :=
+! NOT SUFFICIENT, a constituent can have a + or - !!!
 55 continue
    experimenttype=0
    nullify(new)
@@ -1178,7 +1179,7 @@
 ! check it is a legal state variable, ignore terminator 
    svtext=stvexp(1:ip-1)
    symsym=0
-!   write(*,*)'3D calling decode with: ',ip-1,': ',svtext(1:ip-1)
+!   write(*,*)'3D calling decode for "',trim(svtext),'" upt to:',ip-1
 ! memory leak
    svr=>svrvar
    call decode_state_variable(svtext,svr,ceq)
@@ -1830,13 +1831,26 @@
 !
 !   write(*,*)'3D get_condition_expression: ',nterm
 ! start from first equilibrium in circular list
+!   write(*,*)'3D one more line ...'
+! this write statement caused crash if first condition had 2 terms ...
+!   write(*,*)'3D size of pcond%statvar: ',size(pcond%statvar)
+   if(nterm.gt.1) then
+      write(*,*)'3D A condition with several terms sometimes causes crash'
+      gx%bmperr=4399; goto 1000
+   endif
    pcond=>pcond%next
    last=>pcond
 100 continue
+   write(*,*)'3D at label 100'
    ploop: do while(.true.)
       terms: do jj=1,nterm
          svr=>svrarr(jj)
 !         write(*,*)'3D gce: ',jj,svr%component
+         if(jj.gt.size(pcond%statvar)) then
+            write(*,*)'3D too many terms in condition',jj,size(pcond%statvar)
+            write(*,*)'3D more:',nterm,pcond%statvar(1)%oldstv
+            gx%bmperr=4399; goto 1000
+         endif
          condvar=>pcond%statvar(jj)
 !         write(*,*)'3D get_condition: ',jj,condvar%oldstv,condvar%argtyp
 ! dissapointment, one cannot compare two structures ... unless pointers same

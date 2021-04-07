@@ -9,19 +9,13 @@ REM TQ4lib/F90/test1
 REM and have the main program three directories up
 REM as when you downloaded the zip file with the program
 
-copy ..\..\..\liboceq.a .
+copy ..\..\..\..\libs\liboceq.a .
 
-copy ..\..\..\liboceqplus.mod .
-
-REM copy ..\ftinyopen-dummy.F90 .
+copy ..\..\..\..\liboceqplus.mod .
 
 copy ..\liboctq.F90 .
 
-REM gfortran -c ftinyopen-dummy.F90
-
 gfortran -c liboctq.F90
-
-REM gfortran -o tqex1 TQ1-crfe.F90 liboctq.o ftinyopen-dummy.o liboceq.a
 
 gfortran -o tqex1 TQ1-crfe.F90 liboctq.o liboceq.a
 

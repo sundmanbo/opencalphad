@@ -653,6 +653,9 @@
       mqm=.TRUE.
    elseif(model(1:8).eq.'UNIQUAC ') then
       uniquac=.TRUE.
+      write(*,7)
+7     format('3B With this model some of the following questions'&
+           ' are irrelevant'/'but kept for compatibility with other models')
    endif
 ! check constituents
    externalchargebalance=.false.

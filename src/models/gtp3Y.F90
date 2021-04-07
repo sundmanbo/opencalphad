@@ -211,6 +211,7 @@
 ! ng should be set to number of remaining points, ny and yphl is not used
       iv=nphl(zph-1)+1
       ng=maxgrid-iv
+!      write(*,*)'3Y generating grid for phase ',zph
 ! possible output on gridmap.dat
       if(lutbug.gt.0) then
          lokph=phases(iphx(zph))
@@ -660,6 +661,7 @@
    endif
 1100 continue
    if(ocv()) write(*,*)'3Y leaving global_gridmin'
+   write(*,*)'3Y leaving global_gridmin'
    return
  end subroutine global_gridmin
 
@@ -2009,13 +2011,13 @@
    integer l1,ncon,jj,cation,anion,isp,iva,catloop,neutral1,errall
    integer looplim1,looplim2
    logical trace,dense
-   character ch1*1
+   character ch1*1,dummy*128
 !
    if(mode.eq.0) then
-!      write(*,*)'3Y Calculating number of gridpoints for ionic liquid'
-! trace TRUE means generate outpt for each gridpoint
-!      trace=.TRUE.
       trace=.FALSE.
+!      trace=.TRUE.
+!     write(*,*)'3Y Calculating the number of gridpoints for ionic liquid'
+! trace TRUE means generate outpt for each gridpoint
       if(trace) then
 ! unit 33 is opened before calling this routine
          write(33,43)
@@ -2038,7 +2040,7 @@
    else
       dense=.FALSE.
    endif
-!!   write(*,*)'3Y Getting phase data',mode
+!   write(*,*)'3Y Getting phase data',mode
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
 ! calculate the number of endmembers and index of first constituent in subl ll
@@ -2227,7 +2229,8 @@
       gx%bmperr=4370; goto 1000
    endif
    yendm=zero
-!   write(*,*)'3Y endmember fractions:',mode,je
+! SOMETIMES IT CRASHED IF THIS LINE IS REMOVED
+   write(dummy,*)'3Y endmember fractions:',mode,je
    do je=1,nend
       if(endm(1,je).lt.0) then
 ! for neutrals set all fractions in first sublatice to unity/number of constit

@@ -2,9 +2,9 @@
 ! Minimal TQ interface.
 !
 ! To compile and link this with an application one must first compile
-! and form a library with of the most OC subroutines (oclib.a)
-!  and to copy this and the corresponding "mov" files from this compilation 
-! to the folder with this library
+! and form a library with of the most OC subroutines (lib\liboceq.a)
+! and copy this and the corresponding "liboceqplus.mod" file
+! from this compilation to the folder with this library
 !
 ! NOTE that for the identification of phase and composition sets this
 ! TQ interface use a Fortran TYPE called gtp_phasetuple containing two
@@ -19,10 +19,7 @@
 ! will change the phase tuple index for those with higher index.  So do not
 ! delete comp.sets or at least be very careful when deleting comp.sets
 !
-! When not using Fortran 95 (or later) one can probably replace this
-! with a 2-dimensional array with first index phase number and second
-! the comp.set number.
-!
+! 210328 BOS Tested
 ! 191101 BOS Updates some routines and added two dummy modules for C routines
 ! 181030 BOS Updates some routines
 ! 150520 BOS added a few subroutines for single phase data and calculations
@@ -270,7 +267,6 @@ contains
 ! get index of constituent with name in phase n
     implicit none
     integer n !IN: phase index
-!NO  integer c !IN: extended constituent index: 10*species_number+sublattice
     integer c !IN: sequantial constituent index over all sublattices
     character constituentname*(*)
     type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
@@ -289,7 +285,6 @@ contains
 !? missing argument number of elements????
     implicit none
     integer n !IN: phase number
-!NO  integer c !IN: extended constituent index: 10*species_number+sublattice
     integer c !IN: sequantial constituent index over all sublattices
     double precision stoi(*) !EXIT: stoichiometry of elements 
     double precision mass    !EXIT: total mass
@@ -391,7 +386,7 @@ contains
 ! value is the value of the condition
 ! cnum is returned as an index of the condition.
 ! to remove a condition the value sould be equial to RNONE ????
-! when a phase indesx is needed it should be 10*nph + ics
+! phase index is phase tuple index (include composition set)
 ! see TQGETV for doucumentation of stavar etc.
     implicit none
     integer n1             ! IN: 0 or phase tuple index or component number
@@ -621,7 +616,7 @@ contains
 ! EC12  ext.phase.index,0                Elastic constant C12
 ! EC44  ext.phase.index,0                Elastic constant C44
 !........ NOTES:
-! *1 The ext.phase.index is   10*phase_number+comp.set_number
+! *1 The phase index is the phase tuple index (extra composition sets at end)
 ! *2 The constituent index is 10*species_number + sublattice_number
 ! *3 S, V, H, A, G, NP, BP, N, B and DG can have suffixes M, W, V, F also
 !--------------------------------------------------------------------
@@ -643,7 +638,7 @@ contains
     if(lp.gt.0) then
        selvar(lp:)=' '
     else
-! check if variable is normallized
+! check if variable is normallized, only M (per mole) allowed
        ki=len_trim(selvar)
        if(ki.ge.2) then
           if(selvar(ki:ki).eq.'M') then
@@ -861,6 +856,40 @@ contains
           n3=1
        endif
 !--------------------------------------------------------------------
+! Driving force relative stable equilibrium
+    case('DG  ')
+! Always normalized per mole
+       if(norm(3:3).ne.' ') then
+          statevar='DG'//norm
+          ki=3
+       else
+          statevar='DG '
+          ki=2
+       endif
+       write(*,*)'tqgetv DGM: ',n1,ki
+       if(n1.gt.0) then
+! The driving force for a specific phase
+          call get_phasetup_name(n1,name)
+          if(gx%bmperr.ne.0) goto 1000
+          statevar=statevar(1:ki)//'M('//trim(name)//') '
+!          write(*,*)'tqgetv 3: ',statevar
+          call get_state_var_value(statevar,values(1),encoded,ceq)
+          n3=1
+       else
+! For all phases
+          n3=0
+          if(nooftup().gt.mjj) then
+             write(*,*)'TQGETV error, array too small for DGM',mjj,nooftup()
+             gx%bmperr=8888
+             goto 1000
+          endif
+          statevar='DGM(#) '
+          write(*,*)'tqgetv 3: ',statevar
+          call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
+          write(*,'(a,10(1pe12.4))')'TQGETV: ',(values(ki),ki=1,n3)
+          write(*,*)'gx%bmperr: ',gx%bmperr
+       endif
+!--------------------------------------------------------------------
 ! Mobilities
     case('MQ   ')
        call get_phasetup_name(n1,name)
@@ -876,6 +905,11 @@ contains
        n3=size(ceq%phase_varres(lokcs)%yfr)
 !       write(*,*)'D2G 3: ',n3
        kj=(n3*(n3+1))/2
+       if(kj.gt.mjj) then
+          write(*,*)'TQGETV error, array too small for D2G',mjj,kj
+          gx%bmperr=8888
+          goto 1000
+       endif
 !       write(*,*)'D2G 3: ',kj
        do ki=1,kj
           values(ki)=ceq%phase_varres(lokcs)%d2gval(ki,1)
@@ -889,6 +923,7 @@ contains
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
   subroutine tqgetg(lokres,n1,n2,values,ceq)
+! the partial derivative of the Gibbs energy ....??
     implicit none
     integer n1,n2,lokres
     double precision values(*)
@@ -1022,7 +1057,7 @@ contains
   subroutine tqcph1(n1,n2,n3,gtp,dgdy,d2gdydt,d2gdydp,d2gdy2,ceq)
 ! tq_calculate_phase_properties
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-! WARNIG: this is not a subroutine to calculate chemical potentials
+! WARNING: this is not a subroutine to calculate chemical potentials
 ! those can only be made by an equilibrium calculation.
 ! The values returned are partial derivatives of G for the phase at the
 ! current T, P and phase constitution.  The phase constitution has been
@@ -1308,6 +1343,7 @@ contains
     integer bit,onoff
 !\end{verbatim}
 ! list here taken from models/gtp3.F90, only some allowed!!
+! BEWHEARE, the meaning of bits may have changed !!! check with gtp3.F90
 !  4 NOMERGE: no merge of gridmin result, 
 !  5 NODATA: not any data, 
 !  6 NOPHASE: no phase in system, 
@@ -1352,6 +1388,7 @@ contains
 !\end{verbatim}
 ! taken from models/gtp3.F90
 !-Bits in PHASE record STATUS1 there are also bits in each phase_varres record!
+! BEWHEARE, the meaning of bits may have changed !!! check with gtp3.F90
 !  0 HID phase is hidden (not implemented)
 !  1 IMHID phase is implictly hidden (not implemented)
 !  2 ID phase is ideal, substitutional and no interaction
@@ -1409,9 +1446,10 @@ contains
     double precision gadd
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+! Provided by Christophe Sigli 2018?
     integer lokcs
     lokcs=phasetuple(phtupx)%lokvares
-    if(allocated(ceq%phase_varres(lokcs)%addg)) then
+    if(.not.allocated(ceq%phase_varres(lokcs)%addg)) then
        allocate(ceq%phase_varres(lokcs)%addg(1))
     endif
     ceq%phase_varres(lokcs)%addg(1)=gadd
@@ -1423,10 +1461,34 @@ contains
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
+!\begin{verbatim}
+  subroutine tq_add_const_energy(energy,phtupx,ceq)
+! add a constant energy in J/mole
+    double precision,intent(in) :: energy
+    type(gtp_equilibrium_data), pointer :: ceq
+    integer,intent(in) :: phtupx
+!\end{verbatim}
+! Provided by Jan Herrnring 2020.12.15
+    integer :: lokcs
+    lokcs=phasetuple(phtupx)%lokvares
+    if(.not.allocated(ceq%phase_varres(lokcs)%addg)) then
+       allocate(ceq%phase_varres(lokcs)%addg(1))
+    endif
+! add a constant term to G, value in J/FU
+! Abnorm is the number of moles of the phase
+    ceq%phase_varres(lokcs)%addg(1)=energy*ceq%phase_varres(lokcs)%abnorm(1)
+! set bit that this should be calculated
+    ceq%phase_varres(lokcs)%status2=&
+         ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
+  end subroutine tq_add_const_energy
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+  
 end MODULE LIBOCTQ
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
-! dummy module
+! dummy modules
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
 module ftinyopen

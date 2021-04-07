@@ -902,6 +902,7 @@
 ! search for first occurance of + - = > or <
 ! if + or - then also extract possible value after sign
 ! value is coefficient for NEXT term (if any)
+! IF WE FIND A ( accept all characters up to ), constitunets can have + or -
 ! kpos is last character in THIS state variable, lpos where NEXT may start
    implicit none
    character string*(*)
@@ -909,13 +910,23 @@
    double precision value
 !\end{verbatim}
    integer ipos,jpos,i1
+   logical afterlp
    character ch1*1
    character (len=1), dimension(6), parameter :: chterm=&
         ['+','-','=','<','>',':']
 !
+   afterlp=.FALSE.
    ich=0
    sloop: do ipos=1,len_trim(string)
       ch1=string(ipos:ipos)
+! I do not check for nested ( ) or ...
+      if(ch1.eq.'(') then
+         afterlp=.TRUE.
+      elseif(ch1.eq.')') then
+         afterlp=.FALSE.
+      endif
+! accept all characters between ( )
+      if(afterlp) cycle sloop
       do i1=1,6
          if(ch1.eq.chterm(i1)) then
             kpos=ipos; ich=i1; exit sloop
