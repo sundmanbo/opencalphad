@@ -4326,9 +4326,9 @@
          ch1=longline(jp:jp)
          if(always.eq.3) then
 ! this code an attempt to fool -O2 compiler switch
-            write(*,*)'3E typedef for ',trim(name1),': ',ch1,TDthisphase
-            write(*,311)'3E TDs: ',nooftypedefs,&
-                 (typedefchar(jt),jt=1,nooftypedefs)
+!            write(*,*)'3E typedef for ',trim(name1),': ',ch1,TDthisphase
+!            write(*,311)'3E TDs: ',nooftypedefs,&
+!                 (typedefchar(jt),jt=1,nooftypedefs)
 311      format(a,i3,': ',10('"',a,'", '))
             always=always+1
          endif
@@ -4349,12 +4349,21 @@
             continue
          elseif(typedefaction(jt).eq.-1 .or. &
               typedefaction(jt).eq.-3) then
-! magnetic addition, save for after phase created
+! Inden magnetic addition, save for after phase created
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
-         else
-            continue
-!            write(*,*)'3E Unknown typedefaction: ',typedefaction(jt)
+         elseif(typedefaction(jt).ge.25 .and. &
+! Qing-Xiong magnetic addition
+              typedefaction(jt).le.37) then
+            TDthisphase=TDthisphase+1
+            addphasetypedef(TDthisphase)=typedefaction(jt)
+         elseif(typedefaction(jt).eq.1905) then
+! Einstein
+            TDthisphase=TDthisphase+1
+            addphasetypedef(TDthisphase)=typedefaction(jt)
+         elseif(.not.(typedefaction(jt).eq.100.or.typedefaction(jt).eq.0)) then
+! give an alert if typedefaction is not 100
+            write(*,*)'3E Unknown typedefaction: ',typedefaction(jt)
          endif
          goto 310
       endif typedefcheck
@@ -4566,6 +4575,7 @@
                write(*,*)'3E check if ordered phase has  magnetic model'
 !   type(gtp_phase_add), pointer :: addrec
                do while(associated(addrec))
+!               write(*,*)'3E addrec: ',addrec%type,INDENMAGNETIC,XIONGMAGNETIC
                   if(addrec%type.eq.INDENMAGNETIC) goto 798
                   if(addrec%type.eq.XIONGMAGNETIC) goto 798
                   addrec=>addrec%nextadd
@@ -4598,7 +4608,7 @@
 !            if(.not.silent) write(kou,397) trim(ordpartph(thisdis)),nd1
             write(kou,397) trim(ordpartph(thisdis)),nd1,thisdis
 397         format('3E Phase ',a,' has order/disorder partition model',&
-                 ' summing first ',i2,'; thisdis: ',i2)
+                 ' adding first ',i2,'; thisdis: ',i2)
          else
             jl=0
             nd1=phlista(lokph)%noofsubl
@@ -4654,15 +4664,32 @@
          lokph=phases(iph)
 !         write(*,*)'3E typedefs for ',trim(name1),lokph,TDthisphase
          phasetypes: do jt=1,TDthisphase
-!            write(*,*)'3E typedef ',jt,addphasetypedef(jt)
+!            write(*,*)'3E manage typedef ',jt,addphasetypedef(jt)
             if(addphasetypedef(jt).eq.-1) then
 ! Inden magnetic for BCC
                call add_addrecord(lokph,'Y',indenmagnetic)
 !               call add_magrec_inden(lokph,1,-1)
             elseif(addphasetypedef(jt).eq.-3) then
-! Inden magnetic for FCC
+! Inden magnetic for FCC and other phases
                call add_addrecord(lokph,'N',indenmagnetic)
 !               call add_magrec_inden(lokph,1,-3)
+            elseif(addphasetypedef(jt).eq.1905) then
+! Einstein lowt model
+               call add_addrecord(lokph,' ',einsteincp)
+            else
+! Assumed Xiong magnetic, the factor 0.37 (BCC) or 0.25 (FCC) needed
+!               write(*,*)'3E Entering Qing-Xiongmagnetic ',addphasetypedef(jt)
+! in TDB files ALWAYS average bohr magenton numbers
+               phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHBMAV)
+               if(addphasetypedef(jt).eq.37) then
+! BCC
+                  call add_addrecord(lokph,'Y',xiongmagnetic)
+               elseif(addphasetypedef(jt).eq.25) then
+! FCC and others
+                  call add_addrecord(lokph,'N',xiongmagnetic)
+               else
+                  write(*,*)'3E unknown addition: ',lokph,addphasetypedef(jt)
+               endif
             endif
             if(gx%bmperr.ne.0) goto 1000
          enddo phasetypes
@@ -5065,7 +5092,13 @@
       newtypedef: if(index(longline,' SEQ').gt.0) then
          typedefaction(nytypedef)=100
       else
+         km=index(longline,' EINSTEIN ')
+         einstein: if(km.gt.0) then
+            typedefaction(nytypedef)=1905
+            exit newtypedef
+         endif einstein
          km=index(longline,' MAGNETIC ')
+!         write(*,*)'3E typedef: ',trim(longline),km
          magnetic: if(km.gt.0) then
             ip=km+9
 !73           format(a,i3,' "',a,'"')
@@ -5073,8 +5106,19 @@
             if(buperr.ne.0) then
                gx%bmperr=buperr; goto 1000
             endif
+            if(xxx.eq.zero) then
+! this is Qing-Xion magnetic model, next number is 0.37 for BCC or 0.25
+               call getrel(longline,ip,xxx)
+               if(buperr.ne.0) then
+                  gx%bmperr=buperr; goto 1000
+               endif
+               typedefaction(nytypedef)=int(1.0D2*xxx)
+!               write(*,*)'3E Qing-Xiong magnetic model',nytypedef,&
+!                    typedefaction(nytypedef)
+            else
 ! this can be -1 for BCC or -3 for FCC, HCP and other phases
-            typedefaction(nytypedef)=int(xxx)
+               typedefaction(nytypedef)=int(xxx)
+            endif
          else
             km=index(longline,' DIS_PART ')
             never=1

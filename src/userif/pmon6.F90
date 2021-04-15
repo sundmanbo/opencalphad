@@ -121,7 +121,7 @@ contains
 ! used for element data and R*T
     double precision h298,s298,rgast
 ! temporary reals
-    double precision xxx,xxy,xxz,totam,cpham,xpara(2)
+    double precision xxx,xxy,xxz,totam,cpham,xpara(2),gms
 ! input data for grid minimizer
     double precision, dimension(maxel) :: xknown,aphl
 ! arrays for grid minimization results
@@ -976,16 +976,20 @@ contains
                      cline,last,j4,idef,'?Amend magnetism')
                 if(buperr.ne.0) goto 990
                 if(j4.eq.0) then
-! Qing, Xiong modification of Inden-Hillert-Jarl magnetic model has AFF=0
-                   call gparcdx('BCC type phase: ',cline,last,1,ch1,'N',&
+! Inden-Hillert-Qing-Xiong magnetic model has AFF=0
+                   call gparcdx('BCC type phase: ',cline,last,1,chz,'N',&
                         '?Amend magnetism')
                    call gparcdx('Using individual Bohr magnetons: ',&
                         cline,last,1,ch1,'N','?Amend magnetism')
-                   if(ch1.ne.'N') then
+                   if(.not.(ch1.eq.'Y' .or. ch1.eq.'y')) then
+!                      write(*,*)'PMON use BMAG parameter as average'
                       call set_phase_status_bit(lokph,PHBMAV)
+                   else
+                      write(*,*)'PMON mark use IBM parameter'
                    endif
+! xiongmagnetic is a predefined addition index, chz is Y or y for BCC
                    j2=xiongmagnetic
-                   call add_addrecord(lokph,ch1,xiongmagnetic)
+                   call add_addrecord(lokph,chz,xiongmagnetic)
                 else
                    if(j4.eq.-1) then
 ! Inden magnetic for BCC
@@ -1028,22 +1032,23 @@ contains
 !....................................................
              case(4) ! amend phase <name> addition twostate_liquid model
                 write(kou,667)
-667             format('This addition require THET parameters for the',&
+667             format('This addition require LNTH parameters for the',&
                      ' Einstein T of the amorphous state'/'and G2 parameters',&
                      ' for the transition to the liquid state.')
-! NEW set bit to allow G2 to be composition independent
-                call gparcdx('Is G2 composition dependent? ',&
-                     cline,last,1,ch1,'Y','?Amend twostate liquid')
+! WRONG IDEA to set bit to allow G2 to be composition independent
+!                call gparcdx('Is G2 composition dependent? ',&
+!                     cline,last,1,ch1,'Y','?Amend twostate liquid')
 ! ensure ch1 is a captial letter!
-                call capson(ch1)
+!                call capson(ch1)
 ! if ch1 is N then the addition record will have the twostatemodel2(=12) value
 !     and the PH2STATE in the phase record must be set also:
 !     phlista(lokph)%status1=ibset(phlista(lokph)%status1,PH2STATE)
 !     But as phlista is protected it is set inside add_addrecord
                 modelx=twostatemodel1
 ! inside add_addrecord modelx can be changed to twostatemodel2 if G2 fixed
+                ch1='Y'
                 call add_addrecord(lokph,ch1,modelx)
-                call gparcdx('Is the addition calculated per mole atoms?',&
+                call gparcdx('Is the low T calculated per mole atoms?',&
                      cline,last,1,ch1,'Y','?Add per formula unit')
 ! The CP model calculates a molar Gibbs energy, must be multiplied with
 ! the number of atoms in the phase.
@@ -1064,7 +1069,7 @@ contains
 ! Einstein low T model
              case(7) ! amend phase <name> LowT_CP_model
                 call add_addrecord(lokph,' ',einsteincp)
-                write(*,*)'This addition requires the THET parameter'
+                write(*,*)'This addition requires the LNTH parameter'
                 call gparcdx('Is the addition calculated for one mole atoms? ',&
                      cline,last,1,ch1,'Y','?Add per formula unit')
 ! The CP model calculates a molar Gibbs energy, must be multiplied with
@@ -1886,7 +1891,8 @@ contains
 !             if(ch1.eq.'N' .or. ch1.eq.'n') mode=-1
 ! Seach for memory leaks
              call gparidx('How many times? ',cline,last,leak,1,'Calculate all')
-! leak<0 means forever ... not allowed
+! leak<0 means forever ... not allowed but leak=-1 generates output
+             iz=leak
              if(leak.lt.1) leak=1
 ! Minimize output
              listzero=.false.
@@ -1940,10 +1946,10 @@ contains
              jp=len_trim(line)+2
           endif
                          enddo
+                         call get_state_var_value('GMS ',gms,model,neweq)
                          write(lut,2052)neweq%eqno,&
-                              neweq%eqname(1:len_trim(neweq%eqname)),&
-                              neweq%tpval(1),trim(line)
-2052                     format(i5,2x,a,', T=',F8.2,', ',a)
+                              trim(neweq%eqname),neweq%tpval(1),gms,trim(line)
+2052                     format(i4,2x,a,', T=',F8.2,', GMS= ',1pe12.4,', ',a)
                       endif
                    endif
 ! extra symbol calculations ....
@@ -1966,7 +1972,8 @@ contains
 ! this statement must not be inside a parallel do ...
                 svss=size(firstash%eqlista)
 ! NOTE: $OMP  threadprivate(gx) declared in TPFUN4.F90 ??
-!$OMP parallel do private(neweq)
+!----- $OMP parallel do private(neweq)
+!$OMP parallel do private(neweq,gms)
                 paraloop: do i1=1,svss
 !                do i1=1,size(firstash%eqlista)
 ! the error code must be set to zero for each thread ?? !!
@@ -1978,8 +1985,10 @@ contains
                    if(neweq%weight.eq.zero) then
                       if(listzero) write(kou,2050)neweq%eqno,neweq%eqname
                    else
-! write output only for idef=1
-!$                     if(.TRUE. .and. idef.eq.1) then
+! skip this output
+!-!$                     if(.TRUE. .and. idef.eq.1) then
+!$                     if(.TRUE. .and. iz.lt.0) then
+! output only if "number of times" is negative above
 !$                      write(*,663)'Equil/loop/thread/maxth/error: ',&
 !$                             neweq%eqname,i1,omp_get_thread_num(),&
 !$                             threads,gx%bmperr
@@ -1988,35 +1997,32 @@ contains
 !$                        call calceq3(mode,.FALSE.,neweq)
 !$                     else
 ! note first argument zero means do not use grid minimizer
-                          call calceq3(mode,.FALSE.,neweq)
+                      call calceq3(mode,.FALSE.,neweq)
 !$                     endif
                       i2=i2+1
+                      line=' '
                       if(gx%bmperr.ne.0) then
                          write(kou,2051)gx%bmperr,neweq%eqno,neweq%eqname
-!                         write(*,*)'Error: ',gx%bmperr
                          gx%bmperr=0
                       elseif(idef.eq.1) then
-! extract names of stable phases
-                         jp=1
-                         line=' '
-                         do j3=1,nooftup()
-                            phtup=>phasetuple(j3)
+                         if(threads.eq.1) then
+                            jp=1
+                            do j3=1,nooftup()
+                               phtup=>phasetuple(j3)
          if(neweq%phase_varres(phtup%lokvares)%phstate.ge.PHENTSTAB) then
              call get_phasetup_name(j3,line(jp:))
              jp=len_trim(line)+2
           endif
-                         enddo
+                            enddo
+                         endif
+                         call get_state_var_value('GMS ',gms,model,neweq)
                          write(lut,2052)neweq%eqno,&
-                              neweq%eqname(1:len_trim(neweq%eqname)),&
-                              neweq%tpval(1),trim(line)
-                      endif
-                   endif
+                              trim(neweq%eqname),neweq%tpval(1),gms,trim(line)
 ! Listing extra'
-                   if(idef.eq.1) then
-                      call list_equilibrium_extra(lut,neweq,plotunit0)
-                      if(gx%bmperr.ne.0) then
-!                         write(kou,*)'*** Error ',gx%bmperr,' reset'
-                         gx%bmperr=0
+                         call list_equilibrium_extra(lut,neweq,plotunit0)
+                         if(gx%bmperr.ne.0) then
+                            gx%bmperr=0
+                         endif
                       endif
                    endif
                 enddo paraloop
@@ -2026,16 +2032,16 @@ contains
 !$             globaldata%status=ibclr(globaldata%status,GSNOACS)
 !$             globaldata%status=ibclr(globaldata%status,GSNOREMCS)
              endif gridmin
+             call cpu_time(xxz)
+             call system_clock(count=ll)
+             xxy=ll-j4
+! or should i2 be used ??
+             write(*,669)i2,(xxz-xxx)/i2,xxy/i2
+669        format(/'Calculated ',i8,' equlibria, average CPU and clock time',&
+                F12.8,1x,F9.5)
 ! repeat this until leak is zero, if leak negative never stop.
              leak=leak-1
-             call cpu_time(xxz)
              if(leak.ne.0) then
-                call system_clock(count=ll)
-                xxy=ll-j4
-! or should i2 be used ??
-                write(*,669)i2,(xxz-xxx)/i2,xxy/i2
-669        format(/'Calculated ',i8,' equlibria, average CPU and clock time',&
-                F12.8,F10.6)
                 goto 2060
              endif
 !
@@ -3472,9 +3478,11 @@ contains
 ! zero the relative standard deviation
 !          firstash%coeffrsd=zero
 !-------------------------
-       case(21) ! set optimizing_conditions
+       case(21) ! set optimizing_conditions, always propose the default!
+          optacc=1.0D-3
           call gparrdx('LMDIF accuracy: ',cline,last,xxx,optacc,&
                '?Set optimizer conditions')
+          write(kou,'("LMDIF accuracy set to ",1pe12.4)')xxx
           optacc=xxx
 !-------------------------
        case(22) ! set range_experimental_equilibria
@@ -4170,6 +4178,7 @@ contains
           END SELECT listphase
 !------------------------------
 ! THIS IS ALSO THE SHOW command and list model-parameter-value case(17) of LIST
+! SHOW STATE VARIABLE VALUE
        case(4,17)  ! list state_variable or model_parameter_value, or SHOW
 !6099      continue
           if(btest(ceq%status,EQNOEQCAL) .or. btest(ceq%status,EQFAIL)) then
@@ -4260,7 +4269,7 @@ contains
 !          write(*,*)'pmon back from get_state_var_value',xxx,' :',trim(model)
 !             write(*,*)'PMON: show xliqni should come here 6 ... ',gx%bmperr
              if(gx%bmperr.eq.0) then
-                write(lut,6108)model(1:len_trim(model)),xxx
+                write(lut,6108)trim(model),xxx
 6108            format(1x,a,'=',1PE15.7)
              else
                 gx%bmperr=0

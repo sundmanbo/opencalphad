@@ -2637,10 +2637,16 @@
          endif checkprop
          addrec=>addrec%nextadd
       enddo addloop
-! we found no addition for this parameter!!
-      if(zz.gt.100) zz=zz/100
 ! propid is an array initiated in gtp3A.F90, zz>100 means component unique
 ! VERY SPECIAL typty=26ij, zz=26 means UNIQUAC parameter, has no addition!!
+      if(zz.gt.100 .and. i1.eq.26) then
+         if(propid(i1)%symbol.ne.'UQT ') then
+            write(*,*)'3B *** WARNING model parameter identifers confused!'
+            stop
+         endif
+      endif
+! we found no addition for this parameter!!
+      if(zz.gt.100) zz=zz/100
       mpiwarning: if(zz.ne.26) then
 ! give warning first time only!
          do i2=1,nundefmpi

@@ -1,0 +1,74 @@
+@$ running test macros from map15
+@$ Frequetly there is a crash after map15, I assume because no memory left
+
+set echo Y
+
+@& *********************************************************
+@$ The Mo-Ni-Re isothermal section at 2500, 1500 and 500 K.
+@$ *********************************************************
+
+mac ./map15
+
+@& *********************************************************
+@$ The isopleth C-13wCr-Fe with a 4 phase invariant equilinrium
+@$ *********************************************************
+
+mac ./map16
+
+@& *********************************************************
+@$ The Al-Fe binary with a dashed A2/B2 transition line
+@$ *********************************************************
+
+mac ./map17
+
+@& *********************************************************
+@$ The Al-Mg-Zn isopleth at x(zn)=0.05
+@$ *********************************************************
+
+mac ./map18
+
+@& *********************************************************
+@$ Testing the UNIQUAC model
+@$ *********************************************************
+
+mac ./uniquac
+
+@& *********************************************************
+@$ Calculation for 20 elements and 191 phases using COST507
+@$ *********************************************************
+
+mac ./allcost
+
+@& *********************************************************
+@$ Calculating 21 equilibria in parallel
+@$ First test of parallel calculations
+@$ *********************************************************
+
+mac ./parallel1
+
+@& *********************************************************
+@$ Enter a table with many equilibria and calculate all
+@$ Can be used to test parallel calculations
+@$ *********************************************************
+
+mac ./parallel2
+
+@& *********************************************************
+@$ Assessment using fictitious binary experimental data
+@$ *********************************************************
+
+mac ./opttest1
+
+@& *********************************************************
+@$ Assessment start of the Cu-Mg case study must be run by itself
+@$ on the directory with the macro files
+@$ *********************************************************
+@$
+@$ mac ./opttest2
+@$
+@& *********************************************************
+@$ that is all
+@$ *********************************************************
+
+set inter
+

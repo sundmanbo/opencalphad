@@ -445,7 +445,7 @@
    integer, parameter :: lenfnsym=16
    double precision, parameter :: zero=0.0D0,one=1.0D0
    integer i,j,jss,levelp,mterm,ipower,nterm
-   double precision sign,val
+   double precision sign,val,another
    character ch1*1
    logical zeroc
    character symbol*(lenfnsym),unary(nunary)*6
@@ -531,7 +531,7 @@
       goto 1000
    endif
 !   write(*,202)ip,string(1:ip+5)
-!202 format('Expect real: ',i5,' >',a,'< ')
+!202 format('Expected real at position: ',i5,' in >',a,'< ')
    call getrel(string,ip,val)
    if(buperr.ne.0) then
       gx%bmperr=buperr
@@ -701,6 +701,7 @@
       koder(3,nterm)=ipower
       goto 400
    elseif(ch1.eq.'*') then
+!      write(*,*)'3Z we found a multiplication: ',trim(string),ip
       ip=ip+1
       ch1=string(ip:ip)
       if(ch1.eq.'*') then
@@ -712,17 +713,34 @@
          endif
          koder(3,nterm)=ipower
          goto 400
-      else
+      elseif(ch1.ge.'0' .and. ch1.le.'9') then
+! multiplying value in coeff(nterm)  with another number
+!         write(*,*)'3Z string and position: "',trim(string),'"',ip
+!         write(*,*)'3Z multplication followed by digit: ',ch1,nterm
+!         write(*,*)'3Z data: ',buperr,coeff(nterm),trim(string(ip:))
+! Does getrel increment ip?? NO
+         call getrel(string,ip,another)
+         if(buperr.ne.0) then
+!            write(*,*)'2Z error from getrel',buperr
+            gx%bmperr=buperr; goto 1000
+         endif
+!         write(*,'(a,i2,2(1pe12.4))')'3Z multiplying two numbers: ',nterm,&
+!              coeff(nterm),another
+         coeff(nterm)=coeff(nterm)*another
+! now we expect an operator or ) or ;
+         goto 400
+!      else
 ! multiply symbol with something ....
 !         write(*,*)'ct1xfn 4: ',nterm,ip,coeff(nterm)
 !654      format(a,i5,'"',a,'"',i5)
       endif
+! new we expect a symbol or end of expression
       goto 200
    elseif(ch1.eq.';') then
       goto 900
    endif after
-   write(*,777)'error ct1xfn: ',ch1,ip,string(max(1,ip-10):ip+10)
-777 format(a,'>',a,'<',i3,'>',a,'<')
+   write(*,777)ch1,ip,trim(string)
+777 format('3Z Illegal character "',a,'" at pos ',i3,' in expression "',a,'"')
    gx%bmperr=4005
    goto 1000
 ! no more characters, check!!
@@ -3256,7 +3274,6 @@
 !                        cfun1%coefs(i2,i1b)=ccc
                         cfun1%coefs(i2,i1b)=ccc
                         exit funrefif
-!                        goto 777
                      endif
                   endif
 ! else give up
@@ -3273,7 +3290,6 @@
 ! we must create a new coefficient array with the funref coefficents
 ! multiplied with the current coef within the current T-range
 ! It may be necessary to increase the number of T-ranges
-!777            continue
                if(.not.allocated(cadd)) then
 ! we have more than 6 functions added in soma cases ...
                   allocate(cadd(10))

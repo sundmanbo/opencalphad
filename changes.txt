@@ -19,13 +19,29 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.04.15 OC version 6.028: In the Makefile for Linux I have changed
+to use X11 plot driver in GNUPLOT by default.  For MacOS the qt plot
+driver is the default and for Windows the wxt.  The user can change
+this interactivly also for each plot.
+
+The "model-parameter-identifier" for the Einstein T, hithero known
+as THET has changed to LNTH as it is the value of LN(theta) which
+is used.  The reason to use LN(theta) is that the composition dependence
+is better expressed using the logarithm.
+
+The Inden-Hillert-Qing-Xiong model for magnetism has been corrected
+according to the paper 2001 by Qing and Sundman.  It is now possible
+to include this magnetic model as well as the Einstein low T heat
+capacity model in TDB files.  Up to know it was only possible to enter
+these models interactively or from macro files.
+
 2021.04.07 OC version 6.027: Finally it is possible to enter symbols
 that include values of model parameter identifiers.  This may not be
-something everyone does every day and I had nvere tested it but
+something everyone does every day and I had never tested it but
 sometimes it may be useful.  I have also fixed that one can use
 conditions on constituent fractions in phass with ionic constituent.
 I was surprised it was not already allowed but it is true I had never
-had any reason to tested it.  A number of minor bugs fixed.
+had any reason to test it.  A number of minor bugs fixed.
 
 I have had a look at TQlib and slightly updated the crfe example.
 Note that on Github there are several Python-OC libraries which may be

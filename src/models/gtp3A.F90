@@ -201,10 +201,10 @@
 !.......................................
 ! Debye or Einstein temperature 7
    npid=npid+1
-   propid(npid)%symbol='THETA '
-   propid(npid)%note='Debye or Einstein temp'
+   propid(npid)%symbol='LNTH '
+   propid(npid)%note='LN(Debye or Einstein temp)'
    propid(npid)%status=0
-! THETA cannot depend on T but on P
+! LNTH cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !....................................... 8
 ! Molar volume at T=298.15, 1 bar
@@ -256,7 +256,7 @@
 ! RT*ln(Frequency factor of mobility)  14
    npid=npid+1
    propid(npid)%symbol='MF '
-   propid(npid)%note='RT*ln(mobility freq.fact.)'
+   propid(npid)%note='RT*LN(mobility freq.fact.)'
    propid(npid)%status=0
 ! MF is specific for a constituent
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
@@ -282,7 +282,7 @@
 ! Smooth unit step function (or second Einstein function) 17
    npid=npid+1
    propid(npid)%symbol='THT2 '
-   propid(npid)%note='Smooth step function Tcrit'
+   propid(npid)%note='LN(Smooth step function Tcrit)'
    propid(npid)%status=0
 ! THT2 cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)

@@ -228,7 +228,7 @@
 ! this means the phase name is #, indicating all phases including dormant
 ! Note that # is used to indicate composition sets, thus ignore #2 etc
              hashtag=.TRUE.
-             write(*,*)'SMP2B hastag set true',trim(pltax(iax)),i
+!             write(*,*)'SMP2B hastag set true',trim(pltax(iax)),i
           endif
           if(wildcard) then
              write(*,*)'in OCPLOT2 one axis variable with wildcard allowed'

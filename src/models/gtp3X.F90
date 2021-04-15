@@ -2544,12 +2544,13 @@
             yionva=gz%yfrint(2)
          else
 ! I do not know what kind of parameter this is
-            write(*,28)'3X: ionic liquid model parameter not implemented',&
-                 gz%intlevel,gz%endcon(1),gz%intcon(1),gz%intcon(2),&
-                 gz%endcon(2),gz%iq,iliqva
-28          format(a/'Level: ',i2,' constituents? ',i2,',',i2,',',i2,':',i2,&
-                 5x,5i3,2x,l2)
-            gx%bmperr=4342; goto 1000
+! THIS ERROR OCCUR ONLY IN PARALLEL
+!            write(*,28)'3X: unknown I2SL parameter on level: ',&
+!                 gz%intlevel,gz%endcon(1),gz%intcon(1),gz%intcon(2),&
+!                 gz%endcon(2),gz%iq,iliqva
+28          format(a,i2,': ',i2,',',i2,',',i2,':',i2,5x,5i3,2x,l2)
+!            gx%bmperr=4342; goto 1000
+            goto 1000
          endif
 ! other ternary parameters in ionic liquid OK, no extra vacancy fraction
       endif

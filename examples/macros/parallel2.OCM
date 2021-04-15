@@ -507,14 +507,13 @@ calc all Y
 1
 
 @&
-@$ Calculate without gridminimizer, note the speed
-@$ When calculated in parallel even more ...
-calc all N
-1
-
-@&
-@$ calculate and write the output on a file
+@$ calculate and write the output on a file  ... -1 means info about threads
 calc /out=outpara all N
+-1
+@&
+@$ Calculate without gridminimizer, note the speed
+@$ When calculated in parallel even more
+calc all N -1
 
 @&
 @$ Run without parallel with output on file for comparison
@@ -541,6 +540,17 @@ set bit glo 15 no
 
 @&
 
+@&
+
+@$ Check data for one equilibrium
+sel eq 103
+c e
+debug symbol cp 51.1372166
+debug symbol x(fcc,c) 0.463272739
+debug symbol tc(bcc) 1033.90240
+@&
+set inter
+
 @$ =============== measuring ====================
 @$ Running OC5-49 2019-08-17 looping "c a n 10"
 @$ on my MacPro with 4 CPU 2.2 GHz Intel Core i7, 16 GB 1600 MHz DDR3:
@@ -556,7 +566,7 @@ set bit glo 15 no
 @$ which means 0.286 miliseconds/iteration on DELL, 1.3 times faster CPU
 @$
 @$ This system has 6 component system with 40 phases, 503 TPfuns and parameters
-@$ (the CPU time also includes listing some results on a file)
+@$ (the times also includes listing some results on a file)
 @$ ==============================================
 @$ Running OC6-14 2020-10-04 looping  "c a n 10"
 @$ on my DELL 5511 Latitude with Intel core i7-1085H 10 gen 2.27 GHz, 16 GB RAM
@@ -565,14 +575,8 @@ set bit glo 15 no
 @$ New DELL is 1.48 times faster than the old DELL (single CPU)
 @$ New DELL is 1.97 times faster than the MAC  (single CPU)
 @$ ==============================================
-@&
-
-@$ Check data for one equilibrium
-sel eq 103
-c e
-debug symbol cp 51.1372166
-debug symbol x(fcc,c) 0.463272739
-debug symbol tc(bcc) 1033.90240
-@&
-set inter
-
+@$ Running OC6-28 2021-05-08 looping  "c a n 10"
+@$ on my DELL 5511 Latitude with Intel core i7-1085H 10 gen 2.27 GHz, 16 GB RAM
+@$   8.16 seconds CPU and 8156 clockcykles with  1 thread
+@$  18.83 seconds CPU and 1671 clockcykles with 12 threads, factor 4.88 faster 
+@$ ==============================================
