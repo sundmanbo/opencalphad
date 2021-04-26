@@ -734,6 +734,9 @@
 ! problem in ct1xfn to start a function with +1 or 1
       text=' +1-.880323235*T**(-1)-.152870878*T**3-.00679426123*T**9'//&
            '-.00152870878*T**15-5.67238878E-04*T**21'
+! CHANGE OF REFERENCE STATE OF THE ELEMENTS
+!      text=' +1-.152870878*T**3-.00679426123*T**9'//&
+!           '-.00152870878*T**15-5.67238878E-04*T**21'
 !      write(*,*)'3H emm 1: ',trim(text)
       ip=1
       nc=ncc
@@ -746,6 +749,9 @@
 ! Magnetic function above Curie/Neel Temperature
       text='-.0403514888*T**(-7)-.00134504963*T**(-21)'//&
            '-2.84834039E-04*T**(-35)-1.02937472E-04*T**(-49)'
+! CHANGE OF REFERENCE STATE OF THE ELEMENTS
+!      text=' +.880323235*T**(-1)-.0403514888*T**(-7)-.00134504963*T**(-21)'//&
+!           '-2.84834039E-04*T**(-35)-1.02937472E-04*T**(-49)'
 !       write(*,*)'3H emm 2: ',trim(text)
       ip=1
       nc=ncc
@@ -754,15 +760,15 @@
       call ct1mexpr(nc,coeff,koder,lhigh)
       if(gx%bmperr.ne.0) goto 1000
 ! this is 1/(p*D) in eq. A9 in Qing et al, p=0.37
-! 1/p-1 is (1-0.4)/0.4 = 0.6/0.4 = 1.5
-!      dval=2.5D0/(0.33461979D0+1.5D0*0.49649686D0)
-      dval=one/(0.49649686D0+0.37*(0.33461979D0-0.49649686D0))
+!   dval=0.880323235D0
+      dval=one/(0.49649686D0+0.37D0*(0.33461979D0-0.49649686D0))
 !      write(*,*)'3H added Qing-Xiong magnetic contribution to a bcc phase'
    else
 !------------
 ! fcc
 ! Magnetic function below Curie/Neel Temperature
-      text='+1-.842849633*T**(-1)-.174242226*T**3-.00774409892*T**9'//&
+! REFERENCE STATE AT T=0
+      text=' +1-.842849633*T**(-1)-.174242226*T**3-.00774409892*T**9'//&
            '-.00174242226*T**15-6.46538871E-04*T**21'
       ip=1
       nc=ncc
@@ -771,8 +777,9 @@
       call ct1mexpr(nc,coeff,koder,llow)
       if(gx%bmperr.ne.0) goto 1000
 ! Magnetic function above Curie/Neel Temperature
-      text='-.0261039233*T**(-7)-8.70130777E-04*T**(-21)'//&
-           '-1.84262988E-04*T**(-35)-6.65916411E-05*T**(-49)'
+      text=' -.0261039233*T**(-7)'//&
+           '-8.70130777E-04*T**(-21)-1.84262988E-04*T**(-35)'//&
+           '-6.65916411E-05*T**(-49)'
       ip=1
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
@@ -781,7 +788,8 @@
       if(gx%bmperr.ne.0) goto 1000
 ! this is 1/(p*D) in eq. A9 in Qing et al for FCC, p=0.25; 1/p-1 =3.0
 !      dval=4.0D0/(0.33461979D0+3.0D0*0.49649686D0)
-      dval=one/(0.49649686D0+0.25*(0.33461979D0-0.49649686D0))
+!     dval=0.842849633D0
+      dval=one/(0.49649686D0+0.25D0*(0.33461979D0-0.49649686D0))
 !      write(*,*)'3H added Qing-Xiong magnetic contribution to a non-bcc phase'
    endif
 ! reserve an addition record
@@ -850,13 +858,14 @@
    TYPE(gtp_phase_add), pointer :: lokadd
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer itc,itn,ibm,jl,noprop,ik,k,jk,j,jxsym
+   integer itc,itn,ibm,jl,noprop,ik,k,jk,j,jxsym,ip
    double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn,msize
-   double precision dtaodt,dtaodp,beta,d2taodp2,d2taodtdp,tc,tv
+   double precision dtaodt,dtaodp,beta,d2taodp2,d2taodtdp,tc,tv,plus,fixit
    double precision tao2(2),ftao(6),dtao(3,mc),d2tao(mc*(mc+1)/2)
    double precision addgval(6),daddgval(3,mc),d2addgval(mc*(mc+1)/2)
    double precision tn,tcsave,tnsave,gmdo_inf,dgmdo_infdt,d2gmdo_infdt2
    logical addpermole
+   character line*128,tps(2)*3
    TYPE(tpfun_expression), pointer :: exprot
 ! dgdt = Gmagn/T + RT*df/dtao*dtao/dT*ln(beta+1)
 ! dgdp = RT df/dtao*dtao/dP*ln(beta+1)
@@ -921,14 +930,18 @@
       goto 1000
    endif
 ! we should use the appropriate tao=t/tc or tao=t/tn
-! use AF model unless tc negative, both cannot be negative here, why not?
+! BUT WE MAY HAVE BOTH tc>0 and tn>0 !!
+! use AF model unless tc negative, both cannot be negative here (test above)
+! BUT BOTH CAN BE POSITIVE!!
+   tcsave=tc
    if(tc.le.zero) then
-! no ferro but antiferro.  tn>0 as both tn and tc checked against zero above
-      tcsave=tc
+! no ferro but maybe antiferro. One of them must be positive here!!
+! Divide by AFF=3.0?
+!      tc=tn/3.0D0
+!      beta=beta/3.0D0
       tc=tn
 ! we use this index below to extract its value
       itc=itn
-! if tn negative use tc
 !   elseif(tn.gt.zero) then
 ! we have both AFM and FM, use FM, i.e. tc so nothing to do
    endif
@@ -942,17 +955,57 @@
 ! but as tc depend on the constitution that is maybe not so often.
    if(tao.lt.one) then
       exprot=>lokadd%explink(1)
+! VERY CLUMSY bug for debugging
    else
       exprot=>lokadd%explink(2)
    endif
+!   plus=one
+   plus=zero
 ! calculate function and derivatives wrt T, functions already created
    call ct1efn(exprot,tao2,ftao,ceq%eq_tpres)
+! copied from list_addition
+!   tps(1)='tao'
+!   tps(2)='err'
+!   ip=1
+!   line=' '
+!   call ct1wfn(exprot,tps,line,ip)
+!   write(*,'(a,a,a/2(1pe12.4))')'f(tao)=',trim(line),';',tao,ftao(1)
+!   write(*,'(a,2(1pe12.4))')'3H tao, f(tao): ',tao,ftao(1)
+!   call wrice(kou,4,8,78,line(1:ip))
+! the functions entered in explink use reference state at T=infinity
+! correct for using reference state at T=0
+! -1.0D0+0.38438376D0*lokadd%constants(1)*T/tc
+! lokadd%constants(1) = 1/(p*D) in eq. A9 in paper by Qing
+! NOTE tc may depend on P, we need the dtaodp and d2taodp2
+   dtaodp=-tao/tc*phres%gval(3,itc)
+   d2taodtdp=-one/tc*phres%gval(3,itc)
+   d2taodp2=2.0d0*tao/tc**2*phres%gval(3,itc)-tao/tc*phres%gval(6,itc)
+!
+   fixit=0.38438376D0*lokadd%constants(1)
+! this is for BCC
+!   fixit=0.880323235D0
+   fixit=zero
+   ftao(1)=ftao(1)+plus*(fixit*tv/tc-one)
+   ftao(2)=ftao(2)+plus*fixit/tc
+   ftao(3)=ftao(3)-plus*fixit*tv*dtaodp/tc**2
+! this is d2ftaodT2, no change
+!   ftao(4)=ftao(4)
+! this is d2ftaodTdP
+   ftao(5)=ftao(5)-plus*fixit*dtaodp/tc**2
+   ftao(6)=ftao(6)+2.0D0*plus*fixit*tv*d2taodp2/tc**3
+!   if(plus.gt.zero) then
+!      write(*,'(a,e17.9,a,e12.4)')'3H f(tao) correction: -1+',&
+!           fixit,'/tao;',beta
+!   else
+!      write(*,'(a,e14.6,a,e14.6)')'3H f(tao) correction: +1-',&
+!           fixit,'/tao;',beta
+!   endif      
+!------------------------------------------------------   
    logb1=log(beta+one)
    invb1=one/(beta+one)
    gmagn=rt*ftao(1)*logb1
 !
 ! Calculate Gmdo_inf/RT, which value to use for "p"?
-! 1/(p*D) in eq. A9 in paper by Qing is lokadd%constants(1)
 ! THERE ARE T and composition derivatives of this also!!
 !   gmdo_inf=-logb1*(one-0.38438376D0*lokadd%constants(1)/tao)
 !   dgmdo_infdt=-logb1/tv
@@ -960,41 +1013,50 @@
 !   write(*,'(a,2(1pe14.6),a/5(1pe12.4))')'3H Gmdo(inf): ',&
 !        rgasm*logb1*0.38438376D0*lokadd%constants(1)*tc,rgasm*logb1,'*T',&
 !        rgasm,logb1,0.38438376D0,lokadd%constants(1),tc
-   gmdo_inf=-rgasm*logb1*(tv-0.38438376D0*lokadd%constants(1)*tc)
-   dgmdo_infdt=-rgasm*logb1
-   d2gmdo_infdt2=zero
+!   gmdo_inf=-rgasm*logb1*(tv-0.38438376D0*lokadd%constants(1)*tc)
+!   dgmdo_infdt=-rgasm*logb1
+!   d2gmdo_infdt2=zero
 !   write(*,88)'3H gmdo_inf: ',tv,gmdo_inf,dgmdo_infdt
-88 format(a,F8.2,4(1pe12.4))
+!88 format(a,F8.2,4(1pe12.4))
 !
 !    write(*,98)'3H cm 97: ',tc,beta,ftao(1),logb1,rt
 !    write(*,98)'3H cm 98: ',rt*gmagn,rt*(gmagn+phres%gval(1,1)),tcx,iafftc
 !98  format(a,5(1PE14.6))
 !
    dtaodt=one/tc
-   dtaodp=-tao/tc*phres%gval(3,itc)
-   addgval(1)=gmagn+gmdo_inf
-   addgval(2)=gmagn/tv+rt*ftao(2)*dtaodt*logb1+dgmdo_infdt
-   addgval(3)=rt*ftao(2)*dtaodp*logb1+rt*ftao(1)*invb1*phres%gval(3,ibm)+&
-        d2gmdo_infdt2
+! d2taodT2=zero
+! this already calculated above
+!   dtaodp=-tao/tc*phres%gval(3,itc)
+!   addgval(1)=gmagn+gmdo_inf
+!   addgval(2)=gmagn/tv+rt*ftao(2)*dtaodt*logb1+dgmdo_infdt
+!   addgval(3)=rt*ftao(2)*dtaodp*logb1+rt*ftao(1)*invb1*phres%gval(3,ibm)+&
+!        d2gmdo_infdt2
+   addgval(1)=gmagn
+   addgval(2)=gmagn/tv+rt*ftao(2)*dtaodt*logb1
+   addgval(3)=rt*ftao(2)*dtaodp*logb1+rt*ftao(1)*invb1*phres%gval(3,ibm)
+! make sure d2G/dT2 is calculated and stored so it can be listed
+   addgval(4)=(2.0D0*ftao(2)+tv*ftao(4)*dtaodt)*rgasm*dtaodt*logb1
 !   phres%gval(1,1)=phres%gval(1,1)+addgval(1)/rt
 !   phres%gval(2,1)=phres%gval(2,1)+addgval(2)/rt
 !   phres%gval(3,1)=phres%gval(3,1)+addgval(3)/rt
 ! save these in record
 ! NOTE if parallel calculation the same stored values %propval will be
 ! written by all threads so they must not be used!!
-! They are included only for listing and debugging
-   do j=1,3
-      lokadd%propval(j)=addgval(j)
-      phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
-   enddo
 !   write(*,77)lokadd%type,(lokadd%propval(j),j=1,4)
-77 format('3H addition ',i2,': ',4(1pe12.4))
-! ignore second derivatives if no derivatives wanted
+!77 format('3H addition ',i2,': ',4(1pe12.4))
+!   if(moded.eq.0) then
    if(moded.eq.0) then
-! make sure Cp is calculated and stored so it can be listed
-      addgval(4)=2.0d0*rgasm*ftao(2)*dtaodt*logb1+&
-           rt*ftao(4)*(dtaodt)**2*logb1
-      lokadd%propval(4)=addgval(4)
+! They are included only for listing and debugging
+      if(btest(lokadd%status,ADDPERMOL)) then
+         addpermole=.TRUE.; msize=phres%abnorm(1)
+      else
+         msize=one
+      endif
+      do j=1,4
+         lokadd%propval(j)=msize*addgval(j)
+         phres%gval(j,1)=phres%gval(j,1)+msize*addgval(j)/rt
+      enddo
+! ignore second derivatives if no derivatives wanted
       goto 1000
    endif
 ! Now all derivatives with respect to fractions ...
@@ -1006,11 +1068,11 @@
 !    dtaodt=one/tc
 !    dtaodp=-tao/tc*phres%gval(3,itc)
 ! d2taodt2 is zero
-   d2taodtdp=-one/tc*phres%gval(3,itc)
-   d2taodp2=2.0d0*tao/tc**2*phres%gval(3,itc)-tao/tc*phres%gval(6,itc)
+!   d2taodtdp=-one/tc*phres%gval(3,itc)
+!   d2taodp2=2.0d0*tao/tc**2*phres%gval(3,itc)-tao/tc*phres%gval(6,itc)
 ! 1-6 means F, F.T, T.P, F.T.T, F.T.P and F.P.P
-   addgval(4)=2.0d0*rgasm*ftao(2)*dtaodt*logb1+&
-        rt*ftao(4)*(dtaodt)**2*logb1
+!   addgval(4)=2.0d0*rgasm*ftao(2)*dtaodt*logb1+&
+!        rt*ftao(4)*(dtaodt)**2*logb1
    addgval(5)=rgasm*ftao(2)*dtaodp*logb1+&
         rgasm*ftao(1)*invb1*phres%gval(3,ibm)+&
         rt*ftao(4)*dtaodt*dtaodp*logb1+&
@@ -1111,15 +1173,18 @@
       enddo
    enddo
 !    write(*,*)'3H cm 7: ',rt*phres%gval(1,1),addgval(1)
-! note phres%gval(1..3,1) already calculated above
-   do j=4,6
+! note phres%gval(1..3,1) already calculated above, multiplied with misize??
+   do j=1,6
       lokadd%propval(j)=msize*addgval(j)
       phres%gval(j,1)=phres%gval(j,1)+msize*addgval(j)/rt
    enddo
 ! we may have destroyed the original value of tc if we have AFM
    tc=tcsave
+!   write(*,900)tc,tn,tao,beta,phres%gval(4,1),lokadd%propval(4)
+900 format('3H QX magn1: ',2F9.2,2F9.3,2(1pe12.4))
 ! jump here if no magnetic contribution
 1000 continue
+!   write(*,900)tc,tn,tao,beta,phres%gval(1,1),lokadd%propval(1)
    return
  end subroutine calc_xiongmagnetic
 

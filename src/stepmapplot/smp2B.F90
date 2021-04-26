@@ -221,7 +221,8 @@
        endif
 !       wildcard1: if(index(pltax(iax),'*').gt.0) then
        wildcard1: if(index(pltax(iax),'*').gt.0 .or. &
-            index(pltax(iax),'#').gt.0) then
+            index(pltax(iax),'(#)').gt.0) then
+! searching for (#) avoids problem when # is used for comp. sets or sublattatice
           i=index(pltax(iax),'#')
           if(i.gt.0 .and.&
                (pltax(iax)(i+1:i+1).eq.')'.or.pltax(iax)(i+1:i+1).eq.',')) then

@@ -166,6 +166,12 @@
             1pe12.4,' CPU s and ',i7,' cc')
     endif
     if(len_trim(savedconditions).gt.0) then
+!       write(*,*)'SMP2A restore: ',trim(savedconditions)
+       if(index(savedconditions,'>=').gt.0) then
+! conditions including a fix phase, do not try to restore 
+          write(*,*)'SMP2A cannot restore original conditions'
+          goto 1100
+       endif
 !       write(*,*)'Restoring all initial conditions: '
 !       write(*,*)trim(savedconditions)
 ! ij is incremented by 1 inside set_condition
@@ -177,6 +183,17 @@
 !       It may create loss of memory but ... what the heck ... buy more!
 !       call list_conditions(kou,ceq)
 !       write(*,*)'SMP2A remove all conditions'
+! this does not work because axis and maybe other things refer to
+! conditions by index.  If I remove all condtions to restore them
+! these indices become invalid    
+       if(nax.eq.1) then
+          write(*,*)'SMP2 Conditions can be changed by some STEP commands'
+       endif
+       goto 1100
+!-----------------------------------------------------
+! I am not sure it is critical to restore conditions ...
+! it could be some cases when conditions are modified in STEP TZERO/SCHEIL/PARA
+!-----------------------------------------------------
        call set_condition('*:=none ',ij,starteqs(1)%p1)
 !       call list_conditions(kou,ceq)
        ij=0

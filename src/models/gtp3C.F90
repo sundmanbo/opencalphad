@@ -1613,7 +1613,27 @@
            phlista(lokph)%noofsubl,phlista(lokph)%status1,&
            ceq%phase_varres(lokcs)%status2
 110   format(a,' model: ',a/'  Number of sublattices: ',i2,&
-           ', status: ',z8,1x,z8,5x)
+           ', status: ',z8,1x,z8,2x,a)
+      L78=' '
+      knr=0
+      if(btest(phlista(lokph)%status1,PHFORD)) then
+! Phases as FCC or BCC permutations
+         L78='  FCC permutations.'
+         knr=20
+      elseif(btest(phlista(lokph)%status1,PHBORD)) then
+         L78='  BCC permutations'
+         knr=20
+      endif
+      if(btest(phlista(lokph)%status1,PHMFS)) then
+! This phase has a disordered fraction set
+         if(btest(phlista(lokph)%status1,PHSORD)) then
+            L78(knr:)='  Ordered part not subtrated.'
+         else
+            L78(knr:)='  Ordered part subracted.'
+         endif
+         knr=len_trim(L78)
+      endif
+      if(knr.gt.0) write(lut,'(a)')trim(L78)
    endif
    addrec=>phlista(lokph)%additions
    lastadd: do while(associated(addrec))
@@ -1797,8 +1817,8 @@
 !                                123456789.123456789.1234
    elseif(btest(phlista(lokph)%status1,PHBORD)) then
       special(1:1)='B'; modelid='BCC permutation ordering'
-   elseif(btest(phlista(lokph)%status1,PHSORD)) then
-      special(1:1)='S'; modelid='Intermetallic ordering'
+!   elseif(btest(phlista(lokph)%status1,PHSORD)) then
+!      special(1:1)='S'; modelid='Intermetallic ordering'
    elseif(btest(phlista(lokph)%status1,PHIONLIQ)) then
       special(1:1)='I'; modelid='Ionic 2-sblattice liquid'
 !                                123456789.123456789.1234
@@ -1828,12 +1848,15 @@
       special(kkk:kkk)='D'; kkk=kkk+1
    endif
    lokcs=phlista(lokph)%linktocs(ics)
-   if(btest(firsteq%phase_varres(lokcs)%status2,CSORDER)) then
+! wrong use of CSORDER, it is set if the ordered part already disordered
+! no need to calculate it again
+!   if(btest(firsteq%phase_varres(lokcs)%status2,CSORDER)) then
+! PHSORD is the correct bit to test if the ordered part should not be subrracted
+   if(.not.btest(phlista(lokph)%status1,PHSORD)) then
 ! this indicates if ordered part should be subtracted as ordered
-! for some historical illogical reason PHSUBO is not used but CSORDER
       special(kkk:kkk)='S'; kkk=kkk+1
    endif
-! special is 4 characters
+! special is max 4 characters
 ! This subroutine is independent of current equilibrium, use firsteq
 !   write(lut,10)phname,phlista(lokph)%status1,special,&
 !        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
@@ -3637,7 +3660,7 @@
 !\begin{verbatim}
  subroutine get_one_condition(ip,text,seqz,ceq)
 ! list the condition with the index seqz into text
-! It lists also fix phases and conditions that are not active
+! It lists also fix phases (and conditions that are not active?)
    implicit none
    integer ip,seqz
    character text*(*)
@@ -3657,6 +3680,7 @@
    last=>ceq%lastcondition
    current=>last
 70 continue
+!      write(*,*)'3C get_one_cond: ',current%seqz
       if(current%seqz.eq.seqz) goto 100
       current=>current%next
       if(.not.associated(current,last)) goto 70

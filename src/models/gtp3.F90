@@ -667,7 +667,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! HASP phase has at least one parameter entered
 ! FORD phase has 4 sublattice FCC ordering with parameter permutations
 ! BORD phase has 4 sublattice BCC ordering with parameter permutations
-! SORD phase has TCP type ordering (like for sigma)
+! SORD phase has TCP type ordering (do not subract ordered as disordered, NEVER)
 ! MFS phase has a disordered fraction set
 ! GAS this is the gas phase (first in phase list) 
 ! LIQ phase is liquid (can be several but listed directly after gas)

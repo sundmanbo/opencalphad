@@ -261,11 +261,17 @@ CONTAINS
 ! Gibbs energy using SER as reference state
        call get_state_var_value('GS ',gtot,name,ceq)
        if(gx%bmperr.ne.0) gx%bmperr=0
-       if(.not.btest(globaldata%status,GSSILENT)) &
-            write(*,1010)meqrec%noofits,&
-            finish2-starting,endoftime-starttid,gtot
-1010   format('Equilibrium result:',i4,' its, ',&
+       if(.not.btest(globaldata%status,GSSILENT)) then
+          if(ceq%eqno.ne.1) then
+             write(*,1010)ceq%eqname(1:11),meqrec%noofits,&
+                  finish2-starting,endoftime-starttid,gtot
+          else
+             write(*,1010)'Equilibrium',meqrec%noofits,&
+                  finish2-starting,endoftime-starttid,gtot
+          endif
+1010   format(a,' result:',i4,' its, ',&
             1pe11.4,' s, ',i6,' cc, GS=',1pe15.7,' J/mol')
+       endif
 ! Here we have now an equilibrium calculated.  Do a cleanup of the structure
 ! for phases with several compsets the call below shifts the stable one
 ! to the lowest compset number unless the default constitution fits another

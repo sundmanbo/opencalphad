@@ -4331,7 +4331,8 @@ contains
              jp=1
              call get_one_condition(jp,text,axarr(iax)%seqz,ceq)
              if(gx%bmperr.ne.0) then
-                write(kou,*)'Condition sequential index: ',iax,axarr(iax)%seqz
+                write(kou,*)'PMON: Condition sequential index: ',&
+                     iax,axarr(iax)%seqz
                 goto 990
              endif
 ! we just want the expression, remove the value including the = sign
@@ -4780,7 +4781,7 @@ contains
           jp=1
           call get_one_condition(jp,text,axarr(iax)%seqz,ceq)
           if(gx%bmperr.ne.0) then
-             write(*,*)'Error getting axis condition from index: ',&
+             write(*,*)'PMON Error getting axis condition from index: ',&
                   iax,axarr(iax)%seqz
              goto 990
           endif

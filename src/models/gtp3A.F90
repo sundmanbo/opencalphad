@@ -235,9 +235,9 @@
    propid(npid)%note='Alternative volume parameter'
    propid(npid)%status=0
 !....................................... 12
-! Diffusion volume parameter 
+! Diffusion volume parameter, suffix S on V create confusion with S as SER?
    npid=npid+1
-   propid(npid)%symbol='VS '
+   propid(npid)%symbol='VD '
    propid(npid)%note='Diffusion volume parameter '
    propid(npid)%status=0
 !.......................................
