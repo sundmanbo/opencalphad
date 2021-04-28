@@ -1535,6 +1535,31 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine new_element_data
+!\begin{verbatim}
+ subroutine new_element_data(iel,elsym,elname,refstat,mass,h298,s298)
+! set new values in an element record, only mass allowed to change ...
+   implicit none
+   character elsym*2, elname*(*),refstat*(*)
+   double precision mass,h298,s298
+   integer iel
+!\end{verbatim}
+   integer lokel
+   if(iel.gt.0 .and. iel.le.noofel) then
+      lokel=elements(iel)
+!      ellista(lokel)%symbol=elsym
+!      ellista(lokel)%name)=elname
+!      ellista(lokel)%ref_state=refstate
+      ellista(lokel)%mass=mass
+!      ellista(lokel)%h298_h0=h298
+!      ellista(lokel)%s298=s298
+   else
+      gx%bmperr=4042
+   endif
+ end subroutine new_element_data
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine get_component_name
 !\begin{verbatim}
  subroutine get_component_name(icomp,name,ceq)

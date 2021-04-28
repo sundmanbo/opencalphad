@@ -896,6 +896,18 @@
       lokpty=phreclink+2
       addition: do while(associated(addlink))
 ! WHEN SAVING MORE ADDITION YOU MUST ALSO CHANGE READING UNFORMATTED readphases
+!  integer, public, parameter :: INDENMAGNETIC=1
+!  integer, public, parameter :: XIONGMAGNETIC=2
+!  integer, public, parameter :: DEBYECP=3
+!  integer, public, parameter :: EINSTEINCP=4
+!  integer, public, parameter :: TWOSTATEMODEL1=5
+!  integer, public, parameter :: ELASTICMODEL1=6
+!  integer, public, parameter :: VOLMOD1=7
+!  integer, public, parameter :: UNUSED_CRYSTALBREAKDOWNMOD=8
+!  integer, public, parameter :: SECONDEINSTEIN=9
+!  integer, public, parameter :: SCHOTTKYANOMALY=10
+!  integer, public, parameter :: DIFFCOEFS=11
+! with composition independent G2 parameter
 !         if(addlink%type.eq.1) then
          if(addlink%type.eq.INDENMAGNETIC) then
 !>>>>> 12A: additions id, regenerate all when reading this
@@ -914,6 +926,29 @@
             iws(lok+3)=addlink%status
 !            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
 !                 iws(lok+2)
+         elseif(addlink%type.eq.XIONGMAGNETIC) then       ! 2
+!>>>>> 12A: additions id, regenerate all when reading this
+!            rsize=3
+! also saving status, there is a real
+            rsize=4
+            call wtake(lok,rsize,iws)
+            if(buperr.ne.0) then
+               write(*,*)'3E Error reserving addition record'
+               gx%bmperr=4356; goto 1000
+            endif
+            iws(lokpty)=lok
+            lokpty=lok
+            iws(lok+1)=addlink%type
+! we have no aff but for xiongmagnetic we specify -1 for BCC
+!            write(*,*)'3E xionmagnetic: ',addlink%status,ADDBCCMAG
+            if(btest(addlink%status,ADDBCCMAG)) then
+               iws(lok+2)=-1
+            else
+               iws(lok+2)=0
+            endif
+! there is no need to save this because record is will be regenerated
+            iws(lok+3)=addlink%status
+! addrecord typ 3 not used
 ! link the property recordds sequentially
          elseif(addlink%type.eq.EINSTEINCP) then                ! 4
 !            write(*,*)'Not saving Einstein addition'          
@@ -939,6 +974,7 @@
             lokpty=lok
             iws(lok+1)=addlink%type
             iws(lok+3)=addlink%status
+! addrecord typ 6 not used
          elseif(addlink%type.eq.VOLMOD1) then                 ! 7  
 !>>>>> 12A: additions id, regenerate all when reading this
 !           rsize=3
@@ -959,7 +995,8 @@
          elseif(addlink%type.eq.DIFFCOEFS) then               ! 11
             write(*,*)'Not saving Diffusion addition'
          else
-            write(*,*)'3E unknown addition record type ',addlink%type
+            write(*,99)addlink%type
+99          format(78('*')/'3E *** NOT SAVED addition record type ',i3/78('*')/)
          endif
          addlink=>addlink%nextadd
       enddo addition
@@ -2150,6 +2187,7 @@
    type(gtp_endmember), pointer :: emrec,lem
    type(gtp_interaction), pointer :: intrec
    type(gtp_property), pointer :: proprec
+   logical ifbcc
    type saveint
       type(gtp_interaction), pointer :: p1
       integer noi
@@ -2343,6 +2381,13 @@
          endif
          if(iws(lokem+1).eq.INDENMAGNETIC) then
             call create_magrec_inden(nyaddlink,iws(lokem+2))
+            if(gx%bmperr.ne.0) goto 1000
+         elseif(iws(lokem+1).eq.XIONGMAGNETIC) then
+            ifbcc=.FALSE.
+            if(iws(lokem+2).eq.-1) ifbcc=.TRUE.
+! ibm .TRUE. not implemented
+!            write(*,*)'3E creating xiomagnetic record for BCC ',ifbcc
+            call create_xiongmagnetic(nyaddlink,.FALSE.,ifbcc)
             if(gx%bmperr.ne.0) goto 1000
          elseif(iws(lokem+1).eq.VOLMOD1) then
             call create_volmod1(nyaddlink)
@@ -4353,8 +4398,8 @@
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
          elseif(typedefaction(jt).ge.25 .and. &
-! Qing-Xiong magnetic addition
               typedefaction(jt).le.37) then
+! Qing-Xiong magnetic addition
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
          elseif(typedefaction(jt).eq.1905) then
@@ -4682,13 +4727,14 @@
 ! in TDB files ALWAYS average bohr magenton numbers
                phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHBMAV)
                if(addphasetypedef(jt).eq.37) then
-! BCC
-                  call add_addrecord(lokph,'Y',xiongmagnetic)
+! BCC ........... very cryptic: space, " ", means not idividual IBM
+                  call add_addrecord(lokph,'Y ',xiongmagnetic)
                elseif(addphasetypedef(jt).eq.25) then
 ! FCC and others
-                  call add_addrecord(lokph,'N',xiongmagnetic)
+                  call add_addrecord(lokph,'N ',xiongmagnetic)
                else
-                  write(*,*)'3E unknown addition: ',lokph,addphasetypedef(jt)
+                  write(*,13)lokph,addphasetypedef(jt)
+13                format(78('*')/'3E unknown addition: ',2i7/78('*'))
                endif
             endif
             if(gx%bmperr.ne.0) goto 1000
@@ -8997,6 +9043,30 @@
 1000 continue
    return
  end subroutine intsort
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine notallowlisting
+!\begin{verbatim}
+ logical function notallowlisting(privil)
+! check if user is allowed to list data
+   double precision privil
+!\end{verbatim}
+   logical ok
+   ok=.TRUE.
+   if(proda.ne.zero) then
+      write(*,*)'3E Testing if listing allowed'
+      if(privil.ne.proda) then
+         ok=.FALSE.
+      else
+         write(*,*)'Sorry you are not allowed to list data'
+      endif
+   else
+      ok=.FALSE.
+   endif
+   notallowlisting=ok
+   return
+ end function notallowlisting
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

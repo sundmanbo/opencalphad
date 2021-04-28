@@ -127,7 +127,7 @@
    double precision xxx
    character name*24
    type(gtp_phase_add), pointer :: newadd,addrec,lastrec
-   logical bcc
+   logical bcc,ibm
 !
 !   write(*,*)'3H creating addrecord: ',trim(extra),addtyp,lokph
 ! check if this addition already entered
@@ -171,9 +171,11 @@
       else
          bcc=.FALSE.
       endif
-!      write(*,*)'3H creating Qing-Xiong magnetic addition',lokph
+      ibm=.FALSE.
+      if(extra(2:2).eq.'I') ibm=.TRUE.
 ! lokph because we need to check if average or individual Boghr magnetons
-      call create_xiongmagnetic(newadd,lokph,bcc)
+!      call create_xiongmagnetic(newadd,lokph,bcc)
+      call create_xiongmagnetic(newadd,ibm,bcc)
 !-----------------------------------------
    case(debyecp) ! Debye Cp UNUSED
 ! 3
@@ -228,7 +230,7 @@
 !-----------------------------------------
    if(gx%bmperr.ne.0) goto 1000
 ! initiate status word for this addition
-   newadd%status=0
+!   newadd%status=0
    if(associated(phlista(lokph)%additions)) then
 !      write(*,*)'3H adding new addition record to phase  ',lokph,addtyp
       lastrec%nextadd=>newadd
@@ -371,6 +373,7 @@
 ! store data in record
    allocate(addrec%explink(2))
    nullify(addrec%nextadd)
+   addrec%status=0
    addrec%aff=aff
    addrec%type=indenmagnetic
 ! attempt to remove memory leak
@@ -677,14 +680,15 @@
 
 !\addtotable subroutine create_xiongmagnetic
 !\begin{verbatim}
- subroutine create_xiongmagnetic(addrec,lokph,bcc)
+ subroutine create_xiongmagnetic(addrec,ibm,bcc)
 ! adds a Xiong type magnetic record, we must separate fcc and bcc by extra
 ! copied from Inden magnetic model
 ! The difference is that it uses CTA for Curie temperature and NTA for Neel
-! and individual (or average) Bohr magneton numbers 
+! and individual (IBM=.TRUE.) or average Bohr magneton numbers 
+! BCC is .TRUE. if it is a BCC phase
    implicit none
-   logical bcc
-   integer lokph
+   logical ibm,bcc
+!   integer lokph
    type(gtp_phase_add), pointer :: addrec
 !\end{verbatim} %+
    integer typty,ip,nc,jj
@@ -805,6 +809,11 @@
    addrec%explink(2)=lhigh
    addrec%constants(1)=dval
    addrecs=addrecs+1
+! Set bit 1 that there are properties
+   addrec%status=0
+   addrec%status=ibset(addrec%status,ADDHAVEPAR)
+   if(bcc) addrec%status=ibset(addrec%status,ADDBCCMAG)
+!   write(*,*)'3H Qing-Xiong magnetic addition: ',addrec%status,bcc,ADDBCCMAG
    allocate(addrec%need_property(3))
    addrec%addrecno=addrecs
 ! here the property list is searched for CTA, NTA and IBM
@@ -812,13 +821,15 @@
    if(gx%bmperr.ne.0) goto 1000
    addrec%need_property(1)=typty
 ! The individual Bohr magneton number or not set in PMON
-   if(btest(phlista(lokph)%status1,PHBMAV)) then
-! This model can use an effective Bohr magneton number b*=prod(b_i+1)**x_i -1
+! WHEN READ FROM A UNFORMATTED FILE, DO WE KNOW LOKPH??
+!   if(btest(phlista(lokph)%status1,PHBMAV)) then
+   if(.not.ibm) then
+! This model use an effective Bohr magneton number b*=prod(b_i+1)**x_i -1
       call need_propertyid('BMAG ',typty)
    else
 ! or an individual Bohr magneton number b*=prod(b_i+1)**x_i -1
-      write(*,*)'3H using induvidual Bohr magneton numbers',&
-           btest(phlista(lokph)%status1,PHBMAV)
+!      write(*,*)'3H using induvidual Bohr magneton numbers',&
+!           btest(phlista(lokph)%status1,PHBMAV)
       call need_propertyid('IBM ',typty)
    endif
 !---------------------------------------------------
@@ -932,7 +943,7 @@
 ! we should use the appropriate tao=t/tc or tao=t/tn
 ! BUT WE MAY HAVE BOTH tc>0 and tn>0 !!
 ! use AF model unless tc negative, both cannot be negative here (test above)
-! BUT BOTH CAN BE POSITIVE!!
+! BUT WE MAY HAVE BOTH AS POSITIVE!!
    tcsave=tc
    if(tc.le.zero) then
 ! no ferro but maybe antiferro. One of them must be positive here!!
@@ -1206,6 +1217,7 @@
    allocate(addrec)
 ! store data in record
    nullify(addrec%nextadd)
+   addrec%status=0
    addrec%type=volmod1
 ! addrecs declared in gtp3.F90 but I am not sure it is needed or used
    addrecs=addrecs+1
@@ -1328,6 +1340,7 @@
    allocate(newadd)
    newadd%type=elasticmodel1
    allocate(newadd%need_property(5))
+   newadd%status=0
 ! needed properties
    newadd%need_property=0
    call need_propertyid('LPX ',typty)
@@ -1523,6 +1536,7 @@
    allocate(newadd)
 ! Both Einstein and Debye models use THET
    newadd%type=einsteincp
+   newadd%status=0
 !   call need_propertyid('THET',typty)
    call need_propertyid('LNTH',typty)
    if(gx%bmperr.ne.0) goto 1000
@@ -1869,6 +1883,7 @@
 !------------------------------------------
    allocate(newadd)
 ! Schottky anomaly uses THT2 and DCP2, same as second Einstein
+   newadd%status=0
    newadd%type=schottkyanomaly
    allocate(newadd%need_property(2))
    call need_propertyid('TSCH',typty)
@@ -2034,6 +2049,7 @@
 !------------------------------------------
    allocate(newadd)
    newadd%type=secondeinstein
+   newadd%status=0
 ! The second Einstein use THT2 and DCP2
    allocate(newadd%need_property(2))
    call need_propertyid('THT2',typty)
@@ -2199,6 +2215,7 @@
 ! this is bad programming as it cannot be deallocated but it will never be ...
 ! maybe pointers can be deallocated?
    allocate(addrec)
+   addrec%status=0
 ! nullify pointer to next addition
    nullify(addrec%nextadd)
 !-----------------------------
@@ -2242,6 +2259,7 @@
    allocate(addrec)
 ! nullify pointer to next addition
    nullify(addrec%nextadd)
+   addrec%status=0
 !-----------------------------
 ! The model consists of two contributions
 ! The first is the harmonic vibrations of an ideal amprthous phase
@@ -3390,6 +3408,7 @@
    allocate(addrec)
 ! Set the type of addition and look for needed parameter properties
    addrec%type=debyecp
+   addrec%status=0
    allocate(addrec%need_property(1))
    call need_propertyid('LNTH ',typty)
    if(gx%bmperr.ne.0) goto 1000
@@ -3459,6 +3478,7 @@
    allocate(addrec)
 ! nullify pointer to next addition
    nullify(addrec%nextadd)
+   addrec%status=0
 ! Set the type of addition and look for needed parameter properties
    addrec%type=diffcoefs
 ! Some information is needed
@@ -3712,8 +3732,8 @@
 200   format(a,'+ Debye Cp model, not implemented yet')
 !---------------------------------------------
    case(xiongmagnetic) ! Inden-Qing-Xiong
-      write(unit,300)chc
-300   format(a,'+ Inden magnetic model modified by Qing and Xiong'/&
+      write(unit,300)chc,lokadd%status
+300   format(a,'+ Inden magnetic model modified by Qing and Xiong ',Z8/&
            4x,'with separate Curie and Neel temperatures.'/&
            4x,'Magnetic function below the ordering temperature TC ',&
            ' with TAO=T/TC:')

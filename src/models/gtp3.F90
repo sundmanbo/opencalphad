@@ -797,7 +797,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! if not set the addition is not listed
 ! permol set if addition should be muliplied with number of atoms
   integer, parameter :: &
-       ADDHAVEPAR=0, ADDPERMOL=1
+       ADDHAVEPAR=0, ADDPERMOL=1,ADDBCCMAG=2
 !
 ! >>> Bits for symbols and TP functions missing ???
 !\end{verbatim}
@@ -1346,7 +1346,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! addrecno: ?
 ! aff: antiferomagnetic factor (Inden model)
 ! constants: for some constants needed ?? NEW
-! status: BIT 1 set if there are parameters
+! status: BIT 0 set if there are parameters
+!         BIT 1 set if magnetic model is for BCC
 ! need_property: depend on these properties (like Curie T)
 ! explink: function to calculate with the properties it need (not allocatable?)
 ! nextadd: link to another addition
@@ -2066,6 +2067,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   logical, private :: ttrace
 ! Output for debugging gridmin
   integer, private :: lutbug=0
+  double precision :: proda=zero,privilege=zero
 ! minimum constituent fraction
   double precision :: bmpymin
 ! number of defined property types like TC, BMAG etc

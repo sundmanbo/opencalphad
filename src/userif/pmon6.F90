@@ -211,7 +211,7 @@ contains
 !
     character actual_arg(2)*16
 !    character cline*128,option*80,aline*128,plotfile*256,eqname*24
-    character cline*256,option*80,aline*128,plotfile*256,eqname*24
+    character cline*256,option*80,aline*128,plotfile*256,eqname*24,aux*4
 ! variable phase tuple
     type(gtp_phasetuple), pointer :: phtup
 !----------------------------------------------------------------
@@ -357,7 +357,7 @@ contains
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIALS    ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
-          'NO_MACRO_STOP   ','                ','                ']
+          'NO_MACRO_STOP   ','PROTECTION      ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -904,7 +904,16 @@ contains
           endif
 !-------------------------
        case(2) ! amend element
-          write(kou,*)'Not implemented yet'
+          call gparcx('Element symbol: ',cline,last,1,elsym,' ',&
+               '?Amend element')
+          call find_element_by_name(elsym,iel)
+          if(gx%bmperr.ne.0) goto 100
+          call get_element_data(iel,elsym,name1,dummy,mass,h298,s298)
+          if(gx%bmperr.ne.0) goto 100
+          write(*,'(a)')'You are only allowed to change the mass'
+          call gparrdx('New mass: ',cline,last,xxx,mass,'?Amend element')
+          call new_element_data(iel,elsym,name1,dummy,xxx,h298,s298)
+!          write(kou,*)'Not implemented yet'
 !-------------------------
        case(3) ! amend species
           call gparcx('Species symbol: ',cline,last,1,name1,' ',&
@@ -984,12 +993,15 @@ contains
                    if(.not.(ch1.eq.'Y' .or. ch1.eq.'y')) then
 !                      write(*,*)'PMON use BMAG parameter as average'
                       call set_phase_status_bit(lokph,PHBMAV)
+                      aux=' '
                    else
                       write(*,*)'PMON mark use IBM parameter'
+                      aux(2:2)='I'
                    endif
 ! xiongmagnetic is a predefined addition index, chz is Y or y for BCC
                    j2=xiongmagnetic
-                   call add_addrecord(lokph,chz,xiongmagnetic)
+                   aux(1:1)=chz
+                   call add_addrecord(lokph,aux,xiongmagnetic)
                 else
                    if(j4.eq.-1) then
 ! Inden magnetic for BCC
@@ -1000,8 +1012,8 @@ contains
                    endif
                    j2=indenmagnetic
                 endif
-                call gparcdx('Is the addition calculated for one mole? ',&
-                     cline,last,1,ch1,'N','?Add per formula unit')
+                  call gparcdx('Is the addition calculated per mole of atoms?',&
+                     cline,last,1,ch1,'Y','?Add per formula unit')
 ! The magnetic model calculates a molar Gibbs energy, must be multiplied with
 ! the number of atoms in the phase. j2 set above to the addition type
                 if(ch1.eq.'Y' .or. ch1.eq.'y') then
@@ -2351,7 +2363,7 @@ contains
 !          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIALS    ',&
 !          'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
 !          'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
-!          'NO_MACRO_STOP   ','                ','                ']
+!          'NO_MACRO_STOP   ','PROTECTION      ','                ']
           name1='Advanced command'
           kom3=submenu(name1,cline,last,cadv,ncadv,4,'?TOPHLP')
           advanced: select case(kom3)
@@ -2628,7 +2640,7 @@ contains
                 endif
              endif
 !.................................................................
-          case(13) ! STOP_ON_MACRO on/off
+          case(13) ! NO_MACRO_STOP on/off
              call gparcdx('Ignore macro @&: ',cline,last,1,ch1,'Y',&
                      '?Set adv no-macro-stop')
 ! iox(8) is declared in metlib4
@@ -2638,7 +2650,10 @@ contains
                 iox(8)=1
              endif
 !.................................................................
-          case(14) ! not used
+          case(14) ! PROTECTION
+             call gparrdx('Code',cline,last,proda,zero,'?Set adv protect')
+             call gparrdx('Privilege',cline,last,privilege,zero,&
+                  '?Set adv protect')
 !.................................................................
           case(15) ! not used
           end select advanced

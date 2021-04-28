@@ -51,13 +51,19 @@
 !
 !    write(*,*)'in map_setup'
 ! save all conditions 
-    call get_all_conditions(savedconditions,-1,starteqs(1)%p1)
-    if(gx%bmperr.ne.0) then
-       write(kou,*)'Cannot save current set of conditions'
-       savedconditions=' '
-!    else
-!       write(*,*)'Saved: ',trim(savedconditions)
-    endif
+!    call get_all_conditions(savedconditions,-1,starteqs(1)%p1)
+    ij=1
+    savedconditions=' '
+    savecond: do jj=1,nax
+!       write(*,*)'SMP2A get_one: ',ij,axarr(jj)%seqz
+       call get_one_condition(ij,savedconditions,&
+            axarr(jj)%seqz,starteqs(1)%p1)
+       if(gx%bmperr.ne.0) then
+          gx%bmperr=0; savedconditions=' '; exit savecond
+       endif
+       ij=len_trim(savedconditions)+2
+    enddo savecond
+!    write(kou,*)'SMP2A saved: ',trim(savedconditions)
     nrestore=0
     lastimethiserror=0
 ! first transform start points to start equilibria on zero phase lines
@@ -167,11 +173,11 @@
     endif
     if(len_trim(savedconditions).gt.0) then
 !       write(*,*)'SMP2A restore: ',trim(savedconditions)
-       if(index(savedconditions,'>=').gt.0) then
+!       if(index(savedconditions,'>=').gt.0) then
 ! conditions including a fix phase, do not try to restore 
-          write(*,*)'SMP2A cannot restore original conditions'
-          goto 1100
-       endif
+!          write(*,*)'SMP2A cannot restore original conditions'
+!          goto 1100
+!       endif
 !       write(*,*)'Restoring all initial conditions: '
 !       write(*,*)trim(savedconditions)
 ! ij is incremented by 1 inside set_condition
@@ -183,24 +189,27 @@
 !       It may create loss of memory but ... what the heck ... buy more!
 !       call list_conditions(kou,ceq)
 !       write(*,*)'SMP2A remove all conditions'
-! this does not work because axis and maybe other things refer to
-! conditions by index.  If I remove all condtions to restore them
-! these indices become invalid    
-       if(nax.eq.1) then
-          write(*,*)'SMP2 Conditions can be changed by some STEP commands'
-       endif
-       goto 1100
+!       if(nax.eq.1) then
+!          write(*,*)'SMP2 Conditions can be changed by some STEP commands'
+!       endif
+!       goto 1100
 !-----------------------------------------------------
 ! I am not sure it is critical to restore conditions ...
 ! it could be some cases when conditions are modified in STEP TZERO/SCHEIL/PARA
 !-----------------------------------------------------
-       call set_condition('*:=none ',ij,starteqs(1)%p1)
+! this does not work because axis and maybe other things refer to
+! conditions by index.  If I remove all condtions to restore them
+! these indices become invalid    
+!       call set_condition('*:=none ',ij,starteqs(1)%p1)
 !       call list_conditions(kou,ceq)
        ij=0
+!       write(*,*)'SMP2A restore axis cond: ',trim(savedconditions)
        call set_condition(savedconditions,ij,starteqs(1)%p1)
-       if(gx%bmperr.ne.0) write(*,*)'Error restoring conditions',gx%bmperr
-!       write(*,*)'SMP2A restored conditions'
+       if(gx%bmperr.ne.0) write(*,*)'Error restoring axis conditions',gx%bmperr
+!       write(*,*)'SMP2A restored conditions:'
 !       call list_conditions(kou,ceq)
+    else
+       write(*,*)'SMP2A axis conditions could not be restored'
     endif
 1100 continue
     return

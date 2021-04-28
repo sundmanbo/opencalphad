@@ -1483,6 +1483,7 @@
    case(2) ! ftyp=2 TDB format
 ! CHTD1 keeps track of type definitions, note: incremented before use
       CHTD='0'
+      if(notallowlisting(privilege)) goto 1000
       write(unit,106)date(1:4),date(5:6),date(7:8)
 106   format('$ Database file written by Open Calphad ',a,'-',a,'-',a/)
       call list_all_elements2(unit)
@@ -1920,6 +1921,7 @@
       subref=.TRUE.
    endif
    parlist=1
+   if(notallowlisting(privilege)) goto 1000
 !--------------------------------------------------
 ! return here to list disordered parameters
 100 continue

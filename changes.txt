@@ -19,11 +19,20 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.04.25 OC version 6.030: It seems there are difficulties to
+calculate diagrams using mass fractions, w, or mass percent, w%.  No
+such problems uing mole fractions.  Until I have had time to look into
+this please use mole fractions in all calculations of diagrams.  For
+plotting it is possible to use mass fraction and percent.
+
+I have fixed that the axis conditions used during step/map are now
+restored after the step/map has finished.
+
 2021.04.25 OC version 6.029: A few corrections in the new magnetic
 model have been made, evidently the new magnetic model still uses the
-disordered paramagnetic state at high T as reference state except
+disordered paramagnetic state at high T as reference state except(!)
 corrected for the pure elements in the new unary database.  This may
-cause some non-zero entropies for alloys.
+cause some non-zero or even negative entropies for alloys.
 
 I also changed the "model-parameter-id" VS to be VD because the "S" in
 VS can be misunderstood as the SER reference state suffix.  The
