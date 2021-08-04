@@ -19,14 +19,46 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.08.04 OC version 6.031: Long time no work ... the problem using
+mass % for mapping seems to be fixed, I am not sure why it occured.
+
+I have added a directory examples/TQ4lib/F90/parallel-alnipt with a
+new example for the TQ interface simulating diffusion in an AL-Ni-Pt
+system in parallel.  There are instructions in the directory how to
+compile, link, run and plot.  There is also a slideshow explaining the
+example.
+
+For database managers looking for errors in the database there is a
+DEBUG TRACE command which can turn on a listing of rejected
+parameters.
+
+I have added a new command that can be useful for assessments.  It
+copies the phase amounts and constitutions from one specified
+equilibrium to the current one.  When assessing miscibility gaps using
+several equilibria with tie-lines the miscibility gap frequently fails
+in some (or all) equilibria during an optimize run.  To restore the
+constitutions in several equilibria can be a pain.  Now, after
+restoring the model parameter and recalculated the miscibility gap in
+one equilibrium "eqnum", one can select another experiental
+equilibrium with the miscibility gap and transfer the phase amounts
+and constitutions from eqnum to this using "AMEND START_CONST eqnum".
+In PARROT this was the "TRANSFER" command.
+
+My main task is still to implememt the MQM model but ...  I am also
+working on adding a new STEP variant called STEP FAST which is a
+Scheil-Gulliver solidification model with one or more fast diffusing
+elements.  The fast diffusing element has the same chemical potential
+in the liquid as in the already solidified sections.  Typical examples
+is solidification of steels with C.
+
 2021.04.25 OC version 6.030: It seems there are difficulties to
-calculate diagrams using mass fractions, w, or mass percent, w%.  No
-such problems uing mole fractions.  Until I have had time to look into
-this please use mole fractions in all calculations of diagrams.  For
-plotting it is possible to use mass fraction and percent.
+calculate diagrams using mass percent, w%.  No such problems uing mole
+or mass fractions.  Until I have had time to look into this please use
+fractions as axis variables in all calculations of diagrams.  For
+plotting it is possible to use mass percent.
 
 I have fixed that the axis conditions used during step/map are now
-restored after the step/map has finished.
+restored after the step/map has finished (unless there is an error).
 
 2021.04.25 OC version 6.029: A few corrections in the new magnetic
 model have been made, evidently the new magnetic model still uses the

@@ -16,7 +16,6 @@
 !  integer, public, parameter :: SECONDEINSTEIN=9
 !  integer, public, parameter :: SCHOTTKYANOMALY=10
 !  integer, public, parameter :: DIFFCOEFS=11
-!  integer, public, parameter :: TWOSTATEMODEL2=12
 !------------------------------------
 ! For each addition XX there is a subroutine create_XX
 ! called from the add_addrecord
@@ -101,13 +100,14 @@
       addrec%propval=zero
       call calc_diffusion(moded,phres,addrec,lokph,mc,ceq)
 !      gx%bmperr=4333
-! 12  see also 5, twostatemodel1 !
+! 12  see also 5, twostatemodel1 ! NOT USED
    case(twostatemodel2) ! Two state model with composition independent G2
-      addrec%propval=zero
+!      addrec%propval=zero
 !      write(*,*)'3H selecting calc_twostate_model1: ',mc
 !      call calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
 ! changed not to calculate G2 as a mixing parameter
-      call calc_twostate_model2(moded,phres,addrec,lokph,mc,ceq)
+!      call calc_twostate_model2(moded,phres,addrec,lokph,mc,ceq)
+      write(*,*)'3H Attempt to add obsolete liquid 2-state model'
    end select addition
 1000 continue
    return
@@ -125,9 +125,9 @@
 !\end{verbatim}
    integer aff
    double precision xxx
-   character name*24
+   character name*24,more*4
    type(gtp_phase_add), pointer :: newadd,addrec,lastrec
-   logical bcc,ibm
+   logical bcc
 !
 !   write(*,*)'3H creating addrecord: ',trim(extra),addtyp,lokph
 ! check if this addition already entered
@@ -171,11 +171,17 @@
       else
          bcc=.FALSE.
       endif
-      ibm=.FALSE.
-      if(extra(2:2).eq.'I') ibm=.TRUE.
+!      ibm=.FALSE.
+      more=' '
+! extra(2:2) means using individual Bohr magneton numbers
+      if(extra(2:2).eq.'I') more(1:1)='I'
+! extra(3:3) means using ferromagnetic as reference state
+      if(extra(3:3).eq.'R') more(2:2)='R'
 ! lokph because we need to check if average or individual Boghr magnetons
-!      call create_xiongmagnetic(newadd,lokph,bcc)
-      call create_xiongmagnetic(newadd,ibm,bcc)
+!      call create_xiongmagnetic(newadd,' ',bcc)
+!      call create_xiongmagnetic(newadd,ibm,bcc)
+!      write(*,*)'3H add extra: "',trim(extra),'" and more: "',more,'"'
+      call create_xiongmagnetic(newadd,more,bcc)
 !-----------------------------------------
    case(debyecp) ! Debye Cp UNUSED
 ! 3
@@ -680,14 +686,16 @@
 
 !\addtotable subroutine create_xiongmagnetic
 !\begin{verbatim}
- subroutine create_xiongmagnetic(addrec,ibm,bcc)
+ subroutine create_xiongmagnetic(addrec,more,bcc)
 ! adds a Xiong type magnetic record, we must separate fcc and bcc by extra
 ! copied from Inden magnetic model
 ! The difference is that it uses CTA for Curie temperature and NTA for Neel
 ! and individual (IBM=.TRUE.) or average Bohr magneton numbers 
 ! BCC is .TRUE. if it is a BCC phase
    implicit none
-   logical ibm,bcc
+!   logical ibm,bcc
+   logical bcc
+   character more*(*)
 !   integer lokph
    type(gtp_phase_add), pointer :: addrec
 !\end{verbatim} %+
@@ -695,6 +703,7 @@
    character text*128
    integer, parameter :: ncc=6
    double precision coeff(ncc),dval
+   logical ibm,ferroref
    integer koder(5,ncc)
 !   TYPE(tpfun_expression), pointer :: llow,lhigh
    TYPE(tpfun_expression) :: llow,lhigh
@@ -733,11 +742,22 @@
 !
 !   write(*,*)'3H Qing-Xiong magnetic model',bcc
 !
+!   write(*,*)'3H create more: "',more,'"'
+   ibm=.FALSE.
+   if(more(1:1).eq.'I') ibm=.TRUE.
+! This is a secret way to set ferromgantic reference state for alloys
+   ferroref=.FALSE.
+   if(more(2:2).eq.'R') ferroref=.TRUE.
    if(bcc) then
 ! Magnetic function below Curie/Neel Temperature, 
 ! problem in ct1xfn to start a function with +1 or 1
-      text=' +1-.880323235*T**(-1)-.152870878*T**3-.00679426123*T**9'//&
-           '-.00152870878*T**15-5.67238878E-04*T**21'
+      if(ferroref) then
+         text=' -.152870878*T**3-.00679426123*T**9'//&
+              '-.00152870878*T**15-5.67238878E-04*T**21'
+      else
+         text=' +1-.880323235*T**(-1)-.152870878*T**3-.00679426123*T**9'//&
+              '-.00152870878*T**15-5.67238878E-04*T**21'
+      endif
 ! CHANGE OF REFERENCE STATE OF THE ELEMENTS
 !      text=' +1-.152870878*T**3-.00679426123*T**9'//&
 !           '-.00152870878*T**15-5.67238878E-04*T**21'
@@ -751,8 +771,14 @@
       call ct1mexpr(nc,coeff,koder,llow)
       if(gx%bmperr.ne.0) goto 1000
 ! Magnetic function above Curie/Neel Temperature
-      text='-.0403514888*T**(-7)-.00134504963*T**(-21)'//&
-           '-2.84834039E-04*T**(-35)-1.02937472E-04*T**(-49)'
+      if(ferroref) then
+         text=' -1+0.880323235*T**(-1)-.0403514888*T**(-7)'//&
+              '-.00134504963*T**(-21)'//&
+              '-2.84834039E-04*T**(-35)-1.02937472E-04*T**(-49)'
+      else
+         text='-.0403514888*T**(-7)-.00134504963*T**(-21)'//&
+              '-2.84834039E-04*T**(-35)-1.02937472E-04*T**(-49)'
+      endif
 ! CHANGE OF REFERENCE STATE OF THE ELEMENTS
 !      text=' +.880323235*T**(-1)-.0403514888*T**(-7)-.00134504963*T**(-21)'//&
 !           '-2.84834039E-04*T**(-35)-1.02937472E-04*T**(-49)'
@@ -772,8 +798,13 @@
 ! fcc
 ! Magnetic function below Curie/Neel Temperature
 ! REFERENCE STATE AT T=0
-      text=' +1-.842849633*T**(-1)-.174242226*T**3-.00774409892*T**9'//&
-           '-.00174242226*T**15-6.46538871E-04*T**21'
+      if(ferroref) then
+         text=' -.174242226*T**3-.00774409892*T**9'//&
+              '-.00174242226*T**15-6.46538871E-04*T**21'
+      else
+         text=' +1-.842849633*T**(-1)-.174242226*T**3-.00774409892*T**9'//&
+              '-.00174242226*T**15-6.46538871E-04*T**21'
+      endif
       ip=1
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
@@ -781,9 +812,15 @@
       call ct1mexpr(nc,coeff,koder,llow)
       if(gx%bmperr.ne.0) goto 1000
 ! Magnetic function above Curie/Neel Temperature
-      text=' -.0261039233*T**(-7)'//&
-           '-8.70130777E-04*T**(-21)-1.84262988E-04*T**(-35)'//&
-           '-6.65916411E-05*T**(-49)'
+      if(ferroref) then
+         text=' -1+0.843849633*T**(-1)-.0261039233*T**(-7)'//&
+              '-8.70130777E-04*T**(-21)-1.84262988E-04*T**(-35)'//&
+              '-6.65916411E-05*T**(-49)'
+      else
+         text=' -.0261039233*T**(-7)'//&
+              '-8.70130777E-04*T**(-21)-1.84262988E-04*T**(-35)'//&
+              '-6.65916411E-05*T**(-49)'
+      endif
       ip=1
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)

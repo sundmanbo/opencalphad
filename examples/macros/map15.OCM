@@ -63,18 +63,19 @@ title map 15 fig 1a
 @$ Sometimes some parts are missing, try adding another startpoint
 
 @$ does not work on LINUX set c x(ni)=.2
-@$ set c x(re)=.37 x(ni)=.2
+set c x(re)=.36 x(ni)=.1
 
-@$ c e
+c e
 
-@$ l,,,,,
+l,,,,,
 
 @&
-@$ map
-@$ N
+
+map
+N
 
 
-@$ plot
+plot
 
 
 
@@ -171,6 +172,11 @@ l,,,,,
 set ax 1 x(re) 0 1 ,
 
 set ax 2 x(ni) 0 1 ,
+
+@$ Just to be sure ...
+
+c e
+
 
 map
 

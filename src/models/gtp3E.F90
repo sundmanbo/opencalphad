@@ -940,7 +940,7 @@
             lokpty=lok
             iws(lok+1)=addlink%type
 ! we have no aff but for xiongmagnetic we specify -1 for BCC
-!            write(*,*)'3E xionmagnetic: ',addlink%status,ADDBCCMAG
+!            write(*,*)'3E xiongmagnetic: ',addlink%status,ADDBCCMAG
             if(btest(addlink%status,ADDBCCMAG)) then
                iws(lok+2)=-1
             else
@@ -2183,6 +2183,7 @@
 !\end{verbatim} %+
    integer firstendmem,i,i1,i2,i3,jph,level,nem,noi,nop,nox,nup,nsl,mult,lin
    integer lok,displace,totcon,phreclink,lokem,lokint
+   character more*4
    type(gtp_endmember), allocatable, target :: nyemrec
    type(gtp_endmember), pointer :: emrec,lem
    type(gtp_interaction), pointer :: intrec
@@ -2385,9 +2386,9 @@
          elseif(iws(lokem+1).eq.XIONGMAGNETIC) then
             ifbcc=.FALSE.
             if(iws(lokem+2).eq.-1) ifbcc=.TRUE.
-! ibm .TRUE. not implemented
+! ibm .TRUE. not implemented, that require more(1:1)='I'
 !            write(*,*)'3E creating xiomagnetic record for BCC ',ifbcc
-            call create_xiongmagnetic(nyaddlink,.FALSE.,ifbcc)
+            call create_xiongmagnetic(nyaddlink,more,ifbcc)
             if(gx%bmperr.ne.0) goto 1000
          elseif(iws(lokem+1).eq.VOLMOD1) then
             call create_volmod1(nyaddlink)
@@ -3894,7 +3895,7 @@
 ! to read references in MatCalc TDB files
    character longline*40000,reftext*512
    character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60
-   character refx*16
+   character refx*16,more*4
    character (len=1), dimension(maxtypedefs) :: typedefchar
    integer, dimension(maxtypedefs) :: typedefaction
    integer, dimension(5) :: addphasetypedef
@@ -3904,7 +3905,7 @@
    double precision stoik(10),xsl,xxx
    integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv,rewindx
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx,idum,jdum
-   logical onlyfun,nophase,ionliq,notent,mqmqa
+   logical onlyfun,nophase,ionliq,notent,mqmqa,ferroref
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics,ndisph
 ! disparttc and dispartph to handle phases with disordered parts
@@ -3914,7 +3915,7 @@
    integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz,dismag
    integer enteredpar,loop,emodel
    type(gtp_phase_add), pointer :: addrec
-   logical warning,dbcheck
+   logical warning
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
 ! to prevent any output
@@ -3924,9 +3925,12 @@
 !   write(*,*)'3E readtdb',allocated(seltdbph),nselph
    emodel=0
    nsl=0
-   dbcheck=.FALSE.
+! dbcheck made global
+!   dbcheck=.FALSE.
    warning=.FALSE.
    silent=.FALSE.
+! this was Ting request to have ferromanetic reference state for alloys
+   ferroref=.FALSE.
    nphrej=0
    nytypedef=0
    totalpar=0
@@ -4397,13 +4401,18 @@
 ! Inden magnetic addition, save for after phase created
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
-         elseif(typedefaction(jt).ge.25 .and. &
-              typedefaction(jt).le.37) then
+         elseif(abs(typedefaction(jt)).ge.25 .and. &
+! ferroref replaced by negative typedefaction ...
+              abs(typedefaction(jt)).le.37) then
 ! Qing-Xiong magnetic addition
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
          elseif(typedefaction(jt).eq.1905) then
 ! Einstein
+            TDthisphase=TDthisphase+1
+            addphasetypedef(TDthisphase)=typedefaction(jt)
+         elseif(typedefaction(jt).eq.491) then
+! Liquid 2-state model
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
          elseif(.not.(typedefaction(jt).eq.100.or.typedefaction(jt).eq.0)) then
@@ -4721,17 +4730,33 @@
             elseif(addphasetypedef(jt).eq.1905) then
 ! Einstein lowt model
                call add_addrecord(lokph,' ',einsteincp)
+            elseif(addphasetypedef(jt).eq.491) then
+! Liquid 2-state model
+               call add_addrecord(lokph,' ',TWOSTATEMODEL1)
             else
 ! Assumed Xiong magnetic, the factor 0.37 (BCC) or 0.25 (FCC) needed
 !               write(*,*)'3E Entering Qing-Xiongmagnetic ',addphasetypedef(jt)
 ! in TDB files ALWAYS average bohr magenton numbers
                phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHBMAV)
-               if(addphasetypedef(jt).eq.37) then
-! BCC ........... very cryptic: space, " ", means not idividual IBM
-                  call add_addrecord(lokph,'Y ',xiongmagnetic)
-               elseif(addphasetypedef(jt).eq.25) then
+               more=' '
+! This is a secret way to set ferromagnetic reference state for alloys
+               if(addphasetypedef(jt).eq.-37 .or. addphasetypedef(jt).eq.-25) &
+                    more(3:3)='R'
+!               if(ferroref) more(3:3)='R'
+!               write(*,*)'3E more: "',more,'" and ',ferroref
+!               write(*,*)'3E add typedef: ',lokph,jt,addphasetypedef(jt)
+               if(abs(addphasetypedef(jt)).eq.37) then
+! BCC ...... very cryptic: 2nd letter space, " ", means not idividual IBM
+                  more(1:1)='Y'
+!                  write(*,*)'3E more: "',more,'" and ',ferroref
+                  call add_addrecord(lokph,more,xiongmagnetic)
+!                  call add_addrecord(lokph,'Y ',xiongmagnetic)
+               elseif(abs(addphasetypedef(jt)).eq.25) then
 ! FCC and others
-                  call add_addrecord(lokph,'N ',xiongmagnetic)
+                  more(1:1)='N'
+!                  write(*,*)'3E more: "',more,'" and ',ferroref
+                  call add_addrecord(lokph,more,xiongmagnetic)
+!                  call add_addrecord(lokph,'N ',xiongmagnetic)
                else
                   write(*,13)lokph,addphasetypedef(jt)
 13                format(78('*')/'3E unknown addition: ',2i7/78('*'))
@@ -4794,7 +4819,7 @@
 ! extract symbol, normally G or L but TC, BMAGN and others can occur
       lp1=index(funname,'(')
       name1=funname(1:lp1-1)
-! strange bu when V0 is interpreted as LPZ !!!
+! strange bug when V0 is interpreted as LPZ !!!
 !      write(*,*)'3E mpi: ',name1
       typty=0
 ! this "L " is kept for compatibility with old TDB files
@@ -5130,7 +5155,7 @@
       enddo
       nooftypedefs=nytypedef
       if(nooftypedefs.gt.maxtypedefs) then
-         write(*,*)'3E Too many TYPE_DEFINITION, modify in readtdb'
+         write(*,*)'3E Too many TYPE_DEFINITION, modify readtdb in gtp3E.F90'
          gx%bmperr=4399; goto 1000
       endif
       ip=nextc+3
@@ -5138,11 +5163,13 @@
       newtypedef: if(index(longline,' SEQ').gt.0) then
          typedefaction(nytypedef)=100
       else
+!---------------------------------------------- einstein
          km=index(longline,' EINSTEIN ')
          einstein: if(km.gt.0) then
             typedefaction(nytypedef)=1905
             exit newtypedef
          endif einstein
+!---------------------------------------------- magnetic
          km=index(longline,' MAGNETIC ')
 !         write(*,*)'3E typedef: ',trim(longline),km
          magnetic: if(km.gt.0) then
@@ -5161,24 +5188,36 @@
                typedefaction(nytypedef)=int(1.0D2*xxx)
 !               write(*,*)'3E Qing-Xiong magnetic model',nytypedef,&
 !                    typedefaction(nytypedef)
+! Special for Ting, check and set if ferromagnetic reference state
+!               write(*,*)'3E magnetic: "',trim(longline(ip:)),'"'
+               if(.not.eolch(longline,ip)) then
+! If there is a final F on the TYPE_DEF line set ferromagnetic reference state
+                  if(longline(ip:ip).eq.'F') then
+! in this way all magnetic phases will have T=0 as refernce state ...
+!                     ferroref=.TRUE.
+! Use a negative value to indicate T=0 is ferroref
+                     typedefaction(nytypedef)=-typedefaction(nytypedef)
+                  endif
+               endif
             else
-! this can be -1 for BCC or -3 for FCC, HCP and other phases
+! this is Inden model, xxx can be -1 for BCC or -3 for FCC, HCP and other phases
                typedefaction(nytypedef)=int(xxx)
             endif
          else
+!---------------------------------------------- disordered-part and others
             km=index(longline,' DIS_PART ')
             never=1
 !            write(*,*)'3E sigma1: ',trim(longline),km,never
-            if(km.eq.0) then
+            addnever: if(km.eq.0) then
 ! Allow for NEVER_DIS ...
                km=index(longline,' NEVER')
 ! this is for disordered SIGMA etc.
                if(never.gt.0) then
                   never=-1
                endif
-            endif
+            endif addnever
 !            write(*,*)'3E sigma2: ',trim(longline),km,never
-            if(km.gt.0) then
+            dispart: if(km.gt.0) then
 ! disordered part, either DIS_PART or NEVER_DIS several checks
                disparttc=disparttc+1
 ! find the ordered phase name, we have to go backwards from km
@@ -5231,20 +5270,20 @@
                endif
 84             continue
             else
-               km=index(longline,' NEVER ')
-!               write(*,*)'3E sigma3: ',trim(longline),km
-               if(km.gt.0) then
-! this is for disordered SIGMA etc.
-                  write(*,*)'3E Not yet implemented NEVER'
+               km=index(longline,' LIQUID 2-STATE ')
+               liq2state: if(km.gt.0) then
+!---------------------------------------------- liquid 2-state model
+                  typedefaction(nytypedef)=491
                else
+!---------------------------------------------- unknown TYPE-DEF
                   typedefaction(nytypedef)=99
                   if(.not.silent) &
                        write(kou,87)nl,longline(1:min(78,len_trim(longline)))
 87                format('3E WARNING ignoring TYPE_DEF on line ',i5,':'/a)
                   warning=.TRUE.
 !               write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
-               endif
-            endif
+               endif liq2state
+            endif dispart
          endif magnetic
       endif newtypedef
 88    continue
@@ -5430,7 +5469,7 @@
 ! look for next KEYWORD
    goto 100
 !--------------------------------------------------------
-!----- reading functions at the end from a TDB file
+!----- reading functions at the end from a TDB file, we read just functions
 800 continue
    if(eolch(line,nextc)) then
       if(.not.silent) write(kou,*) &
@@ -5448,7 +5487,9 @@
    jp=max(len_trim(longline),1)
 !   write(*,811)jp,longline(jp:jp),longline(1:jp)
 811 format('3E ll: ',i3,' "',a1,'" ',a)
-   if(longline(jp:jp).eq.'!') then
+!   if(longline(jp:jp).eq.'!') then
+! This is to allow comments between ! and EndOfLine
+   if(index(longline(1:jp),'!').gt.0) then
 ! replace # by ' '
 820   continue
       jss=index(longline(1:jp),'#')

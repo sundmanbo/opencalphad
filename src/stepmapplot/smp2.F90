@@ -372,6 +372,10 @@ MODULE ocsmp
   integer :: repeatederr=0
 !
 !-------------------------------------------------
+! equlibrium record used to handle fast diffusiion in calc_allslices
+! Should be initiated at each step/map command
+  TYPE(gtp_equilibrium_data), target :: sliceq
+!-------------------------------------------------
 !
 CONTAINS
 

@@ -538,7 +538,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 4340
        'Max two levels of interactions allowed                          ',&
        'Wildcard parameters not allowed in 2nd sublattice of I2SL model ',&
-       'Illegal interaction parameter                                   ',&
+       'Composition dependent ternary parameter must have 3 degrees     ',&
        'Ternary cation interactions not yet implemented in I2SL         ',&
        'Too many phases for the global gridminimizer                    ',&
        'Global minimization with a fix phase not possible               ',&
@@ -872,7 +872,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: SECONDEINSTEIN=9
   integer, public, parameter :: SCHOTTKYANOMALY=10
   integer, public, parameter :: DIFFCOEFS=11
-! with composition independent G2 parameter
+! with composition independent G2 parameter NOT USED
   integer, public, parameter :: TWOSTATEMODEL2=12
 ! name of additions:
   character(len=24) , public, dimension(12), parameter :: additioname=&
@@ -1675,7 +1675,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! id: parameter suffix, D for disordered
 ! dsites: number of sites in sublattices, disordred fractions stored in
 !    another phase_varres record with index varreslink (above)
-! splink: pointers to species record for the constituents
+! splink: indices of species record for the constituents
 ! nooffr: the number of fractions in each sublattice
 ! y2x: the conversion from sublattice constituents to disordered and
 ! dxidyj: are the the coeff to multiply the y fractions to get the disordered
@@ -1788,7 +1788,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this contains all data specific to an equilibrium like conditions,
 ! status, constitution and calculated values of all phases etc
 ! Several equilibria may be calculated simultaneously in parallel threads
-! so each equilibrium must be independent 
+! SO EACH EQUILIBRIUM MUST BE INDEPENDENT 
 ! NOTE: the error code must be local to each equilibria!!!!
 ! During step and map each equilibrium record with results is saved
 ! values of T and P, conditions etc.
@@ -2085,6 +2085,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, parameter :: mundefmpi=10
   integer nundefmpi
   character undefmpi(mundefmpi)*4
+! this is to give some debug information when reading a database
+  logical :: dbcheck=.FALSE.
 ! this is set zero by new_gtp and incremented each time a Toop record
 ! is created in any phase
    integer uniqid

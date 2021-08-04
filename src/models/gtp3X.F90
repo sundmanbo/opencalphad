@@ -1058,7 +1058,7 @@
 !                  write(*,228)'3X divers:',ymult,yionva,gz%yfrem(1)
                   if(jonva.le.0 .and. intlat.eq.1) then
                      write(*,*)'Illegal cation interaction with neutral'
-                     gx%bmperr=4342; goto 1000
+                     gx%bmperr=4265; goto 1000
                   endif
 ! ...................................... loop for first derivatives
                   iliqloop1: do id=1,gz%nofc
@@ -2510,6 +2510,9 @@
 ! important to set ivax=0 here as tested below if not zero
       ivax=0
       iliq3cat=.FALSE.
+! it can be a ternary interaction in same sublattice or a reciprocal parameter
+!      write(*,*)'3X gz%intlat: ',gz%intlat
+!      write(*,*)'3X gz%intcon: ',gz%intcon
       if(ionicliq) then
 !         write(*,*)'3X Comp.dep ternary ionic liquid parameter: ',iliqva
          if(gz%intlat(1).eq.2) then
@@ -2576,8 +2579,16 @@
          fvv(0)=two*onethird
          fvv(1)=-onethird
          fvv(2)=-onethird
+         if(size(lokpty%degreelink).eq.2) then
+! KRASCH if only two degrees of ternary parameter (3 MUST BE GIVEN)
+! If only one it is not composition dependent!
+            write(*,37)trim(phlista(lokph)%name)
+37          format('3X Database error, ternary composition dependent',&
+                 ' parameter in ',a/'must have 3 degrees.')
+            gx%bmperr=4342; goto 1000
+         endif
          terloop: do jint=0,2
-! calculate parameters, there are 3 of them, 0, 1 and 2
+! calculate parameters, there are 3 of them, jint=0, 1 and 2
             lfun=lokpty%degreelink(jint)
             call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
             if(lokpty%proptype.eq.1) then

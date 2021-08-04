@@ -40,6 +40,11 @@ fe cr c
  
 set c t=1200 p=1e5 n=1 w%(cr)=13 w%(c)=1
 
+set ref C graphite
+
+
+
+
 c e
 
 @&

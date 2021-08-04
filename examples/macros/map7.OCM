@@ -19,7 +19,7 @@ new Y
 @$
 @$
 @$ map7.OCM
-@$ Calculate an (incomplete) isopleth for a HSS
+@$ Calculate an isopleth for a HSS
 @$ =============================================================
 @&
 
@@ -53,7 +53,13 @@ default
 <.1
 >.9
 
-@& calculate a first equilibrium at 1200 where we have both fcc phases 
+@&
+@$ calculate a first equilibrium at 1200 where we have both fcc phases 
+
+set reference C graph
+
+
+
 
 @$ Startpoint change needed for new gridminimizer, same diagram
 set c t=1300 p=1e5 n=1 w%(c)=0.8 w%(cr)=5, w%(mo)=8 w%(v)=1

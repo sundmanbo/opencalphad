@@ -64,7 +64,7 @@ contains
     character text*72,string*256,ch1*1,chz*1,selection*27,funstring*1024
     character axplot(2)*24,axplotdef(2)*24,quest*20
 !    character longstring*2048,optres*40
-    character longstring*3500,optres*40
+    character longstring*5000,optres*40
 ! measure calculate carefully
     double precision finish2,start2
     integer endoftime,startoftime
@@ -148,7 +148,7 @@ contains
 ! and more temporary integers
     integer ll,lokcs,lokph,lokres,loksp,lrot,maxax
 ! and more temporary integers
-    integer mode,ndl,neqdef,noelx,nofc,nopl,nops,nv,nystat,times
+    integer mode,ndl,neqdef,noelx,nofc,nopl,nops,nv,nystat,times,fromeq
 ! temporary matrix
 !    double precision latpos(3,3)
 ! used to call init_gtp for the NEW command
@@ -191,6 +191,8 @@ contains
 ! default plot axis for some STEP command:
 ! 1 for SEPARATE, 2 SCHEIL, 3 TZERO, 4 PARAEQUIL, 5 NPLE
     logical stepspecial(5)
+! fast elements for Scheil, max 3
+    character*2 fast(3)
 !    logical tzeroline,separate, stepspecial(5)
 ! unit for logfile input, 0 means no logfile
     integer logfil
@@ -316,7 +318,7 @@ contains
          'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
          'COMPONENTS      ','GENERAL         ','ASSESSMENT_RESLT',&
          'OPTIMIZING_COEFS','EQUILIBRIUM     ','REDUNDANT_SETS  ',&
-         'LINES           ','                ','                ']
+         'LINES           ','START_CONSTIT   ','                ']
 !-------------------
 ! subsubcommands to AMEND PHASE
 ! the UNIQUAC model specified when entering the phase
@@ -386,7 +388,7 @@ contains
     character (len=16), dimension(nstepop) :: cstepop=&
          ['NORMAL          ','SEPARATE        ','QUIT            ',&
           'CONDITIONAL     ','TZERO           ','NPLE            ',&
-          'SCHEIL_GULLIVER ','PARAEQUILIBRIUM ','                ']
+          'SCHEIL_GULLIVER ','PARAEQUILIBRIUM ','FAST            ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
 ! subcommands to DEBUG
@@ -727,8 +729,6 @@ contains
     last=len(aline)
     aline=' '
     cline=' '
-!    call gparc(ocprompt,aline,last,5,cline,' ',tophlp)
-!    call gparc(ocprompt,aline,last,5,cline,' ',q2help)
     call gparcx(ocprompt,aline,last,5,cline,' ','?TOPHLP')
     j4=0
 !    write(*,*)'Back from gparcx 1: "',trim(cline),'"',j4,last
@@ -1545,15 +1545,20 @@ contains
 ! possible amendment of all stored equilibria as ACTIVE or INACTIVE
           call amend_stored_equilibria(axarr,maptop)
 !-------------------------
-       case(17) ! not used
-          write(*,*)'Not implemented yet'
+       case(17) ! AMEND START_CONSTITUTION for assessments
+! copy constitutions from one equilibrium to another, to handle miscibility gaps
+          call gparix('From equilibrium number: ',cline,last,&
+               fromeq,NONE,'?Amend start_constitution')
+! copy constitutions of non-suspended phases from fromeq to current equilibrium
+          call copyfracs(fromeq,ceq)
+!          write(*,*)'Not implemented yet'
 !-------------------------
        case(18) ! Nothing defined
           write(*,*)'Not implemented yet'
        END SELECT amend
 !=================================================================
 ! calculate subcommands
-!         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
+!        ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
 !         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
 !         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
 !         'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ',&
@@ -4212,7 +4217,7 @@ contains
 ! NOTE: 4th argument is 5 because otherwise a "," will terminate reading cline
 ! and state variables like x(fcc,cr) will not work.
           if(kom.eq.25) then
-! the command is SHOW             
+! SHOW: this execute the SHOW command
 !             write(*,*)'PMON: show xliqni should come here ... YES '
              call gparcx('Property: ',cline,last,5,line,' ','?Show property')
           else
@@ -4670,10 +4675,12 @@ contains
 !                   goto 100
 !                endif
                 if(allocated(errs)) then
+! in matsmin
                    call listoptshort(lut,mexp,nvcoeff,errs)
 !                else
 !                   write(kou,*)'No current optimization'
                 endif
+! in gtp3C
                 call listoptcoeff(mexp,err0,.FALSE.,lut)
 !...........................................................
 ! list optimization long
@@ -4744,7 +4751,7 @@ contains
                 endif
 !...........................................................
 ! list optimization RSD (according to OC and TC)
-             case(9) ! unused
+             case(9)
                 write(kou,3998)
 3998            format(/'Relative Standard Deviation (RSD) values according',&
                      ' to OC and TC'/'Variable  OC          TC')
@@ -5831,6 +5838,12 @@ contains
 !---------------------------------
 ! debug trace
        case(7)
+          call gparcdx('Read TDB debug?',cline,last,1,ch1,'Y','?Debug dbcheck')
+          if(ch1.eq.'Y') then
+             dbcheck=.TRUE.
+          else
+             dbcheck=.FALSE.
+          endif
           call gparcdx('HTML help?',cline,last,1,ch1,'Y','?Debug trace')
           if(ch1.eq.'Y') then
              helptrace=.TRUE.
@@ -6130,7 +6143,7 @@ contains
 ! STEP, must be tested if compatible with assessments
 !         ['NORMAL          ','SEPARATE        ','QUIT            ',&
 !          'CONDITIONAL     ','TZERO           ','NPLE            ',&
-!          'SHEIL_GULLIVER  ','PARAEQUILIBRIUM ','                ']
+!          'SHEIL_GULLIVER  ','PARAEQUILIBRIUM ','FAST            ']
     case(19)
 ! disable continue optimization
 !       iexit=0
@@ -6346,8 +6359,8 @@ contains
        case(6)
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
-! STEP SCHEIL_GULLIVER
-       case(7)
+! STEP SCHEIL_GULLIVER and STEP FAST
+       case(7,9)
           write(kou,872)
 872       format('Before this command you must have set an alloy composition',&
                ' and calculated'/&
@@ -6376,8 +6389,30 @@ contains
           call reset_plotoptions(graphopt,plotfile,textlabel)
           axplotdef=' '
           stepspecial(2)=.TRUE.
-! now execute the step scheil
-          call step_scheil(maptop,noofaxis,axarr,seqxyz,ceq)
+          if(kom2.eq.9) then
+! ask for fast diffusing elements in Scheil simulation
+             nv=1
+             fast=' '
+             line='A fast diffusing element: '
+             fastel: do while(.TRUE.)
+                call gparcx(trim(line),cline,last,1,elsym,' ','?Step Scheil')
+                if(elsym(1:1).ne.' ') then
+                   call capson(elsym)
+                   call find_element_by_name(elsym,iel)
+                   if(gx%bmperr.ne.0) goto 990
+                   fast(nv)=elsym
+                   nv=nv+1
+                   if(nv.gt.3) exit fastel
+                   line='Another fast diffusing element: '
+                else
+                   exit fastel
+                endif
+             enddo fastel
+             call step_scheil2(maptop,noofaxis,axarr,seqxyz,fast,ceq)
+          else
+! step scheil with no fast diffusiing elements
+             call step_scheil(maptop,noofaxis,axarr,seqxyz,ceq)
+          endif
           if(gx%bmperr.ne.0) goto 990
 ! sum the points calculated
 !          write(*,*)'Finished Scheil simulation'
@@ -6439,9 +6474,9 @@ contains
 !               maptop%linehead(2)%number_of_equilibria
           write(kou,'(a,2i5,a)')'Paraequilibrium points: ',totalsavedceq
 !-----------------------------------------------------------
-! STEP ??
-       case(9)
-          write(kou,*)'Not implemented yet'
+! STEP FAST part of STEP SCHEIL
+!       case(9)
+!          write(kou,*)'Not implemented yet'
        end SELECT step
 !=================================================================
 ! MAP, must be tested if compatible with assessments
@@ -6451,8 +6486,8 @@ contains
           write(kou,*)'You must set two axis with independent variables'
           goto 100
        endif
-       if(noofaxis.gt.2) then
-          write(kou,*)'More than 2 axis not implemented yet'
+       if(noofaxis.gt.3) then
+          write(kou,*)'More than 3 axis not implemented yet'
           goto 100
        endif
 !       tzeroline=.FALSE.

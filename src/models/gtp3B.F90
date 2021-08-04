@@ -180,6 +180,7 @@
    if(noofel.eq.1) then
 ! create reference phase with index 0
 !       phname='ELEMENT_REFERENCE_PHASE '
+! if preblems this may be created several times ...
       phname='SELECT_ELEMENT_REFERENCE'
       nsl=1
       knr(1)=1
@@ -480,8 +481,17 @@
        if(nsl.eq.1) then
           call gparcx('Constituents: ',cline,last,4,text,';',&
                'Enter phase constit')
+       elseif(model(1:5).eq.'I2SL ') then
+          if(ll.eq.1) then
+             call gparcx('Cation constituents: ',&
+                  cline,last,4,text,';','?Enter phase constit')
+          else
+             call gparcx('Anions and neutals constituents: ',&
+                  cline,last,4,text,';','?Enter phase constit')
+          endif
        else
-          call gparcx('Sublattice constituents: ',&
+          write(*,'(a,i2)')'Give for sublattice ',ll
+          call gparcx('Constituents: ',&
                cline,last,4,text,';','?Enter phase constit')
        endif
        if(buperr.ne.0) goto 900
@@ -501,7 +511,8 @@
        jp=1
 4047   continue
        if(eolch(text,jp)) goto 4049
-       if(model(1:13).eq.'IONIC_LIQUID ' .and. ll.eq.1 &
+!       if(model(1:13).eq.'IONIC_LIQUID ' .and. ll.eq.1 &
+       if(model(1:5).eq.'I2SL ' .and. ll.eq.1 &
             .and. knr(1).eq.0) then
 ! a very special case: a single "*" is allowed on 1st sublattice for ionic liq
           if(text(jp:jp).eq.'*') then

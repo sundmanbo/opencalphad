@@ -3016,5 +3016,50 @@ end function find_phasetuple_by_indices
     return
   end subroutine delete_unstable_compsets
 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine copyfracs(fromeq,ceq)
+!\begin{verbatim}
+  subroutine copyfracs(fromeq,ceq)
+! Copy phase amounts and constitution from equilibrim fromceq to ceq
+! Useful to set start constitutions for miscibility gaps during assessments
+!
+    implicit none
+    integer fromeq
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer toph,fromph
+    type(gtp_equilibrium_data), pointer :: fromceq
+    type(gtp_phase_varres), pointer :: fromvar,tovar
+    fromceq=>eqlista(fromeq)
+    if(.not.allocated(fromceq%phase_varres)) then
+! if phase_varres not allocated this equilibrium has no data
+       write(*,*)'No such equilibrium'
+       goto 1000
+    endif
+! each equilbrium have the same phases and same number of compstes !!!
+! thus the phase_varres correspond!
+! copy only to those nonsuspended in ceq which exist in fromceq
+!    write(*,*)'gtp3A allocated: ',size(ceq%phase_varres)
+! phase_varres(1) is for the unused REFERENCE_STATE
+    allnonsus: do toph=2,size(ceq%phase_varres)
+! there are more phase_varres allocated than used, but yfr no allocated
+       tovar=>ceq%phase_varres(toph)
+       if(.not.allocated(tovar%yfr)) exit allnonsus
+       if(tovar%phstate.le.PHSUS) cycle allnonsus
+       write(*,*)'gtp3A copy phasetuple ',tovar%phtupx
+! copy phase amounts and fractions from the same phase_varres record 
+       fromvar=>fromceq%phase_varres(toph)
+       tovar%abnorm=fromvar%abnorm
+       tovar%yfr=fromvar%yfr
+! these are calculated values but copy anyway
+       tovar%sites=fromvar%sites
+       tovar%amfu=fromvar%amfu
+       tovar%dgm=fromvar%dgm
+    enddo allnonsus
+1000 continue
+    return
+  end subroutine copyfracs
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

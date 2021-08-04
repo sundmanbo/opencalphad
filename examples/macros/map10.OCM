@@ -32,6 +32,10 @@ fe cr ni
 
 set c t=1200 p=1e5 n=1 x(cr)=.45 x(ni)=.5
 
+set ref cr bcc * ,,
+
+set ref ni fcc * ,,
+
 c e
 
 l,,,,
@@ -131,6 +135,16 @@ y
 extra tie
 3
 title map 10 fig 7
+
+
+@&
+@$ Finally plot activity lines
+
+plot
+ac(cr)
+ac(ni)
+
+
 
 
 set inter

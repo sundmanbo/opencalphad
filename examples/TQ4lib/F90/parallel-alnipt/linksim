@@ -1,0 +1,24 @@
+REM  C:\Users\bosun\Documents\OC\OC6\examples\TQ4lib\F90\parasim\
+
+REM Compile the OC program
+
+REM copy ..\..\..\..\libs\liboceq.a
+REM copy ..\..\..\..\liboceqplus.mod
+REM on Linux or Mac you need also
+REM copy ..\..\..\..\getkey.o 
+
+REM DO NOT COPY liboctq.F90 as there are a few subroutines added
+REM REM copy ..\liboctq.F90
+
+gfortran -c -fopenmp liboctq.F90
+
+gfortran -o sim1 -fopenmp sim-alnipt.F90 liboctq.o liboceq.a
+
+REM on Linux and Mac you need
+gfortran -o sim1 -fopenmp sim-alnipt.F90 getley.o liboctq.o liboceq.a
+
+
+REM In the setup file you specify the output.  This can be plotted by GNUPLOT
+
+
+

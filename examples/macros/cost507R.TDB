@@ -2784,6 +2784,8 @@ $  +7.5*GHSERAL#+2.5*GHSERSI#+3*GHSERMN#;  2.00000E+03  N REF115 !
   6.00000E+03   N REF74 !
    PARAMETER G(HCP_A3,CU,MG:VA;0)  2.98150E+02  +184.5*T;   6.00000E+03   N 
   REF20 !
+   PARAMETER G(HCP_A3,CU,NI:VA;0)  2.98150E+02  +12048.61+1.29893*T;   
+  6.00000E+03   N BO2021 !
    PARAMETER G(HCP_A3,CU,ZN:VA;0)  2.98150E+02  -14432.17-10.7814*T;   
   6.00000E+03   N REF70 !
    PARAMETER G(HCP_A3,CU,ZR:VA;0)  2.98150E+02  5668.425;   6.00000E+03   N 
@@ -3496,6 +3498,7 @@ $  +7.5*GHSERAL#+2.5*GHSERSI#+3*GHSERMN#;  2.00000E+03  N REF115 !
    REF113 'H.L. Lukas, private communication, Al-Mg-Si '
    REF127 'F Hayes, Al-Ti-V'
    93AKE  'Å Jansson, KTH 1993'
+   BO2021 'B Sundman, Same excess as liquid to prevent HCP to be stable, 2021'
    REF0   'Not assessed'
   ! 
  

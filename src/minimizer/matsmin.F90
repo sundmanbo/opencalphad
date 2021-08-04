@@ -10686,6 +10686,7 @@ CONTAINS
     type(gtp_condition), pointer :: experiment
 !
 ! list all experiments, only possible if there are experiments
+!    write(*,*)'MM looking for segfault error in listoptshort'
     if(mexp.eq.0) then
        write(lut,666)
 666    format(/'No experiments so no results'/)
@@ -10695,49 +10696,54 @@ CONTAINS
     write(lut,620)size(firstash%eqlista),mexp
 620 format(/'List of ',i5,' equilibria with ',i5,&
          ' experimental data values'/&
-         '  No Equil name      Weight Experiment $ calculated',18x,&
+!        '  No Equil name      Weight Experiment $ calculated',18x,&
+         '  No Equil name      Weight Property=experiment $ calculated',13x,&
          'Error')
     j3=0
     allequil: do i1=1,size(firstash%eqlista)
 ! skip equilibria with zero weight
+!       write(*,*)'MM segfault error 1'
        neweq=>firstash%eqlista(i1)%p1
        if(neweq%weight.eq.zero) cycle allequil
        name1=neweq%eqname(1:12)
 ! LOOP for all experiments for this equilibrium (maybe none??)
        if(.not.associated(neweq%lastexperiment)) cycle allequil
+!       write(*,*)'MM segfault error 2'
        experiment=>neweq%lastexperiment%next
        if(.not.associated(experiment)) cycle allequil
-700    continue
-          i2=neweq%lastexperiment%seqz
+!700    continue
+       i2=neweq%lastexperiment%seqz
 !          write(*,*)'number of experiments: ',i2
-          neq=neweq%eqno
-          do j2=1,i2
+       neq=neweq%eqno
+!       write(*,*)'MM segfault error 3',i2
+       do j2=1,i2
 ! j1 is position in line to write experiment
-             j1=1
-             line=' '
+          j1=1
+          line=' '
 ! this subroutine returns experiment and calculated value: "H=1000:200 $ 5000"
-             call meq_get_one_experiment(j1,line,j2,neweq)
-             j3=j3+1
-             if(neq.gt.0) then
-!                write(lut,622)neq,name1(1:12),neweq%weight,line(1:40),errs(j3)
-                write(lut,622)neq,name1(1:15),neweq%weight,line(1:39),errs(j3)
-622             format(i4,1x,a,2x,F5.2,1x,a,1x,1pe12.4)
-                neq=0
-             else
-                write(lut,623)line(1:40),errs(j3)
-623             format(28x,a,1x,1pe12.4)
-             endif
+          call meq_get_one_experiment(j1,line,j2,neweq)
+          j3=j3+1
+!          write(*,*)'MM segfault error 4',j2,neq
+          if(neq.gt.0) then
+             write(lut,622)neq,name1(1:15),neweq%weight,line(1:44),errs(j3)
+622          format(i4,1x,a,2x,F5.2,1x,a,1x,F6.2)
+             neq=0
+          else
+             write(lut,623)line(1:44),errs(j3)
+623          format(28x,a,1x,F6.2)
+          endif
 ! list the equilibrium name just for the first (or only) experiment
-!             name1=' '
-          enddo
-          experiment=>experiment%next
+       enddo
+!       write(*,*)'MM segfault error 5'
+       experiment=>experiment%next
 !590       if(.not.associated(experiment,neweq%lastexperiment)) then
 !             experiment=>experiment%next
 !             goto 700
-          if(j2.lt.i2 .and. .not.associated(experiment)) then
-             write(*,*)'Missing experiment in equilibrium ',neweq%eqno
-             cycle allequil
-          endif
+       if(j2.lt.i2 .and. .not.associated(experiment)) then
+          write(*,*)'Missing experiment in equilibrium ',neweq%eqno
+          cycle allequil
+       endif
+!       write(*,*)'MM segfault error 6'
     enddo allequil
 ! list sum of squares
     sum=zero
@@ -10757,7 +10763,7 @@ CONTAINS
          ', normalized error: ',1pe13.4/)
 1000 continue
     return
-  end subroutine listoptshort
+  end subroutine listoptshort  !700
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

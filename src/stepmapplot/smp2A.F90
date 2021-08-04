@@ -63,6 +63,8 @@
        endif
        ij=len_trim(savedconditions)+2
     enddo savecond
+! initiate sliceq for Scheilsimilation of fast diffusion
+    sliceq%nexteq=-1
 !    write(kou,*)'SMP2A saved: ',trim(savedconditions)
     nrestore=0
     lastimethiserror=0
@@ -198,7 +200,7 @@
 ! it could be some cases when conditions are modified in STEP TZERO/SCHEIL/PARA
 !-----------------------------------------------------
 ! this does not work because axis and maybe other things refer to
-! conditions by index.  If I remove all condtions to restore them
+! conditions by index.  If I remove all conditions to restore them
 ! these indices become invalid    
 !       call set_condition('*:=none ',ij,starteqs(1)%p1)
 !       call list_conditions(kou,ceq)
@@ -1152,7 +1154,7 @@
     character eqname*24
     double precision value
 !
-!    write(*,*)"Entering map_startpoint"
+    write(*,*)"Entering map_startpoint",nax
     nullify(tmpnode)
 ! replace all but one axis conditions with fix phases.  In ceq we have
 ! a calculated equilibrium with all conditions. make sure it works
@@ -1295,6 +1297,7 @@
           ieq=1
        endif
     endif
+    
 !    write(*,1001)'After replace: ',(meqrec%phr(jp)%curd%amfu,&
 !         jp=1,meqrec%nphase)
 !-----------------------------------------------------------------------
@@ -1899,7 +1902,7 @@
 ! check if more axis must be released
 900 continue
     if(nax.gt.2) then
-       write(*,*)'Cannot handle more than 2 axis at present'
+       write(*,*)'SMP2A Cannot handle more than 2 axis at present'
        gx%bmperr=4228
     endif
 1000 continue
@@ -1932,14 +1935,18 @@
     integer jax,iax,idir,irem,iadd,iph,jj,jph,kph,ll,mapx
     integer :: maxtry=0
     integer, parameter :: nstabphdim=20
+! data for more than 3 axis ...
+    integer axfree(5)
     double precision curval,startval
     type(gtp_condition), pointer :: pcond
 ! turns off converge control for T
     integer, parameter :: inmap=1
     save maxtry
+! with 3 or more axes one will have several linefixph
 !
 !    write(*,*)'In map_startline, find a phase to set fix',ceq%multiuse
 ! start in negative direction unless direction given
+    axfree=0
     idir=-1
     if(ceq%multiuse.ne.0) then
        if(abs(ceq%multiuse).gt.nax) then
@@ -2040,6 +2047,7 @@
 !----------------------------------------------------------
 ! we found a phase to set fix!
     meqrec%nfixph=meqrec%nfixph+1
+    write(*,*)'SMP2A meqrec%nfixph and nax:',meqrec%nfixph,nax
 ! This is written to handle several axis i.e. several fix phases.
 !    write(*,*)'SMP2A found a phase change: ',irem,iadd
     fixfas: if(irem.gt.0) then
@@ -2123,6 +2131,36 @@
        write(*,*)'Another phase want to be stable: ',iadd,irem
        gx%bmperr=4232; goto 1000
     endif
+    if(nax.gt.2) then
+! handling of more than 2 axes
+! unfinished vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv       below
+       axfree(jax)=1
+       write(*,*)'SMP2A more than 2 axes, fix phase: ',meqrec%nfixph,nax,jax
+       do kph=1,meqrec%nfixph
+          write(*,*)'smp2a: linefix: ',meqrec%fixph(1,kph),meqrec%fixph(2,kph)
+       enddo
+       if(nax-meqrec%nfixph.gt.1) then
+          write(*,'(a,5i3)')'smp2a axfree: ',axfree
+! more than 2 axis, more than 1 fix phase along the line
+! Hm what is linefix_phr used for when one can have several fix phases???
+          moreax: do jax=1,nax
+! skip axis already replaced by fix phase but accept any other
+             if(axfree(jax).ne.0) cycle moreax
+             call locate_condition(axarr(jax)%seqz,pcond,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+             call condition_value(1,pcond,curval,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+          enddo moreax
+          if(jax.gt.nax) stop 'no such axis'
+! it seems OK until here ....
+          startval=curval
+! return seaching for another phase to set fix
+          write(*,*)'smp2a tries to replace axis ?',jax,curval
+          goto 100
+       endif
+! unfinished ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ above
+!>>>>>>>>>>>>> we have not finished mapping with 3 or more axis
+    endif
 !    write(*,110)'SMP2A start calculated: ',0,gx%bmperr,irem,iadd,ceq%tpval(1)
 !    if(gx%bmperr.ne.0) goto 1000
 !
@@ -2130,14 +2168,18 @@
 !    write(*,*)'SMP2A now create start node and line equilibria'
 ! two exits
     ieq=2
+    if(nax.gt.2) then
+       write(*,*)'SMP2A sorry not implemented more than 2 axis'
+       gx%bmperr=4399; goto 1000
+    else
 ! active axis, the remaining one, if jax=1 then 2, if jax=2 then 1
-    axactive=3-jax
+       axactive=3-jax
 ! templine is map_line record, some data must be set
-    tmpline(1)%nfixphases=1
-!    tmpline(1)%linefixph%phaseix=meqrec%phr(kph)%iph
-    tmpline(1)%linefixph%ixphase=meqrec%phr(kph)%iph
-    tmpline(1)%linefixph%compset=meqrec%phr(kph)%ics
-    tmpline(1)%linefix_phr=kph
+       tmpline(1)%nfixphases=1
+       tmpline(1)%linefixph%ixphase=meqrec%phr(kph)%iph
+       tmpline(1)%linefixph%compset=meqrec%phr(kph)%ics
+       tmpline(1)%linefix_phr=kph
+    endif
 ! allocate space for all stable phases minus one as fix, may already be alloc
 ! The number of stable phases can vary for different MAP commands
     if(allocated(tmpline(1)%stableph)) then
@@ -2381,8 +2423,20 @@
 ! this copies the whole data structure !!!
 ! LIKELY PLACE FOR SEGMENTATION FAULT !!!
 !    write(*,*)'SMP storing equilibrium record: ',place
+! The = means copy the record, all internal structures copied
+! BUT conditions are NOT saved ... because they are a linked list.
     saveceq%savedceq(place)=mapline%lineceq
+! remove index of nexeq (free list?)
     saveceq%savedceq(place)%nexteq=0
+! MAYBE one should nullify the pointers lastcontition and lastexperinet
+! in saveceq%savedceq(place).  They point to mapline%lineceq ...
+! IF I NULLIFY here I cannot plot CP which requires the conditions to be set!!
+!    nullify(saveceq%savedceq(place)%lastcondition)
+!    nullify(saveceq%savedceq(place)%lastexperiment)
+! I have to be careful using these conditions ....
+! The calculated results are saved in allocated arrays
+! All map examples  tested OK
+!------------------------------------------------------ above added 20210707
     if(mapline%last.gt.0) then
        saveceq%savedceq(mapline%last)%nexteq=place
     endif
@@ -3786,17 +3840,20 @@
 !               isoent(2,jaxwc),isoent(2,3-jaxwc),&
 !               isofix(2,jaxwc),isofix(2,3-jaxwc),xxx,value,value-xxx
           if(approach) then
-             write(*,*)'Approaching limit of third component'
+! I am not sure this is useful .... approach never used ....
+             write(*,*)'SMP2A approaching limit of third component'
              approach=.false.
           endif
-          if(yyy.gt.zero) then
-             if(yyy.lt.ysave) then
-                value=xxx+0.9D0*yyy
-             endif
-             ysave=yyy
-          else
-             write(*,*)'Impossible!',yyy
-          endif
+! ysave is never initiated ....
+!          if(yyy.gt.zero) then
+!             if(yyy.lt.ysave) then
+!                value=xxx+0.9D0*yyy
+!             endif
+!             ysave=yyy
+!          else
+! yyy is negative
+!             write(*,*)'SMP2A impossible!',yyy
+!          endif
        endif
     endif
 !......
@@ -8841,6 +8898,599 @@
 1000 continue
     return
   end subroutine step_scheil
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine step_scheil2
+!\begin{verbatim}
+  subroutine step_scheil2(maptop,noofaxis,axarr,seqxyz,fast,starteq)
+! calculates a Scheil-Gulliver solidification simulation with fast elements
+! maptop map node record
+! noofaxis must be 1
+! axarr array of axis records
+! seqxyz indices for map and line records
+! fast is array with names of fast diffusing elements, fast(i)=' ' for last
+! starteq is an equilibrium with just liquid stable
+    implicit none
+    integer noofaxis,seqxyz(*)
+    character*2 fast(*)
+    type(map_axis), dimension(noofaxis) :: axarr
+    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(map_node), pointer :: maptop
+!\end{verbatim}
+! max number of components and fast diffusing elements
+    integer, parameter :: mscheil=20,mfast=3
+    TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
+    integer jj,jp,seqz,iadd,irem,nv,saveq,lokcs,mapx,idir,seqx,seqy,kpos
+    integer inactive(4),mode,nc,nsch,liquid,jfast,nfast,fastix(mfast),iel
+! notremove is a phase which just became stable, do not remove
+    integer slice,slices,offset,notremove,keep
+    type(map_node), pointer :: mapnode
+    type(map_line), pointer :: mapline
+    type(map_fixph), allocatable :: mapfix
+    type(meq_setup), pointer :: meqrec
+    type(gtp_state_variable), pointer :: svr
+    type(meq_phase), pointer :: phr
+    type(gtp_condition), pointer :: pcond,firstcond,axcond
+    double precision xxx,yyy,zzz,fact,fact1,axvalok,npliqval,liqconst(20)
+    double precision sameact(mfast)
+    double precision slicefrac(1000)
+    character eqname*24,phname*24,npliq*24,encoded*72,mucondition*24
+    integer, parameter :: maxsavedceq=1800
+! turns off convergence control for T
+    integer, parameter :: inmap=1
+    logical solids
+! needed to store links to condition values
+    TYPE smp_scheil_condval
+! these pointers must be updated for each new line (equilibrium)
+       type(gtp_condition), pointer :: p1
+       integer fcond
+    end type smp_scheil_condval
+! These two arrays keep track of conditions and liquid compositions
+! the first is pointers to the condition record, the second is statevariable id
+    type(smp_scheil_condval), dimension(mscheil) :: scheilval
+    type(smp_scheil_condval), dimension(mfast) :: mucond
+    TYPE(gtp_state_variable), target, dimension(mscheil) :: scheilsvr
+!
+    write(*,*)'In step_scheil'
+    if(noofaxis.ne.1) then
+       write(kou,*)'Scheil simulations use one axis variable'
+       goto 1000
+    endif
+! axis condition must be T, extract its value
+    call locate_condition(axarr(1)%seqz,pcond,starteq)
+    if(gx%bmperr.ne.0) goto 1000
+    if(pcond%statev.ne.1) then
+! pcond%statev=1 means T
+       write(*,*)'Axis condition must be T'
+       gx%bmperr=4399; goto 1000
+    endif
+! first argument 1 means to get the value
+    axcond=>pcond
+    call condition_value(1,pcond,xxx,starteq)
+    if(gx%bmperr.ne.0) goto 1000
+!    write(*,'(a,F10.2)')'Scheil start T=',xxx
+!
+    inactive=0
+! inactive(1)=-1 means only one exit point with direcition -1
+    inactive(1)=-1
+! generate step/map datastructure needed for plotting and phase set changes.
+    call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,starteq)
+    if(gx%bmperr.ne.0) goto 1000
+! There should be two maplines generated, the stable phase should be the liquid
+! but do not be fuzzy, one may quech a two-phase mixture
+!    write(*,*)'Scheil step 1',allocated(maptop%linehead)
+!    write(*,*)'Scheil lineheads: ',size(maptop%linehead),&
+!         maptop%linehead(1)%axandir
+! create array of equilibrium records for saving results
+    seqy=maxsavedceq
+    call create_saveceq(maptop%saveceq,seqy)
+    if(gx%bmperr.ne.0) goto 1000
+! Mark this as a Scheil step
+    maptop%type_of_node=3
+! ensure plotlink is nullified!!
+    nullify(maptop%plotlink)
+! initiate node counter done, line counter will be incremented
+    if(maptop%seqx.gt.1) write(*,85)maptop%seqx,maptop%seqy+1
+85  format('Previous step/map results saved'/&
+         'New mapnode/line equilibria indices will start from: ',i3,i5)
+! take the first (only) line created by map_startpoint
+!    write(*,*)'Calling map_findline'
+    call map_findline(maptop,axarr,mapfix,mapline)
+    if(gx%bmperr.ne.0) goto 1000
+!    write(*,*)'Back from map_findline in Scheil'
+    ceq=>mapline%lineceq
+    meqrec=>mapline%meqrec
+    mode=-1
+    call calceq7(mode,meqrec,mapfix,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    xxx=ceq%tpval(1)
+    if(meqrec%nstph.gt.1) then
+       write(*,*)'More than one phase stable at startpoint'
+       gx%bmperr=4399; goto 1000
+    endif
+! check stable phase is liquid
+    call get_phasetup_name(meqrec%phr(meqrec%stphl(1))%phtupix,phname)
+    if(gx%bmperr.ne.0) goto 1000
+    liquid=meqrec%phr(meqrec%stphl(1))%iph
+    write(*,*)'Stable phase at start: ',trim(phname),liquid
+    npliq='NP('//trim(phname)//') '
+!=======================================================
+! check number of fast diffusion elements (can be zero ...)
+    nfast=1
+    do while(fast(nfast).ne.'  ')
+!       write(*,*)'SMP2A fast diffusing elements: "',fast(nfast),'"'
+       call find_element_by_name(fast(nfast),fastix(nfast))
+       if(gx%bmperr.ne.0) goto 1000
+       nfast=nfast+1
+       if(nfast.gt.mfast) then
+          write(*,*)'SMP2A too many fast diffusing elements',nfast
+          gx%bmperr=4399; goto 1000
+       endif
+    enddo
+! OK if nfast is 0 here, this routine should work anyway ... (replace original)
+    nfast=nfast-1
+    if(nfast.gt.0) then
+       write(*,*)'SMP2A number of fast diffusing elements: ',nfast
+       jfast=1
+    else
+       write(*,*)'SMP2A No fast diffusing elements'
+       jfast=0
+    endif
+!=========================================================
+! extract relevant conditions and store in scheilval and scheilsvr
+    firstcond=>ceq%lastcondition%next
+    pcond=>firstcond
+    nc=0
+    nsch=0
+    ploop: do while(.TRUE.)
+! skip condition if %active nonzero (the condition is not active)
+!       write(*,*)'SMP2A inside ploop',pcond%active,&
+!            pcond%statvar(1)%statevarid,pcond%statvar(1)%component
+       if(pcond%active.ne.0) goto 100
+       nc=nc+1
+! to prevent eternal loop
+       if(nc.gt.20) exit ploop
+!       write(*,'(a,i3,a,i5)')'Condition ',nc,' type ',pcond%statev
+       if(pcond%statev.lt.0) then
+          write(*,*)'Fix phases not allowed as conditions'
+          gx%bmperr=4399; goto 1000
+       endif
+       svr=>pcond%statvar(1)
+!       write(*,*)'State variable id: ',svr%statevarid,svr%argtyp
+! statvarid<10 means potential, allow and ignore
+       if(svr%statevarid.le.10) goto 100
+! 11 <= statvarid <=15 are G, H etc, not allowed.  Neither is Y
+       if(svr%statevarid.le.15 .or. svr%statevarid.ge.20) then
+          write(*,*)'Illegal condition for Scheil simulation',svr%statevarid
+          gx%bmperr=4399; goto 1000
+       endif
+! Allowed state variables are N, X, B and W without phase specification
+! argtyp=0 means total such as N=1
+       if(svr%argtyp.eq.0) goto 100
+! argtyp=1 means component, >1 other means phase or compset specification
+       if(svr%argtyp.gt.1) then
+          write(*,*)'Condition has wrong type of arguments: ',svr%argtyp
+          gx%bmperr=4399; goto 1000
+       endif
+       if(pcond%symlink1.gt.0) then
+! value must not be a symbol
+          write(*,*)'Condition value must not be a symbol'
+          gx%bmperr=4399; goto 1000
+       endif
+       nsch=nsch+1
+       scheilval(nsch)%p1=>pcond
+       scheilval(nsch)%fcond=0
+! save state variable but change it to include liquid phase index
+       scheilsvr(nsch)=svr
+! replace argtyp and add phase and compset
+       scheilsvr(nsch)%argtyp=3
+       scheilsvr(nsch)%phase=liquid
+       scheilsvr(nsch)%compset=1
+       if(jfast.gt.0) then
+          if(svr%component.eq.fastix(jfast)) then
+! is this element fast diffusing?
+! we should add a condition on the chemical potential of this component
+! Set current value of the chemical potential ...
+             mucondition='MU('//trim(fast(jfast))//') '
+! ok          write(*,*)'SMP2A Fast diffusing element: ',trim(mucondition)
+             call get_state_var_value(mucondition,xxx,encoded,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+             nv=len_trim(mucondition)+1
+             write(mucondition(nv:),666)xxx
+666          format('= ',F14.6)
+! this condition should be set as last ... I hope
+             nv=0
+! this condition should be added last
+!          write(*,*)'SMP2A mucondition: ',trim(mucondition),nv
+             call set_condition(mucondition,nv,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+! check that this is the last condition, MU=3
+             mucond(jfast)%p1=>ceq%lastcondition
+             mucond%fcond=nsch
+             scheilval(nsch)%fcond=jfast
+!          write(*,*)'SMP2A set condition: ',trim(mucondition),nsch,jfast
+             svr=>mucond(jfast)%p1%statvar(1)
+! deactivate MU  condition
+             ceq%lastcondition%active=1
+             jfast=jfast+1
+             if(jfast.gt.nfast) jfast=0
+!          write(*,*)'SMP2A new condition: ',svr%statevarid,svr%component
+          endif
+       endif
+! Puuuuuh, condition allowed, link to its current value
+100    continue
+       pcond=>pcond%next
+! current value
+!       write(*,*)'SMP2A next condition: ',pcond%statev,pcond%active
+       if(associated(pcond,firstcond)) exit ploop
+    enddo ploop
+!    write(*,*)'SMP2A have exited ploop'
+!    call list_conditions(kou,ceq)
+!    if(nfast.gt.0) then
+!       write(*,*)'Unfinished'
+!       goto 1000
+!    endif
+!-----------------------------
+!    write(*,'(a,i3,a,i3)')'Found ',nc,' active conditions and saved ',nsch
+! test that we can extract (and set) liquid conditions and state variable
+    do nc=1,nsch
+       svr=>scheilsvr(nc)
+       call state_variable_val(svr,xxx,ceq)
+!       write(*,'(a,i3,2F10.6)')'Liquid initial conditions: ',&
+!            nc,scheilval(nc)%p1%prescribed,xxx
+    enddo
+! initial
+    npliqval=one
+    solids=.FALSE.
+    slices=-1
+! this is number of initial equilibria to be skipped
+! It may include one extra per new line, I am not sure ...
+    offset=2
+! Now find T when first solid phase will appear
+! mapx does not seem to be used, inmap=1 turn off T convergence test(?)
+! all data in meqrec was set calling calceq7 above
+! axis conditio
+! first argument 1 means to get the value
+    call condition_value(1,axcond,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    irem=0; iadd=0; nc=0; notremove=0; keep=-1
+! iadd=-1 turn on verbose in meq_sameset
+!    iadd=-1
+! large step before first solid appears
+    fact1=1.0D1
+    axarr(1)%axinc=fact1*axarr(1)%axinc
+    axvalok=xxx
+!==================================================== big loop
+    node: do while(.TRUE.)
+!   follow axis including nodepoints with phase changes
+       line: do while(iadd.le.0 .and. irem.eq.0)
+          if(solids) then
+!             write(*,*)'SMP2A inside line loop',ceq%tpval(1),slices
+! update the liquid composition
+! We have located the pcond records for each new line below
+!             write(*,*)'Update liquid composition at T=',ceq%tpval(1)
+! If slices>0 then change conditions of fast diffusing elements to MU
+!             if(slices.ge.0) then
+!                write(*,*)'SMP2A slices: ',slices,mapline%last
+!             endif
+             do nc=1,nsch
+! this call extract the liquid composition
+                if(scheilval(nc)%fcond.gt.0) then
+! this is a fast diffusing element, use mucond
+                   write(*,*)'SMP2A to set MU condition',&
+                        scheilval(nc)%fcond,slices
+                endif
+!                else
+                svr=>scheilsvr(nc)
+                call state_variable_val(svr,liqconst(nc),ceq)
+                if(gx%bmperr.ne.0) then
+                   write(*,*)'Error extracting liquid composition'
+                   goto 1000
+                endif
+! and this sets it as the overall composition
+                call condition_value(0,scheilval(nc)%p1,liqconst(nc),ceq)
+                if(gx%bmperr.ne.0) then
+                   write(*,*)'Error setting new liquid composition'
+                   goto 1000
+                endif
+!             endif
+             enddo
+! calculate fraction of liquid remaining and slicefrac
+             call get_state_var_value(npliq,yyy,encoded,ceq)
+             if(gx%bmperr.ne.0) gx%bmperr=0
+! slicefrac is fraction of solid at this timestep (slices)
+             if(slices.gt.1000) then
+                write(*,*)'SMP2A exit after 1000 solidification steps'
+                gx%bmperr=4399; goto 1000
+             endif
+             if(slices.eq.0) slices=1
+             slicefrac(slices)=(one-yyy)*npliqval
+             npliqval=npliqval*yyy
+             write(*,670)ceq%tpval(1),1.0D2*npliqval,1.0D2*slicefrac(slices),&
+                  slices,nsch,(liqconst(nc),nc=1,nsch)
+670          format('SMP2A T=',F8.2,'K, liq ',2F7.2,'% ',2i3,10(1x,F7.4))
+! turn on debug info in meq_sameset
+!             iadd=-1
+          endif
+! take a step in the axis variable T
+          call map_step2(maptop,mapline,meqrec,meqrec%phr,axvalok,1,axarr,ceq)
+          if(gx%bmperr.ne.0) goto 1000
+          if(ceq%tpval(1).lt.axarr(1)%axmin) then
+             write(*,*)'At low T limit ',axarr(1)%axmin
+             goto 900
+          endif
+!          write(*,*)'Calling meq_sameset',ceq%tpval(1),npliqval
+          allslices: do while(.TRUE.)
+! If fast diffusing element we calculate simultaneously the equilibrium
+! with liquid and all saved equilibria with a MU condition.
+!             write(*,*)'SMP2A inside allslices: ',ceq%tpval(1),slices
+             call meq_sameset(irem,iadd,mapx,mapline%meqrec,mapline%meqrec%phr,&
+                  inmap,ceq)
+             if(gx%bmperr.ne.0) then
+                write(*,*)'Scheil2 error return from meq_sameset',gx%bmperr
+                goto 1000
+             endif
+! if irem is equal to notremove at first step ignore ...
+             if(irem.gt.0 .and. irem.eq.notremove) then
+                write(*,*)'SMP2A do not remove',irem,ceq%tpval(1)
+                keep=3
+                irem=0
+             endif
+! if set of phases change extit line
+             if(iadd.ne.0 .or. irem.ne.0) exit line
+! if no fast diffusing element we have calculated a new equilibrium
+             if(nfast.eq.0 .or. slices.lt.0) exit allslices
+! calculate equilibria in all previous slices and sum amount of fast elements
+! and loop allslices until total amount of fast diffusing element correct
+             write(*,*)'calling calc_allslices',slices
+             if(calc_allslices(maptop,mapline,slices,offset,fastix,&
+                  slicefrac)) then
+! if calc_allslices is .TRUE. we calculated a new equilibrium
+                slices=slices+1
+                write(*,*)'Back from calc_allslices: ',slices
+                exit allslices
+             endif
+          enddo allslices
+! clear noremove after 3 steps to avoid a second phase change
+          keep=keep-1
+          if(keep.eq.0) notremove=0
+! offset is incremented for all equilibria until first solid
+          if(slices.lt.0) then
+             offset=offset+1
+          else
+! change the condition in mapline%lineceq on faset diffusing element to be MU
+!            write(*,*)'SMP2A store: ',mapline%lineceq%tpval(1),ceq%tpval(1)
+          endif
+! Store the equilibrium and step in T
+          call map_store(mapline,axarr,1,maptop%saveceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Scheil2 error storing equilibria',gx%bmperr
+             goto 1000
+          endif
+       enddo line
+! exit line loop when iadd or irem nonzero, i.e. new set of phases
+       if(.not.solids) then
+! if solids FALSE set it TRUE, this is first solid appearing
+          solids=.TRUE.
+          axarr(1)%axinc=axarr(1)%axinc/fact1
+          fact1=1.0D0
+! This is first solid appearing, change fast elements to MU conditions
+          do jfast=1,nfast
+             iel=mucond(jfast)%p1%statvar(1)%component
+             mucondition='MU('//trim(fast(iel))//')'
+             call get_state_var_value(mucondition,xxx,encoded,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+             write(*,*)'SMP2A first solid, ',trim(mucondition),xxx,iadd
+          enddo
+! initiate slices to count how many slices of solids we have
+          slices=0
+       endif
+! save value of iadd, not allowed to be removed by calc_node
+       notremove=iadd
+       write(*,*)'SMP2A Found new phase',iadd,irem,slices
+! use map_calcnode to create new mapnode and mapline.  
+! We should not set any fix phases, just continue along the axis
+! as with a step command with different sets of stable phases
+       call map_calcnode(irem,iadd,maptop,mapline,meqrec,axarr,ceq)
+! in map_calcnode a new _MAPNODE and _MAPLINE is created with the new set
+! of phases.  Store the end point of the line
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error return from map_calcnode',gx%bmperr
+          goto 1000
+       endif
+       nullify(maptop%plotlink)
+! Terminate the current line, must be after calcnode ...
+       call map_lineend(mapline,axarr(1)%lastaxval,ceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Reset error ',gx%bmperr
+          gx%bmperr=0
+       endif
+
+       write(*,665)ceq%tpval(1),1.0D2*npliqval,slices,iadd,irem
+665    format('SMP2A T=',F7.2,' K and liquid ',F7.2,'%',3i5)
+       if(.not.(npliqval.gt.0.01)) then
+! terminate if npliqval<0.01 BUT IT DOES NOT WORK ???
+          write(*,*)'Terminating as liquid fraction less than 1%'
+          goto 900
+       endif
+! The Scheil simulation continue along the same axis with new set of phases.
+       write(*,*)'SMP2A calling map_findline'
+       call map_findline(maptop,axarr,mapfix,mapline)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error return from map_findline, terminating'
+          goto 1000
+       endif
+!       write(*,*)'SMP2A back from map_findline'
+!       write(*,*)'SMP2A back from map_findline',associated(mapline)
+!       write(*,*)'SMP2A back from map_findline',associated(mapline%lineceq)
+       ceq=>mapline%lineceq
+       if(slices.lt.0) slices=0
+!       write(*,*)'SMP2A calling calceq7 after findline,',slices
+! Evidently we have to call calceq7 to initiate meqrec ??
+       meqrec=>mapline%meqrec
+       call calceq7(mode,meqrec,mapfix,ceq)
+       if(gx%bmperr.ne.0) then
+          if(gx%bmperr.eq.4222 .or. gx%bmperr.eq.4210) then
+             write(*,*)'Scheil cannot handle invariant equilibrium',gx%bmperr
+          else
+             write(*,*)'Failed caculating start of new line',gx%bmperr
+          endif
+          goto 1000
+       endif
+! check if zero fraction of liquid here
+       call get_state_var_value(npliq,yyy,encoded,ceq)
+!       write(*,*)'SMP2A Scheil liquid fraction: ',yyy,slices
+       if(yyy.lt.0.01D0) then
+! Terminate the current line
+          call map_lineend(mapline,axarr(1)%lastaxval,ceq)
+          goto 900
+       endif
+! we have to locate the condition records for the liquid comp in the new ceq
+!       write(*,*)'SMP2A locating conditions'
+       firstcond=>ceq%lastcondition%next
+       pcond=>firstcond
+       nv=0
+!       write(*,*)'SMP2A entering ploop2',nsch
+       ploop2: do while(.TRUE.)
+! eternal loop?
+!          write(*,*)'SMP2A locating Scheil conditions in new ceq',nv
+          if(pcond%active.eq.0) then
+! condition is active
+             svr=>pcond%statvar(1)
+             do nc=1,nsch
+                if(svr%statevarid.eq.scheilsvr(nc)%statevarid .and. &
+                     svr%argtyp.eq.1 .and.&
+                     svr%component.eq.scheilsvr(nc)%component) then
+                   if(scheilval(nc)%fcond.gt.0) then
+!             mucond(jfast)%p1=>ceq%lastcondition
+!             mucond%fcond=nsch
+!                      write(*,*)'SMP2A found MU condition'
+                      mucond(scheilval(nc)%fcond)%p1=>pcond
+! temporarily MU condition not implemented
+                      scheilval(nc)%p1=>pcond
+                   else
+                      scheilval(nc)%p1=>pcond
+!                      write(*,*)'Found scheil condition in new ceq: ',nc 
+                   endif
+                endif
+             enddo
+          endif
+          pcond=>pcond%next
+          nv=nv+1
+          if(associated(pcond,firstcond)) exit ploop2
+       enddo ploop2
+!       write(*,*)'Node T=',ceq%tpval(1)
+       iadd=0; irem=0
+    enddo node
+    write(*,*)'Never here!'
+!
+!===========================================
+! exit here if no liquid left at low T limit
+900 continue
+! maybe clean up?
+1000 continue
+    return
+  end subroutine step_scheil2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable logical function calc_allslices
+!\begin{verbatim}
+  logical function calc_allslices(maptop,mapline,slices,&
+       offset,fastix,slicefrac)
+! calculates all equilibria in saveceq and sums amount of fast element
+! maptop map node record
+! slices is number of equilibria in saveceq
+! offset are the number of equilibria saved before first solid
+! fast are fast diffusing elements
+! slicefrac is fraction of total for each slice
+!
+    implicit none
+    integer slices,fastix(*),offset
+    double precision slicefrac(*)
+    TYPE(map_node), pointer :: maptop
+    type(map_line), pointer :: mapline
+!\end{verbatim}
+    integer ieq,iel,iph,ics,nv,nofel
+    integer, parameter :: mode=-1
+    type(map_fixph), allocatable :: mapfix
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    type(meq_setup), pointer :: meqrec
+    double precision sxmol(20),smass(20),stotmol,totmass,sumslices
+    double precision cxmol(20),xmol(20),wmass(20),totmol,amount
+    logical converged
+!
+    write(*,*)'SMP2A in calc_allslices to calculate ',mapline%last,slices,offset
+    converged=.FALSE.
+    if(slices.eq.1) then
+       write(*,*)'SMP2A initiating sliceq'
+       sliceq=mapline%lineceq
+       sliceq%nexteq=0
+       converged=.TRUE.
+       goto 1000
+    endif
+    nofel=noel()
+    if(nofel.gt.20) then
+       write(*,*)'SMP2A max 20 elements for Scheil with fast elements'
+       gx%bmperr=4399; goto 1000
+    endif
+! Change conditions to use MU of fast diffusing elements and current T
+! calculate equilibria in all slices for current MU and T
+    sumslices=zero
+    do ieq=1,slices
+       sumslices=sumslices+slicefrac(ieq)
+! set of stable phases may change, for example delta-ferrite tranform to fcc
+! DISCOVERY HERE, conditions were still pointing to mapline%lineceq !!!
+! Now the list of conditions not saved, only local and allocated data
+! We have to extract phase amounts and constitutions, ignoring liquid
+! and calculate new equilibria with current T and MU of fast diffusing element
+! using sliceq
+       if(ieq.eq.slices-1) then
+          ceq=>maptop%saveceq%savedceq(offset+ieq)
+! Sum amounts of diffusing components, is liquid included? YES
+!          call calc_molmass(sxmol,smass,stotmol,totmass,ceq)
+!          if(gx%bmperr.ne.0) goto 1000
+          cxmol=zero
+          ics=1
+          sumx: do iph=1,noph()
+! skip liquid and unstable phases
+             if(ceq%phase_varres(1)%amfu.ge.1.0D-1 .or.&
+                  ceq%phase_varres(1)%amfu.eq.zero) cycle sumx
+             call calc_phase_molmass(iph,ics,xmol,wmass,&
+                  totmol,totmass,amount,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+! totmol is total number of moles of phase, xmol(iel) is mole fraction of iel
+             do iel=1,nofel
+                cxmol(iel)=cxmol(iel)+totmol*xmol(iel)
+             enddo
+             write(*,10)'allslices1: ',iph,amount,&
+                  (cxmol(nv),nv=1,nofel)
+10           format(a,i3,1pe12.4,10(0pF6.3))
+          enddo sumx
+! slicefrac(ieq) is fracion of this slice of solid
+          write(*,10)'allslices2: ',0,slicefrac(ieq),&
+               (sxmol(nv),nv=1,nofel)
+          meqrec=>mapline%meqrec
+! set amounts as conditions together with MU including T, P and N=1
+!       call calceq7(mode,meqrec,mapfix,ceq)
+!       if(gx%bmperr.ne.0) then
+!          write(*,*)'Error slice ',ieq,gx%bmperr
+!          gx%bmperr=0;
+!       endif
+!          write(*,*)'SMP2A slice and T: ',ieq+offset,ceq%tpval(1)
+!          call list_conditions(kou,ceq)
+       endif
+    enddo
+    write(*,*)'Sum slicefracs: ',sumslices
+! sum up amount of fast element(s) in all slices, multiply with the
+! size of the slice and return.  Several calculations with
+! different values of MU mab be needed.
+    converged=.TRUE.
+1000 continue
+    calc_allslices=converged
+    return
+  end function calc_allslices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
