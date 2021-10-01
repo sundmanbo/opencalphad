@@ -426,14 +426,6 @@ CONTAINS
     ycond=.FALSE.
 ! this will be set to false when warning shown once for each calculation
     bwarning=.TRUE.
-!    if(btest(meqrec%status,MMSTEPINV)) then
-! this is the problem with map7? only bit 0 and 1 are used!!
-!       write(*,'(a,z8)')'MM warning **** eqcalc7 meqrec%status: ',&
-!            meqrec%status,' reset'
-!       meqrec%status=0
-!       meqrec%status may be set by STEPMAPPLOT to indicate 
-!       write(*,*)'MM calceq7 meqrec%status: ',meqrec%status,meqrec%nstph
-!    endif
     if(btest(globaldata%status,GSSILENT)) &
          meqrec%status=ibset(meqrec%status,MMQUIET)
     if(ocv()) write(*,*)"Entering calceq7",mode
@@ -496,7 +488,8 @@ CONTAINS
           gridtest=.false.
           meqrec%typesofcond=1
        endif
-       if(ocv()) write(*,*)'checked massbalance'
+!       write(*,*)'MM checked massbalance'
+       if(ocv()) write(*,*)'MM checked massbalance'
 !------------------------------------
     endif
 !    write(*,*)'In Calceq7 2'
@@ -1047,7 +1040,7 @@ CONTAINS
     integer iremsave,zz,tupadd,tuprem,samephase,phloopaddrem1,phloopaddrem2
 ! mapx is special for using meq_sameset for mapping
     integer phloopv,noremove,findtupix,saverr,mapx,errall
-    character phnames*50
+    character phnames*50,phname2*24
 ! prevent loop that a phase is added/removed more than 10 times
     integer, allocatable, dimension(:,:) :: addremloop
 ! replace always FALSE except when we must replace a phase as we have max stable
@@ -1362,6 +1355,7 @@ CONTAINS
 !             goto 200
 !          endif
        endif
+! What is iadd here?  Not phasetuple index!!
        if(iadd.gt.0) then
 ! check if phase to be added is already stable as another composition set
 ! This check should maybe be above as maybe another phase want to be stable??
@@ -1373,10 +1367,16 @@ CONTAINS
 ! do not add phases with net charge
           if(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-2) then
              if(iadd.ne.samephase) then
-                write(*,218)'MM ignoring phase with net charge: ',iadd
+!                call get_phasetup_name(iadd,phname2)
+                call get_phasetup_name(meqrec%phr(iadd)%curd%phtupx,phname2)
+                write(*,'(a,a,2i4,a,1pe12.4)')'MM ignoring phase: ',&
+                     trim(phname2),iadd,meqrec%phr(iadd)%curd%phtupx,&
+                     ' with charge:',meqrec%phr(iadd)%curd%netcharge
 !                meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
 218             format(a,2i5,1pe14.6)
-                samephase=iadd
+! change 2021.08.19 when a phase with no ions has net charge .... why
+!                samephase=iadd
+                iadd=0
              endif
              goto 200
           elseif(phloopaddrem1.gt.4) then
@@ -2624,6 +2624,12 @@ CONTAINS
                 signerr=phr(jj)%curd%netcharge
              endif
 !             write(*,*)'Charge: ',jj,phr(jj)%netcharge
+          else
+! enshure charge is zero!!             
+             if(phr(jj)%curd%netcharge.ne.zero) &
+                  write(*,*)'MM neutral phase with charge: ',&
+                  phr(jj)%curd%phlink,phr(jj)%curd%netcharge
+             phr(jj)%curd%netcharge=zero
           endif
 ! when T is variable
           ycorr(nj)=ys+cit(nj)
@@ -4308,9 +4314,9 @@ CONTAINS
                 write(*,*)'N(phase#set,component) not implemented'
                 gx%bmperr=4207; goto 1000
              endif
-! moles formulat unit of phase set above
+! moles formula unit of phase set above
              pham=pmi%curd%amfu
-!             write(*,*)'MM pham: ',phr(jj)%iph,pham
+!             write(*,*)'MMz pham: ',phr(jj)%iph,pham
 ! if phase is not fixed there is a column in xcol for variable amount
 ! This has to be done before loop of elements
              if(pmi%phasestatus.ne.PHFIXED) notf=notf+1
@@ -10185,13 +10191,15 @@ CONTAINS
 
 !\addtotable subroutine calc_paraeq
 !\begin{verbatim}
- subroutine calc_paraeq(tupix,icond,xcond,ceq)
+ subroutine calc_paraeq(tupix,icond,xcond,meqrec,meqrec1,ceq)
 ! calculates a paraequilibrium between two phases tupix(1&2)
 ! icond is the index of the fast diffusing element
 ! xcond are the fractions of the element in the two phases at paraequilibrium
    implicit none
    integer tupix(2),icond
    double precision xcond(2)
+   TYPE(meq_setup), pointer :: meqrec
+   TYPE(meq_setup), allocatable, target :: meqrec1
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! at paraequilibrium the two phases has the same composition (set as conditions)
@@ -10205,8 +10213,9 @@ CONTAINS
 ! This is calculated as (G-x(C)*mu(C))/(1-x(C)) where G is the Gibbs energy
 ! The two function values are the difference of these two potentials
 ! calculated for each phase
+! meqrec is needed for step_paraeq
 !
-   integer nv,info,ja
+   integer nv,info,ja,errall
    integer, parameter :: lwa=20,minus1=-1
    double precision fracs(2),fvec(2),wa(lwa),muval,xsave,ntot,nalpha,nbeta,xtest
    double precision, parameter :: tol=1.0D-10
@@ -10215,19 +10224,35 @@ CONTAINS
    type(gtp_state_variable), target :: p1svr,p2svr
    type(gtp_state_variable), pointer :: svr
    character encoded*24,fractions*64,elname*24
+   type(map_fixph), allocatable :: mapfix
    logical verbose
 ! We must passing links and info to paraeqfun, the subroutine called by hybrd1
 ! THIS DOES NOT WORK IF CALCULATIONS ARE MADE IN PARALLEL
 ! tzceq is pointer to equilibrium; tzcond pointer to first condition
-   verbose=.FALSE.
+!   write(*,*)'MM in calc_paraeq',tzph1,tzph2,icond
+   if(.not.allocated(meqrec1)) then
+! this is when called from user i/f, step_paraequil allocates before call
+! data will be added by calceq7
+      allocate(meqrec1,stat=errall)
+      if(errall.ne.0) then
+!         write(*,*)'MM Allocation error 19: ',errall
+         gx%bmperr=4370; goto 1000
+      endif
+   endif
+   meqrec=>meqrec1
+   meqrec%status=0
+   if(allocated(mapfix)) deallocate(mapfix)
+!   verbose=.FALSE.
    xcond=zero
    tzceq=>ceq
    tzph1=tupix(1); tzph2=tupix(2)
+!   write(*,*)'MM allocated meqrec1, calling calceq7'
 !
-!   write(*,*)'MM calc_paraeq',tzph1,tzph2,icond
 ! Calculate an equilibrium with the two phases
-   call calceq3(minus1,verbose,tzceq)
+!   call calceq3(minus1,verbose,tzceq)
+   call calceq7(minus1,meqrec,mapfix,tzceq)
    if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'MM Back from calceq7'
 ! exctract various values
    call get_state_var_value('N ',ntot,encoded,tzceq)
    if(gx%bmperr.ne.0) goto 1000
@@ -10339,7 +10364,7 @@ CONTAINS
 ! restore original condition
    tzcond%prescribed=xsave
    return
- end subroutine calc_paraeq
+ end subroutine calc_paraeq  ! meqrec
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -10348,7 +10373,7 @@ CONTAINS
  subroutine paraeqfun(nv,fracs,fvec,iflag)
 ! called by hydrid1 to solve a nonlinear system of equations setup
 ! by calc_paraeq to calculate the difference in chemical potential 
-! for a tow-phase paraequilibrium.  Arguments are:   
+! for a two-phase paraequilibrium.  Arguments are:   
 ! nv number of variables, fracs the variable values, fvec the functions
 ! calculated by this routine
    implicit none
@@ -10676,7 +10701,7 @@ CONTAINS
   subroutine listoptshort(lut,mexp,nvcoeff,errs)
 ! short listing of optimizing variables and result
     integer lut,mexp,nvcoeff
-    double precision errs(*)
+    double precision, allocatable, dimension(:) :: errs
 !    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: neweq
@@ -10700,6 +10725,7 @@ CONTAINS
          '  No Equil name      Weight Property=experiment $ calculated',13x,&
          'Error')
     j3=0
+!    write(*,*)'MM segfault1:',size(firstash%eqlista)
     allequil: do i1=1,size(firstash%eqlista)
 ! skip equilibria with zero weight
 !       write(*,*)'MM segfault error 1'
@@ -10723,7 +10749,12 @@ CONTAINS
 ! this subroutine returns experiment and calculated value: "H=1000:200 $ 5000"
           call meq_get_one_experiment(j1,line,j2,neweq)
           j3=j3+1
-!          write(*,*)'MM segfault error 4',j2,neq
+! segmentation fault with errs after PLOT with APPEND but errs is allocated???
+!          write(*,*)'MM segfault error 4A',j2,neq,lut,j3
+!          write(*,*)'MM segfault error 4B: ',line(1:44)
+!          write(*,*)'MM segfault error 4C',neweq%weight, size(errs)
+!          write(*,*)'MM segfault error 4D',j2,errs(j3)
+!          write(*,*)'MM segfault error 4E'
           if(neq.gt.0) then
              write(lut,622)neq,name1(1:15),neweq%weight,line(1:44),errs(j3)
 622          format(i4,1x,a,2x,F5.2,1x,a,1x,F6.2)
@@ -10895,24 +10926,32 @@ CONTAINS
     integer, parameter :: lwa=100
     type(gtp_state_variable), target :: axstv1
     type(gtp_state_variable), pointer :: axstv
-    integer nv,info
+    integer nv,info,ip
     double precision newphfra,fvec(5),tol,wa(lwa),value,xv(5),tinit
     character phases*48
 !    logical isotherm
     integer idum,jdum,savefix(2),saveent
 !    
 !    write(*,*)'In two_stoich_same_comp'
-    if(meqrec%nrel.ne.2) then
+    write(*,*)'MM found two stable stochiometric phases with same composition'
+! THIS SHOULD NOT BE USED FOR ISOPLETHS ??
+!    if(meqrec%nrel.ne.2) then
 ! How to check if I should use this routine? Only 2 components?
 ! If we have an activity condition one could have 3 components ....
-       write(*,*)'MM This routine should  be used only when tie-lines in plane'
-       gx%bmperr=4399; goto 1000
-    endif
+!       write(*,*)'MM This routine should  be used only when tie-lines in plane'
+!       gx%bmperr=4399; goto 1000
+!    endif
 !    call get_state_var_value('X(O) ',value,phases,ceq)
 !    write(*,806)meqrec%fixph(1,1),meqrec%fixph(2,1),mapx,iadd,value
 806 format('MM why fix phase/set: ',i3,i2,' entered: ',i3,', new fix: ',i3,&
          1pe12.4)
-!    write(*,*)'MM two stoichiometric phases: ',iadd,irem
+    phases=' '
+    call get_phasetup_name(meqrec%phr(iadd)%curd%phtupx,phases)
+    ip=len_trim(phases)
+    phases(ip+2:)='and'
+    call get_phasetup_name(meqrec%phr(irem)%curd%phtupx,phases(ip+6:))
+    if(gx%bmperr.ne.0) goto 1000
+    write(*,*)'MM phases: ',trim(phases)
 ! new T calculated in this routine should be close to current value
     tinit=ceq%tpval(1)
 !    write(*,22)'MM in two_stoich_same_comp: ',irem,iadd,ceq%tpval(1)

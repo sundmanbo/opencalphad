@@ -678,7 +678,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! CVMCE phase has some CVM ordering entropy (not implemented)
 ! EXCB phase need explicit charge balance (has ions)
 ! XGRID use extra dense grid for this phase
-! FACTCE phase has FACT quasichemical SRO model (not implemented)
+! MQMQA (old FACTCE) phase has FACT quasichemical SRO model (not implemented)
 ! NOCS not allowed to create composition sets for this phase
 ! HELM parameters are for a Helmholz energy model (not implemented),
 ! PHNODGDY2 phase has model with no analytical 2nd derivatives
@@ -695,7 +695,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHHASP=4,    PHFORD=5,     PHBORD=6,    PHSORD=7, &     ! 
        PHMFS=8,     PHGAS=9,      PHLIQ=10,    PHIONLIQ=11, &  ! 
        PHAQ1=12,    PH2STATE=13,  PHQCE=14,    PHCVMCE=15,&    ! 
-       PHEXCB=16,   PHXGRID=17,   PHFACTCE=18, PHNOCS=19,&     !
+       PHEXCB=16,   PHXGRID=17,   PHMQMQA=18, PHNOCS=19,&     !
        PHHELM=20,   PHNODGDY2=21, PHEECLIQ=22, PHSUBO=23,&     ! 
        PHPALM=24,   PHMULTI=25,   PHBMAV=26,   PHUNIQUAC=27, & !
        PHTISR=28                                          !
@@ -1532,6 +1532,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! constoi(4,const) real with stoichiometry of species in quadrupole
      integer nconst,ncon1,ncon2
      integer, allocatable, dimension(:,:) :: contyp
+! maybe only one of these are needed
+     double precision, allocatable, dimension(:,:,:) :: spstoi
      double precision, allocatable, dimension(:,:) :: constoi
   end TYPE gtp_mqmqa
 !  TYPE(gtp_mqmqa), private :: mqmqa_data

@@ -632,6 +632,10 @@ CONTAINS
     integer, allocatable, dimension(:) :: order
 !
 ! links has the the index of the CMD in the increasing order
+    if(ns.le.0) then
+       write(*,*)'SSORT called with no arguments to sort'
+       buperr=1100; goto 900
+    endif
     allocate(order(ns))
     do j1=1,ns
        order(j1)=-j1
@@ -701,6 +705,7 @@ CONTAINS
     enddo
 !    write(*,'(a,2i3,2x,20i3)')'SSORT 9:',first,ns,(order(j2),j2=1,ns)
 !    stop 'ssol'
+900 continue
     return
   end SUBROUTINE SSORT2
 

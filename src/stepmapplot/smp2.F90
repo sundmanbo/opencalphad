@@ -150,7 +150,7 @@ MODULE ocsmp
 ! array as new composition sets may be created along any line.
 ! The node record is identified by the set of stable phases and the
 ! chemical potentials of the components.  One must be able to identify the
-! node as one may fins the same node following different lines.
+! node as one may find the same node following different lines.
 ! locally stored linerecords for lines exiting the node
      type(map_line), dimension(:), allocatable :: linehead
 ! links to other nodes

@@ -117,6 +117,9 @@ contains
     integer noofaxis,seqxyz(3)
 ! this should be removed
 !    TYPE(ssm_node), pointer :: resultlist
+! for paraequilibrium meqrec is needed also here
+    TYPE(meq_setup), pointer :: meqrec
+    TYPE(meq_setup), allocatable, target :: meqrec1
 !<<<<<<<--------------------------------------------------------------
 ! used for element data and R*T
     double precision h298,s298,rgast
@@ -175,8 +178,8 @@ contains
 ! occational segmentation fault when deallocating www ....
 !    double precision, dimension(maxw) :: www
 !    double precision, dimension(:), allocatable :: www
-    double precision, dimension(:), allocatable :: coefs
     double precision, dimension(:), allocatable :: errs
+    double precision, dimension(:), allocatable :: coefs
 !    external new_assessment_calfun
 !    external calfun
 !-------------------
@@ -1281,7 +1284,7 @@ contains
        case(5) ! amend parameter
           write(kou,*)'Not implemented yet, only ENTER PARAMETER'
 !-------------------------
-       case(6) ! amend bibliography
+       case(6) ! amend bibliography (in gtp3D)
           call enter_bibliography_interactivly(cline,last,1,j4)
 !-------------------------
        case(7) ! amend TPFUN symbol
@@ -2220,7 +2223,7 @@ contains
           call capson(elsym)
           call find_element_by_name(elsym,icond)
           parael=elsym
-          call calc_paraeq(tupix,icond,xpara,ceq)
+          call calc_paraeq(tupix,icond,xpara,meqrec,meqrec1,ceq)
 ! set a warning when list result
           ceq%status=ibset(ceq%status,EQINCON)
           if(gx%bmperr.ne.0) goto 990
@@ -4656,6 +4659,13 @@ contains
           lut=optionsset%lut
 ! if errs not allocated no optimization made
           if(allocated(errs)) then
+! trying to avoid segmentation fault when errs destryed by PLOT with APPEND
+             if(size(errs).ne.mexp) then
+                write(*,*)'Allocation error of "errs"',size(errs),mexp
+                deallocate(errs)
+                write(*,*)'Deallocated errs'
+                goto 100
+             endif
              write(lut,600)optres(1:4),optres(5:6),optres(7:8),&
                   name1(1:2),name1(3:4),err0(3)
 600          format(/'Optimization results at ',a4,'.',a2,'.',a2,&
@@ -4674,11 +4684,16 @@ contains
 !                   write(*,*)'You must OPTIMIZE first'
 !                   goto 100
 !                endif
+!                   write(kou,*)'Still no current optimization'
                 if(allocated(errs)) then
+                   if(size(errs).eq.mexp) then
 ! in matsmin
-                   call listoptshort(lut,mexp,nvcoeff,errs)
-!                else
-!                   write(kou,*)'No current optimization'
+                      call listoptshort(lut,mexp,nvcoeff,errs)
+                   else
+! After PLOT ... with APPEND of experimental data "errs" seems destroyed?? 
+                      write(kou,*)'Allocation error: ',mexp,size(errs)
+                      deallocate(errs)
+                   endif
                 endif
 ! in gtp3C
                 call listoptcoeff(mexp,err0,.FALSE.,lut)
@@ -7399,7 +7414,7 @@ contains
 !...............................................
 ! PLOT EXTRA LOGSCALE
           case(2)
-             call gparcdx('For x or y axis? ',cline,last,1,ch1,'y',&
+             call gparcdx('For x or y axis (or NONE)? ',cline,last,1,ch1,'y',&
                   '?Plot logax')
              if(ch1.eq.'x') then
                 if(graphopt%axistype(1).eq.1) then
@@ -7420,7 +7435,9 @@ contains
                    graphopt%rangedefaults(2)=0
                 endif
              else
-                write(kou,*)'Please answer x or y'
+                write(kou,*)'Both axis set to be linear'
+                graphopt%axistype(1)=0
+                graphopt%axistype(2)=0
              endif
              goto 21100
 !...............................................

@@ -19,6 +19,11 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.10.01 OC version 6.032: More time with no work, or rather very
+little progress.  The MQMQA model is still refusing to work but some
+light in the end of the tunnel.  I wish to save the current status on
+the github server as I continue.
+
 2021.08.04 OC version 6.031: Long time no work ... the problem using
 mass % for mapping seems to be fixed, I am not sure why it occured.
 

@@ -702,7 +702,7 @@
    else
       chd='F'
    endif
-   call gparcdx('I am a beginner (B), freqent user (F) or expert (E): ',&
+   call gparcdx('I am a beginner (B), frequent user (F) or expert (E): ',&
         cline,ipos,1,ch1,chd,'?Amend general')
    call capson(ch1)
    globaldata%status=ibclr(globaldata%status,GSBEG)
@@ -713,6 +713,7 @@
    elseif(ch1.eq.'E') then
       globaldata%status=ibset(globaldata%status,GSADV)
    else
+! set as frequent (occational?) user
       globaldata%status=ibset(globaldata%status,GSOCC)
    endif
 120 continue
@@ -772,8 +773,8 @@
    integer last,mode,iref
    logical twotries
 !\end{verbatim}
-! stupid with a variable called L80
-   character line*256,refid*16,L80*80
+! stupid with a variable called CHAR80
+   character line*256,refid*16,CHAR80*80
    integer jl,ip
    call gparcx('Reference identifier:',cline,last,1,refid,' ',&
         '?Amend bibliography')
@@ -799,14 +800,14 @@
       goto 1000
    endif
 70 continue
-   ip=1
+   ip=0
    line=' '
    twotries=.TRUE.
 100 continue
-!   call gparc('Reference text, end with ";":',cline,last,5,l80,';',q1help)
-   call gparcx('Reference text, end with ";":',cline,last,5,l80,';',&
+!   call gparc('Reference text, end with ";":',cline,last,5,char80,';',q1help)
+   call gparcx('Reference text, end with ";":',cline,last,5,char80,';',&
         '?Amend bibliography')
-   line(ip:)=l80
+   line(ip+1:)=char80
    ip=len_trim(line)
    if(ip.le.1 .and. twotries) then
       twotries=.FALSE.
@@ -816,7 +817,7 @@
       twotries=.FALSE.
       write(*,*)'Terminate text with a ";"'
       ip=ip+1; goto 100
-   elseif(.not.twotries) then
+   elseif(ip.le.1 .and. .not.twotries) then
       if(mode.eq.1) then
          write(*,*)'Bibliogaphic reference unchanged'
       else

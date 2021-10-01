@@ -273,7 +273,7 @@
 ! when we plot things like y(fcc,*) we should only select equilibria
 ! with fcc stable. Check if * is before or after a ,
 ! NOTE that a single * without , can be phase or component:
-! MU(*) is for a component
+! MU(*) is for a component, HM(*) is for a phase 
           ikol=index(pltax(iax),',')
 !          write(*,*)'smp2b selectph: ',trim(pltax(iax)),ikol
           if(ikol.gt.0) then
@@ -447,6 +447,7 @@
              goto 600
           endif
           curceq=>results%savedceq(nr)
+!          write(*,201)'SMP2B Current: ',nr,nv,curceq%tpval(1)
           if(ocv()) write(*,201)'Current equilibrium: ',nr,nv,curceq%tpval(1)
 201       format(a,2i5,F8.2,1pe14.6)
 ! extract the names of stable phases to phaseline from the first equilibrium
@@ -551,7 +552,7 @@
              if(statevar(1:4).eq.'PFS ') value=one-value
           else
              call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
-!             write(*,*)'SMP axis variable 1',trim(encoded1),value,gx%bmperr
+!             write(*,*)'SMP axis variable 1: ',trim(encoded1),value,gx%bmperr
              if(gx%bmperr.ne.0) then
 ! this error should not prevent plotting the other points FIRST SKIPPING
                 write(*,212)'SMP skipping a point 1, error evaluating: ',&
@@ -735,9 +736,13 @@
 ! getext( , ,2, , , ) returns next text item up to a space
                          call getext(encoded2,lcolor,2,encoded1,'x',lhpos)
                          lid(jj)=encoded1
+! lid is 16 characters
                          kk=len_trim(encoded1)
                          if(kk.gt.len(lid(jj))) then
-                            lid(jj)(7:)='..'//encoded1(kk-6:kk)
+!                            lid(jj)(7:)='..'//encoded1(kk-6:kk)
+! proposal by Chunhui, modified by 2 positions
+!                                         12 12345
+                            lid(jj)(10:)='..'//encoded1(kk-4:kk)
                          endif
                       endif
                    else
@@ -926,7 +931,7 @@
 !                   write(*,*)'In ocplot2, segmentation fault 4H'
                    wild2: if(wildcard) then
 ! this cannot be a state variable derivative
-!                    write(*,*)'Getting a wildcard value 2: ',nr,statevar(1:20)
+!                      write(*,*)'SMP2B wildcard value 3: ',nr,statevar(1:20)
                       call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
                       if(gx%bmperr.ne.0) goto 1000
 ! we have to handle axis values that are zero what is np here???
@@ -1258,6 +1263,7 @@
 808 format('plot data used: ',3i7,' out of ',2i7)
     if(np.eq.0) then
        write(kou,*)'No data to plot',np
+       write(*,*)'SMP2B axis 1: ',trim(pltax(1)),', 2:',trim(pltax(2))
        gx%bmperr=4248
        goto 1000
     endif

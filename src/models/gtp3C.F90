@@ -1601,7 +1601,8 @@
    call get_phase_name(iph,ics,phname)!
    if(btest(phlista(lokph)%status1,PHQCE) .or. &
         btest(phlista(lokph)%status1,PHCVMCE) .or. &
-        btest(phlista(lokph)%status1,PHFACTCE) .or. &
+!        btest(phlista(lokph)%status1,PHFACTCE) .or. &
+        btest(phlista(lokph)%status1,PHMQMQA) .or. &
         btest(phlista(lokph)%status1,PHTISR)) then
 ! this is for the quasichemical models, qce, cvmqe, mqmqa, tisr
       write(lut,111)phname,phlista(lokph)%models(1:40),&
@@ -1652,7 +1653,8 @@
       kmr=kmr+phlista(lokph)%nooffr(ll)
       l78='Subl. '; ip=7
       call wrinum(l78,ip,2,0,rl)
-      if(btest(phlista(lokph)%status1,PHFACTCE)) then
+!      if(btest(phlista(lokph)%status1,PHFACTCE)) then
+      if(btest(phlista(lokph)%status1,PHMQMQA)) then
          l78(ip:)=', bonds: '; ip=ip+9
       else
          l78(ip:)=', sites: '; ip=ip+9
@@ -1750,7 +1752,7 @@
 !\end{verbatim} %+
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
-   integer intpq,linkcon,ftyp,prplink,topline
+   integer intpq,linkcon,ftyp,prplink,topline,warning_endmzero
    character text*3000,phname*24,prop*32,funexpr*1024,toopsp(3)*24,ch1*1
    character special*4,modelid*24
 !   integer, dimension(2,3) :: lint
@@ -1824,8 +1826,10 @@
       special(1:1)='I'; modelid='Ionic 2-sblattice liquid'
 !                                123456789.123456789.1234
 ! added 20201128/BoS, FACTCE, QCE and UNIQUAC
-   elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
-      special(1:1)='Q'; modelid='FACTCE'
+! added 20201128/BoS, MQMQA, QCE and UNIQUAC
+!   elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
+   elseif(btest(phlista(lokph)%status1,PHMQMQA)) then
+      special(1:1)='Q'; modelid='MQMQA'
 !                                123456789.123456789.1234
 ! Topline 2 means bonds rather than sites ...
       topline=2
@@ -1872,8 +1876,11 @@
       write(lut,11)phname,phlista(lokph)%status1,special,trim(modelid),&
            firsteq%phase_varres(lokcs)%qcbonds
 !           firsteq%phase_varres(lokcs)%sites(1)
-11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a,', Bonds/at:',F7.3)
+!11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a,', Bonds/at:',F7.3)
+! qcbonds not used for MQMQA
+11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a,', extra:',F7.3)
    endif
+   warning_endmzero=0
    nk=0
    text='Constituents: '
    ip=15
@@ -2951,7 +2958,8 @@
 ! do not multiply swith sites for models PHCVMCQ, TISR, MQMQA, CRC
    if(nsl.eq.1 .and. &
         (btest(phlista(lokph)%status1,PHCVMCE) .or.&
-      btest(phlista(lokph)%status1,PHFACTCE) .or.&
+!      btest(phlista(lokph)%status1,PHFACTCE) .or.&
+      btest(phlista(lokph)%status1,PHMQMQA) .or.&
       btest(phlista(lokph)%status1,PHQCE) .or.&
       btest(phlista(lokph)%status1,PHTISR))) then
       bonds=firsteq%phase_varres(lokcs)%sites(1)
@@ -3066,7 +3074,8 @@
    enddo
 ! restore bonds in sites(1) ....
    if(btest(phlista(lokph)%status1,PHCVMCE) .or.&
-      btest(phlista(lokph)%status1,PHFACTCE) .or.&
+!      btest(phlista(lokph)%status1,PHFACTCE) .or.&
+      btest(phlista(lokph)%status1,PHMQMQA) .or.&
       btest(phlista(lokph)%status1,PHQCE) .or.&
       btest(phlista(lokph)%status1,PHTISR)) then
       firsteq%phase_varres(lokcs)%sites(1)=bonds

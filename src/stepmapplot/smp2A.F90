@@ -3225,7 +3225,10 @@
     integer nax
     type(map_node), pointer :: maptop
     type(map_line), pointer :: mapline
+! WOW    type(meq_setup) :: meqrec
     type(meq_setup) :: meqrec
+! Should maybe be    type(meq_setup), pointer :: meqrec
+!
     type(meq_phase), dimension(*), target :: phr
     type(gtp_equilibrium_data), pointer :: ceq
     type(map_axis), dimension(*) :: axarr
@@ -3252,7 +3255,7 @@
 !
     mapeqno=mapline%number_of_equilibria
 ! the dgm variables are for Al3N2 in the Al-Ni system which is not found stable
-!   write(*,'(a,i4,F8.2)')'In map_step2: ',mapeqno,ceq%tpval(1)
+!    write(*,'(a,i4,F8.2)')'SMP2 In map_step2: ',mapeqno,ceq%tpval(1)
 !   write(*,'(a,i5,3i3,5(F10.2))')'In map_step2: ',mapeqno,meqrec%nv,&
 !         maptop%tieline_inplane,mapline%axandir,ceq%tpval(1),&
 !         ceq%phase_varres(3)%dgm,ceq%phase_varres(4)%dgm,&
@@ -5752,6 +5755,7 @@
           call get_phase_name(invph(1,linefix),invph(2,linefix),phases)
           zp=len_trim(phases)+3
           phases(zp-1:zp-1)='('
+! nodefix not always set correctly here, error in map16 running all macros
           newnode%linehead(jj)%nodfixph=invph(3,nodefix)
           invph(5,nodefix)=invph(5,nodefix)+1
           call get_phase_name(invph(1,nodefix),invph(2,nodefix),phases(zp:))
@@ -8952,7 +8956,7 @@
     type(smp_scheil_condval), dimension(mfast) :: mucond
     TYPE(gtp_state_variable), target, dimension(mscheil) :: scheilsvr
 !
-    write(*,*)'In step_scheil'
+!    write(*,*)'In step_scheil'
     if(noofaxis.ne.1) then
        write(kou,*)'Scheil simulations use one axis variable'
        goto 1000
@@ -9517,11 +9521,13 @@
 !\end{verbatim}
     TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
     integer jj,jp,seqz,iadd,irem,nv,saveq,lokcs,mapx,idir,seqx,seqy,kpos
-    integer inactive(4),mode,nc,npara,liquid
+    integer inactive(4),mode,nc,npara,liquid,errall
     type(map_node), pointer :: mapnode
     type(map_line), pointer :: mapline
     type(map_fixph), allocatable :: mapfix
+! we have to choose between meqrec or meqrec1 .... normal step use meqrec1
     type(meq_setup), pointer :: meqrec
+    type(meq_setup), allocatable, target :: meqrec1
     type(gtp_state_variable), target :: fastxsvr,fastmusvr
     type(gtp_state_variable), target :: matrixsvr,growxsvr
     type(gtp_state_variable), pointer :: svr
@@ -9544,7 +9550,7 @@
 !    type(smp_paraequil_condval), dimension(20) :: paraval
 !    TYPE(gtp_state_variable), target, dimension(20) :: parasvr
 !
-!    write(*,*)'In step_paraequil',tupix(1),tupix(2),fastelno
+!    write(*,*)'SMP2A In step_paraequil',tupix(1),tupix(2),fastelno
     if(noofaxis.ne.1) then
        write(kou,*)'Paraequilibrium simulations one axis variable'
        goto 1000
@@ -9577,9 +9583,16 @@
        jp=jp+1
        if(jp.gt.20) stop 'eternal loop in step_paraeq'
     enddo findxcond
+    if(allocated(meqrec1)) deallocate(meqrec1)
+    allocate(meqrec1,stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 19: ',errall
+      gx%bmperr=4370; goto 1000
+   endif
+   meqrec=>meqrec1
 !    write(*,*)'Calling calc_paraeq first time',tupix(1),tupix(2),fastelno
 ! check we can calculate a paraequilibrium
-    call calc_paraeq(tupix,fastelno,xpara,starteq)
+    call calc_paraeq(tupix,fastelno,xpara,meqrec,meqrec1,starteq)
     if(gx%bmperr.ne.0) then
        write(*,*)'Sorry, cannot calculate an initial paraequilibrium',gx%bmperr
        goto 1000
@@ -9607,8 +9620,6 @@
     call map_findline(maptop,axarr,mapfix,mapline)
     if(gx%bmperr.ne.0) goto 1000
     ceq=>mapline%lineceq
-! meqrec contain information from the calculated equilibrium
-    meqrec=>mapline%meqrec
     mode=-1
     call locate_condition(axarr(1)%seqz,axcond,ceq)
     if(gx%bmperr.ne.0) goto 1000
@@ -9617,16 +9628,20 @@
     lineloop: do while(.TRUE.)
 ! there will be no phase changes during the STEP command, no new nodes
        jp=jp+1
-!       write(*,*)'Calculating paraequilibrium',jp
-       call calc_paraeq(tupix,fastelno,xpara,ceq)
+!       write(*,*)'SMP2A Calculating paraequilibrium',jp
+       call calc_paraeq(tupix,fastelno,xpara,meqrec,meqrec1,ceq)
        if(gx%bmperr.ne.0) then
 ! terminate the line and check if more lines
           goto 500
        endif
+!       if(jp.eq.0) then
+! We need the meqrec  below ...
+!          maptop%meqrec=meqrec
+!       endif
 ! first argument 1 means to get the value
        call condition_value(1,axcond,xxx,ceq)
        if(gx%bmperr.ne.0) goto 1000
-       write(*,'(a,F12.6,": ",2F10.6)')'paraeq:',xxx,xpara(1),xpara(2)
+!       write(*,'(a,F12.6,": ",2F10.6)')'SMP2A paraeq:',xxx,xpara(1),xpara(2)
 ! calculation OK, save it
        call map_store(mapline,axarr,1,maptop%saveceq)
 !       write(*,*)'Stored calculated equilibrium'
@@ -9635,7 +9650,10 @@
           goto 1000
        endif
 ! take a step, at second line the step is zero ... why??
-       call map_step2(maptop,mapline,meqrec,meqrec%phr,axvalok,1,axarr,ceq)
+!       write(*,*)'SMP2A Calling map_step2',size(meqrec%phr)
+!       call map_step2(maptop,mapline,meqrec,meqrec%phr,axvalok,1,axarr,ceq)
+! in call to map_step2 meqrec is not a pointer !!
+       call map_step2(maptop,mapline,meqrec1,meqrec%phr,axvalok,1,axarr,ceq)
        if(gx%bmperr.ne.0) goto 500
 ! when outside limits aapline%more is negative
        if(mapline%more.lt.0) then

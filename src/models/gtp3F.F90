@@ -2560,6 +2560,7 @@
 ! NM or X
             if(tmol.ne.zero) then
                value=amult*vn/tmol
+!               write(*,'(a,5F8.4)')'3F MQMQA: ',amult,vn,tmol
             else
 ! problem at x(phase,component) was zero when phase fix with zero amount
 !               value=zero

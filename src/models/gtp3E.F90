@@ -5163,13 +5163,13 @@
       newtypedef: if(index(longline,' SEQ').gt.0) then
          typedefaction(nytypedef)=100
       else
-!---------------------------------------------- einstein
+!---------------------------------------------- TYPE_DEF phase einstein
          km=index(longline,' EINSTEIN ')
          einstein: if(km.gt.0) then
             typedefaction(nytypedef)=1905
             exit newtypedef
          endif einstein
-!---------------------------------------------- magnetic
+!---------------------------------------------- TYPE_DEF magnetic
          km=index(longline,' MAGNETIC ')
 !         write(*,*)'3E typedef: ',trim(longline),km
          magnetic: if(km.gt.0) then
@@ -5204,7 +5204,7 @@
                typedefaction(nytypedef)=int(xxx)
             endif
          else
-!---------------------------------------------- disordered-part and others
+!------------------------------------------ TYPE_DEF disordered-part and others
             km=index(longline,' DIS_PART ')
             never=1
 !            write(*,*)'3E sigma1: ',trim(longline),km,never
@@ -5272,7 +5272,7 @@
             else
                km=index(longline,' LIQUID 2-STATE ')
                liq2state: if(km.gt.0) then
-!---------------------------------------------- liquid 2-state model
+!------------------------------------------- TYPE_DEF liquid 2-state model
                   typedefaction(nytypedef)=491
                else
 !---------------------------------------------- unknown TYPE-DEF
@@ -8607,11 +8607,14 @@
          ip=1
          constext=' '
          do i2=1,phlista(lokph)%nooffr(2)
+! Benjamin problem 1, he wants negative anion change ....
 ! For anions the charge as a positive value, for Va unity, for neutrals zero
             if(btest(splista(phlista(lokph)%constitlist(isp))%status,SPVA)) then
-               ccc=one
+               ccc=-one
             else
-               ccc=abs(splista(phlista(lokph)%constitlist(isp))%charge)
+! Benjamin correction: changed sign of ccc 
+!               ccc=abs(splista(phlista(lokph)%constitlist(isp))%charge)
+               ccc=splista(phlista(lokph)%constitlist(isp))%charge
             endif
             write(constext(ip:),274)ccc
             ip=len_trim(constext)
