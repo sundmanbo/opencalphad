@@ -1,0 +1,23 @@
+
+This contain the instructions to compile and run the AlNiPt example.
+The OC-parallel2.pdf is a presentation of the example.
+
+1. copy OC/libs/liboceq.a    compiled with -fopenmp   here
+2. copy OC/liboceqplus.mod   compiled with -fopenmp   here
+3. For Linux/Mac copy OC/getkey.o                     here
+4. compile the version liboctq.F90 provided here
+5. compile and link sim-alnipt as below (getkey.o needed only on Linux/Mac:
+   gfortran -o sim-alnipt -fopenmp sim-alnipt.F90 liboctq.o getkey.o liboceq.a
+
+
+6. Run with input file setup.dat which specifies
+   databasefile, elements, gridpoints etc.
+
+7. The diffusion simulation is for a single dimension and the model is
+   very simple.  All elements have the samë constant mobility which is
+   used to move the elements between the gridpoints keeping the total
+   amount of elements constant.
+
+7. Output is written on ocsim.plt and can be plotted directly using GNUPLOT
+   The alnipt-5000.png shows several composition profiles.
+

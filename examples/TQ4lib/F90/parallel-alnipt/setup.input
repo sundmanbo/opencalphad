@@ -1,0 +1,36 @@
+# This is input file for the Al-Ni-Pt simulation
+# A line starting with a # character is a comment line
+#
+# database file name
+alnipt-2005.TDB
+# each element to be selected from the database on a separate line
+# end with empty line
+al
+ni
+pt
+
+# the stable phase in the simulation
+fcc
+# number of gridpoints (max 50)
+40	 
+# Mole fractions in alphabetical order, * means fraction is "rest"
+# fractions of Al and Pt, Ni rest on the left hand side
+0.1 * 0.01
+# Mole fraction of Al and Ni on the right hand side, Pt rest
+0.1 0.05 *
+# Temperature (K)
+1073
+# Mobilities of Al, Ni and Pt (mol per second and J)
+# These are multiplied with the difference in chemical potential
+0.001 0.001 0.001
+# Maximum number of timesteps
+10000
+# Minimum change in fractions to continue (condition to terminate)
+.001
+# GNUPLOT file name for plotting (empty line no intermediate results)
+ocsim.plt
+# Empty line if run in parallel
+
+# end of setup file
+# this is not included on github
+
