@@ -1607,7 +1607,7 @@
    iws(lok1+1)=assrec%status
    iws(lok1+2)=assrec%varcoef
    iws(lok1+3)=assrec%firstexpeq
-   iws(lok1+4)=assrec%firstexpeq
+   iws(lok1+4)=assrec%lwam
 !   call storc(lok1+4,iws,assrec%general)
    call storc(lok1+5,iws,assrec%general)
    disp=5+nwch(64)

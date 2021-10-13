@@ -2375,12 +2375,15 @@
             endif
             rmult=div
          elseif(norm.eq.4) then
-! per formula unit
+! per formula unit of a particular phase
+!            div=ceq%phase_varres(lokcs)%abnorm(1)
+!            write(*,*)'3F normalize F:',div
+!            rmult=one
             div=one
             rmult=div
          else
 ! no normalizing for a specific phase, value for current amount
-! NOTE amult is alreadt RT
+! NOTE amult is already RT
             amult=amult*ceq%phase_varres(lokcs)%amfu
             rmult=ceq%phase_varres(lokcs)%amfu
             div=one

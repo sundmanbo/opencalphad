@@ -3047,7 +3047,7 @@ end function find_phasetuple_by_indices
        tovar=>ceq%phase_varres(toph)
        if(.not.allocated(tovar%yfr)) exit allnonsus
        if(tovar%phstate.le.PHSUS) cycle allnonsus
-       write(*,*)'gtp3A copy phasetuple ',tovar%phtupx
+!       write(*,*)'3A copy phasetuple ',tovar%phtupx
 ! copy phase amounts and fractions from the same phase_varres record 
        fromvar=>fromceq%phase_varres(toph)
        tovar%abnorm=fromvar%abnorm

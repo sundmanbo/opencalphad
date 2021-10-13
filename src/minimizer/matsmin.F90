@@ -2518,7 +2518,7 @@ CONTAINS
           molesofatoms=phr(jj)%curd%abnorm(1)
           if(molesofatoms.lt.0.5D0) then
 ! problem when BCC becomes just vacancies
-!             write(*,*)'MM Phase: ',jj,' moles of atoms: ',molesofatoms
+             write(*,*)'MM Phase: ',jj,' moles of atoms: ',molesofatoms
              molesofatoms=0.5D0
           endif
 !          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)

@@ -417,7 +417,7 @@
     endif
 ! these checks are redundant?
     if((model(1:4).eq.'QCE ' .or. model(1:6).eq.'MQMQA ') .and. nsl.ne.1) then
-       write(*,*)'The liquid quasichemical model has just one set of sites'
+       write(*,*)'The liquid quasichemical model has two sites'
        gx%bmperr=4399; goto 1000
     elseif(model(1:5).eq.'I2SL ' .and. nsl.ne.2) then
        write(*,*)'A ionic liquid model must have two sublattices'
@@ -427,7 +427,7 @@
     sloop: do ll=1,nsl
 ! 'Number of sites on sublattice xx: '
 !  123456789.123456789.123456789.123
-       write(*,*)'3B model: "',trim(model),'"'
+!       write(*,*)'3B model: "',trim(model),'"'
        if(model(1:4).eq.'RKM ' .or. model(1:6).eq.'IDEAL ') then
 ! ideal and RKM models have one set of sites with 1 place ...
           sites(1)=one
@@ -437,7 +437,7 @@
                'Enter phase bonds')
           if(buperr.ne.0) goto 900
        elseif(model(1:6).eq.'MQMQA ') then
-! this model one set of sites and 2 bonds/atom
+! this model two set of sites and variable bonds/atom
           sites(1)=2.0d0
        elseif(model(1:5).ne.'I2SL ') then
 ! For all other models ask for sublattuces and sites
@@ -495,7 +495,8 @@
                   cline,last,4,text,';','?Enter phase constit')
           endif
        else
-          write(*,'(a,i2)')'Give for sublattice ',ll
+!          write(*,'(a,i2)')'Give for sublattice ',ll
+          write(*,'(a,i2)')'Constituents in sublattice ',ll
           call gparcx('Constituents: ',&
                cline,last,4,text,';','?Enter phase constit')
        endif
@@ -666,7 +667,7 @@
       QCE=.TRUE.
    elseif(model(1:6).eq.'MQMQA ') then
 ! FactSage modified quasichemical model
-!      write(*,*)'3B entering MQMQA phase'
+      write(*,*)'3B entering MQMQA phase'
       mqm=.TRUE.
    elseif(model(1:8).eq.'UNIQUAC ') then
       uniquac=.TRUE.
@@ -910,10 +911,12 @@
       firsteq%phase_varres(lokcs)%qcbonds=sites(1)
 !      firsteq%phase_varres(lokcs)%qcbonds=one
 ! in MQMQA all quads share a single set of sites although quad species
-!  are formally mixing on different sublattices, each with 1 site
+! are formally mixing on a two sublattices with a variable(?) number of sites
 !      firsteq%phase_varres(lokcs)%sites(1)=2.0D0
       firsteq%phase_varres(lokcs)%sites(1)=one
 ! Maybe also set %abnorm ??a?
+! %abnorm is moles of atoms per formula units (varies with composition)
+! NOTE %amfu is moles of formula unit of the phase
       firsteq%phase_varres(lokcs)%abnorm(1)=one
 !      write(*,*)'3B MQMQA special abnorm: ',sites(1),one
 !      write(*,'(a,a,": ",2F7.3)')'3B qcbonds ',model(1:5),sites(1),&
@@ -5896,6 +5899,7 @@
         'COMMENT     ','REFERENCE_S ','PLOT_DATA   ','            ']
    character*128 rowtext(ncom),text*128,dummy*128,tval*24,savetitle*24
    character*128 eqlin(ncom),eqname*24,plotdatafile*8,encoded*24
+   character*512 curdir
    integer dcom,kom,done(ncom),ip,jp,kp,ival,jval,neq,slen,shift,ieq,nystat
    integer iel,iph,ics,maxcol,jj
    type(gtp_equilibrium_data), pointer ::ceq
@@ -5939,12 +5943,17 @@
    if(jp.gt.0) then
 ! only a single digit allowed!!
       ival=ichar(rowtext(dcom)(ip+jp:ip+jp))-ichar('0')
+      if(ival.le.0 .or. ival.gt.9) then
+         write(*,*)'3B Error in line: "',trim(rowtext(dcom)),'"'
+         gx%bmperr=4399; goto 1000
+      endif
 ! maxcol is the maximal column referred to in the head
       if(ival.gt.maxcol) maxcol=ival
       if(ival.le.0 .or. ival.gt.9) then
 ! column 0 is name of equilibrium, not a value
          write(kou,*)ival,rowtext(dcom)(1:jp+1)
 210      format('Illegal column for variable: ',i3,': ',a)
+         gx%bmperr=4399; goto 1000
       else
          do kp=1,ncol
             if(colvar(dcom,kp)%column.eq.0) then
@@ -6188,9 +6197,13 @@
                pun(ip)=30+ip
                plotdatafile='oc_many0'
                plotdatafile(8:8)=char(ichar('0')+ip)
-               write(*,*)'3B Opening ',plotdatafile//'.plt'
-               open(pun(ip),file=plotdatafile//'.plt',access='sequential',&
-                    status='unknown')
+!               call getcwd(curdir)               
+!               write(*,*)'3B current dir: ',trim(curdir)
+!               write(*,*)'3B working dir: ',trim(workingdir)
+               write(*,77)plotdatafile//'.plt',trim(workingdir)
+77             format('3B Plot data written on ',a/3x,'in directory: ',a)
+               open(pun(ip),file=trim(workingdir)//'/'//plotdatafile//'.plt',&
+                    access='sequential',status='unknown')
                call getrel(eqlin(jval),last,pxx)
                call getrel(eqlin(jval),last,pyy)
                call getint(eqlin(jval),last,iel)
@@ -6258,6 +6271,7 @@
    goto 300
 !
 1000 continue
+   if(gx%bmperr.ne.0) write(*,*)'Error return from enter_many_equil',gx%bmperr
 ! we can have many enter many with plot data, do not close here!
 ! The file(s) will be closed when the command  enter range
 !   if(plotfile) then

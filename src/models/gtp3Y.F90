@@ -3636,6 +3636,7 @@
    call calc_phase_mol(iph,xmol,ceq)
    if(gx%bmperr.ne.0) goto 1000
 !-------------------------------------------------
+! globaldata%sysreal(1) is positive if EEC activated
    if(globaldata%sysreal(1).gt.one) then
 ! if eec check if this is the liquid and if so select the maximum S ??
       varres=>ceq%phase_varres(lokres)
@@ -3705,6 +3706,7 @@
    else
       gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1))
    endif
+!   write(*,'(a,1pe10.2,10(0pF6.3))')'3Y gp: ',gval,(xarr(i),i=1,nrel)
 !   write(*,12)'All gridpoints: ',lokres,qq(1),gval
 !    read(*,20)ch1
 20  format(a)
@@ -6706,6 +6708,11 @@
    real xdef
 !   write(*,*)'3Y in checkdefcon: ',lokics,lokjcs
    if(btest(ceq%phase_varres(lokjcs)%status2,CSDEFCON)) then
+      if(.not.allocated(ceq%phase_varres(lokjcs)%mmyfr)) then
+         write(*,'(a,i3,a)')'3Y *** Warning: phasetuple ',&
+              ceq%phase_varres(lokjcs)%phtupx,' has no default constitution'
+         fit=0; goto 1000
+      endif
 !      write(*,9)(ceq%phase_varres(lokjcs)%mmyfr(fit),&
 !           fit=1,size(ceq%phase_varres(lokjcs)%yfr))
 9     format('3Y default: ',10F6.2)

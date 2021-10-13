@@ -19,6 +19,57 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.10.13 OC version 6.033: Some progress with MQMQA to be saved
+before I make a mess of it again.
+
+Working on the implementation of MQMQA model has revieled some
+problems within OC.  The first was the fact that a species containing
+Va, which may occur in a "quadrupole" in this model, is counted as a
+real atom and this upset the calculation of mole fractions.  This has
+been fixed temporarily but needs further attention if the vacancy mix
+with other species in a sublattice.  Secondly the amount of formula
+units of a phase is upset when the total amount of atoms in a phase is
+less than unity.  This occur regularly in MQMQA because most
+quadrupoles, which are treated as real species in OC, normally contain
+less than 1 atom, often 1/3 or even less.
+
+The reason is that in OC and FactSage the "amount of a phase" means
+different things, in FactSage there is no specific "amount of phase",
+only the amount of atomes in a phase, whereas OC (and TC) has defined
+a property called "Formula Unit" (FU) of a phase and normally one can
+have values of properties "per FU" as well as "per mole of atoms".
+The difference can be big as phases such as sigma has 30 atoms per FU
+(unit cell) and 23-catbide contains 29 atoms.  The FU simplifies the
+modeling of phases because the Gibbs energy of a phase in OC is
+defined per mole formula unit wheras in FactSage it is defined per
+mole of atoms in the phase.  Thus in OC there is a property "amount of
+phase per formula unit" which is used in the "list result" whereas the
+property NP(phase) is the "amount of atoms" in the phase.  These can
+differ if there is not 1 atom/FU.
+
+The value of the FU of a phase can vary if there are vacancies or
+species with different number of atoms in a phase (for example in a
+gas phase or an interstitial phase with vacancies).  Using FU normally
+simplifies writing the Gibbs energy formula for the phase as it is
+independent of the actual amount of the phase.  But the MQMQA model is
+defined using the amount of atoms in the different quads and initially
+I tried to follow this but it became incompatible with the rest of OC.
+The simplest is to use the formula unit 1 for the MQMQA liquid.  The
+sublattices in MQMQA can contain vacancies but they have no change (in
+contrast to the I2SL model where the number of sites are adjusted to
+make the phase neutral).  The actual number of atoms per sublattice
+can vary in MQMQA, normally it seems to be less than unity.  The
+sublattice occupancy is calculated from the quad fractions and as
+several quads contain the same species on the different sublattices
+the fraction of the identical species fractions in a sublattice are
+added together.  However, in the case of the same species with
+different valency they will be be treated as different and give a
+contribution to the configurational entropy in the sublattice.
+
+I have also found that there are some restrictions in OC when the
+amount of atomes per FU is less than one to avoid dealing with phases
+with an excess of vacancies, this may have to be modified.
+
 2021.10.01 OC version 6.032: More time with no work, or rather very
 little progress.  The MQMQA model is still refusing to work but some
 light in the end of the tunnel.  I wish to save the current status on

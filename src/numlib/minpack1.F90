@@ -202,7 +202,8 @@ contains
 !
     if (n .le. 0 .or. m .lt. n .or. tol .lt. zero &
          .or. lwa .lt. m*n + 5*n + m) then
-       write(*,*)'Illegal call of lmdif1'
+       write(*,12)n,m,lwa,m*n+5*n+m,tol
+12     format(' *** LMDIF1 error: illegal call: ',4i6,1pe12.4)
        go to 10
     endif
 !

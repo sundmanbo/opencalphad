@@ -2151,6 +2151,7 @@
     character phname*32,encoded*1024,axis*32
     character lid(2,maxsame)*24
     integer nooflineends,ephl,invnode
+    double precision xmin, xmax, ymin, ymax
 !
 ! do not change mastertop!
     maptop=>mastertop
@@ -2188,6 +2189,7 @@
     point=0
     plotp=0
     nofinv=0
+    xmin=zero; xmax=zero; ymin=zero; ymax=zero
 ! if graphopt%tielines not zero check if the tielines are in plane ...
 ! %tieline_tieline_inplane <0 means step, 0 means isopleth
     if(graphopt%tielines.gt.0) then
@@ -2305,9 +2307,19 @@
 !                write(*,*)'We are here 1X: ',trim(axisx(jj))
                 call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
                 xval(jj,plotp)=xxx
+                if(xxx.lt.xmin) then
+                   xmin=xxx
+                elseif(xxx.gt.xmax) then
+                   xmax=xxx
+                endif
 !                write(*,*)'We are here 1Y: ',trim(axisy(jj))
                 call meq_get_state_varorfun_value(axisy(jj),xxx,encoded,curceq)
                 yval(jj,plotp)=xxx
+                if(xxx.lt.ymin) then
+                   ymin=xxx
+                elseif(xxx.gt.ymax) then
+                   ymax=xxx
+                endif
 !                write(*,19)'X/Y axis variable: ',plotp,trim(axis),&
 !                     xval(jj,plotp),xxx,point
 !19              format(a,i5,2x,a,2F10.6,2i5)
@@ -2476,6 +2488,11 @@
 !    write(*,*)'found lines/points to plot: ',same,plotp,nofinv
 !    write(*,502)(lineends(ii),ii=1,same)
 502 format(10i5)
+! set default xmin, xmax etc ...
+    graphopt%dfltmin(1)=xmin
+    graphopt%dfltmin(2)=ymin
+    graphopt%dfltmax(1)=xmax
+    graphopt%dfltmax(2)=ymax
 ! NOW pltax should be the the axis labels if set manually
     if(graphopt%labeldefaults(2).ne.0) pltax(1)=graphopt%plotlabels(2)
     if(graphopt%labeldefaults(3).ne.0) pltax(2)=graphopt%plotlabels(3)
@@ -2542,7 +2559,7 @@
 !    character monovariant*6
 ! Gibbs triangle variables
     logical plotgt,appgt
-    double precision sqrt3,xxx,yyy,xmax,ltic,xf,yf
+    double precision sqrt3,xxx,yyy,xmax,ymax,ltic,xf,yf,xmin,ymin
 !  
     write(*,*)'Using the rudimentary graphics in ocplot3B!',graphopt%linett
 ! light green            'fc "#B0FFB0" notitle ',a)
@@ -2560,7 +2577,7 @@
     if(graphopt%labeldefaults(1).eq.0) then
        title=deftitle
     else
-! alwas inlcude open calphad and date, add user title at the end
+! default inlcude open calphad and date, add user title at the end
        title=trim(deftitle)//' '//graphopt%plotlabels(1)
     endif
 ! np should be the number of different lines to be plotted
@@ -2617,42 +2634,46 @@
        if(graphopt%rangedefaults(2).ne.0) then
           xmax=min(xmax,graphopt%plotmax(2))
        endif
+! graphopt%plotmin(1) etc are user defined
+! graphopt%dfltmin(1..3) and dfltmax(1..3) are generated above
+!       write(*,*)'SMP2B xmin,ymin: ',graphopt%dfltmin(1),graphopt%dfltmin(2)
+!       write(*,*)'SMP2B xmax,ymax: ',graphopt%dfltmax(1),graphopt%dfltmax(2)
        ltic=0.01*xmax
        sqrt3=0.5D0*sqrt(3.0D0)
        write(21,844)sqrt3*xmax,xmax
-!       write(21,844)sqrt3*xmax,xmax,sqrt3*xmax+0.02
-! These maybe not necessary ... 0.866 is 0.5sqrt(3)
+! These maybe not necessary ... 0.866 is 0.5*sqrt(3)
 844    format('# GIBBSTRIANGLE '/&
             'set bmargin 3'/'set lmargin 3'/'set rmargin 3'/'set tmargin 3'/&
             'set origin 0.0, 0.0 '/&
             'set size ratio 0.866'/&
             'set yrange [0:',F10.6,']'/'set xrange [0:',F10.6,']'/&
             'set noborder'/'set noxtics'/'set noytics')
-!            "set label 'Z' at 0, -0.03 center"/&
-!            "set label 'X' at 1, -0.03 center"/&
-!            "set label 'Y' at 0.5,",F10.6," center")
 ! This replaces axis without tics, only a tic in the middle
        write(21,845)xmax, xmax, 0.5*xmax, sqrt3*xmax, 0.5*xmax, sqrt3*xmax,&
 ! next 3 values are value and position for max values of Y axis
 !            xmax, 0.343*xmax, sqrt3*(xmax+0.15d0), &
-            xmax, 0.343*one, sqrt3*(one+0.15d0), &
+            xmax, 0.39, sqrt3*(one+0.17d0), &
 ! next 3 values are value and positions of max values for X axis
-!            xmax, 0.92*xmax, -5.0*ltic, &
-            xmax, 0.92*one, -5.0*ltic, &
-! these are rudimentary ticmarks
-            0.25*xmax-2*ltic, 0.5*sqrt3*xmax, 0.25*xmax, 0.5*sqrt3*xmax, &
-            0.25*xmax-ltic,0.5*sqrt3*xmax+1.5*ltic,&
-            0.25*xmax,0.5*sqrt3*xmax,0.75*xmax+2*ltic,&
-            0.5*sqrt3*xmax,0.75*xmax,0.5*sqrt3*xmax,&
-            0.75*xmax+ltic,0.5*sqrt3*xmax+1.5*ltic,0.75*xmax,&
-            0.5*sqrt3*xmax,0.5*xmax,-ltic,0.5*xmax,0.0
-845    format('set style line 90 lt 1 lw 3 pt -1 ps 1'/&
-            'set style line 91 lt 1 lw 2 pt -1 ps 1'/&
+!            xmax, 0.92, -5.0*ltic, &
+            xmax, 0.95, -3.0*ltic, &
+! next 6 values are min values for X and Y axis
+            xmin , -0.04, -0.03, ymin , -0.1, 0.01, &
+! these are rudimentary ticmarks, now going inside triangle !!!
+            0.25*xmax, 0.5*sqrt3*xmax, 0.25*xmax+2*ltic, 0.5*sqrt3*xmax, &
+            0.25*xmax, 0.5*sqrt3*xmax, 0.25*xmax+ltic, 0.5*sqrt3*xmax-1.5*ltic,&
+            0.75*xmax, 0.5*sqrt3*xmax, 0.75*xmax-2*ltic, 0.5*sqrt3*xmax, &
+            0.75*xmax, 0.5*sqrt3*xmax, 0.75*xmax-ltic, 0.5*sqrt3*xmax-1.5*ltic,&
+            0.5*xmax,0.0,0.5*xmax,1.5*ltic
+845    format('set style line 90 lt 1 lw 1 pt -1 ps 1'/&
+            'set style line 91 lt 1 lw 1 pt -1 ps 1'/&
             'set arrow 1 from 0,0 to ',F8.4,', 0.0 nohead linestyle 90'/&
             'set arrow 2 from ',F8.4,', 0 to ',F8.4,',',F8.4,&
             ' nohead linestyle 90'/&
             'set arrow 3 from ',F8.4,',',F8.4,' to 0,0 nohead linestyle 90'/&
             '# axis max values ...'/&
+            'set label "',F6.2,'" at graph ',F8.4,',',F8.4/& 
+            'set label "',F6.2,'" at graph ',F8.4,',',F8.4/& 
+            '# axis min values ...'/&
             'set label "',F6.2,'" at graph ',F8.4,',',F8.4/& 
             'set label "',F6.2,'" at graph ',F8.4,',',F8.4/& 
             '# tickmarks ...'/&

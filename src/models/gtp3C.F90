@@ -1141,7 +1141,7 @@
          else
             write(lut,320)ll,nz,ceq%phase_varres(lokcs)%sites(ll)
          endif
-319      format(15x,'Sublattice ',i2,' with ',i5,' constituents and ',&
+319      format(14x,'Sublattice ',i2,' with ',i5,' constituents and ',&
               F12.6,' sites')
 320      format('Sublattice ',i2,' with ',i5,' constituents and ',&
               F12.6,' sites')
@@ -1396,27 +1396,31 @@
 !\begin{verbatim}
  subroutine list_many_formats(cline,last,ftyp,unit1)
 ! lists all data in different formats: SCREEN/TDB/MACRO/LaTeX/ODB
-!                               ftyp:     1    2    3     4    5
+!                               ftyp:     1    2    3     ???
 ! unfinished
    implicit none
    character cline*(*)
    integer last,unit1,ftyp
 !\end{verbatim}
    integer iph,ipos,kousave,unit,isp
-   character text*64, text2*2000,fil*128
+! the retured file name can be very long
+   character text*512, text2*2000,fil*128
    character date*8,CHTD*1
 ! if not screen then ask for file name
 ! for screen output of file use /option= ...
 !   write(*,*)'3C In list_many_formats',ftyp 
+! problem with program jus dies after gparfilex trying to write a TDB file
+! gparfilex called in PMON6
    if(ftyp.ne.1) then
 !     call gparcdx('Output file: ',cline,last,1,fil,'database','?Output format')
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, -8=LOG
 ! NEGATIVE is for write, 0 read without filter, -100 write without filter
+! gparfilex may call TINYFILESDIALOG
       text=' '
       call gparfilex('Output file: ',cline,last,1,fil,text,&
            -ftyp,'?Output format')
 ! Sometimes segmentation fault between the exit of GPARFILEX and this write
-!      write(*,*)'3C back from gpafilex',ftyp,' "',trim(fil),'"'
+      write(*,*)'3C back from gpafilex',ftyp,' "',trim(fil),'"'
       ipos=len_trim(fil)
       if(ipos.le.0) then
          write(*,*)'No file name, quit'
@@ -1424,7 +1428,7 @@
          goto 1000
       endif
 ! if there is a segmentation fault it is inside gparfilex  SUCK
-!      write(*,*)'3C file name: ',trim(fil)
+      write(*,*)'3C file name: ',trim(fil)
 ! it is impossible to have a blank name here, check if there is an extension
       iph=index(fil,'.')
       if(iph.gt.0) then
@@ -1444,12 +1448,13 @@
             fil(ipos:)='.PDB'
          endif
       endif
-!      write(*,*)'3C opening a new file',ftyp
+      write(*,*)'3C opening a new file',ftyp
 ! check if file exists ... overwriting not allowed ...
       open(unit=31,file=fil,access='sequential',status='new',err=900)
       kousave=unit
       unit=31
    endif
+99 continue
    call date_and_time(date)
 !   write(*,*)'3C select case: ',ftyp
    select case(ftyp) 
@@ -1480,10 +1485,12 @@
       call list_bibliography(' ',kou)
 !--------------------------------------------------------------
 ! write on unit
-   case(2) ! ftyp=2 TDB format
+   case(2) ! ftyp=2 TDB format  THIS IS NOW REDUNDANT
 ! CHTD1 keeps track of type definitions, note: incremented before use
       CHTD='0'
+      write(*,*)'3C saving TDB format'
       if(notallowlisting(privilege)) goto 1000
+      write(*,106)date(1:4),date(5:6),date(7:8)
       write(unit,106)date(1:4),date(5:6),date(7:8)
 106   format('$ Database file written by Open Calphad ',a,'-',a,'-',a/)
       call list_all_elements2(unit)
@@ -1563,6 +1570,100 @@
 !   unit=kousave
    return
  end subroutine list_many_formats
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine list_TDB_format
+!\begin{verbatim}
+ subroutine list_TDB_format(filename)
+! lists all data TDB format
+   implicit none
+   character filename*(*)
+!\end{verbatim}
+   integer iph,ipos,unit,isp
+! the retured file name can be very long
+   character text*512, text2*2000
+   character date*8,CHTD*1
+! if not screen then ask for file name
+! for screen output of file use /option= ...
+!   write(*,*)'3C In list_TDB_formats'
+! problem with program jus dies after gparfilex trying to write a TDB file
+! gparfilex called in PMON6
+   call date_and_time(date)
+! write on unit
+!   write(*,*)'3C opening a TDB file: ',trim(filename)
+! check if file exists ... overwriting not allowed ...
+   open(unit=31,file=filename,access='sequential',status='new',err=900)
+   unit=31
+! CHTD1 keeps track of type definitions, note: incremented before use
+      CHTD='0'
+!      write(*,*)'3C saving TDB format on: ',trim(filename)
+      if(notallowlisting(privilege)) goto 1000
+!      write(*,106)date(1:4),date(5:6),date(7:8)
+      write(unit,106)date(1:4),date(5:6),date(7:8)
+106   format('$ Database file written by Open Calphad ',a,'-',a,'-',a/)
+      call list_all_elements2(unit)
+      write(unit,107)
+107   format(/'$ =================',/)
+      text=' '
+      sploop: do isp=1, nosp()
+! skip vacancy species and species that are elements
+         iph=species(isp)
+         ipos=1
+         call list_species_data2(text,ipos,iph)
+! not very logical, using species index below and location above ... suck
+         if(testspstat(isp,SPEL) .or. testspstat(isp,SPVA)) then
+            cycle sploop
+         endif
+         write(unit,110)text(1:len_trim(text))
+110      format('SPECIES ',A,' !')     
+      end do sploop
+      write(unit,107)
+      text2=' '
+! skip the first two functions which are R and RTLNP (using R)
+! write RTLNP in correct TDB form here
+      text2='FUNCTION RTLNP 10 R*T*LN(1.0D-5*P); 20000 N !'
+      write(unit,112)text2(1:len_trim(text2))
+112   format(a)
+!
+      tpfuns: do iph=3, notpf()! freetpfun-1
+         text2='FUNCTION '
+         call list_tpfun(iph,0,text2(10:))
+! skip functions with names staring with _ as they are parameters
+         if(text2(10:10).eq.'_') cycle tpfuns
+! for the remaining functions OC writes them with = T_low ...
+! and for TC one must remove the = sign
+         ipos=index(text2,'=')
+         text2(ipos:ipos)=' '
+! then add a ! at the end
+         ipos=len_trim(text2)
+         text2(ipos+1:)=' !'
+         call  wrice2(unit,0,8,78,1,text2)
+      end do tpfuns
+      write(unit,107)
+      write(unit,130)
+130   format(/'TYPE_DEFINITION % SEQ * !'/ &
+          'DEFINE_SYSTEM_DEFAULT ELEMENT 2 !'/ &
+          'DEFAULT_COMMAND DEF_SYS_ELEMENT  VA /- !'/)
+      write(unit,107)
+      do iph=1, noph()
+         call list_phase_data2(iph,2,CHTD,unit)
+      enddo
+      write(unit,107)
+      write(unit,140)
+140   format(/' LIST_OF_REFERENCES'/ ' NUMBER  SOURCE')
+      call list_bibliography(' ',unit)
+      write(unit,141)
+141   format('!')
+      close(unit)
+      write(*,*)'Output saved on ',trim(filename)
+      goto 1000
+! error openingfile
+900   continue
+      write(*,*)'Error opening or writing on the TDB file: ',trim(filename)
+1000 continue
+   return
+ end subroutine list_TDB_format
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1874,11 +1975,12 @@
    elseif(topline.eq.2) then
 ! for the quasichemical models
       write(lut,11)phname,phlista(lokph)%status1,special,trim(modelid),&
-           firsteq%phase_varres(lokcs)%qcbonds
+           firsteq%phase_varres(lokcs)%sites(1)
+!           firsteq%phase_varres(lokcs)%qcbonds
 !           firsteq%phase_varres(lokcs)%sites(1)
 !11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a,', Bonds/at:',F7.3)
 ! qcbonds not used for MQMQA
-11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a,', extra:',F7.3)
+11    format(/'Phase: ',A,', Status: ',Z8,1x,a,1x,a,', sites:',F7.3)
    endif
    warning_endmzero=0
    nk=0
@@ -4730,6 +4832,7 @@
     name1=' '
     nvcoeff=0
     do i1=0,size(firstash%coeffstate)-1
+!       write(*,*)'3C coeffstate: ',i1,firstash%coeffstate(i1)
        coeffstate: if(firstash%coeffstate(i1).ge.10) then
 ! optimized variable, read from TP constant array
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
@@ -4772,18 +4875,19 @@
           endif
              nvcoeff=nvcoeff+1
        elseif(firstash%coeffstate(i1).gt.0) then
-! fix variable status
+! coefficient is fix with non-zero value
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
           call makeoptvname(name1,i1)
           call findtpused(firstash%coeffindex(i1),where)
           write(lut,618)name1(1:3),xxx,trim(where)
 618       format(a,2x,1pe14.5,44x,a)
-       elseif(firstash%coeffscale(i1).ne.0) then
-! coefficient with negative status, status set to 1
-          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
-          write(lut,619)i1,firstash%coeffscale(i1),xxx,zero
-619       format('Wrong state for coefficient ',i3,4(1pe12.4))
-          firstash%coeffstate(i1)=1
+!       elseif(firstash%coeffscale(i1).ne.0) then
+! No idea why this code exits why check coeffscale ??
+! coefficient with negative status, status set to 1 ?why?
+!          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+!          write(lut,619)i1,firstash%coeffscale(i1),xxx,zero
+!619       format('Wrong state for coefficient ',i3,4(1pe12.4))
+!          firstash%coeffstate(i1)=1
        endif coeffstate
     enddo
 ! give a warning if parameters need to be rescaled

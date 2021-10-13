@@ -3335,7 +3335,8 @@ CONTAINS
 ! sval is the answer either extracted from SVAR or obtained by user input
 ! cdef is a default answer
 ! typ  is default file extenion, at present only:
-!  1=".TDB", 2=".UNF", 3=".OCM", 4= , 5= , 6= , 7= , 8=".LOG"
+!  1=".TDB", 2=".OCU", 3=".OCM", 4= , 5=".PLT" , 6= , 7=".DAT" , 8=".LOG"
+! negative value for writing ...
 ! hyper is a hypertext target for help
     implicit none
 !    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -3397,6 +3398,12 @@ CONTAINS
 !       write(*,*)'M4 From getfilename: "',trim(sval),'"',typ
        if(sval(1:1).eq.' ') then
           buperr=1020
+       elseif(typ.eq.-1) then
+! this is for writing a TDB file
+          kk=index(sval,'.TDB ')
+          if(kk.eq.0) then
+             sval(len_trim(sval)+1:)='.TDB'
+          endif
        elseif(typ.eq.-7) then
 ! this is for output and file created, if no extension add DAT
           kk=index(sval,'.DAT ')
@@ -3428,6 +3435,7 @@ CONTAINS
 ! Can the rather odd ifdef/endif cause problems ???
 ! if there is a segmentation fault it is after this write statement ... SUCK
 !    write(*,*)'M4 exit gparfilex: ',trim(sval)
+! In 2021.10.04 the program dies after this without error message at all SUCK
 900 RETURN
   END SUBROUTINE GPARFILEX
 

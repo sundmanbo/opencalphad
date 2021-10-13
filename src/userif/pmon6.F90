@@ -192,7 +192,7 @@ contains
     logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
     logical listzero,maptopbug
 ! default plot axis for some STEP command:
-! 1 for SEPARATE, 2 SCHEIL, 3 TZERO, 4 PARAEQUIL, 5 NPLE
+! 1 for SEPARATE, 2 SCHEIL, 3 TZERO, 4 PARAEQUIL, 5 no longer NPLE
     logical stepspecial(5)
 ! fast elements for Scheil, max 3
     character*2 fast(3)
@@ -390,7 +390,7 @@ contains
 ! subcommands to STEP
     character (len=16), dimension(nstepop) :: cstepop=&
          ['NORMAL          ','SEPARATE        ','QUIT            ',&
-          'CONDITIONAL     ','TZERO           ','NPLE            ',&
+          'CONDITIONAL     ','TZERO           ','                ',&
           'SCHEIL_GULLIVER ','PARAEQUILIBRIUM ','FAST            ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
@@ -455,7 +455,7 @@ contains
     seqxyz=0
 ! defaults for several step special
     stepspecial=.FALSE.
-! save the working directory (where OC is started)
+! save the working directory (where OC is started?)
     call getcwd(workingdir)
 !    write(*,*)'Working directory is: ',trim(workingdir)
 ! this is used to save the path to any directory where a macro is started
@@ -1150,7 +1150,7 @@ contains
 !             idef=4
              lokcs=phasetuple(iph)%lokvares
              idef=size(firsteq%phase_varres(lokcs)%sites)
-             write(*,*)'PMON idef: ',idef
+!             write(*,*)'PMON idef: ',idef
              call gparidx('Sum up to sublattice: ',cline,last,ndl,idef,&
                   '?Amend phase disordfrac')
              if(buperr.ne.0) goto 990
@@ -1550,8 +1550,10 @@ contains
 !-------------------------
        case(17) ! AMEND START_CONSTITUTION for assessments
 ! copy constitutions from one equilibrium to another, to handle miscibility gaps
-          call gparix('From equilibrium number: ',cline,last,&
-               fromeq,NONE,'?Amend start_constitution')
+! Default from "previous"
+          ll=ceq%eqno-1
+          call gparidx('From equilibrium number: ',cline,last,&
+               fromeq,ll,'?Amend start_constitution')
 ! copy constitutions of non-suspended phases from fromeq to current equilibrium
           call copyfracs(fromeq,ceq)
 !          write(*,*)'Not implemented yet'
@@ -1852,9 +1854,10 @@ contains
 ! always calculate all state variable functions as they may depend on eachother
 !          write(*,*)'UI: calculating all functions'
           call meq_evaluate_all_svfun(-1,ceq)
-! ignore error
           if(gx%bmperr.ne.0) then
+! ignore error unless inside macro
              write(*,*)'UI: error calculating all functions', gx%bmperr
+             if(kiu.ne.kiud) goto 990
              gx%bmperr=0
           endif
           if(name1(1:1).eq.'*') then
@@ -2581,8 +2584,14 @@ contains
 !                   write(*,*)'P6 wdir: ',trim(string),' ',ch1,j4 
                 enddo
                 string(j4:)=' '
-                write(*,'(a,a)')'New directory: ',trim(string)
-                workingdir=string
+! this is a gfortran special extension
+                call chdir(string,i1)
+                if(i1.ne.0) then
+                   write(*,*)'Failed change working directory',i1
+                else
+                   write(*,'(a,a)')'New working directory: ',trim(string)
+                   workingdir=string
+                endif
              endif
 !             write(*,*)'Cannot be changed'
 !.................................................................
@@ -3232,6 +3241,11 @@ contains
 !          dinc=0.02*(axarr(iax)%axmax-axarr(iax)%axmin)
           call gparrdx('Increment:',cline,last,xxx,dinc,'?Set axis')
           if(buperr.ne.0) goto 100
+          if(xxx.lt.0.01*dinc) then
+! someone (me) set xxx=0 and got a lot of trouble ...
+             write(*,*)'Too small increment not allowed.'
+             xxx=0.01*dinc
+          endif
           axarr(iax)%axinc=xxx
 ! iax can be smaller than noofaxis if an existing axis has been changed
           if(iax.gt.noofaxis) noofaxis=iax
@@ -3544,7 +3558,11 @@ contains
 !          write(*,*)'Not implemeneted yet'
 !-------------------------
        case(23) ! set fixed_coefficient
-          if(.not.allocated(firstash%eqlista)) goto 100
+!          if(.not.allocated(firstash%eqlista)) then
+! check not needed?
+!             write(*,*)'Error "firstash%eqlista" not allocated'
+!             goto 100
+!          endif
           if(.not.btest(firstash%status,AHCOEF)) then
              write(kou,*)'No optimizing coefficients'
              goto 100
@@ -3620,7 +3638,9 @@ contains
 ! mark that the coefficient is fixed and nonzero 
              firstash%coeffstate(j4)=1
           else
-             firstash%coeffstate(j4)=0
+!             firstash%coeffstate(j4)=0
+! Fixed zero parameters are not listed
+             firstash%coeffstate(j4)=-1
           endif
           if(i2.gt.j4) then
              j4=j4+1
@@ -3834,8 +3854,8 @@ contains
           call enter_equilibrium(text,ieq)
           if(gx%bmperr.ne.0) goto 990
 ! by default also select this equilibrium
-          write(kou,303)ieq
-303       format('Equilibrium number is ',i3)
+          write(kou,303)ieq,trim(text)
+303       format('Equilibrium number is ',i3,', name: ',a)
           call gparcdx('Select this equilibrium: ',cline,last,1,ch1,'Y',&
                '?Enter equilibrium')
           if(yeschk(ch1)) then
@@ -3897,7 +3917,7 @@ contains
           endif
           call gparidx('Size of workspace: ',cline,last,lwam,2500,&
                '?Enter coeffs')
-          if(lwam.gt.2000) lwam=2000
+!          if(lwam.gt.2000) lwam=2000
           if(allocated(wam)) then
              deallocate(wam)
              deallocate(iwam)
@@ -3936,7 +3956,9 @@ contains
 ! (if there are any plot_data commands).  It will remain open until
 ! a set range command is given
        case(15)
+!          write(*,*)'Working dir: ',trim(workingdir)
           call enter_many_equil(cline,last,plotdataunit)
+          if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
 ! enter MATERIAL
 ! ask for database, then major element, mass/mole fraction of elements
@@ -4092,7 +4114,20 @@ contains
 !         'LATEX           ','PDB             ','                ']
           kom3=submenu('Output format for data?',cline,last,llform,nlform,1,&
                '?TOPHLP')
-          if(kom.gt.0) then
+          if(kom3.eq.2) then
+             call gparfilex('File name: ',cline,last,1,filename,text,-1,&
+                  '?Save TDB')
+             kl=max(index(filename,'.dat '),index(filename,'.TDB '))
+             if(kl.le.0) then
+                kl=len_trim(filename)+1
+                if(kl.eq.1) then
+                   write(*,*)'Too short file name'
+                   goto 100
+                endif
+                filename(kl:)='.DAT '
+             endif
+             call list_TDB_format(filename)
+          elseif(kom3.gt.0) then
              call list_many_formats(cline,last,kom3,kou)
              if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
                 write(kou,*)bmperrmess(gx%bmperr)
@@ -4662,8 +4697,9 @@ contains
 ! trying to avoid segmentation fault when errs destryed by PLOT with APPEND
              if(size(errs).ne.mexp) then
                 write(*,*)'Allocation error of "errs"',size(errs),mexp
-                deallocate(errs)
-                write(*,*)'Deallocated errs'
+!                deallocate(errs)
+!                write(*,*)'Deallocated errs'
+          write(*,*)' **** Warning, datastructure corrupted, save what you can'
                 goto 100
              endif
              write(lut,600)optres(1:4),optres(5:6),optres(7:8),&
@@ -5387,9 +5423,22 @@ contains
           write(kou,*)'save subcommand error'
 !-----------------------------------------------------------
        case(1) ! save TDB, same as list data TDB
-! format 2 is TDB, see list data ...
-          kom3=2
-          call list_many_formats(cline,last,kom3,kou)
+! format 1 is TDB, see list data ...
+          call gparfilex('File name: ',cline,last,1,filename,text,-1,&
+               '?Save TDB')
+          kl=max(index(filename,'.dat '),index(filename,'.TDB '))
+          if(kl.le.0) then
+             kl=len_trim(filename)+1
+             if(kl.eq.1) then
+                write(*,*)'Too short file name'
+                goto 100
+             endif
+             filename(kl:)='.DAT '
+          endif
+! inside list_TDB_format
+          write(*,*)'PMON calling list_TDB_formats'
+          call list_TDB_format(filename)
+!          write(*,*)'PMON back from list_TDB_formats'
           if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
              write(kou,*)bmperrmess(gx%bmperr)
           elseif(gx%bmperr.ne.0) then
@@ -6024,7 +6073,8 @@ contains
                 neqdef=i1
              endif
           endif
-          write(kou,*)'Current equilibrium ',ceq%eqname
+          write(kou,'(a,i4,", name: ",a)')'Current equilibrium no: ',&
+               ceq%eqno,ceq%eqname
 !-----------------------------------------------------------
        CASE(2) ! select minimizer
           write(kou,*)'Sorry, only one available: ',minimizers(2)
@@ -6157,7 +6207,7 @@ contains
 !=================================================================
 ! STEP, must be tested if compatible with assessments
 !         ['NORMAL          ','SEPARATE        ','QUIT            ',&
-!          'CONDITIONAL     ','TZERO           ','NPLE            ',&
+!          'CONDITIONAL     ','TZERO           ','                ',&
 !          'SHEIL_GULLIVER  ','PARAEQUILIBRIUM ','FAST            ']
     case(19)
 ! disable continue optimization
@@ -6370,7 +6420,7 @@ contains
                maptop%linehead(2)%number_of_equilibria
           write(kou,'(a,i5,a)')'Calculated ',jp,' points along the tzero line'
 !-----------------------------------------------------------
-! STEP NPLE
+! STEP no longer NPLE
        case(6)
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
@@ -6652,7 +6702,7 @@ contains
 ! Paraequilibrium, fraction vs T
                    if(iax.eq.2) text='T'
                 elseif(stepspecial(5)) then
-! NPLE, fraction vs T
+! no longer NPLE, fraction vs T
                    if(iax.eq.2) text='T'
                 endif
                 nullify(maptop%plotlink)
@@ -7664,11 +7714,11 @@ contains
           goto 100
        endif
        firstash%lwam=lwam
-       write(*,558)mexp,nvcoeff,lwam
+       write(*,558)mexp,nvcoeff,mexp*nvcoeff+5*nvcoeff+mexp,lwam
 558    format(/'*************************************************************'/&
             '>>>   Start of optimization using LMDIF'/&
-            '>>>   with ',i4,' experiments and ',i3,' coefficients ',/&
-            '>>>   and allocated workspace ',i5/&
+            '>>>   with ',i4,' experiments and ',i3,' coefficients.',/&
+            '>>>   Workspace needed ',i6', out of allocated ',i6/&
             '*************************************************************')
 !
        j4=nopt
@@ -7685,6 +7735,7 @@ contains
 !       write(*,'(a,10(1pe12.4))')'lmdif1: ',(coefs(iz),iz=1,nvcoeff)
 !->->->->->-> HERE THE OPTIMIZATION IS MADE <-<-<-<-<-<-
 ! nfev set to number of iterations
+!       write(*,*)'LMDIF dimensions: ',mexp,nvcoeff,lwam
        call lmdif1(calfun,mexp,nvcoeff,coefs,errs,optacc,nopt,nfev,&
             iwam,wam,lwam,fjac,err0)
 !       call lmdif1(mexp,nvcoeff,coefs,errs,optacc,nopt,nfev,&
@@ -7957,13 +8008,29 @@ contains
 !============================================================
 ! handling errors
 990 continue
-    write(kou,991)gx%bmperr,buperr
-991 format(/'Error codes: ',2i6)
+    write(kou,991)gx%bmperr,buperr,kiu
+991 format(/'Error codes: ',3i6)
     if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
        write(kou,992)trim(bmperrmess(gx%bmperr))
 992    format('Message: ',a/)
     else
        write(kou,*)'No defined error message, maybe I/O error'
+    endif
+    if(kiu.ne.kiud) then
+! error running a macro, terminate macro
+       write(*,*)'Error running MACRO file, return to interactive mode?'
+       if(iox(8).eq.0) then
+! iox(8) is nonzero if one has set "no stop on @&"
+! in such a case ignore any error
+          read(*,993)ch1
+993       format(a)
+          if(ch1.eq.' ') then
+             call macend(cline,last,logok)  
+             kiu=kiud
+          else
+             write(*,*)'Continue on your own risk '
+          endif
+       endif
     endif
     if(stop_on_error) then
 ! turn off macro but remain inside software
