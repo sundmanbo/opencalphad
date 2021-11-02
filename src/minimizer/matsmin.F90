@@ -2385,7 +2385,7 @@ CONTAINS
           call get_phase_name(phr(jj)%iph,phr(jj)%ics,phnames)
           if(gx%bmperr.ne.0) goto 1000
 !          write(*,373)phr(jj)%iph,phr(jj)%ics,kkz
-          write(*,373)trim(phnames),kkz
+!          write(*,373)trim(phnames),kkz
 373       format('MM The phase ',a,' cannot vary its amount:',3i7)
           gx%bmperr=4194; goto 1000
        endif
@@ -2516,10 +2516,12 @@ CONTAINS
           endif
 ! scale dgm per mole atoms
           molesofatoms=phr(jj)%curd%abnorm(1)
-          if(molesofatoms.lt.0.5D0) then
-! problem when BCC becomes just vacancies
-             write(*,*)'MM Phase: ',jj,' moles of atoms: ',molesofatoms
-             molesofatoms=0.5D0
+          if(molesofatoms.lt.0.3D0) then
+! problem when a phase is stable with just vacancies !!!!!!!!!!!!
+             if(phr(jj)%phasestatus.gt.0) then
+                write(*,'(a,i3,a,F8.4)')'MM Phase: ',jj,&
+                     ' moles of atoms: ',molesofatoms
+             endif
           endif
 !          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
           dgm=gsurf-dgm/molesofatoms
@@ -10933,7 +10935,7 @@ CONTAINS
     integer idum,jdum,savefix(2),saveent
 !    
 !    write(*,*)'In two_stoich_same_comp'
-    write(*,*)'MM found two stable stochiometric phases with same composition'
+!    write(*,*)'MM found two stable stochiometric phases with same composition'
 ! THIS SHOULD NOT BE USED FOR ISOPLETHS ??
 !    if(meqrec%nrel.ne.2) then
 ! How to check if I should use this routine? Only 2 components?
@@ -10951,7 +10953,7 @@ CONTAINS
     phases(ip+2:)='and'
     call get_phasetup_name(meqrec%phr(irem)%curd%phtupx,phases(ip+6:))
     if(gx%bmperr.ne.0) goto 1000
-    write(*,*)'MM phases: ',trim(phases)
+    write(*,'(a)')'MM two compounds stable at same composition: '//trim(phases)
 ! new T calculated in this routine should be close to current value
     tinit=ceq%tpval(1)
 !    write(*,22)'MM in two_stoich_same_comp: ',irem,iadd,ceq%tpval(1)

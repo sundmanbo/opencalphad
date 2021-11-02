@@ -4044,7 +4044,7 @@
 !   write(*,71)'3E line 1 ',ip,trim(longline)
 !   write(*,*)'3E new keyword ',ip,'>',longline(1:40)
    do while(index(longline,'!').le.0)
-      read(21,110,err=2200)line
+      read(21,110,err=2200,end=2200)line
       nl=nl+1
       if(line(1:1).ne.'$') then
          call replacetab(line,nl)
@@ -7413,7 +7413,8 @@
 ! These are to handle problems ....
    integer warnings,decimals,missend(9),thisend(9),www,xnooffr(0:9)
 ! indices for excess parameters
-   integer exix(500),lastix,firstix
+! exis increaset to 1024 ....
+   integer exix(1024),lastix,firstix
 ! we must probably create a stack for excess parameters
    type intstack
       type(gtp_interaction), pointer :: intlink

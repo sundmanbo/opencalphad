@@ -584,6 +584,7 @@
    integer iva(maxconst),endm(maxsubl),endm0(maxsubl+1)
    logical externalchargebalance,tupix
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
+   integer s1,mqm1(20),mqm2(20)
 ! logicals for models later stored in phase record
    logical i2sl,QCE,uniquac,mqm,clusterr
 !   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
@@ -667,7 +668,7 @@
       QCE=.TRUE.
    elseif(model(1:6).eq.'MQMQA ') then
 ! FactSage modified quasichemical model
-      write(*,*)'3B entering MQMQA phase'
+!      write(*,*)'3B entering MQMQA phase'
       mqm=.TRUE.
    elseif(model(1:8).eq.'UNIQUAC ') then
       uniquac=.TRUE.
@@ -1059,8 +1060,11 @@
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHMQMQA)
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHLIQ)
 ! we must set correct fraction index in mqmqa_data%contyp(10,i)
+! and also set %contyp(11,i) %contyp(12,i) to incremental index in sublattices
+! The order does not matter but same element should have same index
 ! mqmqa_data%contyp(10,i) set to order in fraction array
       ll=0
+      mqm1=0; mqm2=0
       do kkk=1,mqmqa_data%nconst
          loksp=abs(mqmqa_data%contyp(10,kkk))
 !         write(*,*)'3B index: ',loksp
@@ -1070,6 +1074,23 @@
                ll=ll+1
             endif
          enddo
+         if(mqmqa_data%contyp(5,kkk).gt.0) then
+! fix sublattice index for pair constituents
+            s1=1
+            sub1: do while(mqm1(s1).gt.0 .and. &
+                 mqm1(s1).ne.mqmqa_data%contyp(6,kkk))
+               s1=s1+1
+            enddo sub1
+            mqm1(s1)=mqmqa_data%contyp(6,kkk)
+            mqmqa_data%contyp(11,kkk)=s1
+            s1=1
+            sub2: do while(mqm2(s1).gt.0 .and. &
+                 mqm2(s1).ne.mqmqa_data%contyp(7,kkk))
+               s1=s1+1
+            enddo sub2
+            mqm2(s1)=mqmqa_data%contyp(7,kkk)
+            mqmqa_data%contyp(12,kkk)=s1
+         endif
 !         write(*,555)kkk,(mqmqa_data%contyp(jk,kkk),jk=1,10)
 555      format('3B yindex: ',i2,4i3,2i4,3i3,i4)
       enddo
@@ -1078,6 +1099,16 @@
               size(phlista(nyfas)%constitlist)
          gx%bmperr=4399; goto 1000
       endif
+! finally list constitents
+      do s1=1,mqmqa_data%nconst
+!         conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
+!         conname=mqmqa_data%contyp(10,s1)))%symbol
+!         connames(s1)=conname
+         write(*,3)s1,(mqmqa_data%contyp(ll,s1),ll=1,12),&
+              (mqmqa_data%constoi(ll,s1),ll=1,4),&
+              trim(splista(phlista(nyfas)%constitlist(s1))%symbol)
+3        format('3X mq:',i2,4i3,1x,i3,1x,4i2,1x,i3,1x,2i2,4F5.1,1x,a)
+      enddo
    elseif(uniquac) then
       phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHUNIQUAC)
@@ -1379,7 +1410,7 @@
 !   do jl=1,ncs
 !      lokcs=phlista(lokph)%linktocs(jl)
 !      write(*,7)lokcs,firsteq%phase_varres(lokcs)%mmyfr
-!7     format('3B mmy: ',i4,10F5.1)
+7  format('3B mmy: ',i4,10(F6.2))
 !   enddo
 ! collect some data needed
    nsl=phlista(lokph)%noofsubl
@@ -1580,7 +1611,7 @@
          if(leq.eq.1) then
 ! allocate a parrecord for DISORDERED FRACTION SET for first equilibrium.
 ! Then use the same index: nydis, for all other equilibria.
-! Maybe this can be made by a simple assignement????
+! Maybe this can be made by a simple assignement???? NO !!!
             call create_parrecords(lokph,nydis,nsl,nkk,maxcalcprop,iva,firsteq)
             if(gx%bmperr.ne.0) goto 1000
          elseif(once) then
@@ -1778,8 +1809,11 @@
       if(.not.allocated(varres%sites)) cycle alleq
       deallocate(varres%constat)
       deallocate(varres%yfr)
-! this is not allways allocated
-      if(allocated(varres%mmyfr)) deallocate(varres%mmyfr)
+      if(allocated(varres%mmyfr)) then
+! this is not allways allocated, clear CSDEFCON bit also
+         varres%status2=ibclr(varres%status2,CSDEFCON)
+         deallocate(varres%mmyfr)
+      endif
       deallocate(varres%sites)
 ! these may not be allocated ...
 !      write(*,*)'3B delete varres dsitesdy: ',leq,lokcs,size(varres%dsitesdy)
@@ -1802,7 +1836,10 @@
 !         write(*,*)'3B Deallocationg disordered varres record ',idisvarres
          deallocate(disvarres%constat)
          deallocate(disvarres%yfr)
-         if(allocated(disvarres%mmyfr)) deallocate(disvarres%mmyfr)
+         if(allocated(disvarres%mmyfr)) then
+            disvarres%status2=ibclr(disvarres%status2,CSDEFCON)
+            deallocate(disvarres%mmyfr)
+         endif
          deallocate(disvarres%sites)
 ! these may not be allocated ...
 !         write(*,*)'3B delete cs dsitesdy: ',leq,size(disvarres%dsitesdy)
@@ -6432,6 +6469,8 @@
          if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%mmyfr)) cycle
 ! If all prevous allocated I hope these will not cause errors ....
          deallocate(eqlista(ieq)%phase_varres(ipv)%mmyfr)
+         eqlista(ieq)%phase_varres(ipv)%status2=&
+              ibclr(eqlista(ieq)%phase_varres(ipv)%status2,CSDEFCON)
          deallocate(eqlista(ieq)%phase_varres(ipv)%sites)
          deallocate(eqlista(ieq)%phase_varres(ipv)%listprop)
          deallocate(eqlista(ieq)%phase_varres(ipv)%gval)
@@ -6876,7 +6915,7 @@
    character*24 cation1, cation2, anion1, anion2, species(4),quaderr
    character quadname*64,ch1*1,elnames(9)*2,seqnum*2
    double precision val,qstoi(20),smass,qsp,extra(5),stoi(20),double(4)
-   double precision vazero
+   double precision vazero,totstoi
    save nend,seqnum
 ! Example of input line with "constituents":
 ! LI/CL 6 6 LI/O 6 3 U/CL 6 2 U/O 6 3 LI,U/CL 2 6 6 LI,U/O 2 6 3
@@ -6884,7 +6923,7 @@
 !   write(*,2)loop,trim(inline)
 2  format('3B entering mqmqa_const: ',i3,' "',a,'"')
    if(loop.eq.0) then
-! these should be deallocated with NEW Y!!!!!!!!!!!!
+! these should be DEALLOCATED with NEW Y!!!!!!!!!!!!
       if(allocated(mqmqa_data%contyp)) then
          write(*,*)'3B deallocating mqmqa_data'
          deallocate(mqmqa_data%contyp)
@@ -6892,21 +6931,28 @@
       if(allocated(mqmqa_data%constoi)) then
          deallocate(mqmqa_data%constoi)
       endif
-      if(allocated(mqmqa_data%spstoi)) then
-         deallocate(mqmqa_data%spstoi)
+      if(allocated(mqmqa_data%totstoi)) then
+         deallocate(mqmqa_data%totstoi)
       endif
-      write(*,*)'3B Allocating mqmqa_data, max quadrupoles: ',f1
-      allocate(mqmqa_data%contyp(10,f1))
+      if(allocated(mqmqa_data%quady)) then
+         deallocate(mqmqa_data%quady)
+      endif
+!      write(*,*)'3B Allocating mqmqa_data, max quadrupoles: ',f1
+!      allocate(mqmqa_data%contyp(10,f1))
+! increased %contyp with 2 integers to sublattice index for species
+      allocate(mqmqa_data%contyp(12,f1))
       allocate(mqmqa_data%constoi(4,f1))
-      allocate(mqmqa_data%spstoi(2,2,f1))
+      allocate(mqmqa_data%quady(4,f1))
+      allocate(mqmqa_data%totstoi(f1))
       mqmqa_data%nconst=0
-      mqmqa_data%spstoi=zero
+      mqmqa_data%quady=0
       mqmqa_data%constoi=zero
       nend=0
       seqnum='00'
    endif
    ip=0
    call capson(inline)
+   mqmqa_data%totstoi=zero
 100 continue
    if(eolch(inline,ip)) goto 900
 ! here a new quadrupole. Third argumment 2 means terminated by space
@@ -6933,7 +6979,7 @@
    write(*,*)'3B quadrupole: ',trim(quadname),kp,jp
    order1=0
    if(kp.gt.0 .and. kp.lt.jp) then
-! there are two cations
+! there are two cation species
       species(1)=quadname(1:kp-1)
       species(2)=quadname(kp+1:jp-1)
       call find_species_by_name(species(1),isp(1))
@@ -7012,32 +7058,42 @@
       goto 1000
    endif
 !
-   if(ntot.gt.2) call getrel(inline,ip,mqmqa_data%constoi(3,thiscon))
+   if(ntot.eq.2) then
+! this is the \zeta value needed to calculate the entropy of pairs
+      call getrel(inline,ip,mqmqa_data%constoi(3,thiscon))
+   elseif(ntot.gt.2) then
+      call getrel(inline,ip,mqmqa_data%constoi(3,thiscon))
+   endif
    if(ntot.gt.3) call getrel(inline,ip,mqmqa_data%constoi(4,thiscon))
+   if(buperr.ne.0) then
+      write(*,*)'3B error in stoichiometry: "',inline(kp:ip),'"'
+      goto 1000
+   endif
 ! this is needed if a quadrupole species is not an element ...
 ! ncat is number in species in first sublattice, ntot is total number (max 4)
-   if(ntot.eq.2) then
-      mqmqa_data%spstoi(1,1,thiscon)=2.0d0/mqmqa_data%constoi(1,thiscon)
-      mqmqa_data%spstoi(2,1,thiscon)=2.0d0/mqmqa_data%constoi(2,thiscon)
-   elseif(ncat.eq.1) then
-      mqmqa_data%spstoi(1,1,thiscon)=2.0d0/mqmqa_data%constoi(1,thiscon)
-      mqmqa_data%spstoi(2,1,thiscon)=one/mqmqa_data%constoi(2,thiscon)
-      mqmqa_data%spstoi(2,2,thiscon)=one/mqmqa_data%constoi(3,thiscon)
-   else
-      mqmqa_data%spstoi(1,1,thiscon)=one/mqmqa_data%constoi(1,thiscon)
-      mqmqa_data%spstoi(1,2,thiscon)=one/mqmqa_data%constoi(2,thiscon)
-      if(ntot.eq.3) then
-         mqmqa_data%spstoi(1,2,thiscon)=2.0d0/mqmqa_data%constoi(3,thiscon)
-      else
-         mqmqa_data%spstoi(1,2,thiscon)=one/mqmqa_data%constoi(3,thiscon)
-         mqmqa_data%spstoi(2,2,thiscon)=one/mqmqa_data%constoi(4,thiscon)
-      endif
-   endif
+! %spstoi not used ??
+!   if(ntot.eq.2) then
+!      mqmqa_data%spstoi(1,1,thiscon)=2.0d0/mqmqa_data%constoi(1,thiscon)
+!      mqmqa_data%spstoi(2,1,thiscon)=2.0d0/mqmqa_data%constoi(2,thiscon)
+!   elseif(ncat.eq.1) then
+!      mqmqa_data%spstoi(1,1,thiscon)=2.0d0/mqmqa_data%constoi(1,thiscon)
+!      mqmqa_data%spstoi(2,1,thiscon)=one/mqmqa_data%constoi(2,thiscon)
+!      mqmqa_data%spstoi(2,2,thiscon)=one/mqmqa_data%constoi(3,thiscon)
+!   else
+!      mqmqa_data%spstoi(1,1,thiscon)=one/mqmqa_data%constoi(1,thiscon)
+!      mqmqa_data%spstoi(1,2,thiscon)=one/mqmqa_data%constoi(2,thiscon)
+!      if(ntot.eq.3) then
+!         mqmqa_data%spstoi(1,2,thiscon)=2.0d0/mqmqa_data%constoi(3,thiscon)
+!      else
+!         mqmqa_data%spstoi(1,2,thiscon)=one/mqmqa_data%constoi(3,thiscon)
+!         mqmqa_data%spstoi(2,2,thiscon)=one/mqmqa_data%constoi(4,thiscon)
+!      endif
+!   endif
 !********************************************************************
 ! IF ALL INPUT IS IN ALPHABETICAL ORDER  (incl elements!) IT WORKS
 ! For non-alphabetical input a very strong link between the
 ! order of species order and stoichiometry also connected to endmember
-! order when species replaced by endmembers .... SUCK   
+! order when species replaced by species .... SUCK   
 !********************************************************************
 !   if(order2.gt.0) then 
 !      val=mqmqa_data%constoi(ntot-1,thiscon)
@@ -7046,10 +7102,6 @@
 !   endif
 !   write(*,33)(mqmqa_data%constoi(jp,thiscon),jp=1,4)
 33 format('3B mqmqstoi: ',4F10.4)
-   if(buperr.ne.0) then
-      write(*,*)'3B error in stoichiometry: "',inline(kp:ip),'"'
-      goto 1000
-   endif
 ! Now we have a quadrupole, create the species and enter contyp and constoi
 ! sum up the elements in the quadrupole
 ! VA must have stoichiometry zero otherwise minimizer is confused
@@ -7058,6 +7110,7 @@
    loksparr=0
    ielno=0
    vazero=zero
+   totstoi=zero
 ! add stoichiometry from all species in the quadrupole
 ! NOTE multiply stoichiometry with double for either or both sublattices
    sumstoi: do kp=1,ntot
@@ -7072,9 +7125,11 @@
          if(ielno(ee).eq.0) then
 ! TEMPORARY TREATMENT OF VA ALONE IN A SUBLATTICE
 ! ielno(ee)=0 indicate Va, try setting its stoichiometry to zero !!!
-            write(*,*)'3B Va stoichiometry removed from sum: ',kp,ee,ielno(ee)
+!           write(*,'(a,4i3)')'3B Vacancy removed from totstoi:',kp,ee,ielno(ee)
             vazero=vazero-splista(loksp)%stoichiometry(ee)
             stoi(ee)=zero
+! maybe here use mqmqa_data%quadsp to indicate vacancy??
+! NOTE species indices changes as we add new species
 ! This does not work if there are real species on same sublattice as Va
 ! maybe just ignore Va in sum of stoichiometries?
          else
@@ -7105,8 +7160,11 @@
 !         write(*,35)thiscon,kp,ee,nel,jp,&
 !              double(kp),qstoi(ee),stoi(jp),mqmqa_data%constoi(kp,thiscon)
 35       format('3B qstoi: ',5i5,6F7.4)
+         totstoi=totstoi+qstoi(ee)
       enddo elstoi
    enddo sumstoi
+   mqmqa_data%totstoi(thiscon)=totstoi
+!   write(*,'(a,i3,F10.4)')'3B totstoi: ',thiscon,mqmqa_data%totstoi(thiscon)
 ! enter some data in mqmqa_data%contyp; we cannot enter endmember links
    endmember=.FALSE.
    do kp=1,9
@@ -7179,9 +7237,9 @@
    call incnum(seqnum)
 !   write(*,*)'3B test seqnum 2: ',seqnum
    quadname(kp+1:)='-Q'//seqnum
-   write(*,600)trim(quadname),nspel,&
-        (ielno(kp),trim(elnames(kp)),qstoi(kp),kp=1,nspel)
-600 format('3B quad: ',a,i3,9(i3,2x,a,F11.8))
+!   write(*,600)trim(quadname),nspel,&
+!        (ielno(kp),trim(elnames(kp)),qstoi(kp),kp=1,nspel)
+600 format('3B enter quad: ',a,i3,9(i3,2x,a,F11.8))
    call enter_species(quadname,nspel,elnames,qstoi)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,*)'3B returning the quadrupole name'
@@ -7189,7 +7247,7 @@
 ! we must use the location of the endmember species?? YES
    call find_species_by_name(quadname,kp)
    call get_species_location(kp,loksp,cation1)
-!   write(*,*)'3B quad: ',trim(quadname),kp,loksp,thiscon
+!   write(*,*)'3B found quad: ',trim(quadname),kp,loksp,thiscon
    if(gx%bmperr.ne.0) goto 1000
 ! in this place we must store the final constituent index of this species
 ! the constituents are arranged alphabetical in the call to enter_phase
@@ -7202,7 +7260,7 @@
 !-----------------------------------------------------------------------
 ! illegal quadrupole, skip this quadruple there can be 2-4 reals trailing
 800 continue
-   write(*,*)'3B Error decoding quadrupole: ',trim(quadname)
+   write(*,*)'3B **** Error decoding quadrupole: ',trim(quadname)
    gx%bmperr=0
    call getrel(inline,ip,val)
    call getrel(inline,ip,val)
@@ -7239,6 +7297,9 @@
 900   continue
 !
 1000 continue
+!   write(*,'(a,7F10.4)')'3B totstoi: ',(mqmqa_data%totstoi(kp),kp=1,3)
+!   write(*,'(a,4(4i3,2x))')'3B quady: ',&
+!        ((mqmqa_data%quady(ip,kp),ip=1,4),kp=1,3)
    return
  end subroutine mqmqa_constituents
 
@@ -7370,16 +7431,17 @@
 !   stop 7
 !----------------------------------------------------------
 !
-! search for endmembers   
+! search for pairs (with a single constituent in each sublattice)
    nend=0
    try1: do s1=1,mqmqa_data%nconst
       if(mqmqa_data%contyp(5,s1).gt.0) then
+! this is an pair
          nend=nend+1
          endmem(1,nend)=mqmqa_data%contyp(6,s1)
          endmem(2,nend)=mqmqa_data%contyp(7,s1)
 !        write(*,'(a,4i4)')'3B endmember ',nend,s1,endmem(1,nend),endmem(2,nend)
       else
-! skip this else link
+! skip this else link for non-endmembers
       cycle try1
 ! set the species in each sublattice of a quadrupole to be in increasing order
 !         write(*,*)'3B checking if quadrupol species in alphabetical order'
@@ -7428,6 +7490,7 @@
             endif
          endif
       endif
+! note code above is skipped due to cycle try1
    enddo try1
    if(nend.le.0) then
       write(*,*)'3B No endmembers among mqmqa constituents!',mqmqa_data%nconst
@@ -7444,7 +7507,7 @@
    subcon1=0; subcon2=0; ncon1=0; ncon2=0
    loop: do s1=1,mqmqa_data%nconst
       if(mqmqa_data%contyp(5,s1).gt.0) then
-! calculate the number of constituents on each sublattice
+! FOR ENDMEMBERS calculate the number of constituents on each sublattice
          lat1: do s2=1,ncon1
             if(mqmqa_data%contyp(6,s1).eq.subcon1(s2)) exit lat1
          enddo lat1
@@ -7459,9 +7522,11 @@
             ncon2=ncon2+1
             subcon2(ncon2)=mqmqa_data%contyp(7,s1)
          endif
+!         write(*,'(a,4i3)')'3B endmember: ',ncon1,ncon2,subcon1(1),subcon2(2)
          cycle loop
       endif
       new=0; found=0; need=2
+! THIS IS A QUAD WITH 3 OR MORE SPECIES
       if(mqmqa_data%contyp(9,s1).gt.0) need=4
 !      write(*,87)s1,(mqmqa_data%contyp(s2,s1),s2=6,9)
 87    format('3B quadrup: ',i3,5x,4i4)
@@ -7499,13 +7564,23 @@
          gx%bmperr=4399; goto 1000
       endif
 !      write(*,111)s1,(mqmqa_data%contyp(s3,s1),s3=6,9),new
-111   format('3B in ',i3,' replace ',4i3,' by endmembers ',4i3)
+111   format('3B in: ',i3,' replace ',4i3,' by pairs ',4i3)
       do s3=1,4
          mqmqa_data%contyp(5+s3,s1)=new(s3)
       enddo
    enddo loop
    mqmqa_data%ncon1=ncon1
    mqmqa_data%ncon2=ncon2
+! copy the value in constoi(3,s1) for all pairs to qfnnsnn
+   allocate(mqmqa_data%qfnnsnn(50))
+   mqmqa_data%qfnnsnn=zero
+   do s1=1,mqmqa_data%nconst
+      s2=mqmqa_data%contyp(5,s1)
+      if(s2.gt.0) then
+         mqmqa_data%qfnnsnn(s2)=mqmqa_data%constoi(3,s1)
+         mqmqa_data%constoi(3,s1)=zero
+      endif
+   enddo
 ! check we have all necessary quadrupoles
 ! endmembers:
    s1=ncon1*ncon2
@@ -7525,7 +7600,7 @@
 !   do s1=1,mqmqa_data%nconst
 !      write(*,763)s1,(mqmqa_data%contyp(s2,s1),s2=1,10),&
 !           (mqmqa_data%constoi(s2,s1),s2=1,4)
-!763   format('3B Quad: ',i3,i4,3i3,2i5,3i4,i5,4F7.3)
+763   format('3B Quad:',i2,i4,3i3,2i5,3i4,i5,4F7.3)
 !   enddo
 1000 continue
    return

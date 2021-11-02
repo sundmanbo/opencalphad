@@ -2512,6 +2512,10 @@ end subroutine get_condition
 909 format('3D 2699: ',10i4)
 !   write(*,46)'3D y: ',(ceq%phase_varres(lokcs)%yfr(jl),jl=1,jk)
 46 format(a,10(F7.3))
+   if(.not.allocated(ceq%phase_varres(lokcs)%mmyfr)) then
+! for some reason I have not always allocated this ...
+      allocate(ceq%phase_varres(lokcs)%mmyfr(phlista(lokph)%tnooffr))
+   endif
    do jl=1,phlista(lokph)%tnooffr
       ceq%phase_varres(lokcs)%mmyfr(jl)=mmyfr(jl)
 !      write(*,47)'3D jl: ',jl,mmyfr(jl),&

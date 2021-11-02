@@ -6280,8 +6280,9 @@
    cset=>ceq%phase_varres(lokcs)
 ! we must use set_constitution at the end to update various internal variables
    allocate(yarr(phlista(lokph)%tnooffr))
-   if(btest(cset%status2,CSDEFCON)) then
-! there is a preset default constitution
+!   if(btest(cset%status2,CSDEFCON)) then
+   if(allocated(cset%mmyfr)) then
+! there is an allocated default constitution
 !      write(*,12)'3Y mmfy: ',(cset%mmyfr(kk),kk=1,phlista(lokph)%tnooffr)
       kk=0
       subl1: do ll=1,phlista(lokph)%noofsubl
@@ -6316,6 +6317,9 @@
 ! there is no default constitution, set equal amount of all fractions
 ! with some randomness
 !      write(*,*)'3Y No default constituition for: ',iph,ics
+!      if(btest(cset%status2,CSDEFCON)) then
+!         write(*,*)'3Y default constitution set not allocated'
+!      endif
       kk=0
       subl2: do ll=1,phlista(lokph)%noofsubl
          if(phlista(lokph)%nooffr(ll).gt.1) then
@@ -6709,8 +6713,8 @@
 !   write(*,*)'3Y in checkdefcon: ',lokics,lokjcs
    if(btest(ceq%phase_varres(lokjcs)%status2,CSDEFCON)) then
       if(.not.allocated(ceq%phase_varres(lokjcs)%mmyfr)) then
-         write(*,'(a,i3,a)')'3Y *** Warning: phasetuple ',&
-              ceq%phase_varres(lokjcs)%phtupx,' has no default constitution'
+!         write(*,'(a,i3,a)')'3Y *** Warning: phasetuple ',&
+!              ceq%phase_varres(lokjcs)%phtupx,' has no default constitution'
          fit=0; goto 1000
       endif
 !      write(*,9)(ceq%phase_varres(lokjcs)%mmyfr(fit),&

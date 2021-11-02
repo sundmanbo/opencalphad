@@ -506,6 +506,8 @@
              endif
           endif
        endif checkinterval
+!    elseif(gx%bmperr.ne.0) then
+!       goto 1000
     endif phasecheck
 !------------------------------------------------------------------
 !    write(*,*)'SMP looking for error 7:'

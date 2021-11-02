@@ -1537,6 +1537,8 @@
           '# set xrange [0.5 : 0.7] '/&
           '# Adding manually a line and keep scaling:'/&
           '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
+          '# Plotting symbols instead of line:'/&
+          '# ... using 2:i with points pt 7 ps 3 '/&
           '# set multiplot'/&
           '# set xrange [] writeback'/&
           '#  ... plot someting'/&
@@ -2754,6 +2756,8 @@
           '# set xrange [0.5 : 0.7] '/&
           '# Adding manually a line and keep scaling:'/&
           '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
+          '# Plotting symbols instead of line:'/&
+          '# ... using 2:i with points pt 7 ps 3'/&
           '# set multiplot'/&
           '# set xrange [] writeback'/&
           '#  ... plot someting'/&

@@ -370,7 +370,7 @@ reference MG LIQ * 1E5
 @$ experiment MUR(MG)=@2:20%
 experiment MU(MG)=@2:20%
 comment LIQ - MG PRESS - SCHMAHL AND SIEBEN
-plot_data 3 @3 @2 7 Schmahl
+plot_data 4 @4 @2 7 Schmahl
 table_start
 EQ_T4_190_MUL_S 190    -83   865  .936
 EQ_T4_191_MUL_S 191   -385   895  .936
@@ -405,7 +405,7 @@ reference MG LIQ * 1E5
 @$ experiment ACR(MG)=@5:16%
 experiment AC(MG)=@5:16%
 comment LIQ - MG PRESSURE - JUNEJA
-plot_data 3 @2 @7 8 Juneja
+plot_data 3 @6 @5 8 Juneja
 table_start
 EQ_T5_220_MUL_J 220  1056   9.4698   -0.0466   0.8982   0.9005   -943
 EQ_T5_221_MUL_J 221  1032   9.6927   -0.0471   0.8972   0.9005   -931
@@ -467,7 +467,7 @@ reference MG LIQ * 1E5
 @$ experiment ACR(MG)=@6:20%
 experiment AC(MG)=@6:20%
 comment LIQ - MG PRESSURE - GARG
-plot_data 3 @3 @7 9 Garg
+plot_data 3 @2 @6 9 Garg
 table_start
 EQ_T6_270_ACL_G 270 0.11   1173   8.52514919    -2.1844     0.0065   -49053.0
 EQ_T6_271_ACL_G 271 0.11   1200   8.333333333   -2.1543     0.0070   -49490.3
@@ -1183,15 +1183,15 @@ table_end
 @$--------------------------------------------------------------
 @&
 
+@$ A blank line after this command means the last equilibrium is the end
 set range
 2
 
 
 @$--------------------------------------------------------------
-@$ This command defines the range of equilibria for assessment
+@$ The command above defines the range of equilibria for assessment
 @$ We will later use the command "calculate all" which will
-@$ calculate all equilibra withing this range that have
-@$ nonzero weight.
+@$ calculate all equilibra withing this range that have nonzero weight.
 @$ The default for last equilibrium is the current
 @$
 @$ The range command also closes all "plot_data" files with a correct

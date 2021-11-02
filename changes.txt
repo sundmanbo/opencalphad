@@ -19,6 +19,13 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.11.01 OC version 6.034: Finally the MQMQA model works for some
+simple examples such as SRO in a system A-B-AB.  Further testing and
+calculations on a real system are needed but as OC cannot read DAT
+files we have to wait for some files to be converted a TDB frrmat
+extended with some bond parameters.  Thanks to the people developing
+Thermochimica for all the help.
+
 2021.10.13 OC version 6.033: Some progress with MQMQA to be saved
 before I make a mess of it again.
 

@@ -362,7 +362,7 @@ contains
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIALS    ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
-          'NO_MACRO_STOP   ','PROTECTION      ','                ']
+          'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -2374,7 +2374,7 @@ contains
 !          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIALS    ',&
 !          'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
 !          'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
-!          'NO_MACRO_STOP   ','PROTECTION      ','                ']
+!          'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR']
           name1='Advanced command'
           kom3=submenu(name1,cline,last,cadv,ncadv,4,'?TOPHLP')
           advanced: select case(kom3)
@@ -2560,7 +2560,8 @@ contains
 !.................................................................
           case(9) ! WORKING DIRECTORY
              write(kou,*)'Current working directory: ',trim(workingdir)
-             write(kou,*)'To change please select a TDB file in the directory'
+             write(kou,*)'To change please select an OCM file in the directory'
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! try to set current working directory as input to allow editing
 !             cline=workingdir
 !             last=len_trim(cline)
@@ -2568,11 +2569,10 @@ contains
 !                  '?Set adv workdir')
 ! The promt here is never displayed ...
              call gparfilex('Select new working directory',&
-                  cline,last,1,string,' ',1,'?Set adv workdir')
+                  cline,last,1,string,' ',3,'?Set adv workdir')
              inquire(file=string,exist=logok)
              if(.not.logok) then
-!                write(*,*)'No such directory: ',trim(string)
-                write(*,*)'No such directory '
+                write(*,*)'No such directory, working directory not changed'
              elseif(trim(workingdir).ne.trim(string)) then
 ! strip away any file name (up to last / or \)
                 j4=len_trim(string)
@@ -2672,7 +2672,7 @@ contains
              call gparrdx('Privilege',cline,last,privilege,zero,&
                   '?Set adv protect')
 !.................................................................
-          case(15) ! not used
+          case(15) ! IGNORE_MACRE_ERRORS normally a macro error returns inter
           end select advanced
 !-----------------------------------------------------------
        case(4) 
@@ -5628,6 +5628,7 @@ contains
                 do i1=1,40
                    read(31,17,end=244,err=990)line
                    write(kou,17)trim(line)
+17                 format(a)
                 enddo
                 write(kou,*)'Press return to continue, q to quit'
                 read(kiu,17)ch1
@@ -5825,6 +5826,7 @@ contains
              stop_on_error=.FALSE.
              write(kou,*)'No longer stop on error'
           else
+             write(kou,*)'Macro will stop if error'
              stop_on_error=.true.
           endif
 !------------------------------
@@ -8016,8 +8018,9 @@ contains
     else
        write(kou,*)'No defined error message, maybe I/O error'
     endif
-    if(kiu.ne.kiud) then
-! error running a macro, terminate macro
+!    if(kiu.ne.kiud) then
+    if(stop_on_error) then
+! error running a macro, terminate macro and return interactive
        write(*,*)'Error running MACRO file, return to interactive mode?'
        if(iox(8).eq.0) then
 ! iox(8) is nonzero if one has set "no stop on @&"
@@ -8032,14 +8035,14 @@ contains
           endif
        endif
     endif
-    if(stop_on_error) then
+!    if(stop_on_error) then
 ! turn off macro but remain inside software
-       call macend(cline,last,logok)  
-       write(kou,*)'Stop_on_error set, press return to finish program'
-       read(kiu,17)ch1
-17     format(a)
-       stop
-    endif
+!       if(kiu.ne.kiud) then
+!          call macend(cline,last,logok)  
+!          write(kou,*)'Stop_on_error set, press return to finish program'
+!          read(kiu,17)ch1
+!       stop
+!    endif
     gx%bmperr=0; buperr=0
     goto 100
 !

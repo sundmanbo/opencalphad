@@ -3398,12 +3398,12 @@
 ! 
    integer i1,i2
    do i1=1,nrange
-!      write(*,800)c2,lfun,i1,nrange,cfun%tbreaks(i1),&
-!           (cfun%coefs(i2,i1),cfun%tpows(i2,i1),i2=1,10)
+      write(*,800)c2,lfun,i1,nrange,cfun%tbreaks(i1),&
+           (cfun%coefs(i2,i1),cfun%tpows(i2,i1),i2=1,10)
    enddo
-!800 format('3Z ',a,': ',i3,2i2,F9.2,3(1pe13.5,i5)/&
-!         (23x,e13.5,i5,e13.5,i5,e13.5,i5))
-!   write(*,*)'3Z end of function'
+800 format('3Z ',a,': ',i3,2i2,F9.2,3(1pe13.5,i5)/&
+         (23x,e13.5,i5,e13.5,i5,e13.5,i5))
+   write(*,*)'3Z end of function'
    return
  end subroutine tpwrite
 
@@ -3463,12 +3463,40 @@
    double precision, parameter :: tenth=1.0D-1
    integer, parameter :: maxnc=15
    integer i1,i2,i3,k1,nr3,nr0,j2,j3,mrange
-   double precision tlow1,thigh1,tlow2,thigh2
+   double precision tlow1,thigh1,tlow2,thigh2,tmax
    logical nosplit
    type(gtp_tpfun_as_coeff) :: ctp3
 !
    nr0=nr1
+!   write(*,4)'3Z adjust1range 1: ',nr1,(ctp1%tbreaks(j2),j2=1,nr1)
+!   write(*,4)'3Z adjust1range 2: ',nr2,(ctp2%tbreaks(j2),j2=1,nr2)
+4  format(a,i3,10(F10.2))
+! check highest T
+   tmax=ctp1%tbreaks(1)
+   do i1=2,nr1
+      if(ctp1%tbreaks(i1).gt.tmax) tmax=ctp1%tbreaks(i1)
+   enddo
+   i2=nr2
+   do i1=nr2,1,-1
+      if(ctp2%tbreaks(i1).gt.tmax) then
+! reduce the number of ranges
+         i2=i2-1
+      endif
+   enddo
+   nr2=i2
+   if(nr2.lt.1) then
+! high limit of ctp1 is lower than first breakpoint in ctp2
+      nr2=1
+      ctp2%tbreaks(nr2)=tmax
+   endif
+   tmax=ctp2%tbreaks(nr2)
+   ctp1%tbreaks(nr1)=tmax
+!   write(*,'(a,2i3,F8.2)')'3Z coefficents and tmax: ',nr1,nr2,tmax
    if(nr1.eq.1) then
+! this is typically when ctp1 is a parameter a single range 
+! and ctp2 a sum of functions complex with ranges
+! If ctp2 has a lower Tmax than cp1 (maybe set at a tbreaks less than nr2)
+! adjust thigh1
       tlow1=298.15
       thigh1=ctp1%tbreaks(nr1)
       j2=1
@@ -3477,6 +3505,7 @@
       thigh1=ctp1%tbreaks(nr1)
       j2=nr1-1
    endif
+      
 !   write(*,7)'adjust1range: ',nrange,nr1,nr2,j2,&
 !        ctp1%tbreaks(nr1),ctp2%tbreaks(nr2)
 !7  format(a,4i4,2F10.2)
@@ -3494,7 +3523,7 @@
 !100 continue
    split: do while(i2.lt.nr2)
 ! fine-tuning needed when breakpoints identical in parameter and GHSERxx
-!      write(*,*)'in do while: ',i2,nr2,ctp2%tbreaks(i2),tlow1
+!      write(*,*)'3Z in do while: ',i2,nr2,ctp2%tbreaks(i2),tlow1
       if(ctp2%tbreaks(i2)-tlow1.gt.tenth) then
 !         write(*,16)'3Z check breakpoint ',nrange,i2,krange,&
 !              ctp2%tbreaks(i2),thigh1
@@ -3561,7 +3590,7 @@
    mrange=nrange
 800 continue
 !   write(*,*)'Why??',nrange,mrange,nr1,nr2,nosplit
-   call tpwrite('w0',0,nrange,ctp1)
+!   call tpwrite('w0',0,nrange,ctp1)
 ! just add the terms (for the last range)
 !   ctp3%tpows=-100
 !   ctp3%coefs=zero
@@ -3573,11 +3602,11 @@
 !        ctp1%tbreaks(nrange),ctp2%tbreaks(i2)
 !900 format(/a,4i3,2F10.2)
 ! these output w1..c4 are important for debugging
-   call tpwrite('w1',0,nrange,ctp1)
-   call tpwrite('w2',0,nr2,ctp2)
+!   call tpwrite('w1',0,nrange,ctp1)
+!   call tpwrite('w2',0,nr2,ctp2)
 !   call add1tpcoeffs(mrange,ctp1,i2,ctp2,1,ctp3)
    call add1tpcoeffs(nrange,ctp1,i2,ctp2,1,ctp3)
-   call tpwrite('w3',0,1,ctp3)
+!   call tpwrite('w3',0,1,ctp3)
 ! skipping this loop
    if(krange.ne.nrange) then
       write(*,*)' *** Check function: ',tpfuns(lfun)%symbol,nrange,krange
@@ -3588,7 +3617,7 @@
       ctp1%coefs(j3,krange)=ctp3%coefs(j3,1)
       ctp1%tpows(j3,krange)=ctp3%tpows(j3,1)
    enddo
-   call tpwrite('w4',0,nrange,ctp1)
+!   call tpwrite('w4',0,nrange,ctp1)
 !1000 continue
 !   if(nr3.gt.nr0) then
 !      write(*,*)'3Z inserted ',nrange-nr0,' ranges'
@@ -3624,11 +3653,17 @@
    integer, parameter :: maxnc=15,maxnr=20
    double precision, parameter :: tenth=1.0D-1
    integer i1,i2,i3,k1,k2,nr3
-   double precision tmax
+   double precision tmax,tbreak,tlimit
    type(gtp_tpfun_as_coeff) :: ctp3
 !
-!   write(*,*)'In adjustranges, tmax: ',nr1,ctp1%tbreaks(nr1),ctp2%tbreaks(nr2)
+!   write(*,4)'3Z adjustranges 1: ',nr1,(ctp1%tbreaks(i1),i1=1,nr1)
+!   write(*,4)'3Z adjustranges 2: ',nr2,(ctp2%tbreaks(i1),i1=1,nr2)
+4  format(a,i2,10(F8.2))
    tmax=max(ctp1%tbreaks(nr1),ctp2%tbreaks(nr2))
+   tbreak=tmax
+! tlimit can set a new tmax if some function has lower limit
+   tlimit=min(ctp1%tbreaks(nr1),ctp2%tbreaks(nr2))
+!   write(*,*)'3Z tmax: ',tmax
    i1=1
    i2=1
    i3=0
@@ -3637,8 +3672,8 @@
    allocate(ctp3%tpows(maxnc,maxnr))
    ctp3%tpows=-100
 !----------------------------------------------------------------
-!   write(*,79)'3Z adding and adjusting ranges: ',nr1,nr2
-!79 format(a,2i2)
+!   write(*,79)'3Z adding and adjusting ranges: ',nr1,nr2,tlimit,tmax
+79 format(a,2i2,2F9.2)
 100 continue
    i3=i3+1
    if(i3.gt.maxnr) then
@@ -3646,23 +3681,29 @@
       gx%bmperr=4391; goto 1000
    endif
 !   write(*,170)'3Z calling add1tp: ',i1,i2,i3,nr1,nr2
-!170 format(a,10i5)
+170 format(a,10i5)
    call add1tpcoeffs(i1,ctp1,i2,ctp2,i3,ctp3)
    if(gx%bmperr.ne.0) goto 1000
    if(abs(ctp2%tbreaks(i2)-ctp1%tbreaks(i1)).lt.tenth) then
 ! both breakpoints the same!
-!      write(*,180)'3Z same breakpoint',0,ctp1%tbreaks(i1),ctp2%tbreaks(i2)
-!180   format(a,i3,2F10.2)
+!      write(*,180)'3Z same breakpoint',0,0,ctp1%tbreaks(i1),ctp2%tbreaks(i2)
+180   format(a,2i3,2F10.2)
       ctp3%tbreaks(i3)=ctp2%tbreaks(i2)
       if(i2.lt.nr2) i2=i2+1
       if(i1.lt.nr1) i1=i1+1
-   elseif(i1.eq.nr1 .and. i2.eq.nr2) then
-!      write(*,180)'3Z breakpoint at max',0,tmax
-      ctp3%tbreaks(i3)=tmax
+!   elseif(i1.eq.nr1 .and. i2.eq.nr2) then
+! bugfix 2021.10.15/BoS
+   elseif(i1.eq.nr1 .or. i2.eq.nr2) then
+! this should be upper T limit
+!      write(*,180)'3Z breakpoint when no more ranges',i1,i2,tmax,tlimit
+      tmax=tlimit
+      ctp3%tbreaks(i3)=tlimit
+      i3=i3-1
    elseif(ctp2%tbreaks(i2).lt.ctp1%tbreaks(i1)) then
 ! we must create a breakpoint at the lowest tbreaks
       ctp3%tbreaks(i3)=ctp2%tbreaks(i2)
-!     write(*,180)'3Z breakpoint in ctp2: ',i2,ctp2%tbreaks(i2),ctp1%tbreaks(i1)
+!      write(*,180)'3Z breakpoint in ctp2: ',0,i2,&
+!           ctp2%tbreaks(i2),ctp1%tbreaks(i1)
       if(i2.lt.nr2) then
          i2=i2+1
       elseif(i1.lt.nr1) then
@@ -3670,15 +3711,24 @@
       endif
    else
       ctp3%tbreaks(i3)=ctp1%tbreaks(i1)
-!     write(*,180)'3Z breakpoint in ctp1: ',i1,ctp1%tbreaks(i1),ctp2%tbreaks(i2)
+!      write(*,180)'3Z breakpoint in ctp1: ',i1,0,&
+!           ctp1%tbreaks(i1),ctp2%tbreaks(i2)
       if(i1.lt.nr1) then
          i1=i1+1
       elseif(i2.lt.nr2) then
          i2=i2+1
       endif
    endif
-!   write(*,210)'3Z created ctp3 range: ',i3,ctp3%tbreaks(i3),tmax
-!210 format(a,i3,2F9.2)
+   if(i3.le.0) then
+! evidently i3 can be less than 1 here ....
+!      write(*,209)'3Z T-range adjustment: ',i3,tmax,tlimit,ctp3%tbreaks(1)
+209   format(a,i3,5F10.2)
+      i3=1
+   endif
+   tbreak=ctp3%tbreaks(i3)
+   tlimit=tbreak
+!   write(*,210)'3Z created ctp3 range: ',i3,ctp3%tbreaks(i3),tmax,tlimit
+210 format(a,i3,3F9.2)
 ! How to know when we finished??
    if(abs(ctp3%tbreaks(i3)-tmax).gt.tenth) goto 100
 !-------------------------------------------------------------

@@ -695,10 +695,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHHASP=4,    PHFORD=5,     PHBORD=6,    PHSORD=7, &     ! 
        PHMFS=8,     PHGAS=9,      PHLIQ=10,    PHIONLIQ=11, &  ! 
        PHAQ1=12,    PH2STATE=13,  PHQCE=14,    PHCVMCE=15,&    ! 
-       PHEXCB=16,   PHXGRID=17,   PHMQMQA=18, PHNOCS=19,&     !
+       PHEXCB=16,   PHXGRID=17,   PHMQMQA=18,  PHNOCS=19,&     !
        PHHELM=20,   PHNODGDY2=21, PHEECLIQ=22, PHSUBO=23,&     ! 
        PHPALM=24,   PHMULTI=25,   PHBMAV=26,   PHUNIQUAC=27, & !
-       PHTISR=28                                          !
+       PHTISR=28,   PHSSRO=29                                  !
 !
 !----------------------------------------------------------------
 !-Bits in PHASE_VARRES (constituent fraction) record STATUS2
@@ -1523,18 +1523,26 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! data for liquid phase with mqmqa model (only one!)
   TYPE gtp_mqmqa
 ! contains special information for liquid models with MQMQA
-! nconst is umber of constituents, ncon1 on 1st subl, ncon2 on 2nd subl
-! contyp(1..4,const) 1,2 species in first sublattibe, -1,-2 in second sublattice
-! contyp(5,const) non-zero for endmember
+! nconst is number of constituents, ncon1 on 1st subl, ncon2 on 2nd subl
+! contyp(1..4,const) 1,2 species in first sublattice, -1,-2 in second sublattice
+! contyp(5,const) non-zero for AA/XX, value same as pair index YES !!
 ! contyp(6,7,const) for endmembers specifies 2 species
-! contyp(6..9,const) specifies 2 or 4 endmembers of the quadrupole
-! contyp(10,const) index of fraction (species in alphabetical order)
-! constoi(4,const) real with stoichiometry of species in quadrupole
-     integer nconst,ncon1,ncon2
+! contyp(6..9,const) specifies 2 or 4 pairs of the quadrupole
+! contyp(10,const) I DO NOT KNOW what it is ...
      integer, allocatable, dimension(:,:) :: contyp
-! maybe only one of these are needed
-     double precision, allocatable, dimension(:,:,:) :: spstoi
+     integer nconst,ncon1,ncon2
+! quady(i,j) is indices of sublattice fractions  1..4 in quad j (redundant?)
+     integer, allocatable :: quady(:,:)
+! constoi(1..4,const) real with stoichiometry of species in quadrupole
+! NOTE for pairs (with one constituent in each sublattice) only two values
+! are needed for the stoichiometry.  2, 3 or 4 valuse
+! Pairs initially have a third value, \zeta needed for entropy pair entropy
      double precision, allocatable, dimension(:,:) :: constoi
+! ratio FCC/SNN for pairs, needed for pair entropy, copied from %constoi(3,q1)
+     double precision, allocatable ::qfnnsnn(:)
+! totstoi(const) double with real number of species (excl vacancies) in quad
+! maybe not needed? Well it is used.
+     double precision, allocatable :: totstoi(:)
   end TYPE gtp_mqmqa
 !  TYPE(gtp_mqmqa), private :: mqmqa_data
 ! it should be private when everything work and can be removed from pmon6

@@ -1,0 +1,116 @@
+@$ test entering an A-AB-B system with SRO
+
+new Y
+
+set echo Y
+
+
+@$ ============== ELEMENTS
+
+enter element Fe Fe  LIQUID 10 0 0
+
+enter element C  C  LIQUID 10 0 0
+
+@$================= SPECIEES
+
+@$ enter specie AB A0.5B0.5
+
+@$ Constituents in the MQMQA liquid specify 2-4 elements.  
+@$ The / separate elements in sublattice 1 and 2 (A+,B+)(Va)
+@$ The -Q (without numner) to avoid ambiguety in paramameters
+@$ All endmembers (quadrupoles) must be electrically neutral and the
+@$ stochiometry of the species must be set to obtain that
+
+@$================= FUNCTIONS
+
+     
+@$================= PHASES AND CONSTITUENTS
+
+
+@$ This is to have a baseline
+enter phase gas ideal
+Fe C
+
+enter PARAMETER G(GAS,Fe;0)     298.15 100000; 6000 N  REF3
+enter PARAMETER G(GAS,C;0)     298.15 100000; 6000 N REF2
+
+@$================= MQMQA
+@$
+@$ The constituents are created when entering the phase.  The user must
+@$ give all quadrupoles (endmembers) specifying the elements with a ","
+@$ between elements in same sublattice and "/" separating elements in
+@$ first and second sublattice. No spaces in the sequence of elements in a
+@$ quadrupole.  For each element in a quad it must be followed by one real
+@$ number for each element (in the order of the elements).  The real number
+@$ is related to the charge of the element.  Each quad must be neutral.
+@$
+@$ The species for the quad is created when tereting the phase and it
+@$ has a suffic -Q<digits> to make their names unique
+
+@$ quadrupoles are Fe1/3, Fe1/3C1/6, C1/3, corresponding to C-Fe2C-Fe
+@$ according to Max
+enter phase liquid MQMQA
+Fe/VA 6.0 6.0 2.4 C,Fe/VA 6.0 3.0 6.0 C/VA 6.0 6.0  2.4 
+
+enter parameter g(liquid,Fe/VA-q)   298.15      0; 6000 N ref6
+enter parameter g(liquid,CFe/VA-q)  298.15  -5000; 6000 N ref6
+enter parameter g(liquid,C/VA-q)    298.15      0; 6000 N ref6
+
+@$================= I2SL skipped
+
+
+@&
+
+@$ thermochimica gives these quadrupole fractions
+c ph liq 2.171
+
+.0327
+.76375
+ALL
+
+@&
+@$ last fraction .20356 of Fe-Fe/Va-Va.  First fraction C-C/Va-Va
+@$
+@$ Thermochimica G -26595 J/mol atoms
+
+l , 2
+
+set c t=1000 p=1e5 n=1 x(Fe)=.7
+
+
+@$ 
+
+set inter
+
+
+FIRST TRY:
+--->OC6:... echo: c ph liq 1
+Current (Y), default (D) or new (N) constitution? /N/: Fraction of C/VA-Q03 /1/: ... echo: .038899
+Fraction of CFE/VA-Q02 /0.961101/: ... echo: .74600
+Last fraction set to:   2.1510E-01
+Calculate what for phase? /ONLY_G/: Using T=  1000.00 K and P=  1.000000E+05 Pa, results in J/F.U.
+ 3X calling MQMQA liquid model
+3X in MQMQA, version 3:   3   2.185E+00
+ 3X summed all amounts, next normallize
+ 3X no mixing in sublattice 2
+3X SSUB:  -6.1086E-01   -4.32E-01 -3.09E-02  1.85E-01
+3X SEND:   0.0000E+00   -3.43E+00 -2.06E+00 -2.70E+00
+3X SQUAD:  1.6257E-01   -9.51E+00 -4.81E+00 -5.29E+00
+ 3X second derivatives are approximate.  Atoms/FU:   0.45766666666666667
+
+G, dG/dT dG/dP d2G/dT2: -2.208775E+04  6.350502E-01  0.000000E+00  0.000000E+00
+G/RT, H, atoms/F.U: -5.804510E+00 -2.272280E+04  4.576667E-01
+--->OC6:--->OC6:--->OC6:... echo: @$ last fraction .2151 of Fe-Fe/Va-Va.  First fraction C-C/Va-Va
+--->OC6:... echo: @$
+--->OC6:... echo: @$ Thermochimica G -24392.8 J
+--->OC6:--->OC6:... echo: set c t=1000 p=1e5 n=1 x(Fe)=.7
+--->OC6:--->OC6:--->OC6:... echo: @$
+--->OC6:--->OC6:... echo: set inter
+--->OC6:
+--->OC6:sh g
+... echo: sh g
+ *** Warning, values can be inconsistent with current conditions
+ G= -2.2087752E+04
+
+------------------------------------------------------------------
+

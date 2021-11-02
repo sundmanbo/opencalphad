@@ -491,6 +491,7 @@
          phcsx=-1
          call find_phasex_by_name(name,phcsx,qph,ics)
          if(gx%bmperr.ne.0) then
+            write(*,*)' *** Warning no phase "',trim(name),'", phase ignored'
 !            write(*,*)'No phase called "',name(1:len_trim(name)),'"'
             gx%bmperr=0
          else

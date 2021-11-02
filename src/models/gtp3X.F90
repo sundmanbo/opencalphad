@@ -297,11 +297,16 @@
 !   elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
    elseif(btest(phlista(lokph)%status1,PHMQMQA)) then
 ! MQMQA FactSage entropy model
-      write(*,*)'3X calling MQMQA liquid model'
+!      write(*,*)'3X calling MQMQA liquid model'
       call config_entropy_mqmqa(moded,phlista(lokph)%tnooffr,phres,&
            phlista(lokph),gz%tpv(1))
+   elseif(btest(phlista(lokph)%status1,PHSSRO)) then
+! Simple short range order entropy model
+      write(*,*)'3X calling SSRO liquid model'
+      call config_entropy_ssro(moded,lokph,phres,gz%tpv(1))
+!      call config_entropy_ssro(moded,nsl,phlista(lokph)%nooffr,phres,gz%tpv(1))
    else
-!----------- the Bragg-Williams ideal configurational entropy per sublattice
+!----------- the CF Bragg-Williams ideal configurational entropy per sublattice
 ! NOTE: for phases with disordered fraction set this is calculated
 ! ONLY for the original constituent fraction set with ordering sublattices
       call config_entropy(moded,nsl,phlista(lokph)%nooffr,phres,gz%tpv(1))
@@ -2524,7 +2529,7 @@
 ! not tested: (Fe+2):(S-2,Va,S) or similar ... but it should be OK
             continue
          elseif(iliqva) then
-! the endmember constituent in second sublattice is Va, no anions!!
+! the pair constituent in second sublattice is Va, no anions!!
             if(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.1) then
 ! we have 3 cations interacting in first sublattice and Va in second
 ! with composition dependence .... require treatment of extra vacancy fraction
@@ -2985,7 +2990,7 @@
 !\addtotable subroutine config_entropy
 !\begin{verbatim}
  subroutine config_entropy(moded,nsl,nkl,phvar,tval)
-! calculates configurational entropy/R for phase lokph
+! calculates CEF configurational entropy/R for phase lokph
    implicit none
    integer moded,nsl
    integer, dimension(nsl) :: nkl
@@ -3037,6 +3042,104 @@
 1000 continue
    return
  end subroutine config_entropy
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_ssro
+!\begin{verbatim}
+ subroutine config_entropy_ssro(moded,lokph,phvar,tval)
+! test calculates SSRO configurational entropy/R for phase lokph
+   implicit none
+   integer moded,lokph
+!   integer, dimension(nsl) :: nkl
+   TYPE(gtp_phase_varres), pointer :: phvar
+!\end{verbatim}
+! SRO species AB with stoichiometry AaBb FOR BINARY TEST ONLY
+! -S/R = yAln(yA)+yBln(yB)+yABln(yAB/(yA^abyB^b))
+!      =(yA-ayAB)ln(yA) + (yB-byAB)ln(yB) + yABln(yAB)
+! some simple way to associate yAB with yA and yB needed
+! at present assume yAB is first species
+   integer ll,kk,kall,nk,jl,loksp,nsl
+   double precision tval,ss,yfra,ylog,ypair,ratios(2)
+   ll=0
+   kall=0
+   nsl=phlista(lokph)%noofsubl
+   if(nsl.ne.1) stop 'Illegal call to SSRO, more than one set of sites'
+   sublatticeloop: do while (ll.lt.nsl)
+! Hm ... we need an array with the relation between the species ...
+      ll=ll+1
+!      nk=nkl(ll)
+      nk=phlista(lokph)%nooffr(ll)
+      if(nk.ne.3) stop 'Illegal call to SSRO, not 3 constituents'
+      kk=0
+      ss=zero
+      fractionloop: do while (kk.lt.nk)
+         kk=kk+1
+         kall=kall+1
+! cycle if a single constituent in this sublattice
+         if(nk.eq.1) cycle sublatticeloop
+         yfra=phvar%yfr(kall)
+         if(yfra.lt.bmpymin) yfra=bmpymin
+         if(yfra.gt.one) yfra=one
+         ylog=log(yfra)
+! if the constituent is the first species (SRO pair) additional action needed
+         if(kk.eq.1) then
+! the first constituent should be the pair, 
+            loksp=phlista(lokph)%constitlist(kk)
+            if(splista(loksp)%noofel.eq.2) then
+! conversion of rations to powers
+! ratios   GNUPLOT for same y; manual for same G as ideal
+! A1/2B1/2 0.8:0.8             5:5  does not converge when ordering ... SUCK
+! A1/3B2/3 0.6:1.0
+! A1/4B1/4 0.5:1.1               
+! these are for A1/2B1/2
+               ratios(1)=5*splista(loksp)%stoichiometry(1)
+               ratios(2)=5*splista(loksp)%stoichiometry(2)
+            else
+               stop 'Illegal call to SSRO, first constituent not a pair'
+            endif
+            ypair=yfra
+         else
+! second and third constituent are elements, subtract contribution from pair
+            write(*,'(a,i2,F10.6)')'3X ssro 2: ',kk,-ratios(kk-1)*ypair*ylog
+            ss=ss-ratios(kk-1)*ypair*ylog
+         endif
+! gval(1:6,1) are G and derivator wrt T and P
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
+! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
+! this is a symmetric matrix and index givem by ixsym(M,N)
+         ss=ss+yfra*ylog
+         if(moded.gt.0) then
+! there are contributions from all 3 constituents
+            phvar%dgval(1,kall,1)=phvar%dgval(1,kall,1)+&
+                 phvar%sites(ll)*(one+ylog)
+! 2nd derivative, kxsym same as ixsym when first index is >= second index
+            phvar%d2gval(kxsym(kall,kall),1)=phvar%sites(ll)/yfra
+         endif
+         if(kk.gt.1) then
+! extra terms, assume %sites(ll) is one
+            phvar%dgval(1,1,1)=phvar%dgval(1,1,1)-ratios(kk-1)*ylog
+            phvar%dgval(1,kk,1)=phvar%dgval(1,kk,1)-ratios(kk-1)*ypair/yfra
+! assume extra terms in second derivatives not needed
+         endif
+      enddo fractionloop
+      phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(ll)*ss
+   enddo sublatticeloop
+! looking for error calculating 4 sublattice ordered FCC
+!   write(*,69)kall,(phvar%d2gval(ixsym(jl,jl),1),jl=1,kall)
+69 format('3X d2G/dy2: ',i3,6(1pe12.4))
+! set temperature derivative of G and dG/dy
+   phvar%gval(2,1)=phvar%gval(1,1)/tval
+   if(moded.gt.0) then
+      do jl=1,kall
+         phvar%dgval(2,jl,1)=phvar%dgval(1,jl,1)/tval
+      enddo
+   endif
+1000 continue
+   return
+ end subroutine config_entropy_ssro
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -4246,6 +4349,7 @@
 !
 ! calculates configurational entropy/R for the MQMQA liquid
 ! started 2021-01-11
+! Finally understood the model 2021-10-11
 !
 ! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
 ! ncon is number of constituents
@@ -4269,10 +4373,10 @@
 ! collaboratuon with Vaishnvi Tiwari
 !---------------------------------------------------------------------------
 ! separate documentation, i,j in first subl, k,l in second subl
-! p_ijkl is cluster fraction; x_i site fraction; v_ik endmember fraction
+! p_ijkl is cluster fraction; x_i site fraction; v_ik pair fraction
 ! w_i coordination equivalent site fraction;
-! \sum_i x_i ln(x_i) + \sum_i x_k ln(x_k)+              subattice fractions
-! \sum_i\sum_k v_ik ln(v_ik/w_i w_k)+                 endmember fractions
+! \sum_i x_i ln(x_i) + \sum_i x_k ln(x_k)+            subattice fractions
+! \sum_i\sum_k v_ik ln(v_ik/w_i w_k)+                 pair fractions
 ! \sum_i\sum_k p_iikk ln(p_iikk/((v^4_ik/(w^2_i w^2_k)))+           
 ! \sum_i\sum_j\sum_k p_ijkk ln(p_ijkk/(2(v^2_ik v^2_jk)/(w_i w_j w^2_k)))+  
 ! \sum_i\sum_k\sum_l p_iikl ln(p_iikl/(2(v^2_ik v^2_il)/(w^2_i w_k w_l)))+
@@ -4284,8 +4388,8 @@
 ! fz max number of constituents on a sublattice
 ! f1 for other allocated arrays
    integer, parameter :: fq=50, fz=20, f1=50
-! number of endmembers
-   integer noofend,ncons1,ncons2
+! number of pairs and sublattice fractions
+   integer noofpair,ncons1,ncons2
 ! not needed ....
 !   integer loksp,nspel,ielno(10),nextra,ncation
 ! these are used to as index of species on sublatte 1 (ee,ff) and 2 (gg,hh)
@@ -4294,18 +4398,28 @@
    integer s1,s2,s3,s4,em,c1
 ! site fractions and amounts
    double precision yy1(fz),yy2(fz),nn1(fz),nn2(fz)
+! sublattice index if species i in quad j
+   integer quadyix(4,fq)
 ! fractions in sublattices
    double precision sum1,sum2,sum3,sum4,half
 ! contyp(1-4,i) specify sublattice +/- of element and if alone or mixing 2/1
-! contyp(5,i) is nonzero for a quadrupols that is endmembers
-! contyp(6-7,i) for endmembers are the elements
-! contyp(8-9,i) for endmembers are ZERO
-! contyp(6-9,i) for other quadrupols are endmembers (2 or 4 indicies)
+! contyp(5,i) is is the pair index for a quadrupols that is a pair
+! contyp(6-7,i) for a pair are species index
+! contyp(8-9,i) for a pair are ZERO
+! contyp(6-9,i) for other quadrupols are pair indices (2 or 4 indicies)
+! contyp(10,i)  should be i ... just as a check
+! contyp(11,i)  for a pair is constituent index in sublattice 1
+! contyp(12,i)  for a pair is constituent index in sublattice 1
+! contyp(11-12,i) for other quadrupoles are zero
    integer em1,em2,em3,em4
-! in contyp(6..9,s1) is the endmember index, not contyp index of endmember!!
+! cridx(pair_index) is the index of corresponding quad %contyp(5,q) is pair
    integer cridx(f1)
-! fractions for endmembers and coordination equiv fractions
-   double precision endmf(f1),ceqf1(f1),ceqf2(f1)
+! sublattice fractions per quad  for entropy constibutions per quad
+!   double precision fyq1(fq),fyq2(fq)
+! Index to the 2-4 sublattice fractions associated with a quad
+!  integer fyqix(2,fq),fyqix2(2,fq)
+! pair and coord.equiv fractions for pairs in a  quad
+   double precision pair(fq),ceqf1(fq),ceqf2(fq)
    double precision sm1,term,fffy,fff1,fff2
    double precision ffem,ffceq1,ffceq2,once1,once2
 ! indicate which species that are involved in a quadrupole
@@ -4316,6 +4430,7 @@
 !   double precision dma1 is coefficent of site fraction in subl 1 for quad 
 !   double precision dms1 is sum of coefficents in subl 1 for a quad i
 ! sum each part separately
+   double precision tsub,dvvv(fq,fq),lsub(fq),tend
    double precision ssub,dssub(fq),send,dsend(fq),squad,dsquad(fq)
    double precision d2ssub(fq*(fq+1)/2)
 ! first index is sublattice constituent, second is quad index
@@ -4324,17 +4439,20 @@
    double precision dmy1(fz,fq),dmy2(fz,fq)
 ! second derivatives d2xx of site fractions ...
    double precision d2yy1(fz,fq*(fq+1)/2),d2yy2(fz,fq*(fq+1)/2)
-   double precision dendmf(f1,fq),dceqf(f1,fq),yfrac,dummy1,dq1,dq2,dq3
+   double precision dpair(f1,fq),dceqf(f1,fq),yfrac,dummy1,dq1,dq2,dq3
    double precision dyy1(fz,fq),dyy2(fz,fq),dceqf1(f1,fq),dceqf2(f1,fq)
    double precision dsm1(fq),d2sm1(fq*(fq-1)/2),dterm(fq),ojoj,alone1,alone2
    character conname*24,endname*24,spname1*24,spname2*24,connames(fq)*24
    double precision endkvot(fq),dendkvot(fq,fq),d2endkvot(fq,fq*(fq+1)/2)
    double precision mulceq(f1),dmulceq(f1,fq*(fq+1)/2),divisor
 ! this is a scaling with total amount of atoms
-   double precision invnorm
-! save here the indices of constituents in sublattices of endmembers
+   double precision invnorm,fqq,pairceq
+! quad entropy rewritten ...
+   integer pair1,pair2,pair3,pair4,e2,f2,g2,h2
+! save here the indices of constituents in sublattices of pairs
 ! needed for the charge equivalent fractions, ceqf1 and ceqf2
-   integer eij(2,fq),nomix,all2
+! MAYBE NOT NEEDED when %contyp(11..12,quad) is are constituent indices?
+   integer eij(2,fq),nomix,all2,q1
 ! to avoid adding quadrupols twice
    logical done
 ! The mqmqa_data provides information about the constituents.
@@ -4349,7 +4467,7 @@
 !   phvar%abnorm(2)=invnorm*phvar%abnorm(2)
 !   phvar%abnorm(3)=invnorm*phvar%abnorm(3)
 !
-   write(*,'(a,i3,1pe12.3)')'3X in MQMQA, version 3: ',ncon,one/invnorm
+!   write(*,'(a,i3,1pe12.3)')'3X in MQMQA, version 5: ',ncon,one/invnorm
 !
    if(.not.allocated(mqmqa_data%contyp)) then
       write(*,*)'3X MQMQA missing constituent information'
@@ -4359,35 +4477,43 @@
       write(*,*)'3Xncon, %nconst: ',ncon,mqmqa_data%nconst
       stop '3X some problems with mqmqa ...'
    endif
-!   do s1=1,ncon
-!      write(*,11)'3X %contyp1: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,10)
-11    format(a,i3,2x,10i4)
-!   enddo
+11    format(a,4(F5.2,2x))
 !   write(*,*)'3X error return as unfinished'
+!   gx%bmperr=4399; goto 1000
    spinsub=0
-   do s1=1,ncon
-      conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
-      connames(s1)=conname
-!      write(*,3)s1,(mqmqa_data%contyp(s2,s1),s2=1,10),&
+!   do s1=1,ncon
+!      conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
+!      connames(s1)=conname
+!      write(*,3)s1,(mqmqa_data%contyp(s2,s1),s2=1,12),&
 !           (mqmqa_data%constoi(s2,s1),s2=1,4),phvar%yfr(s1),trim(conname)
-3     format('3X mq:',i2,4i3,i5,4i3,i5,4F5.1,F5.2,1x,a)
-   enddo
+3     format('3X mq:',i2,4i3,1x,i3,1x,4i2,1x,i3,1x,2i2,4F5.1,F5.2,1x,a)
+!   enddo
 !   write(*,6)phvar%yfr
 6  format('3X y: ',9F7.4)
-   yy1=zero; yy2=zero; endmf=zero; ceqf1=zero; ceqf2=zero;
-   b1iA=zero; b2iX=zero; dendmf=zero; dceqf1=zero; dceqf2=zero
-   b1iAB=zero; b2iXY=zero; noofend=0; dmy1=zero; dmy2=zero
+   yy1=zero; yy2=zero; pair=zero; ceqf1=zero; ceqf2=zero;
+   b1iA=zero; b2iX=zero; dpair=zero; dceqf1=zero; dceqf2=zero
+   b1iAB=zero; b2iXY=zero; noofpair=0; dmy1=zero; dmy2=zero
 ! write(*,431)'3X d2S/Rx:',((phvar%d2gval(ixsym(s2,s3),1),s3=s2,ncon),s2=1,ncon)
 ! any species used below is indicated by a 1 or 2 depending on sublattice
 ! it is forbidden to have the same species in both sublattices ??
    involved=0
-! If contyp(5,s1)>0 it is an endmember index, set cridx(this index) to s1
-! it is needed to find the endmember location for other quadrupoles sx
-! which has stored the endmember index in contyp(6..9,sx), not the location.
+! If contyp(5,s1)>0 it is a pair index, set cridx(this index) to s1
+! it is needed to find the pair location for other quadrupoles sx
+! which has stored the pair index in contyp(6..9,sx), not the location.
 ! I could change that in the mqmqa_rearrange subroutine ... maybe later
    do s1=1,ncon
-      if(mqmqa_data%contyp(5,s1).gt.0) cridx(mqmqa_data%contyp(5,s1))=s1
+!      if(mqmqa_data%contyp(5,s1).ne.s1) then
+!         write(*,*)'3X *** Warning %contyp index 10 not correct'
+!      endif
+      if(mqmqa_data%contyp(5,s1).gt.0) then
+! cridx is a link from pair to quad
+         cridx(mqmqa_data%contyp(5,s1))=s1
+!         write(*,'(a,3i3)')'3X cridx: ',s1,mqmqa_data%contyp(5,s1),&
+!           cridx(mqmqa_data%contyp(5,s1))
+      endif
    enddo
+! these count the sum of element and pair stoichiometries for a quad
+!   fyp=zero
 !----------------------------------------------------
 ! the array species in each sublattice will have missing values
 !----------------------------------------------------
@@ -4400,22 +4526,22 @@
       endif
       s3=mqmqa_data%contyp(5,s1)
       typ: if(s3.gt.0) then
-! AN ENDMEMBER quadrupol AA:XX, the endmemberfraction
-         noofend=noofend+1
-! the index of the fraction is in contyp(10,s1) 
+! AN PAIR quadrupol AA:XX, increment the pair counter
+         noofpair=noofpair+1
+! the index of the quadrupole fraction is in ALSO in contyp(10,s1) 
 !         yfrac=phvar%yfr(mqmqa_data%contyp(10,s1))
          yfrac=phvar%yfr(s1)
 ! >>>>>>>>>>>>>>>>>>>>>>>>> ............. EQUATION B17 part 1
-         endmf(s3)=endmf(s3)+yfrac
-         dendmf(s3,s1)=one
-! all second derivatives of emdmf is zero
+         pair(s3)=pair(s3)+yfrac
+         dpair(s3,s1)=one
+! all second derivatives of pair is zero
          endname=conname
-!         write(*,327)'3X endmf1:',s1,s3,0,0,endmf(s3),yfrac,&
+!         write(*,327)'3X pair1:',s1,s3,0,0,pair(s3),yfrac,&
 !              trim(endname)
 327      format(a,4i3,2F7.4,' x(',a,')')
-! the order of elements is normally in sublattice order but ... one never knows
+! the index of constituent in first sublattice is in %contyp(11,s1)
          if(mqmqa_data%contyp(1,s1).eq.2) then
-! first species always in sublattice 1 of endmember
+! first species always in sublattice 1 of pair
             ee=mqmqa_data%contyp(6,s1)
             s4=1
 ! insert ee as constituent in sublattce 1
@@ -4431,7 +4557,7 @@
                nspin(1)=s4
             endif
             eesub=s4
-            eij(1,noofend)=eesub
+            eij(1,noofpair)=eesub
 ! insert gg as constituent in sublattce 2
             gg=mqmqa_data%contyp(7,s1)
             s4=1
@@ -4447,13 +4573,13 @@
                nspin(2)=s4
             endif
             ggsub=s4
-            eij(2,noofend)=ggsub
+            eij(2,noofpair)=ggsub
 ! ee and gg are species indices
 !            write(*,50)'3X decode1: ',s1,ee,gg
 50          format(a,i3,5x,2i4)
             spname1=splista(ee)%symbol
             spname2=splista(gg)%symbol
-! remember which species that are used by marking them (only needed for endmem)
+! remember which species that are used by marking them (only needed for pairs)
             if(involved(ee).eq.2) then
                write(*,*)'3X species already in sublattices 2: ',&
                     trim(splista(ee)%symbol),ee
@@ -4470,19 +4596,23 @@
 ! this species is in sublattice 2
                involved(gg)=2
             endif
-! this is the stoichiometric factors of the species in the endmember
+! this is the stoichiometric factors of the species in the pair
             fff1=2.0d0/mqmqa_data%constoi(1,s1)
             fff2=2.0d0/mqmqa_data%constoi(2,s1)
-! test using mqmqa_data%spstoi
-!            write(*,'(a,4(1pe12.4))')'3X con/sp: ',fff1,fff2,&
-!                 mqmqa_data%spstoi(1,1,s1),mqmqa_data%spstoi(2,1,s1)
          else
             write(*,*)'3X contyp error 1: ',mqmqa_data%contyp(1,s1)
             gx%bmperr=4399; goto 1000
          endif
+! SAVE the location in sublattice array of species eesub in quad s1
+! quadyix was zeroed above
+! note quadyix(1,s1) is species in sublattice 1, quadyix(2,s1) is sublattice 2
+! same indexing as in %constoi.  Negative value indicate secons sublattice!!
+         quadyix(1,s1)=eesub
+         quadyix(2,s1)=-ggsub
 ! species  eesub is on first sublattice, ggsub in second
-! eesub and ggsub are just sequential numbers
+! eesub and ggsub are just sequential numbers, element numbers in ??
 ! >>>>>>>>>>>>>>>>>>>>>>> .............. EQUATION B15 part 1
+         
          yy1(eesub)=yy1(eesub)+fff1*yfrac
          b1iA(eesub,s1)=fff1
 ! there is a single contribution from this quad to the site fractions
@@ -4501,18 +4631,18 @@
 !         write(*,333)'3X ceqf2e:',s1,0,0,2,ggsub,ceqf2(ggsub),&
 !              yfrac,one,2,trim(spname2),trim(connames(s1))
 333      format(a,1x,5i3,3F10.6,' ceq',i1,'(',a,')  ',a)
-! end of endmember summations
+! end of pair summations
       else
 !--------------------------------------------------------------
-! this is a quadrupol AB:XY consisting of 3 or 4 endmembers typ A:X and B:Y
-! the endmembers are indicated in contyp(6..9,s1)
+! this is a quadrupol AB:XY consisting of 2 or 4 pairs typ A:X and B:Y
+! the pair indices in %contyp are indicated in contyp(6..9,s1)
 ! IT IS A BIT INVOLVED AND CAN (certainly) BE SIMPLIFIED ....
          ffem=0.5D0
          fffy=one
          yfrac=phvar%yfr(s1)
          if(mqmqa_data%contyp(9,s1).gt.0) then
-! contyp(9,s1) nonzero for quadrupoles with 4 endmembers A:X, A:Y, B:X, B:Y
-! set ffem=0.25 if 4 endmembers
+! contyp(9,s1) nonzero for quadrupoles with 4 pairs A:X, A:Y, B:X, B:Y
+! set ffem=0.25 if 4 pairs
             ffem=0.25D0
 ! set fffy=0.5 to avoid adding same fraction twice
             fffy=0.5D0
@@ -4530,14 +4660,14 @@
 ! which constoi to use? AB:XY should have (1,3), (1,4), (2,3) and (2,4) for ...
 !         stoix1=1; stoix2=1
 ! I AM NOT SURE THESE STOIX1 and STOIX2 are necessary ....
-! position 6, 7, 8, 9 are indices to endmembers, s2 incremented at loop end
+! position 6, 7, 8, 9 are indices to pairs, s2 incremented at loop end
          emloop: do while(mqmqa_data%contyp(5+s2,s1).gt.0 .and. s2.lt.5)
             once1=one; once2=one; alone1=2.0d0; alone2=2.0d0
             ffceq1=0.5D0; ffceq2=0.5D0
             if((mqmqa_data%contyp(1,s1).eq.2)) then
 ! to set correct stoix1 and stoix2;
                if(s2.eq.1) then
-! quadrupole AA:XY first, endmember AA:XX, second AA:YY
+! quadrupole AA:XY, first pair AA:XX, second AA:YY
                   stoix1=1; stoix2=2
                else
                   stoix1=1; stoix2=3
@@ -4545,7 +4675,7 @@
                alone2=one
                nomix=1
             elseif(abs(mqmqa_data%contyp(3,s1)).eq.2) then
-! quadrupole AB:XX, first endmember AA:XX, second BB:XX
+! quadrupole AB:XX, first pair AA:XX, second BB:XX
                if(s2.eq.1) then
                   stoix1=1; stoix2=3
                else
@@ -4555,7 +4685,7 @@
                nomix=2
 !               write(*,*)'3X quad type AB/XX',s2,stoix1,stoix2,alone1,alone2
             else
-! quadupole AB:XY, 4 endmembers used, AA:XX; AA:YY; BB:XX BB:YY
+! quadupole AB:XY, 4 pairs used, AA:XX; AA:YY; BB:XX BB:YY
                if(s2.eq.1) then
                   stoix1=1; stoix2=3
                elseif(s2.eq.2) then
@@ -4568,24 +4698,24 @@
                alone1=one; alone2=one
                nomix=4
             endif
-! loop for all endmembers included in this quadrupol, the index of
-! the endmember index in contyp(6..9,s1), the LOCATION is in cridx!!!
+! loop for all pairs included in this quadrupol, the locations of
+! the pair indices are in contyp(6..9,s1), the LOCATION is in cridx!!!
             s3=mqmqa_data%contyp(5+s2,s1)
-!            write(*,*)'3X crossindexing endmember 1',s3,cridx(s3)
+!            write(*,'(a,3i3)')'3X crossindexing pairs 1',s1,s3,cridx(s3)
             s3=cridx(s3)
-! the endmember index is in %contyp(5,s3)
+! the pair index is in %contyp(5,s3)
             em1=mqmqa_data%contyp(5,s3)
 ! >>>>>>>>>>>>>>>>>> ............. EQUATION B17 part 2
-            endmf(em1)=endmf(em1)+ffem*yfrac
-            dendmf(em1,s1)=ffem
+            pair(em1)=pair(em1)+ffem*yfrac
+            dpair(em1,s1)=ffem
             endname=splista(phrec%constitlist(mqmqa_data%contyp(10,s3)))%symbol
-!            write(*,322)'3X endmf2:',s1,s2,s3,em1,&
-!                 endmf(em1),ffem,yfrac,trim(endname),trim(connames(s1))
+!            write(*,322)'3X pair2:',s1,s2,s3,em1,&
+!                 pair(em1),ffem,yfrac,trim(endname),trim(connames(s1))
 322         format(a,4i3,3F7.4,' x(',a,')  ',a)
 ! For the site fractions and equivalent fraction ceqfi we have to
-! extract all constituent species of the quadrupol s1 using the endmember s3
+! extract all constituent species of the quadrupol s1 using the pair s3
 ! divided by with the coordination factor in s2 for quadrupol s1
-! the species in first sublattice of the endmember
+! the species in first sublattice of the pair
             ee=mqmqa_data%contyp(6,s3)
             s4=1
 ! insert ee as constituent in sublattce 1 if not already there
@@ -4601,6 +4731,11 @@
                nspin(1)=s4
             endif
             eesub=s4
+! SAVE the sublattice location of species eesub for quad s1
+! quadyix was zeroed above
+! the species indexing in %quadyix is the same as for %constoi
+! stoix1 is 1 or 2 if species in sublattice 1
+            quadyix(stoix1,s1)=eesub
 ! which constoi to use? AA:XY should have (1,2) and (1,3)
 ! which constoi to use? AB:XX should have (1,3) and (2,3)
 ! which constoi to use? AB:XY should have (1,3), (1,4), (2,3) and (2,4)
@@ -4614,7 +4749,7 @@
             else
                b1iAB(s1)=fff1
             endif
-! NOW the species in second sublattice of the endmember
+! NOW the species in second sublattice of the pair
             gg=mqmqa_data%contyp(7,s3)
 ! insert gg as constituent in sublattce 2 if not already there
             s4=1
@@ -4630,8 +4765,14 @@
                nspin(2)=s4
             endif
             ggsub=s4
-            fff2=fffy*alone2/mqmqa_data%constoi(stoix2,s1)
+! SAVE the sublattice location of species eesub  and ggsub for quad s1
+! quadyix was zeroed above
+! stoix2 specify which species in AB/XY
+! the species indexing in %quadyix is the same as for %constoi
+! stoix2 is 2 or 3 or 4 for species in sublattice 2
+            quadyix(stoix2,s1)=-ggsub
 ! >>>>>>>>>>>>>>>> ................ EQUATION B14 part 2
+            fff2=fffy*alone2/mqmqa_data%constoi(stoix2,s1)
             yy2(ggsub)=yy2(ggsub)+fff2*yfrac
 !          write(*,52)'3X sub2: ',ggsub,yfrac,fff2,fff2*yfrac,yy2(ggsub),alone1
 52          format(a,i3,5F8.5)
@@ -4654,7 +4795,7 @@
 !                b2iX(ggsub,s1),mqmqa_data%constoi(stoix2,s1),trim(connames(s1))
 331         format('3Xq n(',a2,'): ',3i3,2i3,4F7.4,2x,a)
 ! equivalent site fraction, each mixing element will be counted twice
-! for quadrupole with 4 endmembers fffy=0.25; otherwice 0.5
+! for quadrupole with 4 pairs fffy=0.25; otherwice 0.5
 ! >>>>>>>>>>>>>>>>>>> ................ EQUATION B17 part 2
             ceqf1(eesub)=ceqf1(eesub)+fffy*ffceq1*yfrac
             ceqf2(ggsub)=ceqf2(ggsub)+fffy*ffceq2*yfrac
@@ -4664,7 +4805,7 @@
 !                 yfrac,fffy*ffceq1,1,trim(spname1),trim(connames(s1))
 !            write(*,333)'3X ceqf2q:',s1,0,s3,2,ggsub,ceqf2(ggsub),&
 !                 yfrac,fffy*ffceq2,2,trim(spname2),trim(connames(s1))
-! increment s2 for next endmember in quadrupole s1
+! increment s2 for next pair in quadrupole s1
             s2=s2+1
          enddo emloop
       endif typ
@@ -4680,15 +4821,19 @@
 !      write(*,340)'3X yy2: ',(yy2(s4),s4=1,3)
 340   format(a,7F7.4)
 342   format(a,2i2,7F7.4)
+!      write(*,720)'3X quadyix: ',s1,(quadyix(s2,s1),s2=1,4)
+720   format(a,i3,4(4I3,2x))
    enddo sumfrac
 ! debug listings:
-   write(*,*)'3X summed all amounts, next normallize'
+!   write(*,*)'3X summed all amounts, next normallize'
+!   write(*,720)'3X quadyix: ',0,((quadyix(s2,s1),s2=1,4),s1=1,ncon)
 !   write(*,200)'3X p_AB/XY:',(phvar%yfr(s1),s1=1,ncon)
 !   write(*,200)'3X n1     :',(yy1(s1),s1=1,nspin(1))
 !   write(*,200)'3X n2     :',(yy2(s1),s1=1,nspin(2))
-!   write(*,200)'3X x_A/B  :',(endmf(s1),s1=1,noofend)
+!   write(*,200)'3X x_A/B  :',(pair(s1),s1=1,noofpair)
 !   write(*,200)'3X w1     :',(ceqf1(s1),s1=1,nspin(1))
 !   write(*,200)'3X w2     :',(ceqf2(s1),s1=1,nspin(2))
+!   stop
 !   do s3=1,nspin(1)
 !      write(*,342)'3X b1iA(m,n):',s3,s1,(b1iA(s3,s4),s4=1,ncon)
 !   enddo
@@ -4698,7 +4843,7 @@
 !   enddo
 !   write(*,341)'3X b2iXY(n)    :',s1,(b2iXY(s4),s4=1,ncon)
 341 format(a,i2,7F7.4)
-! --------------- we have extracted all comp.variables and their deriv wrt quads
+!-------------- we have extracted all comp.variables and their deriv wrt quads
 !
 ! NOTE in b1iA and b1iA the first index is subl.const, second is quad 
 !    sometimes I mix them up ...
@@ -4732,9 +4877,6 @@
    d2yy1=zero
    dummy1=one/sum1AB**2
    yder1: do s1=1,nspin(1)
-! the line below works when there are no SRO quads (species)
-!      dyy1(s1,s1)=one; cycle yder1
-! below needed when yy1 calculated from quads
       do s2=1,ncon
 ! b1iAB may contain contributions from two constituents in same quad
          dyy1(s1,s2)=(b1iA(s1,s2)-yy1(s1)*b1iAB(s2))/sum1AB
@@ -4789,17 +4931,18 @@
 !   sum2XY=sum2XY*dummy1
 !   sum1AB=invnorm*sum1AB
 !   sum2XY=invnorm*sum2XY
-! NOW list the endmember fractions and derivatives
-!   write(*,*)'3X Endmember fractions and derivatives:'
+! NOW list the pair fractions and derivatives
+!   write(*,*)'3X pair fractions and derivatives:'
    dummy1=zero
-   do s1=1,noofend
+! loop over all pairs
+   do s1=1,noofpair
 ! Check sum is unity
-      dummy1=dummy1+endmf(s1)
-!      write(*,120)s1,endmf(s1),(dendmf(s1,s2),s2=1,ncon)
+      dummy1=dummy1+pair(s1)
+!      write(*,120)s1,pair(s1),(dpair(s1,s2),s2=1,ncon)
    enddo
-120 format('3X endmf:',i3,F7.4,1x,10F6.3)
+120 format('3X pairs:',i3,F7.4,1x,10F6.3)
    if(abs(dummy1-one).gt.1.0D-12) then
-      write(*,*)'3X endmember fractions does not add up to unity',dummy1
+      write(*,*)'3X pair fractions does not add up to unity',dummy1
       gx%bmperr=4399; goto 1000
    endif
 !
@@ -4812,7 +4955,7 @@
 !      write(*,81)'3X ceqf:',1,ceqf1(s1),(dceqf1(s1,s2),s2=1,ncon)
    enddo
    if(abs(dummy1-one).gt.1.0D-12) then
-!      write(*,*)'3X Sum of charge equivalent fractions not 1 on subl 1',dummy1
+      write(*,*)'3X Sum of charge equivalent fractions not 1 on subl 1',dummy1
       gx%bmperr=4399; goto 1000
    endif
    dummy1=zero
@@ -4840,6 +4983,7 @@
 !   gx%bmperr=4399
 !   goto 1000
 ! fraction listings
+!   write(*,200)'3X totstoi:',(mqmqa_data%totstoi(s1),s1=1,ncon)
 !   write(*,200)'3X p_AB/XY:',(phvar%yfr(s1),s1=1,ncon)
 !   write(*,200)'3X sites/FU  :',sum1AB,sum2XY
 !   write(*,200)'3X y1     :',(yy1(s1),s1=1,nspin(1))
@@ -4851,7 +4995,7 @@
 !      write(*,202)'3X dy2/dpi:',s1,(dyy2(s1,s2),s2=1,ncon)
 !   enddo
 ! same as above
-!   write(*,200)'3X x_A/B  :',(endmf(s1),s1=1,noofend)
+!   write(*,200)'3X x_A/B  :',(pair(s1),s1=1,noofpair)
 !   write(*,200)'3X w1     :',(ceqf1(s1),s1=1,nspin(1))
 !   write(*,200)'3X w2     :',(ceqf2(s1),s1=1,nspin(2))
 200 format(a,(10F7.4))
@@ -4861,11 +5005,11 @@
 ! ENTROPY CALCULATION stoix1, stoix2
 !---------------------------------------------------------------------------
 ! separate documentation, i,j in first subl, k,l in second subl
-! p_ijkl is cluster fraction; x_i site fraction; v_ik endmember fraction
+! p_ijkl is cluster fraction; x_i site fraction; v_ik pair fraction
 ! w_i coordination equivalent site fraction;
 ! \sum_i y'_i ln(y'_i) + \sum_j y"_j ln(y"_j)+        subattice fractions
 !
-! \sum_i\sum_k v_ik ln(v_ik/(w_i w_k))+                 endmember fractions
+! \sum_i\sum_k v_ik ln(v_ik/(w_i w_k))+                 pair fractions
 !
 ! \sum_i\sum_k p_iikk ln(p_iikk/((v^4_ik/(w^2_i w^2_k)))+           
 ! \sum_i\sum_j\sum_k p_ijkk ln(p_ijkk/(2(v^2_ik v^2_jk)/(w_i w_j w^2_k)))+  
@@ -4873,211 +5017,270 @@
 ! \sum_i\sum_j\sum_k\sum_l p_ijkl ln(
 !                         p_ijkl/(4(v_ik v_il v_jk v_jl)/(w_i w_j w_k w_l)))
 !---------------------------------------------------------------------------
-! entropy from site fractions
+! Discovered 21/10/20 with help by Mac Poschmann:
+! The entropy is distributed on the quads, dS/dquad is the sum of
+! the entropy contribution from sublattices, pairs and the quads
+! is related to each separate quad!  Use the dyy1(*,quadindex) etc
 !-----------------------------------------------------------------
 ! Here we calculte for one formula unit (FU) of the phase
-! at the end we multiply with cirrent number of atomes/FU
+! at the end we multiply with current number of atomes/FU
 !-----------------------------------------------------------------
-   ssub=zero; send=zero; squad=zero
-   dssub=zero; dsend=zero; dsquad=zero
-   if(nspin(1).gt.1) then
-      sitefrac1: do s1=1,nspin(1)
-! >>>>>>>>>>>>>>>>>>>>> ............... EQUATION B22 part1, sum1AB is sites/FU
-!         write(*,'("3X d2sm1",i2,6(1pe10.2))')s1,(d2sm1(s3),s3=1,all2)
-         ssub=ssub+yy1(s1)*log(yy1(s1))
-         bug1: do s2=1,ncon
-            if(dyy1(s1,s2).eq.zero) cycle bug1
-            dssub(s2)=dssub(s2)+dyy1(s1,s2)*(one+log(yy1(s1)))
-            cycle bug1
-            do s3=s2,ncon
-               d2ssub(ixsym(s2,s3))=d2ssub(ixsym(s2,s3))+&
-                    dyy1(s1,s2)*dyy1(s1,s3)/yy1(s1)+&
-                    d2yy1(s1,ixsym(s2,s3))*(one+log(yy1(s1)))
+   ssub=zero; dssub=zero
+   dvvv=zero
+!   write(*,'(a,6(1pe12.4))')'3X quads: ',(phvar%yfr(q1),q1=1,ncon)
+! NEW CODE, loop over all quads
+   qsub: do q1=1,ncon
+! Entropy from sublattices
+      tsub=zero
+! replace dsub with dvvv
+      quady: do s1=1,4
+! Entropy contribution from sublattice constituents for the quad
+         s2=quadyix(s1,q1)
+         fqq=one
+         if(s2.gt.0) then
+! Specie in first sublattice >0, if a single species fqq=2
+            if(s1.eq.1 .and. quadyix(s1+1,q1).lt.0) fqq=2.0d0
+            tsub=tsub+fqq*log(yy1(s2))/mqmqa_data%constoi(s2,q1)
+700         format(a,3i3,1pe12.4,4(0PF10.6))
+! the derivative of fqq*log(yy1(s2))/mqmqa_data%constoi wrt all quads!
+            do s3=1,ncon
+               dvvv(s3,q1)=dvvv(s3,q1)+&
+                    fqq*dyy1(s2,s3)/(yy1(s2)*mqmqa_data%constoi(s2,q1))
+!               write(*,706)'3X dvvv1: ',q1,s2,s3,dvvv(s3,q1)
+706            format(a,3i3,4(1pe12.4))
             enddo
-         enddo bug1
-      enddo sitefrac1
-   else
-      write(*,*)'3X no mixing in sublattice 1'
-   endif
-   if(nspin(2).gt.1) then
-      sitefrac2: do s1=1,nspin(2)
-         ssub=ssub+yy2(s1)*log(yy2(s1))
-         bug2: do s2=1,ncon
-            if(dyy2(s1,s2).eq.zero) cycle bug2
-            dssub(s2)=dssub(s2)+dyy2(s1,s2)*(one+log(yy2(s1)))
-            cycle bug2
-            do s3=s2,ncon
-               d2ssub(ixsym(s2,s3))=d2ssub(ixsym(s2,s3))+&
-                    sum2XY*d2yy2(s1,ixsym(s2,s3))/yy2(s1)+&
-                    d2yy2(s1,ixsym(s2,s3))*(one+log(yy2(s1)))
+         elseif(s2.lt.0) then
+! if a single species in second sublattice fqq=2
+            if(s1.le.3 .and. quadyix(s1+1,q1).eq.0) fqq=2.0d0
+            tsub=tsub+log(yy2(-s2))/mqmqa_data%constoi(-s2,q1)
+! the derivative of fqq*log(yy2(s2))/mqmqa_data%constoi wrt all quads!
+            do s3=1,ncon
+               dvvv(s3,q1)=dvvv(s3,q1)+&
+                    fqq*dyy2(-s2,s3)/(yy2(-s2)*mqmqa_data%constoi(-s2,q1))
+!               write(*,706)'3X dvvv2: ',q1,s2,s3,dvvv(s3,q1)
             enddo
-         enddo bug2
-      enddo sitefrac2
-   else
-      write(*,*)'3X no mixing in sublattice 2'
-   endif
-   write(*,600)'3X SSUB: ',ssub,(dssub(s1),s1=1,ncon)
+         else
+! no more sublattice constituents
+            exit quady
+         endif
+      enddo quady
+! first derivatives, dSsub/dquad
+      lsub(q1)=tsub
+      ssub=ssub+phvar%yfr(q1)*tsub
+!      write(*,701)'3X squad1: ',squad,phvar%yfr(q1),ssub
+701   format(a,5(1pe12.4))
+   enddo qsub
+! correct first derivatives with respect to quads using dvvv
+!   do q1=1,ncon
+!      write(*,701)'3X dvvv: ',(dvvv(s1,q1),s1=1,ncon)
+!   enddo
+   do q1=1,ncon
+      dssub(q1)=lsub(q1)
+! add on all derivatives wrt q1 from other entropy terms 
+      do s1=1,ncon
+         dssub(q1)=dssub(q1)+phvar%yfr(s1)*dvvv(s1,q1)
+      enddo
+   enddo
+!   write(*,701)'3X dssub: ',(dssub(q1),q1=1,ncon)
+!   write(*,701)'3X SSUB:',ssub,ssub*phvar%amfu,phvar%amfu,phvar%abnorm(1)
+!   stop
 600 format(a,1pe12.4,2x,6(1pe10.2))
 !===============
-! skip the rest
-!   write(*,*)'3X Done sublattice entropy, skipping rest'
+! skip the pair and quad contributions
+!   write(*,*)'3X Done sublattice entropy, skipping rest',squad
 !   goto 900
-!------------
-   allend: do s1=1,noofend
-! Loop here for all endmembers
-! Entropy: \sum_i endmf(i) ln( endmf(i)/v_ik/(w_i w_k))
-! MAYBE save values of "endmf/(ceqf1*ceqf2)" and derivaties for later use??
-      dq1=ceqf1(eij(1,s1))*ceqf2(eij(2,s1))
-      mulceq(s1)=dq1
-      endkvot(s1)=endmf(s1)/dq1
-420   format(a,3i4,3(F12.4))
-! >>>>>>>>>>>>>>>>  ............. EQUATION B21 2nd line first half
-      send=send+endmf(s1)*log(endkvot(s1))
-421   format(a,i3,4(1pe12.4))
-! first derivatives:
-      do s2=1,ncon
-         dq2=ceqf1(eij(1,s1))*dceqf2(eij(2,s1),s2)+&
-              ceqf2(eij(2,s1))*dceqf1(eij(1,s1),s2)
-         dmulceq(s1,s2)=dq2
-         dendkvot(s1,s2)=dendmf(s1,s2)/dq1-endkvot(s1)*dq2/dq1**2
-         dsend(s2)=dsend(s2)+&
-              dendmf(s1,s2)*log(endkvot(s1))+&
-              dq1*dendkvot(s1,s2)
-! For the second derivatives d2endmf and d2ceqfi are zero
-         do s3=s2,ncon
-! second derivatives, approx
-            dq3=ceqf1(eij(1,s1))*dceqf2(eij(2,s1),s3)+&
-                 ceqf2(eij(2,s1))*dceqf1(eij(1,s1),s3)
-            dendkvot(s1,s3)=dendmf(s1,s3)/dq1-endkvot(s1)*dq3/dq1**2
-            d2sm1(ixsym(s2,s3))=d2sm1(ixsym(s2,s3))+&
-                 dendmf(s1,s2)/endkvot(s1)*dendkvot(s1,s3)+&
-                 dendmf(s1,s3)/endkvot(s1)*dendkvot(s1,s2)+&
-                 endmf(s1)/endkvot(s1)**2*dendkvot(s1,s2)*dendkvot(s1,s3)
-         enddo
-      enddo
-   enddo allend
 !
-   write(*,600)'3X SEND: ',send,(dsend(s1),s1=1,ncon)
+!-------------------------------------------------------
+! pair entropy
+   send=zero; dsend=zero
+   quadcef: do q1=1,ncon
+      tend=zero
+! loop of all pairs of this quad
+      s1=5
+!      allpairs: do while(.TRUE. .and. s1.lt.10)
+      allpairs: do while(.TRUE. .and. s1.lt.9)
+! mqmqa_data%contyp(5,q1) is nonzero if the quad is a pair
+         s2=mqmqa_data%contyp(s1,q1)
+         if(s1.eq.5 .and. s2.ne.0) then
+! the quad q1 is a pair with index s2, only one calculation with s2=q1
+            fqq=4.0D0
+            s1=10
+         else
+            s1=s1+1
+! exit here when 4 pairs
+!            if(s1.ge.10) exit allpairs
+! the indices to the pairs of this quad is in %contyp(6..9,q1) 
+            s2=mqmqa_data%contyp(s1,q1)
+            if(s2.eq.0) exit allpairs
+! fqq depends on q1
+            fqq=1.0D0
+            if(mqmqa_data%contyp(1,q1).eq.2) then
+               fqq=2.0D0
+            elseif(mqmqa_data%contyp(3,q1).eq.-2) then
+               fqq=2.0D0
+            endif
+         endif
+! Here s2 is a pair of the quadrupole q1.  The pair fraction is pair(s2)
+! which should be divided by ceqf1(1,s2)*ceqf2(2,s2)
+! The logarithm should be multiplied by qfnnsnn for the pair.  no more??
+! Entropy: quadfrac*\sum_s2 fqq*ln( pair(s2)/v_s2k/(w_i w_k))/%qfnnsnn(s2)
+! MAYBE save values of "pair/(ceqf1*ceqf2)" and derivaties for later use??
+! REMEMBER ceqf1 is equivalent sublattice fraction ... what is eij(1,s2)??
+! eij(1..2,s2) are species in first and second sublattice of the pair
+! BUT they are now in %contype(11,s2) and %contyp(12,s2) ???
+!         write(*,'(a,2i3,2x,2i3,2x,2i3)')'3X eij?:',q1,s2,&
+!              eij(1,s2),mqmqa_data%contyp(11,s2),&
+!              eij(2,s2),mqmqa_data%contyp(12,s2)
+! KEEP eij as it is used as link from pair to quadrupole
+         ee=eij(1,s2); gg=eij(2,s2)
+         dq1=ceqf1(ee)*ceqf2(gg)
+         mulceq(s2)=dq1
+         endkvot(s2)=pair(s2)/dq1
+         fqq=fqq/mqmqa_data%qfnnsnn(s2)
+! >>>>>>>>>>>>>>>>  ............. EQUATION B21 2nd line first half
+! This is the entropy contribution from a pair of this quad
+! %qfnnsnn is read from database
+! But it should be a sum? or is that taken care of by the sum over p_AB/XY ??
+         tend=tend+fqq*log(endkvot(s2))
+!         write(*,421)'3X pairs: ',q1,s1,s2,tend,endkvot(s2),&
+!              fqq/mqmqa_data%qfnnsnn(s2),fqq,mqmqa_data%qfnnsnn(s2)
+421      format(a,3i3,5(1pe11.3))
+! first derivatives, note multiplied by p_AB/XY ....
+         do s3=1,ncon
+            if(s3.eq.q1) dsend(s3)=dsend(s3)+fqq*log(endkvot(s2))
+            dsend(s3)=dsend(s3)+fqq/endkvot(s2)*(&
+                 dpair(s2,q1)/(mulceq(s2))**2-&
+                 2.0d0*pair(s2)/mulceq(s2)**4*(&
+                 ceqf1(ee)*dceqf2(gg,q1)+dceqf1(ee,q1)*ceqf2(gg)))
+! skip 2nd derivatives ...
+         enddo
+      enddo allpairs
+! we must multiply the tend with the quad fraction
+      send=send+phvar%yfr(q1)*tend
+! derivatives of send wrt quad
+   enddo quadcef
+!
+!   write(*,600)'3X SEND: ',send,(dsend(s1),s1=1,ncon)
 !========================================================================
 ! skip quad entropies
 !   write(*,*)'3X skipping quad entropies'
 !   goto 900
 !========================== begin loop for all quads
-   quadloop: do s1=1,ncon
-      if(s1.ne.mqmqa_data%contyp(10,s1)) then
-! the value in contyp(10,s1) should be s1 ...
-         write(*,*)'3X problems with indexing quads 7'
+!   write(*,*)'3X quadropole entropies:'
+!   do s1=1,noofpair
+!      write(*,440)'3X dpair/dq: ',q1,(dpair(s1,s2),s2=1,ncon)
+!   enddo
+440 format(a,i2,6(1pe10.2),(/20x,6e10.2))
+   squad=zero; dsquad=zero
+! replaced s1 by q1
+   quadloop: do q1=1,ncon
+      if(q1.ne.mqmqa_data%contyp(10,q1)) then
+! TEST: the value in contyp(10,q1) should be q1 ...
+         write(*,*)'3X problems in %contyp with quad indexing 7'
          gx%bmperr=4399; goto 1000
       endif
-!      yfrac=phvar%yfr(mqmqa_data%contyp(10,s1))
-      yfrac=phvar%yfr(s1)
-!      write(*,*)'3X quad ',s1,mqmqa_data%contyp(5,s1),squad
-      termer: if(mqmqa_data%contyp(5,s1).gt.0) then
-! this quad is an endmember, index to related coordination equivalent
-! ee set to endmember index, endkvot(ee) and mulceq(ee) used
-         ee=mqmqa_data%contyp(5,s1)
-! \sum_i\sum_k p_iikk ln(p_iikk/((v^4_ik/(w^2_j w^2_k)))+           
-! We have already calculated endkvot(ee)=v/w_i*w_k 
-!                            dendkvot(ee,s2)=
-!                            mulceq(ee)=w_i*w_k
-!                            dmulceq(ee,s2))=ddw_i*w_k+w_i*dw_k
-! >>>>>>>>>>>>>>>>  ............. EQUATION B21 2nd line second half
-         divisor=(endmf(ee)*endkvot(ee))**2
-428      format(a,i3,2(1pe12.4))
-         squad=squad+yfrac*log(yfrac/divisor)
-! first derivatives ...
-         do s2=1,ncon
-            dsquad(s2)=dsquad(s2)+one+log(yfrac/divisor)-&
-                 2.0D0*(dmulceq(ee,s3)/mulceq(ee)-&
-                 dendmf(ee,s2)/endmf(ee)-&
-                 dendkvot(ee,s2)/endkvot(ee))
-!            do s3=s2,ncon
-! second derivatives ... only the diagonal term
-! should be multiplied with d(divisor)/dy1
-               d2sm1(ixsym(s2,s2))=divisor/yfrac
-!            enddo
-         enddo
-!==================================================
-!         write(*,429)'3X DONE3 quad entropy: ',ee,0,0,0,&
-!              yfrac,divisor,yfrac/divisor
-!         write(*,430)'3X -S/R:',s1,squad,zero,(dsquad(s2),s2=1,ncon)
-!         write(*,431)'3X d2S/R3:',((d2sm1(ixsym(s2,s3)),s3=s2,ncon),s2=1,ncon)
-429      format(a,4i3,3(1pe12.4))
-430      format(a,i3,2(1PE12.4),2x,20(1pe10.2))
-431      format(a,20(1pe10.2))
-!==================================================
+      lsub=zero
+! New code for the general case
+!                  p_i
+! p_i * log( ------------------------------------)
+!               xi_A/X*xi_B/X*xi_B/X*xi_B/Y
+!               ---------------------------
+!                  w_A * w_B * w_X * w_Y
 !
-      elseif(mqmqa_data%contyp(9,s1).eq.0) then    ! termer: if(
-! this is a quad with 3 different endmembers, AA/XY or AB/XX
-! \sum_i\sum_j\sum_k p_ijkk ln(p_ijkk/(2(v^2_ik v^2_jk)/(w_i w_j w^2_k)))+  
-! \sum_i\sum_k\sum_l p_iikl ln(p_iikl/(2(v^2_ik v^2_il)/(w^2_i w_k w_l)))+
-! contyp(6 & 7) are endmember indices
-         ee=mqmqa_data%contyp(6,s1)
-         gg=mqmqa_data%contyp(7,s1)
-!         write(*,*)'3X AB/XX or AA/XY',ee,gg
-! I think it does not matter if it is AB/XX or AA/XY??
-! remember: endkvot(ee) is endmf(ee)/mulceq(eij(1,ee))*multceq(eij(2,ee) 
-! >>>>>>>>>>>>>>>>  ............. EQUATION B21 lines 3 and 4
-         divisor=2.0D0*endmf(ee)*endkvot(ee)*endmf(gg)*endkvot(gg)
-         squad=squad+yfrac*log(yfrac/divisor)
-         do s2=1,ncon
-            dsquad(s2)=dsquad(s2)+one+log(yfrac/divisor)-&
-                 yfrac/divisor*(2.0d0*dendmf(ee,s2)/endmf(ee)+&
-                 2.0d0*dendmf(gg,s2)/endmf(gg)-&
-                 dmulceq(ee,s2)/mulceq(ee)-dmulceq(gg,s2)/mulceq(gg))
-!            do s3=s2,ncon
-! should be multiplied with d(divisor)/dy1
-               d2sm1(ixsym(s2,s2))=d2sm1(ixsym(s2,s2))+&
-                    divisor/yfrac
-!            enddo
-         enddo
-!==================================================
-!         write(*,429)'3X DONE4 quad entropy: ',ee,gg,0,0,&
-!              yfrac,divisor,yfrac/divisor
-!         write(*,430)'3X -S/R:',s1,squad,zero,(dsquad(s2),s2=1,ncon)
-!         write(*,431)'3X d2S/R4:',((d2sm1(ixsym(s2,s3)),s3=s2,ncon),s2=1,ncon)
-!==================================================
+      s1=mqmqa_data%contyp(5,q1)
+      if(s1.gt.0) then
+! this is a pair
+         pair1=s1
+         pair2=pair1
+         pair3=pair1
+         pair4=pair1
+         ee=eij(1,pair1)
+         ff=ee
+         gg=eij(2,pair1)
+         hh=gg
+! before adding this write statement hh was sometines not same as gg
+! as it should be SUCK
+!         write(*,*)'3X gg hh: ',gg,hh,ceqf2(gg),ceqf2(hh)
+         fqq=one
+!         write(*,'(a,10i3)')'3X quad1: ',q1,pair1,pair2,pair3,pair4,ee,ff,gg,hh
+      elseif(mqmqa_data%contyp(9,q1).eq.0) then
+! here either ee=ff or gg=hh
+         pair1=mqmqa_data%contyp(6,q1)
+         pair2=pair1
+         ee=eij(1,pair1)
+         gg=eij(2,pair1)
+         pair3=mqmqa_data%contyp(7,q1)
+         pair4=pair3
+         ff=eij(1,pair3)
+         hh=eij(2,pair3)
+         fqq=2.0d0
+!         write(*,'(a,10i3)')'3X quad2: ',q1,pair1,pair2,pair3,pair4,ee,ff,gg,hh
+      else
+! all ee, ff, gg, hh should be different, not certain if they are
+         pair1=mqmqa_data%contyp(6,q1)
+         ee=eij(1,pair1)
+         gg=eij(2,pair1)
+         pair2=mqmqa_data%contyp(7,q1)
+         ff=eij(1,pair2)
+         gg=eij(2,pair2)
+         pair3=mqmqa_data%contyp(8,q1)
+         if(ee.eq.ff) ff=eij(1,pair3)
+         if(gg.eq.hh) hh=eij(2,pair3)
+         pair4=mqmqa_data%contyp(9,q1)
+         fqq=4.0D0
+!         write(*,'(a,10i3)')'3X quad4: ',q1,pair1,pair2,pair3,pair4,ee,ff,gg,hh
+      endif
 !
-!      elseif(mqmqa_data%contyp(9,s1).ne.0) then    ! termer: if(
-         else
-! 4 different endmembers
-! \sum_i\sum_j\sum_k\sum_l p_ijkl ln(
-!                         p_ijkl/(4(v_ik v_il v_jk v_jl)/(w_i w_j w_k w_l)))
-! here we have mixing of 4 endmembers
-! >>>>>>>>>>>>>>>>  ............. EQUATION B21 last line AB/XY
-         ee=mqmqa_data%contyp(6,s1)
-         ff=mqmqa_data%contyp(7,s1)
-         gg=mqmqa_data%contyp(8,s1)
-         hh=mqmqa_data%contyp(9,s1)
-! I assume ee and ff are A/X and A/Y; gg and ff are B/X and B/Y
-         divisor=4.0d0*endmf(ee)*endkvot(ff)*endmf(gg)*endkvot(hh)
-         squad=squad+yfrac*log(yfrac/divisor)
-         do s2=1,ncon
-            dsquad(s2)=dsquad(s2)+one+log(yfrac/divisor)-&
-! this is probably not correct ... but close
-                 yfrac/divisor*(2.0d0*dendmf(ee,s2)/endmf(ee)+&
-                 2.0d0*dendmf(gg,s2)/endmf(gg)-&
-                 dmulceq(ee,s2)/mulceq(ee)-dmulceq(gg,s2)/mulceq(gg))
-!            do s3=s2,ncon
-! should be multiplied with d(divisor)/dy1
-               d2sm1(ixsym(s2,s2))=d2sm1(ixsym(s2,s2))+&
-                    divisor/yfrac
-!            enddo
-         enddo
-!==================================================
-!         write(*,429)'3X DONE5 quad entropy: ',ee,ff,gg,hh,&
-!              yfrac,divisor,yfrac/divisor
-!         write(*,430)'3X -S/R:',s1,squad,zero,(dsquad(s2),s2=1,ncon)
-!         write(*,431)'3X d2S/R5:',((d2sm1(ixsym(s2,s3)),s3=s2,ncon),s2=1,ncon)
-      endif termer
+!      write(*,'(a,8F8.4)')'3X quadx: ',pair(pair1),ceqf1(ee),&
+!           pair(pair2),ceqf1(ff),pair(pair3),ceqf2(gg),pair(pair4),ceqf2(hh)
+      pairceq=fqq*pair(pair1)/ceqf1(ee)*pair(pair2)/ceqf1(ff)*&
+           pair(pair3)/ceqf2(gg)*pair(pair4)/ceqf2(hh)
+!      write(*,'(a,9i3,1pe12.4)')'3X quadx: ',q1,pair1,pair2,pair3,pair4,&
+!           ee,ff,gg,hh,pairceq
+!
+      squad=squad+phvar%yfr(q1)*log(phvar%yfr(q1)/pairceq)
+!      write(*,440)'3X SQUAD: ',q1,squad,phvar%yfr(q1),pairceq
+!
+! New code for the general case
+!                  p_i
+! p_i * log( ------------------------------------)
+!               xi_A/X*xi_B/X*xi_B/X*xi_B/Y
+!               ---------------------------
+!                  w_A * w_B * w_X * w_Y
+!
+      do s1=1,ncon
+         if(s1.eq.q1) lsub(s1)=log(phvar%yfr(q1)/pairceq)+one
+         if(s1.eq.q1) dsquad(s1)=dsquad(s1)+log(phvar%yfr(q1)/pairceq)+one
+! derivative for just q1 is OK
+         lsub(s1)=lsub(s1)-phvar%yfr(q1)*&
+              (dpair(pair1,s1)/pair(pair1)+dpair(pair2,s1)/pair(pair2)+&
+              dpair(pair3,s1)/pair(pair3)+dpair(pair4,s1)/pair(pair4)-&
+              dceqf1(ee,s1)/ceqf1(ee)-dceqf1(ff,s1)/ceqf1(ff)-&
+              dceqf2(gg,s1)/ceqf2(gg)-dceqf2(hh,s1)/ceqf2(hh))
+! Skipping this means I ignore effect of variable fracrion on pair and ceqf
+!         dsquad(s1)=dsquad(s1)-phvar%yfr(q1)*&
+!              (dpair(pair1,s1)/pair(pair1)+dpair(pair2,s1)/pair(pair2)+&
+!              dpair(pair3,s1)/pair(pair3)+dpair(pair4,s1)/pair(pair4)-&
+!              dceqf1(ee,s1)/ceqf1(ee)-dceqf1(ff,s1)/ceqf1(ff)-&
+!              dceqf2(gg,s1)/ceqf2(gg)-dceqf2(hh,s1)/ceqf2(hh))
+! skip 2nd derivatives
+!         write(*,440)'3X lsub: ',s1,(lsub(s2),s2=1,ncon)
+      enddo
+!      write(*,440)'3X SQUAD: ',q1,squad,(dsquad(s1),s1=1,ncon)
    enddo quadloop
-   write(*,600)'3X SQUAD:',squad,(dsquad(s1),s1=1,ncon)
-!------------------ coding ends here
-!         
+!
+!   write(*,440)'3X SUM SQUAD: ',0,squad,(dsquad(s1),s1=1,ncon)
+! first derivatives are wrong ....
+!   dsquad=zero
+!   write(*,*)'3X quad derivatives zero'
+!   goto 900
+!
+!***********************************************************************
 900 continue
 ! we have multiplied with amounts above, (?) set invnorm=one
-!   invnorm=one
-   write(*,*)'3X second derivatives are approximate.  Atoms/FU: ',invnorm
+!   write(*,*)'3X second derivatives are approximate.  Atoms/FU: ',invnorm
+! Values should be per formula unit!
+   invnorm=one
 ! store results in appropriate places, values divided by RT
 ! This is G/RT
    phvar%gval(1,1)=phvar%gval(1,1)+invnorm*(ssub+send+squad)
@@ -5102,10 +5305,11 @@
             phvar%d2gval(ixsym(s1,s1),1)=one/dummy1
          endif
       enddo
-      write(*,431)'3X dS/Rq  :',(phvar%dgval(1,s1,1),s1=1,ncon)
-      write(*,431)'3X d2S/Rq :',(phvar%d2gval(s1,1),s1=1,all2)
+!      write(*,431)'3X dS/Rq  :',(phvar%dgval(1,s1,1),s1=1,ncon)
+!      write(*,431)'3X d2S/Rq2:',(phvar%d2gval(s1,1),s1=1,all2)
+431   format(a,6(1pe12.4),(/6x,6e12.4))
    endif
-   write(*,431)'3X MQMQA S:',phvar%gval(1,1)
+!   write(*,'(a,2(1pe14.6))')'3X MQMQA:',phvar%gval(1,1)*8.31451,phvar%gval(1,1)
 1000 continue
 !   write(*,*)'3X return with error code as unfinished'
 !   gx%bmperr=4399
