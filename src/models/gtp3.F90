@@ -1425,10 +1425,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this is a temporary storage of TP functions converted to arrays of
 ! coefficients.  Allocated as an array when necessary and the index in
 ! this array is the same index as for the TPfun
-! USED FOR SOLGASMIX
-     integer nranges
+! if debug is nonzero there is additional output and name is displayed
+! USED FOR SOLGASMIX calculations and it is very messily implemented 
+     integer nranges,debug
 !     type(gtp_tpfun_as_coeff) :: tpfuncoef
      type(gtp_tpfun_as_coeff) :: cfun
+     character*16 :: name
   end type gtp_tpfun2dat
 !\end{verbatim}
 !--------------------------------------------------------------------------

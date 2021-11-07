@@ -1,5 +1,5 @@
 This file contains information on OpenCalphad (OC) version 6 and
-earlier.  This log started 2016-
+earlier.  This log started 2016-03-03.
 
 For general information please read the intro-OC6.pdf and the
 OC6-macros.pdf.
@@ -19,10 +19,15 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.11.07 OC version 6.035: A version of the SGTE unary database
+adapted for OC is available on exaples/macro. Some problems with 
+converting a TDB file to a SOLGAS DAT file has been fixed but there
+may still be problems.
+
 2021.11.01 OC version 6.034: Finally the MQMQA model works for some
 simple examples such as SRO in a system A-B-AB.  Further testing and
-calculations on a real system are needed but as OC cannot read DAT
-files we have to wait for some files to be converted a TDB frrmat
+calculations on real systems are needed but as OC cannot read DAT
+files we have to wait for some files to be converted a TDB format
 extended with some bond parameters.  Thanks to the people developing
 Thermochimica for all the help.
 
@@ -43,16 +48,16 @@ less than 1 atom, often 1/3 or even less.
 The reason is that in OC and FactSage the "amount of a phase" means
 different things, in FactSage there is no specific "amount of phase",
 only the amount of atomes in a phase, whereas OC (and TC) has defined
-a property called "Formula Unit" (FU) of a phase and normally one can
-have values of properties "per FU" as well as "per mole of atoms".
-The difference can be big as phases such as sigma has 30 atoms per FU
-(unit cell) and 23-catbide contains 29 atoms.  The FU simplifies the
-modeling of phases because the Gibbs energy of a phase in OC is
-defined per mole formula unit wheras in FactSage it is defined per
-mole of atoms in the phase.  Thus in OC there is a property "amount of
-phase per formula unit" which is used in the "list result" whereas the
-property NP(phase) is the "amount of atoms" in the phase.  These can
-differ if there is not 1 atom/FU.
+a property called "Formula Unit" (FU) of a phase and normally one has
+values of properties "per FU" as well as "per mole of atoms".  The
+difference can be big as phases such as sigma has 30 atoms per FU and
+23-catbide contains 29 atoms.  The FU simplifies slightly the modeling
+of phases because the Gibbs energy of a phase in OC is defined per
+mole formula unit wheras in FactSage it is defined per mole of atoms
+in the phase.  Thus in OC there is a property "amount of phase per
+formula unit" which is used in the "list result" whereas the property
+NP(phase) is the "amount of atoms" in the phase.  These can differ if
+there is not 1 atom/FU.
 
 The value of the FU of a phase can vary if there are vacancies or
 species with different number of atoms in a phase (for example in a
@@ -62,16 +67,17 @@ independent of the actual amount of the phase.  But the MQMQA model is
 defined using the amount of atoms in the different quads and initially
 I tried to follow this but it became incompatible with the rest of OC.
 The simplest is to use the formula unit 1 for the MQMQA liquid.  The
-sublattices in MQMQA can contain vacancies but they have no change (in
+sublattices in MQMQA can contain vacancies but they have no charge (in
 contrast to the I2SL model where the number of sites are adjusted to
 make the phase neutral).  The actual number of atoms per sublattice
 can vary in MQMQA, normally it seems to be less than unity.  The
 sublattice occupancy is calculated from the quad fractions and as
 several quads contain the same species on the different sublattices
 the fraction of the identical species fractions in a sublattice are
-added together.  However, in the case of the same species with
-different valency they will be be treated as different and give a
-contribution to the configurational entropy in the sublattice.
+added together.  In the case of the same species with different
+valency (such as Fe+2 and Fe+3) they will be be treated as different
+and give a contribution to the configurational entropy in the
+sublattice.
 
 I have also found that there are some restrictions in OC when the
 amount of atomes per FU is less than one to avoid dealing with phases
@@ -2158,7 +2164,7 @@ around arguments to EXP and LOG and negative powers.  Complicated
 functions should be entered as several separate functions.  Never have
 more than two symbols multiplied together.
 
-2016.02.12 Removed extention on linkmake and linkpara to make it easier
+2016.03.12 Removed extention on linkmake and linkpara to make it easier
 to rename these files.
 
 2016.03.03 Fixed some errors when entering TP functions interactivly.

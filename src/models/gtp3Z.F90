@@ -2842,6 +2842,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !
 ! Below are a couple of routines to generate SOLGASMIX DAT files
+! %debug=1 set in gtp3E
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
  
@@ -2872,6 +2873,9 @@
 ! skip the first two functions ... R and RTLNP
       do i1=3,ntpf
 ! done is set false if the function ctpf(i1) is not converted
+         if(ctpf(i1)%debug.ne.0) &
+              write(*,*)'Converting: ',trim(tpfuns(i1)%symbol)
+         ctpf(i1)%name=tpfuns(i1)%symbol
          call tpf2c(ctpf,i1,done)
          if(gx%bmperr.ne.0) goto 1000
       enddo
@@ -3171,8 +3175,9 @@
       jadd=jadd+i1a
       tpfexpr=>tpfroot%funlinks(i1a)
       nc1=tpfexpr%noofcoeffs
-!      write(*,107)'TPfun ranges: ',tpfuns(lfun)%symbol,i1a,i1b,nrangeb,jadd
-!107   format(a,a,5i4)
+      if(ctpf(1)%debug.ne.0) &
+           write(*,107)'TPfun ranges: ',tpfuns(lfun)%symbol,i1a,i1b,nrangeb,jadd
+107   format(a,a,5i4)
       skipnext=.false.
 ! maybe needed? YES!
       iadd=0
@@ -3299,7 +3304,6 @@
                   caddnr=0
                endif
 ! call a new function to add the coefficents of funref
-! to ctpf(
                iadd=iadd+1
                if(iadd.gt.7) then
                   write(*,*)'3Z many added functions in: ',&
@@ -3337,15 +3341,17 @@
       if(iadd.gt.0) then
 ! If iadd>1 we must first add together all the different functions referenced
 ! and possibly split the T range if these function have a different ranges
+         
          ncc=3
 !         write(*,*)'3Z adjusting ranges?',iadd
 ! This loop only if there are two or more function references within a range
          do i3=iadd,2,-1
             nrr=caddnr(i3)
 !            write(*,16)'3Z there are coefficients to add!!',i3,iadd,nrr
-!16          format(a,6i4)
+16          format(a,6i4)
 ! add terms and adjust all ranges in cadd(i3-1)
-            call adjustranges(nrr,cadd(i3-1),caddnr(i3),cadd(i3))
+            call adjustranges(nrr,cadd(i3-1),caddnr(i3),cadd(i3),&
+                 ctpf(1)%debug, ctpf(lfun)%name)
             if(gx%bmperr.ne.0) then
                write(*,*)'Error occured adding: ',caddid(i3-1),caddid(i3)
                goto 1000
@@ -3354,22 +3360,28 @@
             caddnr(i3-1)=nrr
 ! we may have more functions to add ...
          enddo
-!         call tpwrite('++',0,caddnr(1),cadd(1))
+         if(ctpf(lfun)%debug.ne.0) call tpwrite('++',0,caddnr(1),cadd(1))
 ! we have now added all links, now add the sum of all cadd to cfun1 range i1a
 ! adjust1ranges creates breakpoints only in the current range, i1a, of cfun1
 ! and adds the coefficients from cadd(1) to this
 !         write(*,*)'3Z calling adjust1: ',i1a,jadd,i1b,nrangeb
-!         call tpwrite('>1',lfun,nrangeb,ctpf(lfun)%cfun)
-!         call tpwrite('>2',0,caddnr(1),cadd(1))
-         call adjust1range(lfun,jadd,nrangeb,krange,cfun1,caddnr(1),cadd(1))
+         if(ctpf(lfun)%debug.ne.0) then
+            call tpwrite('>1',lfun,nrangeb,ctpf(lfun)%cfun)
+            call tpwrite('>2',0,caddnr(1),cadd(1))
+         endif
+         call adjust_1range(lfun,jadd,nrangeb,krange,cfun1,caddnr(1),cadd(1),&
+              ctpf(lfun)%debug)
          krange=krange+1
+! krange can have chnaged more then one ... make sure krange set correct
 ! if additional ranges needed nrangeb changed 
 ! increment i1b but not i1a and nrange
 ! why -1 ??
          jadd=nrangeb-i1a-1
          i1b=i1b+nrangeb-2
-!         write(*,*)'3Z after adjust1x: ',i1a,jadd,i1b,nrangeb
-!         call tpwrite('<<',lfun,nrangeb,ctpf(lfun)%cfun)
+         if(ctpf(lfun)%debug.ne.0) then
+            write(*,*)'3Z after adjust1x: ',i1a,jadd,i1b,nrangeb
+            call tpwrite('<<',lfun,nrangeb,ctpf(lfun)%cfun)
+         endif
 !         write(*,*)'deallocating cadd'
          deallocate(cadd)
       endif
@@ -3403,7 +3415,7 @@
    enddo
 800 format('3Z ',a,': ',i3,2i2,F9.2,3(1pe13.5,i5)/&
          (23x,e13.5,i5,e13.5,i5,e13.5,i5))
-   write(*,*)'3Z end of function'
+   write(*,*)'3Z end of function -----------------'
    return
  end subroutine tpwrite
 
@@ -3443,14 +3455,14 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine adjust1range
+!\addtotable subroutine adjust_1range
 !\begin{verbatim} %-
- subroutine adjust1range(lfun,nr1,nrange,krange,ctp1,nr2,ctp2)
+ subroutine adjust_1range(lfun,nr1,nrange,krange,ctp1,nr2,ctp2,debug)
 ! check if ctp1 range nr1 must be split in more ranges due to tbreaks in ctp2
 ! nrange is the total number of ranges of ctp1
 ! There are 10 ranges allocated for all, nr1 and nr2 are the used ranges
    implicit none
-   integer lfun,nr1,nr2,krange,nrange
+   integer lfun,nr1,nr2,krange,nrange,debug
    type(gtp_tpfun_as_coeff) :: ctp1,ctp2
 !\end{verbatim} %+
 !  TYPE gtp_tpfun_as_coeff
@@ -3462,16 +3474,18 @@
 !  end type gtp_tpfun_as_coeff
    double precision, parameter :: tenth=1.0D-1
    integer, parameter :: maxnc=15
-   integer i1,i2,i3,k1,nr3,nr0,j2,j3,mrange
+   integer i1,i2,i3,k1,nr3,nr0,j2,j3,mrange,kk,kpow
    double precision tlow1,thigh1,tlow2,thigh2,tmax
    logical nosplit
    type(gtp_tpfun_as_coeff) :: ctp3
 !
    nr0=nr1
-!   write(*,4)'3Z adjust1range 1: ',nr1,(ctp1%tbreaks(j2),j2=1,nr1)
-!   write(*,4)'3Z adjust1range 2: ',nr2,(ctp2%tbreaks(j2),j2=1,nr2)
-4  format(a,i3,10(F10.2))
-! check highest T
+   if(debug.ne.0) then
+      write(*,4)'3Z in adjust_1range 1: ',nr1,(ctp1%tbreaks(j2),j2=1,nr1)
+      write(*,4)'3Z in adjust_1range 2: ',nr2,(ctp2%tbreaks(j2),j2=1,nr2)
+4     format(a,i3,10(F10.2))
+   endif
+! check highest T ............ unchanged ?? below
    tmax=ctp1%tbreaks(1)
    do i1=2,nr1
       if(ctp1%tbreaks(i1).gt.tmax) tmax=ctp1%tbreaks(i1)
@@ -3491,12 +3505,8 @@
    endif
    tmax=ctp2%tbreaks(nr2)
    ctp1%tbreaks(nr1)=tmax
-!   write(*,'(a,2i3,F8.2)')'3Z coefficents and tmax: ',nr1,nr2,tmax
+   if(debug.ne.0) write(*,'(a,2i3,F8.2)')'3Z coeffs and tmax: ',nr1,nr2,tmax
    if(nr1.eq.1) then
-! this is typically when ctp1 is a parameter a single range 
-! and ctp2 a sum of functions complex with ranges
-! If ctp2 has a lower Tmax than cp1 (maybe set at a tbreaks less than nr2)
-! adjust thigh1
       tlow1=298.15
       thigh1=ctp1%tbreaks(nr1)
       j2=1
@@ -3505,10 +3515,10 @@
       thigh1=ctp1%tbreaks(nr1)
       j2=nr1-1
    endif
-      
-!   write(*,7)'adjust1range: ',nrange,nr1,nr2,j2,&
-!        ctp1%tbreaks(nr1),ctp2%tbreaks(nr2)
-!7  format(a,4i4,2F10.2)
+!      
+   if(debug.ne.0) write(*,7)'adjust_1range 3: ',nrange,nr1,nr2,j2,&
+        ctp1%tbreaks(nr1),ctp2%tbreaks(nr2)
+7  format(a,4i4,2F10.2)
    allocate(ctp3%tbreaks(1))
    allocate(ctp3%coefs(maxnc,1))
    allocate(ctp3%tpows(maxnc,1))
@@ -3517,9 +3527,9 @@
 ! search ctp2 for tbreaks in the range tlow1 to thigh1
    i2=1
 !   mrange=nrange-1
-!   write(*,16)'In adjust1range for range: ',nr1,i2,krange,&
-!        tlow1,thigh1,ctp2%tbreaks(i2)
-!16 format(/a,3i3,3F10.2)
+   if(debug.ne.0) write(*,16)'In adjust_1range 4: ',nr1,i2,krange,&
+        tlow1,thigh1,ctp2%tbreaks(i2)
+16 format(/a,3i3,3F10.2)
 !100 continue
    split: do while(i2.lt.nr2)
 ! fine-tuning needed when breakpoints identical in parameter and GHSERxx
@@ -3537,8 +3547,11 @@
 ! fine-tuning needed when breakpoints identical in parameter and GHSERxx
 ! there is a breakpoint in ctp2 between tlow1 and thigh1
 ! we must add one range above nr1, shift the coefficients in higher ranges up 
-!            write(*,16)'3Z new breakpoint ',nrange,j2,0,ctp2%tbreaks(i2),thigh1
-!            call tpwrite('--',0,nrange,ctp1)
+            if(debug.ne.0) then
+               write(*,16)'3Z inserted new breakpoint ',&
+                 nrange,j2,0,ctp2%tbreaks(i2),thigh1
+               call tpwrite('--',0,nrange,ctp1)
+            endif
             do k1=nrange,j2,-1
                ctp1%tbreaks(k1+1)=ctp1%tbreaks(k1)
                do i3=1,maxnc
@@ -3547,17 +3560,24 @@
                   ctp1%tpows(i3,k1+1)=ctp1%tpows(i3,k1)
                enddo
             enddo
+! added coefficients to new range
+            if(debug.ne.0) call tpwrite('-+',0,nrange,ctp1)
             nrange=nrange+1
-!            call tpwrite('up',0,nrange,ctp1)
+            if(debug.ne.0) call tpwrite('up',0,nrange,ctp1)
 ! now add coeffs from ctp1 range k1 and ctp2 in range i2 to ctp3 range 1
 ! then replace range k1 in ctp1 by range 1 of ctp3
             ctp3%tpows=-100
             ctp3%coefs=zero
 ! the range in ctp1 that should be added to is j2+1 ??
 !            j2=j2+1
-!            write(*,*)'3Z add7: ',nr1,i2,nrange,j2
-!            call tpwrite('v1',0,nrange,ctp1)
-!            call tpwrite('v2',0,nr2,ctp2)
+            if(debug.ne.0) then
+               write(*,'(a,4i3,5F10.2)')'3Z add7: ',nr1,i2,nrange,j2,&
+                    (ctp1%tbreaks(j3),j3=1,nr1)
+               call tpwrite('v1',0,nrange,ctp1)
+               write(*,'(a,4i3,5F10.2)')'3Z add7: ',nr1,i2,nrange,j2,&
+                    (ctp1%tbreaks(j3),j3=1,nr1)
+               call tpwrite('v2',0,nr2,ctp2)
+            endif
             call add1tpcoeffs(j2,ctp1,i2,ctp2,1,ctp3)
 !            call tpwrite('v3',0,1,ctp3)
             do j3=1,maxnc
@@ -3572,15 +3592,17 @@
 ! we have added one range to ctp1
             nosplit=.false.
 !            nrange=nrange+1
-!            write(*,*)'adjust1range 6:',nrange,j2,ctp1%tbreaks(j2)
+            if(debug.ne.0) write(*,*)'adjust_1range 6:',&
+                 nrange,j2,ctp1%tbreaks(j2)
          else
             mrange=nrange-1
             goto 800
          endif
       else
          continue
-!         write(*,731)'adjust1range 7:',i2,nr2,ctp2%tbreaks(i2),tlow1
-!731      format(a,2i3,2F10.2)
+         if(debug.ne.0) write(*,731)'adjust_1range 7:',&
+              i2,nr2,ctp2%tbreaks(i2),tlow1
+731      format(a,2i3,2F10.2)
       endif
       i2=i2+1
       j2=j2+1
@@ -3590,7 +3612,7 @@
    mrange=nrange
 800 continue
 !   write(*,*)'Why??',nrange,mrange,nr1,nr2,nosplit
-!   call tpwrite('w0',0,nrange,ctp1)
+   if(debug.ne.0) call tpwrite('w0',0,nrange,ctp1)
 ! just add the terms (for the last range)
 !   ctp3%tpows=-100
 !   ctp3%coefs=zero
@@ -3602,14 +3624,17 @@
 !        ctp1%tbreaks(nrange),ctp2%tbreaks(i2)
 !900 format(/a,4i3,2F10.2)
 ! these output w1..c4 are important for debugging
-!   call tpwrite('w1',0,nrange,ctp1)
-!   call tpwrite('w2',0,nr2,ctp2)
+   if(debug.ne.0) then
+      call tpwrite('w1',0,nrange,ctp1)
+      call tpwrite('w2',0,nr2,ctp2)
+   endif
 !   call add1tpcoeffs(mrange,ctp1,i2,ctp2,1,ctp3)
    call add1tpcoeffs(nrange,ctp1,i2,ctp2,1,ctp3)
-!   call tpwrite('w3',0,1,ctp3)
+   if(debug.ne.0) call tpwrite('w3',0,1,ctp3)
 ! skipping this loop
    if(krange.ne.nrange) then
-      write(*,*)' *** Check function: ',tpfuns(lfun)%symbol,nrange,krange
+      write(*,*)'3Z *** Check function: ',tpfuns(lfun)%symbol,nrange,krange
+      call tpwrite('w3',0,1,ctp3)
    endif
 ! We need to know which range in ctp1 we should store ctp3 .... krange!!
 ! to handle problems with G(LIQ,U+4:O-2) parameter
@@ -3617,19 +3642,20 @@
       ctp1%coefs(j3,krange)=ctp3%coefs(j3,1)
       ctp1%tpows(j3,krange)=ctp3%tpows(j3,1)
    enddo
-!   call tpwrite('w4',0,nrange,ctp1)
+990 continue
+   if(debug.ne.0) call tpwrite('w4',0,nrange,ctp1)
 !1000 continue
 !   if(nr3.gt.nr0) then
 !      write(*,*)'3Z inserted ',nrange-nr0,' ranges'
 !   endif
    return
- end subroutine adjust1range
+ end subroutine adjust_1range
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine adjustranges
 !\begin{verbatim} %-
- subroutine adjustranges(nr1,ctp1,nr2,ctp2)
+ subroutine adjustranges(nr1,ctp1,nr2,ctp2,debug,funame)
 ! add ctp2 to ctp1 which to have the same ranges and breakpoints
 ! nr1 and nr2 give the number of T-ranges and breakpoints
 ! add coefficients of ctp1 and ctp2 for each range
@@ -3637,8 +3663,9 @@
 ! There are 10 coefficients allocated for all functions.
 ! the added function is returned as ctp1
    implicit none
-   integer nr1,nr2
+   integer nr1,nr2,debug
    type(gtp_tpfun_as_coeff) :: ctp1,ctp2
+   character funame*(*)
 !\end{verbatim} %+
 !  TYPE gtp_tpfun_as_coeff
 ! record for a TPFUN converted to coefficents without references to other funs
@@ -3653,12 +3680,14 @@
    integer, parameter :: maxnc=15,maxnr=20
    double precision, parameter :: tenth=1.0D-1
    integer i1,i2,i3,k1,k2,nr3
-   double precision tmax,tbreak,tlimit
+   double precision tmax,tbreak,tlimit,tlim1,tlim2
    type(gtp_tpfun_as_coeff) :: ctp3
 !
-!   write(*,4)'3Z adjustranges 1: ',nr1,(ctp1%tbreaks(i1),i1=1,nr1)
-!   write(*,4)'3Z adjustranges 2: ',nr2,(ctp2%tbreaks(i1),i1=1,nr2)
-4  format(a,i2,10(F8.2))
+   if(debug.ne.0) then
+      write(*,4)'3Z adjustranges 1: ',nr1,(ctp1%tbreaks(i1),i1=1,nr1)
+      write(*,4)'3Z adjustranges 2: ',nr2,(ctp2%tbreaks(i1),i1=1,nr2)
+4     format(a,i2,10(F8.2))
+   endif
    tmax=max(ctp1%tbreaks(nr1),ctp2%tbreaks(nr2))
    tbreak=tmax
 ! tlimit can set a new tmax if some function has lower limit
@@ -3674,54 +3703,89 @@
 !----------------------------------------------------------------
 !   write(*,79)'3Z adding and adjusting ranges: ',nr1,nr2,tlimit,tmax
 79 format(a,2i2,2F9.2)
+   tlim1=ctp1%tbreaks(i1)
+   tlim2=ctp2%tbreaks(i2)
+! LOOP HERE
 100 continue
+! sometimes the normal loop exit does not work correcrly ....
+   if(tlim1.le.zero) goto 200
    i3=i3+1
    if(i3.gt.maxnr) then
       write(*,*)'3Z too many ranges is summation function',i3
+      call tpwrite('!!',0,i3,ctp3)
       gx%bmperr=4391; goto 1000
    endif
-!   write(*,170)'3Z calling add1tp: ',i1,i2,i3,nr1,nr2
-170 format(a,10i5)
+! new T-range
+   ctp3%tbreaks(i3)=min(tlim1,tlim2)
    call add1tpcoeffs(i1,ctp1,i2,ctp2,i3,ctp3)
    if(gx%bmperr.ne.0) goto 1000
-   if(abs(ctp2%tbreaks(i2)-ctp1%tbreaks(i1)).lt.tenth) then
-! both breakpoints the same!
-!      write(*,180)'3Z same breakpoint',0,0,ctp1%tbreaks(i1),ctp2%tbreaks(i2)
-180   format(a,2i3,2F10.2)
-      ctp3%tbreaks(i3)=ctp2%tbreaks(i2)
-      if(i2.lt.nr2) i2=i2+1
-      if(i1.lt.nr1) i1=i1+1
-!   elseif(i1.eq.nr1 .and. i2.eq.nr2) then
-! bugfix 2021.10.15/BoS
-   elseif(i1.eq.nr1 .or. i2.eq.nr2) then
-! this should be upper T limit
-!      write(*,180)'3Z breakpoint when no more ranges',i1,i2,tmax,tlimit
-      tmax=tlimit
-      ctp3%tbreaks(i3)=tlimit
-      i3=i3-1
-   elseif(ctp2%tbreaks(i2).lt.ctp1%tbreaks(i1)) then
-! we must create a breakpoint at the lowest tbreaks
-      ctp3%tbreaks(i3)=ctp2%tbreaks(i2)
-!      write(*,180)'3Z breakpoint in ctp2: ',0,i2,&
-!           ctp2%tbreaks(i2),ctp1%tbreaks(i1)
-      if(i2.lt.nr2) then
-         i2=i2+1
-      elseif(i1.lt.nr1) then
-         i1=i1+1
+   if(debug.ne.0) then
+      write(*,170)'3Z calling add1tp: ',i1,i2,i3,nr1,nr2,&
+           ctp1%tbreaks(i1),ctp2%tbreaks(i2),ctp3%tbreaks(i3)
+170 format(a,5i5,3F10.2)
+      call tpwrite('b1',0,i3,ctp3)
+   endif
+   if(abs(tlim1-tlim2).lt.one) then
+! Problem here with the SGTE inary breakpoint at liquidus
+! if the parameter has same breakpoints as the GHSER function
+      if(tlim1.le.zero .or. tlim2.le.zero) then
+         write(*,171)trim(funame)
+171      format('3Z **** Warning T limits out of range for: ',a)
+         goto 200
       endif
-   else
-      ctp3%tbreaks(i3)=ctp1%tbreaks(i1)
-!      write(*,180)'3Z breakpoint in ctp1: ',i1,0,&
-!           ctp1%tbreaks(i1),ctp2%tbreaks(i2)
+!      write(*,180)'3Z same breakpoint',i1,i2,tlim1,tlim2
+180   format(a,2i3,2F10.2)
+      ctp3%tbreaks(i3)=tlim1
+      if(tlim1.ge.6.0D3) goto 200
       if(i1.lt.nr1) then
          i1=i1+1
-      elseif(i2.lt.nr2) then
-         i2=i2+1
+         tlim1=ctp1%tbreaks(i1)
+      else
+         tlim1=5.9D3
       endif
+      if(i2.lt.nr2) then
+         i2=i2+1
+         tlim2=ctp2%tbreaks(i2)
+      else
+         tlim2=5.8D3
+      endif
+      goto 100
    endif
+! bugfix around here 2021.10.15/BoS modified 2021.11.07
+   if(i1.eq.nr1) then
+! no more ranges for ctp1
+      if(i2.eq.nr2) then
+! no more ranges for ctp2 either, but there can a last range
+         if(abs(tlim1-tlim2).gt.one) then
+            i3=i3+1
+            ctp3%tbreaks(i3)=max(tlim1,tlim2)
+            call add1tpcoeffs(i1,ctp1,i2,ctp2,i3,ctp3)
+            if(gx%bmperr.ne.0) goto 1000
+            if(debug.ne.0) then
+               write(*,170)'3Z calling add1tp: ',i1,i2,i3,nr1,nr2,&
+                    ctp1%tbreaks(i1),ctp2%tbreaks(i2),ctp3%tbreaks(i3)
+               call tpwrite('b1',0,i3,ctp3)
+            endif
+         endif
+         goto 200
+      else
+! more ranges for ctp2, increment i2, set tlim1 same as tlim2
+         i2=i2+1; tlim2=ctp2%tbreaks(i2);  tlim1=tlim2; goto 100
+      endif
+   elseif(i2.eq.nr2) then
+! no more ranges for cp2 but there are more ranges for cpt1
+      i1=i1+1; tlim1=ctp1%tbreaks(i1); tlim2=tlim1; goto 100
+   elseif(tlim1.lt.tlim2) then
+! increment the function with lowest tlim, the other tlim same
+      i1=i1+1; tlim1=ctp1%tbreaks(i1); goto 100
+   else
+      i2=i2+1; tlim2=ctp2%tbreaks(i2); goto 100
+   endif
+!========================================================
+200 continue
    if(i3.le.0) then
 ! evidently i3 can be less than 1 here ....
-!      write(*,209)'3Z T-range adjustment: ',i3,tmax,tlimit,ctp3%tbreaks(1)
+      write(*,209)'3Z T-range adjustment: ',i3,tmax,tlimit,ctp3%tbreaks(1)
 209   format(a,i3,5F10.2)
       i3=1
    endif
@@ -3730,9 +3794,11 @@
 !   write(*,210)'3Z created ctp3 range: ',i3,ctp3%tbreaks(i3),tmax,tlimit
 210 format(a,i3,3F9.2)
 ! How to know when we finished??
-   if(abs(ctp3%tbreaks(i3)-tmax).gt.tenth) goto 100
+!   if(abs(ctp3%tbreaks(i3)-tmax).gt.tenth) goto 100
 !-------------------------------------------------------------
-!   call tpwrite('jj',0,i3,ctp3)
+   if(debug.ne.0) then
+      call tpwrite('!!',0,i3,ctp3)
+   endif
    ctp1=ctp3
    nr1=i3
 !   call tpwrite('hh',0,nr1,ctp1)

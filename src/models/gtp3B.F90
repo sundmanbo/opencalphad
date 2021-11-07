@@ -383,6 +383,7 @@
     if(model(1:5).eq.'I2SL ') then
        defnsl=2
     elseif(model(1:6).eq.'MQMQA ') then
+       phtype='Q'
        entropymodel=2
        defnsl=1
     elseif(model(1:4).eq.'QCE ') then
@@ -396,6 +397,7 @@
        defnsl=1
     endif
     sites=one
+    write(*,*)'3B model: ',trim(model),'  ',phtype
     if(model(1:6).eq.'IDEAL ' .or. model(1:4).eq.'RKM ' .or. &
          model(1:5).eq.'TISR ' .or. model(1:6).eq.'CVMCE ' .or. &
          model(1:4).eq.'QCE ' .or. model(1:6).eq.'MQMQA ') then
@@ -437,8 +439,10 @@
                'Enter phase bonds')
           if(buperr.ne.0) goto 900
        elseif(model(1:6).eq.'MQMQA ') then
-! this model two set of sites and variable bonds/atom
-          sites(1)=2.0d0
+! this model has 2 kinds of fraction variables, quadrupoles, pairs and
+! sublattice fractions.  The independent fractions are the quadrupoles
+!          sites(1)=2.0d0
+          sites(1)=1.0d0
        elseif(model(1:5).ne.'I2SL ') then
 ! For all other models ask for sublattuces and sites
           once=.true.
@@ -828,7 +832,8 @@
    if(ch1.eq.'G') then
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHGAS)
       model='ideal'
-   elseif(ch1.eq.'L') then
+   elseif(ch1.eq.'L' .or. ch1.eq.'Q') then
+! i2sl had phtype changed to L above, Q is the MQMQA model
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHLIQ)
    endif
 ! Handle option F and B for permutations
@@ -1090,6 +1095,10 @@
             enddo sub2
             mqm2(s1)=mqmqa_data%contyp(7,kkk)
             mqmqa_data%contyp(12,kkk)=s1
+         else
+! these should be zero for all quadrpoles except pairs (set above)
+            mqmqa_data%contyp(11,kkk)=0
+            mqmqa_data%contyp(12,kkk)=0
          endif
 !         write(*,555)kkk,(mqmqa_data%contyp(jk,kkk),jk=1,10)
 555      format('3B yindex: ',i2,4i3,2i4,3i3,i4)
@@ -6910,7 +6919,6 @@
    integer, parameter :: f1=50
    integer ip,lenc,jp,kp,ncat,ntot,isp(4),loksp,loksparr(4),nspel,thiscon
    integer jelno(9),ielno(9),nextra,ee,nel,nend,order1,order2,lat,inlat(2)
-!   integer specieorder(4),indx(f1)
    logical endmember
    character*24 cation1, cation2, anion1, anion2, species(4),quaderr
    character quadname*64,ch1*1,elnames(9)*2,seqnum*2
@@ -6944,6 +6952,7 @@
       allocate(mqmqa_data%constoi(4,f1))
       allocate(mqmqa_data%quady(4,f1))
       allocate(mqmqa_data%totstoi(f1))
+      mqmqa_data%contyp=0
       mqmqa_data%nconst=0
       mqmqa_data%quady=0
       mqmqa_data%constoi=zero
@@ -7270,11 +7279,10 @@
    if(buperr.ne.0) then
       ch1=inline(ip:ip)
       call capson(ch1)
-      if(ch1.ge.'A' .and. ch1.le.'Z') then
+      if((ch1.ge.'A' .and. ch1.le.'Z') .or. ch1.eq.':') then
 ! this is the name of another quadrupole
+         write(*,*)'3B Error reset, continuing'
          buperr=0; goto 100
-      elseif(ch1.eq.':') then
-         goto 900
       endif
    endif
 ! this is the last real or a new quadrupole
@@ -7282,11 +7290,10 @@
    if(buperr.ne.0) then
       ch1=inline(ip:ip)
       call capson(ch1)
-      if(ch1.ge.'A' .and. ch1.le.'Z') then
+      if((ch1.ge.'A' .and. ch1.le.'Z') .or. ch1.eq.':') then
 ! this is the name of another quadrupole
+         write(*,*)'3B Error reset, continuing'
          buperr=0; goto 100
-      elseif(ch1.eq.':') then
-         goto 900
       endif
    endif
    goto 100
@@ -7316,7 +7323,7 @@
 !\end{verbatim}
 ! mqmqa_data contain information needed for the liquid modeled with MQMQA
    integer, parameter :: f1=50
-   integer endmem(2,f1),s1,s2,s3,s4,s5,nend,new(4),need,found
+   integer endmem(2,f1),s1,s2,s3,s4,s5,nend,new(4),need,found,pair
    integer subcon1(f1),subcon2(f1),ncon1,ncon2,ix1,ix2,lattice,indx(f1)
    integer top,stack(0:f1),last
    character spname*24
@@ -7325,13 +7332,15 @@
 ! attempt to fix problem with stoichiometries and order, sort const
    need=mqmqa_data%nconst
 !   write(*,8)(trim(const(s1)),s1=1,need)
-!8 format(/'3B orig: ',20(a,2x))
+8  format(/'3B orig: ',20(a,2x))
 ! indx(i) gives the alphabetical order of const(1)
-   call ssort2(const,need,indx)
-   if(buperr.ne.0) then
-      gx%bmperr=4399; goto 1000
+   if(need.gt.1) then
+      call ssort2(const,need,indx)
+      if(buperr.ne.0) then
+         gx%bmperr=4399; goto 1000
+      endif
+!      write(*,'(a,20i3)')'3B order:  ',(indx(s1),s1=1,need)
    endif
-!   write(*,'(a,20i3)')'3B order:  ',(indx(s1),s1=1,need)
 !   write(*,9)(trim(const(indx(s1))),s1=1,need)
 9 format('3B  sort: ',20(a,2x))
 !   write(*,*)'3B original order:'
@@ -7352,27 +7361,28 @@
 !   write(*,'(a,20i3)')'3B index: ',(s3,s3=1,need)
 !   write(*,'(a,20i3)')'3B sort1: ',(indx(s3),s3=1,need)
 !   stop 2
-   alpha: do s1=1,need
+   skipif1: if(need.gt.1) then
+      alpha: do s1=1,need
 ! if indx(s1)=s1 the record is at the correct place
-      if(indx(s1).eq.s1) cycle alpha
+         if(indx(s1).eq.s1) cycle alpha
 ! record s1 is not at its correct place
 !      write(*,2)'3B record ',s1,' should be at ',indx(s1)
-2     format(a,i3,a,i3,a,i3)
-      top=0
-      s2=s1
-      s5=0
-      push: do while(indx(s2).ne.s1)
+2        format(a,i3,a,i3,a,i3)
+         top=0
+         s2=s1
+         s5=0
+         push: do while(indx(s2).ne.s1)
 ! search for the record that should be in position s1
-         top=top+1; stack(top)=s2; s2=indx(s2)
+            top=top+1; stack(top)=s2; s2=indx(s2)
 !         write(*,2)'3B record ',s2,' should be at ',indx(s2),' top is ',top
 !         s2=s2+1
-         if(s2.gt.need) then
-            write(*,*)'3B ERROR, too many shifts of records',s2,need
-            gx%bmperr=4399; exit alpha
-         endif
-      enddo push
+            if(s2.gt.need) then
+               write(*,*)'3B ERROR, too many shifts of records',s2,need
+               gx%bmperr=4399; exit alpha
+            endif
+         enddo push
 ! here we have found that recoord s2 should be in s1
-      top=top+1; stack(top)=s2
+         top=top+1; stack(top)=s2
 !      write(*,2)'3B Finally ',s2,' found record ',indx(s2),' to be in ',s1
 !      write(*,'(a,20i3)')'3B index: ',(s3,s3=1,need)
 !      write(*,'(a,20i3)')'3B sort2: ',(indx(s3),s3=1,need)
@@ -7382,41 +7392,42 @@
 ! save this record in position f1 and then shift all records in the stack
 ! to their correct position, i.e. indx(top) => indx(top-1)
 !      write(*,3)'3B saving record',stack(top),' in ',f1
-      s3=f1
-      beta: do while(top.gt.0)
+         s3=f1
+         beta: do while(top.gt.0)
 !         write(*,3)'3B step ',top,' store record ',s2,' in ',s3
-3        format(a,i3,a,i3,a,i3)
-         do s4=1,10
-            mqmqa_data%contyp(s4,s3)=mqmqa_data%contyp(s4,s2)
-         enddo
-         do s4=1,4
-            mqmqa_data%constoi(s4,s3)=mqmqa_data%constoi(s4,s2)
-         enddo
+3           format(a,i3,a,i3,a,i3)
+            do s4=1,10
+               mqmqa_data%contyp(s4,s3)=mqmqa_data%contyp(s4,s2)
+            enddo
+            do s4=1,4
+               mqmqa_data%constoi(s4,s3)=mqmqa_data%constoi(s4,s2)
+            enddo
 !         write(*,7)'3B copied to: ',s3,(mqmqa_data%contyp(s4,s3),s4=1,10),&
 !           (mqmqa_data%constoi(s4,s3),s4=1,4)
 ! mark that record s3 is at its correct place
-         indx(s3)=s3
-         s3=s2; top=top-1; s2=stack(top)
-      enddo beta
+            indx(s3)=s3
+            s3=s2; top=top-1; s2=stack(top)
+         enddo beta
 !      write(*,'(a,20i3)')'3B sort2: ',(indx(s4),s4=1,need)
 ! finally copy the record stored in f1 to s1
-      do s4=1,10
-         mqmqa_data%contyp(s4,s1)=mqmqa_data%contyp(s4,f1)
-      enddo
-      do s4=1,4
-         mqmqa_data%constoi(s4,s1)=mqmqa_data%constoi(s4,f1)
-      enddo
-      indx(s1)=s1
-!      write(*,'(a,20i3)')'3B sort3: ',(indx(s3),s3=1,need)
-   enddo alpha
+         do s4=1,10
+            mqmqa_data%contyp(s4,s1)=mqmqa_data%contyp(s4,f1)
+         enddo
+         do s4=1,4
+            mqmqa_data%constoi(s4,s1)=mqmqa_data%constoi(s4,f1)
+         enddo
+         indx(s1)=s1
+         write(*,'(a,20i3)')'3B sort3: ',(indx(s3),s3=1,need)
+      enddo alpha
 ! number the endmembers in alphabetical order
-   s4=0
-   do s1=1,need
-      if(mqmqa_data%contyp(5,s1).gt.0) then
-         s4=s4+1
-         mqmqa_data%contyp(5,s1)=s4
-      endif
-   enddo
+      s4=0
+      do s1=1,need
+         if(mqmqa_data%contyp(5,s1).gt.0) then
+            s4=s4+1
+            mqmqa_data%contyp(5,s1)=s4
+         endif
+      enddo
+   endif skipif1
 !   write(*,'(a,20i3)')'3B sort4: ',(indx(s3),s3=1,need)
 !   do s1=1,need
 !      write(*,7)'3B sort: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,10),&
@@ -7432,14 +7443,14 @@
 !----------------------------------------------------------
 !
 ! search for pairs (with a single constituent in each sublattice)
-   nend=0
+   pair=0
    try1: do s1=1,mqmqa_data%nconst
       if(mqmqa_data%contyp(5,s1).gt.0) then
 ! this is an pair
-         nend=nend+1
-         endmem(1,nend)=mqmqa_data%contyp(6,s1)
-         endmem(2,nend)=mqmqa_data%contyp(7,s1)
-!        write(*,'(a,4i4)')'3B endmember ',nend,s1,endmem(1,nend),endmem(2,nend)
+         pair=pair+1
+         endmem(1,pair)=mqmqa_data%contyp(6,s1)
+         endmem(2,pair)=mqmqa_data%contyp(7,s1)
+!        write(*,'(a,4i4)')'3B endmember ',pair,s1,endmem(1,pair),endmem(2,pair)
       else
 ! skip this else link for non-endmembers
       cycle try1
@@ -7492,11 +7503,11 @@
       endif
 ! note code above is skipped due to cycle try1
    enddo try1
-   if(nend.le.0) then
+   if(pair.le.0) then
       write(*,*)'3B No endmembers among mqmqa constituents!',mqmqa_data%nconst
       gx%bmperr=4399; goto 1000
    endif 
-!   write(*,*)'3B replace species by endmembers: ',mqmqa_data%nconst,nend
+!   write(*,*)'3B replace species by endmembers: ',mqmqa_data%nconst,pair
 !
 !   do s1=1,mqmqa_data%nconst
 !      write(*,12)s1,(mqmqa_data%contyp(s2,s1),s2=1,10),&
@@ -7530,7 +7541,7 @@
       if(mqmqa_data%contyp(9,s1).gt.0) need=4
 !      write(*,87)s1,(mqmqa_data%contyp(s2,s1),s2=6,9)
 87    format('3B quadrup: ',i3,5x,4i4)
-      endloop: do s2=1,nend
+      endloop: do s2=1,pair
 ! we must compare each quadrupole species with all endmembers species
          outer: do s3=6,9
             if(mqmqa_data%contyp(s3,s1).eq.0) cycle outer
@@ -7572,7 +7583,9 @@
    mqmqa_data%ncon1=ncon1
    mqmqa_data%ncon2=ncon2
 ! copy the value in constoi(3,s1) for all pairs to qfnnsnn
-   allocate(mqmqa_data%qfnnsnn(50))
+   if(.not.allocated(mqmqa_data%qfnnsnn)) then
+      allocate(mqmqa_data%qfnnsnn(50))
+   endif
    mqmqa_data%qfnnsnn=zero
    do s1=1,mqmqa_data%nconst
       s2=mqmqa_data%contyp(5,s1)
@@ -7582,19 +7595,23 @@
       endif
    enddo
 ! check we have all necessary quadrupoles
-! endmembers:
+! pairs:
    s1=ncon1*ncon2
-   if(s1-nend.ne.0) write(*,*)'3B wrong number of endmembers: ',s1,nend
+   if(s1-pair.ne.0) write(*,*)'3B wrong number of endmembers: ',s1,pair
 ! AB:XX and AA:XY quadrupoles n*(n-1)/(1*2)
    s1=ncon1*ncon2*(ncon1+ncon2-2)/2
 ! AB:XY quadrupoles n*(n-1)*(n-2)*(n-3/(1*2*3*4)
-   s2=nend
+   s2=pair
    s2=s2*(s2-1)*(s2-2)*(s1-3)/24
-   if(nend+s1+s2-mqmqa_data%nconst.ne.0) &
+   if(pair+s1+s2-mqmqa_data%nconst.ne.0) then
         write(*,'(a,5i5)')'3B total number of quadrupoles maybe wrong',&
-        nend,s1,s2,mqmqa_data%nconst
+        pair,s1,s2,mqmqa_data%nconst
+! We should automatically create the additional quadrupoles
+        call mqmqa_addquads
+     endif
+! They all have zero Gibbs energy of formation.
 !   write(*,'(a,i3,2x,2i3,3i5)')'3B some numbers:',mqmqa_data%nconst,&
-!        ncon1,ncon2,nend,s1,s2
+!        ncon1,ncon2,pair,s1,s2
 ! according to original MQMQA model we MUST have all quadrupoles
 ! debug output
 !   do s1=1,mqmqa_data%nconst
@@ -7605,6 +7622,21 @@
 1000 continue
    return
  end subroutine mqmqa_rearrange
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine mqmqa_addquads
+!\begin{verbatim}
+ subroutine mqmqa_addquads
+! This routine will add missing quads using the pairs 
+   implicit none
+!\end{verbatim}
+! mqmqa_data contain information needed for the liquid modeled with MQMQA
+   write(*,*)'3B not implemented yet: mqmqa_addquads'
+   stop
+1000 continue
+   return
+ end subroutine mqmqa_addquads
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

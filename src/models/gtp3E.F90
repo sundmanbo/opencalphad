@@ -4238,6 +4238,7 @@
       jp=index(name1,':')
 !      write(*,*)'3E readtdb 11: ',name1,ip,jp
 ! phytype, a letter after the phase name separated by a :, for example GAS:G
+! I2SL is :Y, MQMQA is :Q
       if(jp.gt.0) then
          phtype=name1(jp+1:jp+1)
          name1(jp:)=' '
@@ -4480,7 +4481,8 @@
 ! and additional coordination numbers n1..n4. A  / separate sublattices
 ! a , separate species in same sublattice. If any A B X Y species not entered
 ! the quadrupole is ignored (not an error)
-! A/X n1 n2 A,B/X n1 n2 n3 B/X,Y n1 n2 n3 A,B/X,Y n1 n2 n3 n4 ...
+! A/X n1 n2 r3 A,B/X n1 n2 n3 B/X,Y n1 n2 n3 A,B/X,Y n1 n2 n3 n4 ...
+! The r3 is a FNN/SNN ratio for pairs, normally 2.4
          call mqmqa_constituents(longline(ip:jp),const,loop)
 !         write(*,*)'3E back from entering constituents',gx%bmperr
          if(gx%bmperr.ne.0) then
@@ -4490,7 +4492,7 @@
          call mqmqa_rearrange(const)
 !         write(*,*)'3E back from rearranging constituents',gx%bmperr
          if(gx%bmperr.ne.0) then
-            write(*,*)'3E error rearranging quadrupoles'
+            write(*,*)'3E error rearranging quadrupoles',gx%bmperr
             goto 1000
          endif
 ! skip the rest below except entering the phase
@@ -7440,6 +7442,10 @@
 ! allocate coefficient arrays for all TP functions (incl parameters) and 5 extra
    write(*,*)'3C Allocating for TP functions: ',ntpf+5
    allocate(tpfc(ntpf+5))
+! initiate no debug output
+   tpfc%debug=0
+! initiate debug output of solgas DAT file
+!   tpfc%debug=1
 !   write(*,*)'TPfuns and parameters: ',ntpf
 ! in this call all tpfuns are converted to arrays of coefficients
 ! each tpfc(i) represent TPfunction i (note parameters are also TP functions!)
