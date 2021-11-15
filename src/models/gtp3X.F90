@@ -4396,9 +4396,11 @@
    integer ee,ff,gg,hh
 ! loop variables
    integer s1,s2,s3,s4,em,c1
+! pointer to mqmqaf record
+   type(gtp_mqmqa_var), pointer :: mqf
 ! site fractions and amounts
    double precision yy1(fz),yy2(fz),nn1(fz),nn2(fz)
-! sublattice index if species i in quad j
+! sublattice index if species 1..4 in quad j
    integer quadyix(4,fq)
 ! fractions in sublattices
    double precision sum1,sum2,sum3,sum4,half
@@ -4414,8 +4416,6 @@
    integer em1,em2,em3,em4
 ! cridx(pair_index) is the index of corresponding quad %contyp(5,q) is pair
    integer cridx(f1)
-! sublattice fractions per quad  for entropy constibutions per quad
-!   double precision fyq1(fq),fyq2(fq)
 ! Index to the 2-4 sublattice fractions associated with a quad
 !  integer fyqix(2,fq),fyqix2(2,fq)
 ! pair and coord.equiv fractions for pairs in a  quad
@@ -4452,7 +4452,7 @@
 ! save here the indices of constituents in sublattices of pairs
 ! needed for the charge equivalent fractions, ceqf1 and ceqf2
 ! MAYBE NOT NEEDED when %contyp(11..12,quad) is are constituent indices?
-   integer eij(2,fq),nomix,all2,q1
+   integer eij(2,fq),nomix,all2,q1,s7
 ! to avoid adding quadrupols twice
    logical done
 ! The mqmqa_data provides information about the constituents.
@@ -4480,16 +4480,28 @@
 11    format(a,4(F5.2,2x))
 !   write(*,*)'3X error return as unfinished'
 !   gx%bmperr=4399; goto 1000
+   if(.not.allocated(phvar%mqmqaf%yy1)) then
+! allocating fraction arrayes for use in entropy an excess calculations
+      write(*,*)'3X allocating phase_varres%mqmqaf arrays'
+      allocate(phvar%mqmqaf%yy1(20))
+      allocate(phvar%mqmqaf%yy2(20))
+!... add more ...
+   endif
+! to avoid typing too much (should mqmqaf be a target?)
+   mqf=>phvar%mqmqaf
    spinsub=0
-!   do s1=1,ncon
-!      conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
-!      connames(s1)=conname
+   do s1=1,ncon
+      conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
+      connames(s1)=conname
 !      write(*,3)s1,(mqmqa_data%contyp(s2,s1),s2=1,12),&
 !           (mqmqa_data%constoi(s2,s1),s2=1,4),phvar%yfr(s1),trim(conname)
 3     format('3X mq:',i2,4i3,1x,i3,1x,4i2,1x,i3,1x,2i2,4F5.1,F5.2,1x,a)
-!   enddo
+   enddo
 !   write(*,6)phvar%yfr
 6  format('3X y: ',9F7.4)
+! local variables will be replaced by those stored in phvar
+   mqf%yy1=zero
+! local fraction variables and derivatives
    yy1=zero; yy2=zero; pair=zero; ceqf1=zero; ceqf2=zero;
    b1iA=zero; b2iX=zero; dpair=zero; dceqf1=zero; dceqf2=zero
    b1iAB=zero; b2iXY=zero; noofpair=0; dmy1=zero; dmy2=zero
@@ -4817,9 +4829,9 @@
 !         write(*,342)'3X b2iX(m,n):',s3,s1,(b2iX(s3,s4),s4=1,ncon)
 !      enddo
 !      write(*,341)'3X b2iXY(n)    :',s1,(b2iXY(s4),s4=1,ncon)
-!      write§(*,340)'3X yy1: ',(yy1(s4),s4=1,3)
+!      write(*,340)'3X yy1: ',(yy1(s4),s4=1,3)
 !      write(*,340)'3X yy2: ',(yy2(s4),s4=1,3)
-340   format(a,7F7.4)
+340   format(a,7F10.7)
 342   format(a,2i2,7F7.4)
 !      write(*,720)'3X quadyix: ',s1,(quadyix(s2,s1),s2=1,4)
 720   format(a,i3,4(4I3,2x))
@@ -4842,7 +4854,7 @@
 !      write(*,342)'3X b2iX(m,n):',s3,s1,(b2iX(s3,s4),s4=1,ncon)
 !   enddo
 !   write(*,341)'3X b2iXY(n)    :',s1,(b2iXY(s4),s4=1,ncon)
-341 format(a,i2,7F7.4)
+341 format(a,i2,7F10.7)
 !-------------- we have extracted all comp.variables and their deriv wrt quads
 !
 ! NOTE in b1iA and b1iA the first index is subl.const, second is quad 
@@ -5033,30 +5045,40 @@
 ! Entropy from sublattices
       tsub=zero
 ! replace dsub with dvvv
+      s7=0
       quady: do s1=1,4
 ! Entropy contribution from sublattice constituents for the quad
+         s7=s7+1
          s2=quadyix(s1,q1)
          fqq=one
          if(s2.gt.0) then
 ! Specie in first sublattice >0, if a single species fqq=2
             if(s1.eq.1 .and. quadyix(s1+1,q1).lt.0) fqq=2.0d0
-            tsub=tsub+fqq*log(yy1(s2))/mqmqa_data%constoi(s2,q1)
-700         format(a,3i3,1pe12.4,4(0PF10.6))
+!            tsub=tsub+fqq*log(yy1(s2))/mqmqa_data%constoi(s2,q1)
+! s2=quadyix(s1,q1) should be be used as index in %constoi  
+            tsub=tsub+fqq*log(yy1(s2))/mqmqa_data%constoi(s7,q1)
+!            write(*,700)'3X ssub: ',q1,s1,s2,s7,tsub,&
+!                 fqq*log(yy1(s2))/mqmqa_data%constoi(s7,q1),fqq,yy1(s2),&
+!                 mqmqa_data%constoi(s7,q1)
+700         format(a,4i3,2(1pe12.4),4(0PF10.6))
 ! the derivative of fqq*log(yy1(s2))/mqmqa_data%constoi wrt all quads!
             do s3=1,ncon
                dvvv(s3,q1)=dvvv(s3,q1)+&
-                    fqq*dyy1(s2,s3)/(yy1(s2)*mqmqa_data%constoi(s2,q1))
+                    fqq*dyy1(s2,s3)/(yy1(s2)*mqmqa_data%constoi(s7,q1))
+!                    fqq*dyy1(s2,s3)/(yy1(s2)*mqmqa_data%constoi(s2,q1))
 !               write(*,706)'3X dvvv1: ',q1,s2,s3,dvvv(s3,q1)
 706            format(a,3i3,4(1pe12.4))
             enddo
          elseif(s2.lt.0) then
 ! if a single species in second sublattice fqq=2
             if(s1.le.3 .and. quadyix(s1+1,q1).eq.0) fqq=2.0d0
-            tsub=tsub+log(yy2(-s2))/mqmqa_data%constoi(-s2,q1)
+!            tsub=tsub+log(yy2(-s2))/mqmqa_data%constoi(-s2,q1)
+            tsub=tsub+log(yy2(-s2))/mqmqa_data%constoi(s7,q1)
 ! the derivative of fqq*log(yy2(s2))/mqmqa_data%constoi wrt all quads!
             do s3=1,ncon
                dvvv(s3,q1)=dvvv(s3,q1)+&
-                    fqq*dyy2(-s2,s3)/(yy2(-s2)*mqmqa_data%constoi(-s2,q1))
+                    fqq*dyy2(-s2,s3)/(yy2(-s2)*mqmqa_data%constoi(s7,q1))
+!                    fqq*dyy2(-s2,s3)/(yy2(-s2)*mqmqa_data%constoi(-s2,q1))
 !               write(*,706)'3X dvvv2: ',q1,s2,s3,dvvv(s3,q1)
             enddo
          else
@@ -5067,8 +5089,8 @@
 ! first derivatives, dSsub/dquad
       lsub(q1)=tsub
       ssub=ssub+phvar%yfr(q1)*tsub
-!      write(*,701)'3X squad1: ',squad,phvar%yfr(q1),ssub
-701   format(a,5(1pe12.4))
+!      write(*,702)'3X ssub2: ',q1,ssub,phvar%yfr(q1),tsub
+702   format(a,i3,5(1pe12.4))
    enddo qsub
 ! correct first derivatives with respect to quads using dvvv
 !   do q1=1,ncon
@@ -5082,7 +5104,9 @@
       enddo
    enddo
 !   write(*,701)'3X dssub: ',(dssub(q1),q1=1,ncon)
-!   write(*,701)'3X SSUB:',ssub,ssub*phvar%amfu,phvar%amfu,phvar%abnorm(1)
+!   write(*,701)'3X SSUB:',ssub,ssub*phvar%amfu,phvar%amfu,phvar%abnorm(1),&
+!        phvar%amfu*phvar%abnorm(1)
+701 format(a,5(1pe12.4))
 !   stop
 600 format(a,1pe12.4,2x,6(1pe10.2))
 !===============
@@ -5131,7 +5155,7 @@
 !         write(*,'(a,2i3,2x,2i3,2x,2i3)')'3X eij?:',q1,s2,&
 !              eij(1,s2),mqmqa_data%contyp(11,s2),&
 !              eij(2,s2),mqmqa_data%contyp(12,s2)
-! KEEP eij as it is used as link from pair to quadrupole
+! KEEP eij as it is used as link from pair to sublattice constituents
          ee=eij(1,s2); gg=eij(2,s2)
          dq1=ceqf1(ee)*ceqf2(gg)
          mulceq(s2)=dq1
@@ -5140,6 +5164,7 @@
 ! >>>>>>>>>>>>>>>>  ............. EQUATION B21 2nd line first half
 ! This is the entropy contribution from a pair of this quad
 ! %qfnnsnn is read from database
+! %dfnnsnn can be different for different pairs, composition dependence???
 ! But it should be a sum? or is that taken care of by the sum over p_AB/XY ??
          tend=tend+fqq*log(endkvot(s2))
 !         write(*,421)'3X pairs: ',q1,s1,s2,tend,endkvot(s2),&
@@ -5155,7 +5180,7 @@
 ! skip 2nd derivatives ...
          enddo
       enddo allpairs
-! we must multiply the tend with the quad fraction
+! Finally we must multiply the tend with the quad fraction
       send=send+phvar%yfr(q1)*tend
 ! derivatives of send wrt quad
    enddo quadcef
@@ -5309,7 +5334,7 @@
 !      write(*,431)'3X d2S/Rq2:',(phvar%d2gval(s1,1),s1=1,all2)
 431   format(a,6(1pe12.4),(/6x,6e12.4))
    endif
-!   write(*,'(a,2(1pe14.6))')'3X MQMQA:',phvar%gval(1,1)*8.31451,phvar%gval(1,1)
+!   write(*,'(a,2(1pe14.6))')'3X MQMQA:',phvar%gval(1,1),phvar%gval(1,1)*8.31451
 1000 continue
 !   write(*,*)'3X return with error code as unfinished'
 !   gx%bmperr=4399

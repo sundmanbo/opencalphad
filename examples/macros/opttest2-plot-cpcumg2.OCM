@@ -30,11 +30,4 @@ axis-label y Heat capacity CuMg2 (J.Mol-1.K-1)
 
 @&
 
-plot
-
-
-gra 3 ./cp-cumg2
-Y
-
-
 set inter

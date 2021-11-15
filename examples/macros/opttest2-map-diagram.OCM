@@ -38,23 +38,6 @@ N
 
 
 @&
-@$ and one more ...
-@$set c t=1000 x(mg)=.4
-@$
-@$ c e
-@$
-@$ map
-@$ N
-@$
-@$
-@$
-@$ plot
-@$
-@$
-@$append
-@$
-@$
-@&
 
 plot
 

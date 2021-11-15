@@ -218,31 +218,11 @@ title step 1 fig 8
 
 @$ The plotted cp include latent heat
 @&
-@$ Now plot a PDF of this figure.
-@$ THIS CAN ALSO BE DONE IN THE GNUPLOT WINDOW
-@$ First list the available graphic devices, do not enter any
-
-enter gnu
-
-
-
-@$ plot terminal 3 is the PDF format
-@&
-
-plot
-
-
-gra
-?
-3
-step1
-Y
-title step 1 fig 8b
-
-
-@$ NOTE the PDF file will be saved in the working directory
-@&
-
+@$ Plotting as PDF or PNG can be done in the gnuplot window
+@$ The list the available graphic devices are redundant
+@$
+@$ enter gnu
+@$
 @$ Finally plot the driving force of all phases.  Stable phases has
 @$ driving force zero, those closest to become stable are close to zero
 

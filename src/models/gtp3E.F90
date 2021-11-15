@@ -3419,6 +3419,14 @@
             deallocate(phdyn%d2gval)
 !            write(*,*)'3E No segmentation error C7',j,k
          endif
+! deallocate mqmqa arrays
+         if(allocated(phdyn%mqmqaf%yy1)) then
+            write(*,*)'3E deallocating phase_varres%mqmqaf arrays'
+! these arrays allocated in gtp3X.F90
+            deallocate(phdyn%mqmqaf%yy1)
+            deallocate(phdyn%mqmqaf%yy2)
+!...etc
+         endif
 ! set phstate and phlink to zero to avoid segmentation fault when plotting
 ! after several MAP or STEP commands with different composition sets
          phdyn%phstate=0

@@ -1425,8 +1425,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this is a temporary storage of TP functions converted to arrays of
 ! coefficients.  Allocated as an array when necessary and the index in
 ! this array is the same index as for the TPfun
-! if debug is nonzero there is additional output and name is displayed
 ! USED FOR SOLGASMIX calculations and it is very messily implemented 
+! if debug is nonzero there is additional output and name is displayed
      integer nranges,debug
 !     type(gtp_tpfun_as_coeff) :: tpfuncoef
      type(gtp_tpfun_as_coeff) :: cfun
@@ -1550,6 +1550,18 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! it should be private when everything work and can be removed from pmon6
   TYPE(gtp_mqmqa) :: mqmqa_data
 !
+!-----------------------------------------------------------------
+! data for liquid phase with mqmqa model (part of phase_varres record)
+! needed because the liquid may have miscibility gaps
+  TYPE gtp_mqmqa_var 
+! site fractions and derivatives
+     double precision, allocatable :: yy1(:),yy2(:),dyy1(:,:),dyy2(:,:)
+     double precision, allocatable :: d2yy1(:,:),d2yy2(:,:)
+! charge equivalent fractions (per sublattice)
+     double precision, allocatable :: ceqf1(:),ceqf2(:),dceqf1(:,:),dceqf2(:,:)
+! pair fractions and derivatives
+     double precision, allocatable :: pair(:),dpair(:,:)
+  end type gtp_mqmqa_var
 !===================================================================
 !
 ! below here are data structures for equilibrium description
@@ -1752,6 +1764,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this TYPE(gtp_fraction_set) variable is a bit messy.  Declaring it in this
 ! way means the record is stored inside this record.
      type(gtp_fraction_set) :: disfra
+! this is for saving fractions in the mqmqa liquid model
+     type(gtp_mqmqa_var) :: mqmqaf
 ! ---
 ! stored calculated results for each phase (composition set)
 ! amfu: is amount formula units of the composition set (calculated result)

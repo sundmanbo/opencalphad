@@ -34,17 +34,6 @@ render
 
 @&
 
-@$ Plot on a PDF file
-@$ Note all previous things set in the plot menu remains
-@$ as long as the axis are the same!
-plot
-
-
-gra 3 ./hliq1
-Y
-
-
-
 
 set interactive
 

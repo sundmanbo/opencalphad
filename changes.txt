@@ -19,6 +19,8 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.11.15 OC version 6.036: More bugfixes in the MQMQA routines.
+
 2021.11.07 OC version 6.035: A version of the SGTE unary database
 adapted for OC is available on exaples/macro. Some problems with 
 converting a TDB file to a SOLGAS DAT file has been fixed but there
