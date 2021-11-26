@@ -1052,10 +1052,11 @@
 !
    symb1=phlista(noofph)%name
    ch1=phlista(noofph)%phletter
+   if(btest(phlista(noofph)%status1,PHLIQ)) ch1='L'
 ! one more phase in "phases" array
    phases(noofph)=noofph
-!  write(6,75)'alphaphorder 1: ',noofph,ch1,symb1(1:6)
-!75 format(A,I3,1x,A,1x,A)
+!   write(6,75)'3G alphaphorder 1: ',noofph,ch1,symb1(1:6)
+75 format(A,I3,1x,A,1x,A)
    loop1: do iph=1,noofph-1
       lokph=phases(iph)
       ch2=phlista(lokph)%phletter

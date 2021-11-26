@@ -19,6 +19,12 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.11.?? OC version 6.038: Even more bugfixes in the MQMQA routines.
+
+2021.11.26 OC version 6.037: Even more bugfixes in the MQMQA routines.
+Collaborating with Nathalie Dupin to convert FactSage DAT files to TDB
+files.
+
 2021.11.15 OC version 6.036: More bugfixes in the MQMQA routines.
 
 2021.11.07 OC version 6.035: A version of the SGTE unary database

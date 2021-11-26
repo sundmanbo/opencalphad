@@ -3313,17 +3313,17 @@
 !\end{verbatim}
    character lname*72,ch2*2
    double precision xx
-   integer ip,jp
+   integer ip,jp,ii
    lname=name
    call capson(lname)
    noelx=0
    ip=1
 ! expect element symbol
+!   write(*,'(a,a,i2)')'3C decode_stoik 1: ',lname,ip
    if(eolch(lname,ip)) then
 ! empty line, expected species stoichiometry
       gx%bmperr=4083; goto 1000
    endif
-!   write(*,*)'3C decode_stoik 1: ',name
 100 continue
    ch2=lname(ip:ip+1)
 !   write(*,*)'Looking for element: ',ip,ch2
@@ -3345,6 +3345,7 @@
       elseif(ch2(2:2).eq.'-') then
          ip=ip+2
       else
+! Hm, how come A/X is accepted? 211119/BoS
 ! do not accept Fe/2 for Fe/+2, always require + or -
 !         write(*,*)'Charge must always be given as /+ or /-'
          gx%bmperr=4289; goto 1000
@@ -3354,7 +3355,7 @@
       goto 900
    endif
 ! an element found, no stoichiometry number means stoik=1
-!   write(*,17)'decode_stoik 2: ',ip,ch2,lname(ip:ip+5)
+!   write(*,17)'3C decode_stoik 2: ',ip,ch2,lname(ip:ip+5)
 17 format(a,i3,'>',a,'<>',a,'<')
    if(lname(ip:ip).eq.' ') then
       stoik(noelx)=one
@@ -3383,7 +3384,7 @@
          endif
       endif
 ! in one case of missing stoichiometry ip exceeded length of lname
-!      write(*,*)'decode_stoik 4: ',stoik(noelx),buperr
+!      write(*,*)'3C decode_stoik 4: ',stoik(noelx),buperr
       fraction: if(buperr.eq.0 .and. lname(ip:ip).eq.'/') then
 ! a stoichiometric factor followed by / without sign will be interpreted
 ! as a fraction like AL2/3O.  Note AL2/+3 means AL2 with charge +3
@@ -3411,8 +3412,8 @@
       write(*,*)'3C error in species stoichiometry: ',trim(name),ip
       gx%bmperr=4084
    endif
-!    write(*,19)(stoik(i),i=1,noelx)
-!19 format('decode_stoik 5: ',5(1PE12.3))
+!   write(*,19)(stoik(ii),ii=1,noelx)
+19 format('3C decode_stoik 5: ',5(1PE12.3))
 1000 continue
    return
  end subroutine decode_stoik

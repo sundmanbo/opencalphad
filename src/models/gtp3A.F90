@@ -830,6 +830,38 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_species_by_name_exact
+!\begin{verbatim} %-
+ subroutine find_species_by_name_exact(name,isp)
+! locates a species index from its name, exact match needed
+   implicit none
+   character name*(*)
+   integer isp
+!\end{verbatim} %+
+   character symbol*24
+   integer loksp,lensym
+   logical exact
+   symbol=name
+   call capson(symbol)
+   isp=0
+   do loksp=1,noofsp
+!      write(*,*)'3A find species exact: ',symbol,splista(loksp)%symbol,loksp
+      lensym=len_trim(splista(loksp)%symbol)
+      if(symbol(1:lensym+1).eq.splista(loksp)%symbol(1:lensym+1)) then
+         isp=splista(loksp)%alphaindex
+      endif
+   enddo
+   if(isp.eq.0) then
+!      write(*,*)'in find_species_by_name'
+      gx%bmperr=4051
+      loksp=0
+   endif
+1000 continue
+   return
+ end subroutine find_species_by_name_exact
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine find_species_record
 !\begin{verbatim} %-
  subroutine find_species_record(name,loksp)

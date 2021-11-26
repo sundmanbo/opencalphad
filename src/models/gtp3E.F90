@@ -3424,8 +3424,18 @@
             write(*,*)'3E deallocating phase_varres%mqmqaf arrays'
 ! these arrays allocated in gtp3X.F90
             deallocate(phdyn%mqmqaf%yy1)
+            deallocate(phdyn%mqmqaf%dyy1)
+            deallocate(phdyn%mqmqaf%d2yy1)
             deallocate(phdyn%mqmqaf%yy2)
-!...etc
+            deallocate(phdyn%mqmqaf%dyy2)
+            deallocate(phdyn%mqmqaf%d2yy2)
+            deallocate(phdyn%mqmqaf%ceqf1)
+            deallocate(phdyn%mqmqaf%dceqf1)
+            deallocate(phdyn%mqmqaf%ceqf2)
+            deallocate(phdyn%mqmqaf%dceqf2)
+            deallocate(phdyn%mqmqaf%pair)
+            deallocate(phdyn%mqmqaf%dpair)
+            phdyn%mqmqaf%nquad=0
          endif
 ! set phstate and phlink to zero to avoid segmentation fault when plotting
 ! after several MAP or STEP commands with different composition sets
@@ -3476,7 +3486,14 @@
    if(allocated(mqmqa_data%contyp)) then
       deallocate(mqmqa_data%contyp)
       deallocate(mqmqa_data%constoi)
+      deallocate(mqmqa_data%totstoi)
       mqmqa_data%nconst=0
+   endif
+   if(allocated(mqmqa_data%pinq)) then
+! these may not have been allocated ??
+      deallocate(mqmqa_data%qfnnsnn)
+      deallocate(mqmqa_data%pinq)
+      deallocate(mqmqa_data%pairpart)
    endif
 !   write(*,*)'3E No segmentation error G'
 !------ map results are deleted separately
@@ -3898,7 +3915,7 @@
    character filename*(*),selel(*)*2
 !\end{verbatim} %+
    integer, parameter :: maxrejph=30,maxorddis=10,maxtypedefs=40
-   character line*128,elsym*2,name1*24,name2*24,elsyms(10)*2
+   character line*128,elsym*2,name1*24,name2*24,elsyms(10)*2,stoiline*72
 !   character longline*10000,reftext*512
 ! to read references in MatCalc TDB files
    character longline*40000,reftext*512
@@ -4156,6 +4173,7 @@
       name1=longline(ip:)
 ! find first space after non-space
       jp=index(name1,' ')
+!      write(*,*)'3E longline:',trim(longline),ip,jp
       name1(jp:)=' '
       ip=ip+jp
       if(eolch(longline,ip)) then
@@ -4164,10 +4182,13 @@
          warning=.TRUE.
          goto 100
       endif
-      name2=longline(ip:)
-      jp=index(name2,' ')
-      name2(jp:)=' '
-      call decode_stoik(name2,noelx,elsyms,stoik)
+      stoiline=longline(ip:)
+!      write(*,'(a,a,i3,a,a)')'3E stoi:',trim(longline),ip,':',trim(stoiline)
+      jp=index(stoiline,' ')
+!      write(*,'(4a,i4)')'3E >> species: ',trim(name1),' ',trim(stoiline),jp
+      stoiline(jp:)=' '
+!      write(*,'(4a,i4)')'3E >> species: ',trim(name1),' ',trim(stoiline),jp
+      call decode_stoik(stoiline,noelx,elsyms,stoik)
       if(gx%bmperr.ne.0) goto 1000
 ! check elements exist
       call enter_species(name1,noelx,elsyms,stoik)
@@ -4177,7 +4198,8 @@
          if(gx%bmperr.eq.4046) then
             gx%bmperr=0; goto 100
          else
-            if(.not.silent) write(kou,*)'Error entering species: ',name1,name2
+            if(.not.silent) write(kou,*)'Error enter species: "',&
+                 trim(name1),'" with stoichometry: ',trim(stoiline)
             goto 1000
          endif
       endif

@@ -1525,16 +1525,20 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! data for liquid phase with mqmqa model (only one!)
   TYPE gtp_mqmqa
 ! contains special information for liquid models with MQMQA
-! nconst is number of constituents, ncon1 on 1st subl, ncon2 on 2nd subl
+! nconst is number of constituents, ncon1, ncon2 in subl, npair #of pairs
+     integer nconst,ncon1,ncon2,npair
 ! contyp(1..4,const) 1,2 species in first sublattice, -1,-2 in second sublattice
-! contyp(5,const) non-zero for AA/XX, value same as pair index YES !!
-! contyp(6,7,const) for endmembers specifies 2 species
-! contyp(6..9,const) specifies 2 or 4 pairs of the quadrupole
-! contyp(10,const) I DO NOT KNOW what it is ...
+! contyp(5,const) non-zero for PAIR AA/XX, value same as pair index YES !!
+! contyp(6,7,const) for PAIR species index 
+! contyp(6..9,const) index of constuent PAIRs
+! contyp(10,const) index of itself
+! contyp(11..14,const) index of sublattice constituent except:
+! contyp(13..14,const) FOR PAIRS: species index of constituent
      integer, allocatable, dimension(:,:) :: contyp
-     integer nconst,ncon1,ncon2
-! quady(i,j) is indices of sublattice fractions  1..4 in quad j (redundant?)
-     integer, allocatable :: quady(:,:)
+! quady(i,j) indices of sublattice fractions  ( replaced by 11..14 in contyp)
+!     integer, allocatable :: quady(:,:)
+! for each pair, its index in in %contyp
+     integer, allocatable, dimension(:,:) :: pinq(:)
 ! constoi(1..4,const) real with stoichiometry of species in quadrupole
 ! NOTE for pairs (with one constituent in each sublattice) only two values
 ! are needed for the stoichiometry.  2, 3 or 4 valuse
@@ -1545,6 +1549,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! totstoi(const) double with real number of species (excl vacancies) in quad
 ! maybe not needed? Well it is used.
      double precision, allocatable :: totstoi(:)
+! stoich of each pair in a quad, needed for pair fraction and refstate
+     double precision, allocatable :: pairpart(:,:) 
   end TYPE gtp_mqmqa
 !  TYPE(gtp_mqmqa), private :: mqmqa_data
 ! it should be private when everything work and can be removed from pmon6
@@ -1552,8 +1558,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !-----------------------------------------------------------------
 ! data for liquid phase with mqmqa model (part of phase_varres record)
-! needed because the liquid may have miscibility gaps
+! separate records for each compset because the liquid may have miscibility gaps
   TYPE gtp_mqmqa_var 
+! size of arrays
+     integer nquad,npair,ns1,ns2
 ! site fractions and derivatives
      double precision, allocatable :: yy1(:),yy2(:),dyy1(:,:),dyy2(:,:)
      double precision, allocatable :: d2yy1(:,:),d2yy2(:,:)
@@ -1766,6 +1774,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      type(gtp_fraction_set) :: disfra
 ! this is for saving fractions in the mqmqa liquid model
      type(gtp_mqmqa_var) :: mqmqaf
+! complier error when target added when arrays allocated to pointer
+!  disapperad after subroutine return
+!     type(gtp_mqmqa_var), target :: mqmqaf
 ! ---
 ! stored calculated results for each phase (composition set)
 ! amfu: is amount formula units of the composition set (calculated result)
