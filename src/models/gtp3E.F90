@@ -3493,7 +3493,7 @@
 ! these may not have been allocated ??
       deallocate(mqmqa_data%qfnnsnn)
       deallocate(mqmqa_data%pinq)
-      deallocate(mqmqa_data%pairpart)
+      deallocate(mqmqa_data%pp)
    endif
 !   write(*,*)'3E No segmentation error G'
 !------ map results are deleted separately
@@ -5022,12 +5022,18 @@
 305    format(a,5i4)
 !---------------- encode function
 !      if(dodis.eq.1) write(*,*)'We are here 1'
+! limit Model parameter id and phase name to 5 characters      
+      ip=index(funname,',')
+      if(ip.gt.7) funname(7:)=funname(ip:)
+!------------------------
       ip=0
       jp=0
 400    continue
       ip=ip+1
 405    continue
+!      write(*,*)'3E funname: ',trim(funname)
       ch1=funname(ip:ip)
+! accept the first 6 letters and numbers of phase name
 ! accept the first 8 letters and numbers of phase name
       if((ch1.ge.'A' .and. ch1.le.'Z') .or. &
          (ch1.ge.'0' .and. ch1.le.'9')) goto 400

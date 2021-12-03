@@ -494,8 +494,9 @@
       ll=ll+1
       goto 74
    endif
-! eliminate anything from position 9
-   funame(9:)=' '
+! eliminate anything from position 9 MODIFIED when adding MQMQA
+! eliminate anything from position 7
+   funame(7:)=' '
 !   write(*,*)'3D funame 2: ',trim(funame)
 ! if the parameter symbol has a constituent specification check that now
 !   write(*,*)'3D lk3 and isp: ',lk3,isp

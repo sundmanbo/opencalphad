@@ -7015,7 +7015,7 @@
          allocate(mqmqa_data%constoi(4,f1))
          allocate(mqmqa_data%totstoi(f1))
 ! how much each pair is part of a quadruplet, needed for pair fractions
-         allocate(mqmqa_data%pairpart(4,f1))
+         allocate(mqmqa_data%pp(4,f1))
       else
          write(*,*)'3B **** Warning: two MQMQA phase in this database!'
          gx%bmperr=4399; goto 1000
@@ -7410,10 +7410,10 @@
 !\end{verbatim}
 ! mqmqa_data contain information needed for the liquid modeled with MQMQA
    integer, parameter :: f1=50
-   integer endmem(2,f1),s1,s2,s3,s4,s5,nend,new(4),need,found,pair
+   integer endmem(2,f1),s1,s2,s3,s4,s5,s6,nend,new(4),need,found,pair
    integer subcon1(f1),subcon2(f1),ncon1,ncon2,ix1,ix2,lattice,indx(f1)
    integer top,stack(0:f1),last,mqm1(f1),mqm2(f1),jk,kkk,ll,loksp,nyfas
-   integer ee,gg,pix,plink(4),pinq(f1)
+   integer ee,gg,pix,plink(4),pinq(f1),krux
    character spname1*24,spname2*24,inorder(f1)*24
 !
 !   write(*,*)'3B rearranging contyp'
@@ -7557,10 +7557,10 @@
          endmem(1,pair)=mqmqa_data%contyp(6,s1)
          endmem(2,pair)=mqmqa_data%contyp(7,s1)
 !        write(*,'(a,4i4)')'3B endmember ',pair,s1,endmem(1,pair),endmem(2,pair)
-! save stoichiometry of each constituent in pairpart(1..2,s1)
-         mqmqa_data%pairpart(1,s1)=2.0D0/mqmqa_data%constoi(1,s1)
-         mqmqa_data%pairpart(2,s1)=2.0D0/mqmqa_data%constoi(1,s1)
-!         write(*,*)'3B pairpart 1: ',s1,(mqmqa_data%pairpart(s2,s1),s2=1,2)
+! save stoichiometry of each constituent in pp(1..2,s1)
+         mqmqa_data%pp(1,s1)=2.0D0/mqmqa_data%constoi(1,s1)
+         mqmqa_data%pp(2,s1)=2.0D0/mqmqa_data%constoi(1,s1)
+         write(*,*)'3B pp 1: ',s1,(mqmqa_data%pp(s2,s1),s2=1,2)
       endif
 ! note code above is skipped due to cycle try1
    enddo try1
@@ -7629,32 +7629,22 @@
 87    format(a,i3,5x,4i4)
       pix=0
       plink=0
-      s2=5
-      first: do while(.TRUE.)
-         s2=s2+1
-! mqmqa_data%contyp(1,s1) is 2 if single species in first sublattice
-         if(mqmqa_data%contyp(1,s1).eq.2 .and. s2.eq.7) exit first
-         ee=mqmqa_data%contyp(s2,s1)
-         if(mqmqa_data%contyp(1,s1).eq.1) then
-            if(s2.eq.8) exit first
-            s3=7
-         else
-            s3=s2
-         endif
-!         write(*,'(a,3i3)')'3B specie in sublattice 1:',s2,ee,pair
-         second: do while(.TRUE.)
-            s3=s3+1
-            if(s3.gt.9) exit second
-            gg=mqmqa_data%contyp(s3,s1)
-            if(gg.eq.0) cycle second
-!            write(*,'(a,4i3)')'3B species :',s2,ee,s3,gg
-! seach for a pair ee/gg
-!            write(*,'(a,2i3)')'3B searching for pair: ',ee,gg
+! mqmqa_data%contyp(1,s1) is 1 if two species in first subl., otherwise 2
+      krux=3-mqmqa_data%contyp(1,s1)
+      do s2=1,krux
+         ee=mqmqa_data%contyp(5+s2,s1)
+! %contyp(krux+1,s1) indicates (as negative) if one or 2 in second sublattice
+         do s3=1,3+mqmqa_data%contyp(krux+1,s1)
+! specis is in 5+krux+s3
+            gg=mqmqa_data%contyp(5+krux+s3,s1)
+!            write(*,'(a,6i3,2x,4i3,2x,2i3)')'3X SNN and pair: ',s1,s2,s3,krux,&
+!                 3-mqmqa_data%contyp(krux+1,s1),&
+!                 5+krux+s3,(mqmqa_data%contyp(s4,s1),s4=6,9),ee,gg
             fpair: do s4=1,mqmqa_data%npair
                s5=mqmqa_data%pinq(s4)
 ! s5 is %contyp index of pair s2
-!               write(*,*)'3B pair: ',s4,s5,mqmqa_data%contyp(11,s5),&
-!                    mqmqa_data%contyp(12,s5)
+!               write(*,*)'3B pair: ',ee,gg,mqmqa_data%contyp(11,s4),&
+!                    mqmqa_data%contyp(12,s4)
                if(mqmqa_data%contyp(11,s5).eq.ee .and. &
                     mqmqa_data%contyp(12,s5).eq.gg) then
                   pix=pix+1; plink(pix)=s5
@@ -7662,8 +7652,8 @@
                   exit fpair
                endif
             enddo fpair
-            if(s4.gt.pair) then
-! ERROR, this mean we found no pair with ee/gg
+! if s4 is greater than mqmqa_data%npair we have not found any pair
+            if(s4.gt.mqmqa_data%npair) then
                write(*,'(a,2i3,a,i3)')'3B failed search for pair: ',ee,gg,&
                     ' in quadruplet ',s1
 ! species name should be in splista, or is ee, gg not loksp?
@@ -7673,14 +7663,15 @@
                write(*,*)'All quad names: '
                do s5=1,mqmqa_data%nconst
                   write(*,839)s5,mqmqa_data%contyp(5,s5),&
-                       (mqmqa_data%contyp(s3,s5),s3=10,14),&
+                       (mqmqa_data%contyp(s6,s5),s6=10,14),&
                        trim(inorder(s1))
 839               format('3B Quads: ',i3,2x,i3,2x,i3,2x,4i3,2x,a)
                enddo
                gx%bmperr=4399; goto 1000
             endif
-         enddo second
-      enddo first
+         enddo
+      enddo
+!----------------------------------------------------
 ! replace species in 6..9 by plink
 !      write(*,887)(mqmqa_data%contyp(s3,s1),s3=6,9),plink
 887   format('3X replacing: ',4i4,' by ',4i4)
@@ -7726,15 +7717,15 @@
 !               (3)(2) means 3*2*1/2 = 3
    s3=ncon1*(ncon1-1)*ncon2*(ncon2-1)/4
 !
-   write(*,'(a,5i4)')'3B MQMQA pairs, binary and reciprocal SNN: ',s1,s2,s3,&
-        s1+s2+s3,mqmqa_data%nconst
+   write(*,'(a,5i4)')'3B MQMQA quads: pairs, binary and reciprocal SNN: ',&
+        mqmqa_data%nconst,s1,s2,s3
    if(s1+s2+s3-mqmqa_data%nconst.ne.0) then
-        write(*,'(a,5i5)')'3B total number of quadrupoles is wrong',&
-        s1+s2+s3,mqmqa_data%nconst
+      write(*,'(a,5i5)')'3B total number of quadrupoles is wrong',&
+           s1+s2+s3,mqmqa_data%nconst
 ! We should automatically create the additional quadrupoles
 !        call mqmqa_addquads
 !        if(gx%bmperr.ne.0) goto 1000
-     endif
+   endif
 ! They all have zero Gibbs energy of formation.
 !   write(*,'(a,i3,2x,2i3,3i5)')'3B some numbers:',mqmqa_data%nconst,&
 !        ncon1,ncon2,pair,s1,s2
@@ -7745,28 +7736,31 @@
 !             (mqmqa_data%constoi(s2,s1),s2=1,4)
 !     enddo
 763     format(a,i2,i3,3i2,2i4,3i3,2i4,3i3,4F6.2)
-! we have to set values in nonpairs for pairpart, it should be stoich of
+! we have to set values in nonpairs for pairpart, pp, it should be stoich of
 ! the sublattice element 
-     pp: do s1=1,mqmqa_data%nconst
-        if(mqmqa_data%contyp(5,s1).gt.0) cycle pp
-! an SNN quadruplets
-        do s2=1,4
+!   write(*,*)'3B attempt to associate the pair with pairpart'
+   pp: do s1=1,mqmqa_data%nconst
+      if(mqmqa_data%contyp(5,s1).gt.0) cycle pp
+! an SNN quadruplet
+!      write(*,'(a,i3,4F10.6)')'3X %constoi: ',s1,&
+!           (mqmqa_data%constoi(s3,s1),s3=1,4)
+      do s2=1,4
 ! s3 is index of a pair in the SNN
-!           if(mqmqa_data%constoi(s2,s1).gt.1.0D-3) then
-           s3=mqmqa_data%contyp(5+s2,s1)
-           if(s3.gt.0) then
+         s3=mqmqa_data%contyp(5+s2,s1)
+         if(s3.gt.0) then
 ! if there is a pair link, use s3 to associate %constoi with pair ????
-              mqmqa_data%pairpart(s2,s1)=one/mqmqa_data%constoi(s2,s3)
-!              write(*,'(a,3i3,F10.7)')'3B pairpart 2: ',s1,s2,&
-!                   mqmqa_data%contyp(5+s2,s1),mqmqa_data%pairpart(s2,s1)
-           endif
-        enddo
-     enddo pp
+            mqmqa_data%pp(s2,s1)=one/mqmqa_data%constoi(s2,s1)
+!            write(*,'(a,3i3,2F10.7)')'3B pairpart 2: ',s1,s2,&
+!                 mqmqa_data%contyp(5+s2,s1),mqmqa_data%constoi(s2,s1),&
+!                 mqmqa_data%pp(s2,s1)
+         endif
+      enddo
+   enddo pp
 !
-!     do s1=1,mqmqa_data%nconst
-!        write(*,'(a,i2,4F10.7)')'3B pairpart 3: ',s1,&
-!             (mqmqa_data%pairpart(s2,s1),s2=1,4)
-!     enddo
+   do s1=1,mqmqa_data%nconst
+      write(*,'(a,i2,4F10.7)')'3B all pairparts: ',s1,&
+           (mqmqa_data%pp(s2,s1),s2=1,4)
+   enddo
 1000 continue
    return
  end subroutine mqmqa_rearrange

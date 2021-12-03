@@ -1549,8 +1549,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! totstoi(const) double with real number of species (excl vacancies) in quad
 ! maybe not needed? Well it is used.
      double precision, allocatable :: totstoi(:)
-! stoich of each pair in a quad, needed for pair fraction and refstate
-     double precision, allocatable :: pairpart(:,:) 
+! for each pair in a quad, needed for pair fraction and refstate %pp(1..4,quad)
+     double precision, allocatable :: pp(:,:) 
   end TYPE gtp_mqmqa
 !  TYPE(gtp_mqmqa), private :: mqmqa_data
 ! it should be private when everything work and can be removed from pmon6
@@ -1567,7 +1567,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, allocatable :: d2yy1(:,:),d2yy2(:,:)
 ! charge equivalent fractions (per sublattice)
      double precision, allocatable :: ceqf1(:),ceqf2(:),dceqf1(:,:),dceqf2(:,:)
-! pair fractions and derivatives
+! normallized pair fractions and derivatives
      double precision, allocatable :: pair(:),dpair(:,:)
   end type gtp_mqmqa_var
 !===================================================================

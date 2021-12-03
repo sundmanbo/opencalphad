@@ -19,7 +19,12 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
-2021.11.?? OC version 6.038: Even more bugfixes in the MQMQA routines.
+2021.12.03 OC version 6.038: First calculation with MQMQA with SRO and
+correct reference state.  Still fixing minor bugs and the data
+structures can be improved.  This model violates almost all principles
+I have had developing models and I have not tried reciprocal models
+yet.  It is still just the basic MQM but include the possibility to
+have several constituents on both sublattices.
 
 2021.11.26 OC version 6.037: Even more bugfixes in the MQMQA routines.
 Collaborating with Nathalie Dupin to convert FactSage DAT files to TDB
