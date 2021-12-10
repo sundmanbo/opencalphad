@@ -264,8 +264,8 @@
 ! when we come back mqmqaf should have some arrays allocated ....
 ! DO NOT SET THIS POINTER BEFORE ARRAYS ARE ALLOCATED IN CONFIG_ENTROPY_MQMQA
       mqf=>phres%mqmqaf
-      write(*,777)'3X >>>> MQMQA cfg^G:',&
-           phres%gval(1,1)*gz%rgast*phres%amfu,(mqf%pair(ll),ll=1,mqf%npair)
+      write(*,777)'3X MQMQA config G:',phres%gval(1,1)*gz%rgast*phres%amfu
+!      (mqf%pair(ll),ll=1,mqf%npair)
 777   format(a,1PE12.4,', pf: ',0P,10F9.6)
    elseif(btest(phlista(lokph)%status1,PHSSRO)) then
 ! Simple short range order entropy model
@@ -283,7 +283,7 @@
 !-------------------------------------------------------------------
 ! MQMQA separate calculation of G
    if(mqmqa) then
-      write(*,*)'3X Separate routine for MQMQA'
+!      write(*,*)'3X Separate routine for MQMQA'
       call calc_mqmqa(lokph,phres,mqf,ceq)
       goto 1000
    endif
@@ -2135,7 +2135,7 @@
    TYPE(gtp_phase_add), pointer :: addrec
 !------------------------------------- 
 ! allocate arrays
-   write(*,*)'3X in calc_mqmqa'
+!   write(*,*)'3X in calc_mqmqa'
    gz%nofc=phlista(lokph)%tnooffr
    nofc2=gz%nofc*(gz%nofc+1)/2
    allocate(dpyq(gz%nofc))
@@ -2158,8 +2158,8 @@
 ! in the test case we have 6 atoms in the liquid phase
 !   dummy1=6.0D0/rtg
 !   dummy1=one/(phres%abnorm(1)*rtg)
-   write(*,'(a,3(1pe14.6))')'3X mqmqa scaling: ',dummy1,&
-        phres%amfu,phres%abnorm(1)
+!   write(*,'(a,3(1pe14.6))')'3X mqmqa scaling: ',dummy1,&
+!        phres%amfu,phres%abnorm(1)
    endmemloop1: do while(associated(endmemrec))
 ! just a check data are transferred from entropy calculation
       mqmqj=mqmqj+1
@@ -2167,7 +2167,7 @@
       kend=mqmqa_data%contyp(5,mqmqj)
       if(kend.le.0) then
 ! Here we should calculate and add SNN energy and maybe interactions ...
-         write(*,*)'3X SNN endmember record found',mqmqj
+!         write(*,*)'3X SNN endmember record found',mqmqj
          proprec=>endmemrec%propointer
          mqsnn: do while(associated(proprec))
             typty=proprec%proptype
@@ -2176,7 +2176,7 @@
             lokfun=proprec%degreelink(0)
             call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
             if(gx%bmperr.ne.0) goto 1000
-            write(*,'(a,6(1Pe12.4))')'3X vals1:',vals
+!            write(*,'(a,6(1Pe12.4))')'3X vals1:',vals
             if(ipy.eq.1) then
                vals=vals*dummy1
 ! This is an SNN ordering parameter, no reference state
@@ -2194,12 +2194,12 @@
             do itp=1,6
                phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
             enddo
-            write(*,210)'3X SRO G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,&
-                 phres%gval(1,1),(phres%dgval(1,s1,1),s1=1,gz%nofc)
+!            write(*,210)'3X SRO G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,&
+!                 phres%gval(1,1),(phres%dgval(1,s1,1),s1=1,gz%nofc)
             proprec=>proprec%nextpr
          enddo mqsnn
 600      continue
-         write(*,*)'3X skipping any excess parameters ...'
+!         write(*,*)'3X skipping any excess parameters ...'
          endmemrec=>endmemrec%nextem
          cycle endmemloop1
       endif
@@ -2224,7 +2224,7 @@
          lokfun=proprec%degreelink(0)
          call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
          if(gx%bmperr.ne.0) goto 1000
-         write(*,'(a,6(1Pe12.4))')'3X vals1:',vals
+!         write(*,'(a,6(1Pe12.4))')'3X vals1:',vals
          if(ipy.eq.1) then
             vals=vals*dummy1
 ! save values of reference state for use with SNN parameters ??
@@ -2275,13 +2275,13 @@
          do itp=1,6
             phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(mqmqj,itp)
          enddo
-         write(*,210)'3X FNN G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,phres%gval(1,1),&
-              (phres%dgval(1,s1,1),s1=1,gz%nofc)
+!         write(*,210)'3X FNN G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,phres%gval(1,1),&
+!              (phres%dgval(1,s1,1),s1=1,gz%nofc)
 210      format(a,2i3,2F8.5,1pe12.4,2x,6(1pe10.2))
       else
 ! this is an SNN with two or more pairs
-         write(*,'(a,i3,4F10.7)')'3X pp: ',mqmqj,&
-              (mqmqa_data%pp(s1,mqmqj),s1=1,4)
+!         write(*,'(a,i3,4F10.7)')'3X pp: ',mqmqj,&
+!              (mqmqa_data%pp(s1,mqmqj),s1=1,4)
          snnloop: do s1=6,9
 ! zp is index to an FNN record, there can be 2 or 4
             zp=mqmqa_data%contyp(s1,mqmqj)
@@ -2296,8 +2296,8 @@
             do itp=1,6
                phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
             enddo
-            write(*,210)'3X SNN G, dG/dqi: ',zp,mqmqj,pyq,aff,phres%gval(1,1),&
-                 (phres%dgval(1,s2,1),s2=1,gz%nofc)
+!            write(*,210)'3X SNN G, dG/dqi: ',zp,mqmqj,pyq,aff,phres%gval(1,1),&
+!                 (phres%dgval(1,s2,1),s2=1,gz%nofc)
          enddo snnloop
       endif pair
    enddo qloop
@@ -2361,8 +2361,8 @@
    enddo endmemloop2
 !----------------------------------------------------- end SNN loop
 800 continue
-   write(*,990)'3X exit calc_mqmqa G:',phres%gval(1,1),&
-        (phres%dgval(1,s1,1),s1=1,gz%nofc)
+!   write(*,990)'3X exit calc_mqmqa G:',phres%gval(1,1),&
+!        (phres%dgval(1,s1,1),s1=1,gz%nofc)
 990 format(a,5(1pe14.6))
 1000 return
  end subroutine calc_mqmqa
@@ -4714,7 +4714,7 @@
 ! contyp(11,i)  for a pair is constituent index in sublattice 1
 ! contyp(12,i)  for a pair is constituent index in sublattice 1
 ! contyp(11-12,i) for other quadrupoles are zero
-   integer em1,em2,em3,em4
+   integer em1,em2,em3,em4,mpj
 ! %pinq(pair) is index in %contyp for a pair
 ! cridx(pair_index) is the index of corresponding quad %contyp(5,q) is pair
 !   integer cridx(f1) REDUNDANT
@@ -4801,16 +4801,17 @@
 ! problem allocating arrays to this pointer !!!
    mqf=>phvar%mqmqaf
    do s1=1,ncon
+! wow, using phase constituent order to find quad name !! Keep it at present
       conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
       connames(s1)=conname
-      write(*,3)s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
-           (mqmqa_data%constoi(s2,s1),s2=1,4),phvar%yfr(s1),trim(conname)
+!      write(*,3)s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
+!           (mqmqa_data%constoi(s2,s1),s2=1,4),phvar%yfr(s1),trim(conname)
 3     format('3X mq:',i2,1x,4i3,1x,i3,1x,4i2,1x,i2,4i3,4F5.1,F5.2,1x,a)
    enddo
-   do s1=1,ncon
-      write(*,4)s1,(mqmqa_data%pp(s2,s1),s2=1,4),trim(connames(s1))
+!   do s1=1,ncon
+!      write(*,4)s1,(mqmqa_data%pp(s2,s1),s2=1,4),trim(connames(s1))
 4     format('3X pp:',i2,4(F8.5),2x,a)
-   enddo
+!   enddo
 !   write(*,'(a,20i3)')'3X pinq: ',(mqmqa_data%pinq(s1),s1=1,mqmqa_data%npair)
 !   write(*,6)phvar%yfr
 6  format('3X y: ',9F7.4)
@@ -4838,7 +4839,9 @@
    nspin(1)=mqmqa_data%ncon1
    nspin(2)=mqmqa_data%ncon2
 !   noofpair=mqmqa_data%npair
+   mpj=mqmqa_data%npair
    noofpair=0
+! BIG LOOP OVER ALL QUADS, calculating fracions of pairs, sublattices etc
    sumfrac: do s1=1,ncon
       conname=connames(s1)
       if(mqmqa_data%contyp(10,s1).ne.s1) then
@@ -4855,10 +4858,11 @@
          pair(s3)=pair(s3)+yfrac
          dpair(s3,s1)=one
          cpair(s3)=cpair(s3)+yfrac*mqmqa_data%pp(1,s1)
+! dcpair( pairindex, quadindex )
          dcpair(s3,s1)=mqmqa_data%pp(1,s1)
 ! Calculating pairs
-!         write(*,'(a,2i3,6F10.6)')'3X pair1: ',s1,s3,one,yfrac,pair(s3),&
-!              mqmqa_data%pp(1,s1),cpair(s3),dcpair(s3,s1)
+!         write(*,'(a,2i3,7F8.4)')'3X pair1: ',s1,s3,one,yfrac,pair(s3),&
+!              mqmqa_data%pp(1,s1),cpair(s3),dcpair(s3,s1),dpair(s3,s1)
 ! all second derivatives of pair is zero
 ! the index of constituent in first sublattice is in %contyp(11,s1)
 ! ee is species index, eesub is index of species in sublattice
@@ -4997,6 +5001,7 @@
 313      format(a,4i2,4x,2i2,2x,2i2,4x,2i2,2x,2i2)
 ! contribution from all pairs included in this quadruple, nonzero pq
          pqloop: do s2=1,4
+!            write(*,'(a,2i3)')'3x pqloop: ',s2,pq(s2)
             if(pq(s2).eq.0) exit pqloop
             pair(pq(s2))=pair(pq(s2))+ffem*yfrac
             dpair(pq(s2),s1)=ffem
@@ -5004,7 +5009,10 @@
 ! modified in gtp3B to ensure that pairs are correlated with %constoi ??
 ! s2 is assumed to be %pp index, pq(s2) constittuent index ...
             cpair(pq(s2))=cpair(pq(s2))+yfrac*mqmqa_data%pp(s2,s1)
+! dcpair( pairindex, quadindex )
             dcpair(pq(s2),s1)=mqmqa_data%pp(s2,s1)
+!            write(*,'(a,3i3,2F10.7)')'3X dcpair2: ',pq(s2),s1,s2,&
+!                 yfrac,dcpair(pq(s2),s1)
 ! Calculating pairs in SNN
 !            write(*,'(a,3i3,6F10.6)')'3X pair2: ',s1,s2,pq(s2),ffem,yfrac,&
 !                 pair(pq(s2)),mqmqa_data%pp(s2,s1),cpair(pq(s2)),&
@@ -5080,7 +5088,13 @@
                endif
             enddo subloop
          endif typ
+! problem with pair fractions ...
+!         do s3=1,mpj
+!            write(*,'(a,2i3,5F10.7)')'3X loop:',s1,s3,(dpair(s3,s2),s2=1,ncon)
+!            write(*,'(a,2i3,5F10.7)')'3X loop:',s1,s3,(dcpair(s3,s2),s2=1,ncon)
+!         enddo
       enddo sumfrac
+!------------------------------ end BIG LOOP over all quads
 !      do s3=1,nspin(1)
 !         write(*,342)'3X b1iA(m,n):',s3,s1,(b1iA(s3,s4),s4=1,ncon)
 !      enddo
@@ -5102,10 +5116,10 @@
 !      write(*,200)'3X n1     :',(yy1(s1),s1=1,nspin(1))
 !      write(*,200)'3X n2     :',(yy2(s1),s1=1,nspin(2))
 !      write(*,200)'3X pairs  :',(pair(s1),s1=1,noofpair)
-      write(*,200)'3X cpairs :',(cpair(s1),s1=1,noofpair)
-      do s1=1,noofpair
-         write(*,200)'3X dcpairs:',(dcpair(s1,s2),s2=1,ncon)
-      enddo
+!      write(*,200)'3X cpairs :',(cpair(s1),s1=1,noofpair)
+!      do s1=1,noofpair
+!         write(*,200)'3X dcpairs:',(dcpair(s1,s2),s2=1,ncon)
+!      enddo
 !      write(*,200)'3X ceqf1  :',(ceqf1(s1),s1=1,nspin(1))
 !      write(*,200)'3X ceqf2  :',(ceqf2(s1),s1=1,nspin(2))
 !   stop
@@ -5218,8 +5232,8 @@
          dp(s1,s2)=dcpair(s1,s2)
       enddo
    enddo
-   write(*,'(a,F10.6,2x,10(F8.4))')'3X cpsum:',cpairsum,&
-        (dcpairsum(s2),s2=1,ncon)
+!   write(*,'(a,F10.6,2x,10(F8.4))')'3X cpsum:',cpairsum,&
+!        (dcpairsum(s2),s2=1,ncon)
    do s1=1,noofpair
       cpair(s1)=cpair(s1)/cpairsum
       do s2=1,ncon
@@ -5229,9 +5243,9 @@
 !      pair(s1)=cpair(s1)
 ! Calculate derivatives of pairs wrt quads, NEEDED FOR REFERENCE STATE
    enddo
-   do s1=1,noofpair
-      write(*,119)'3X cpair: ',s1,cpair(s1),(dcpair(s1,s2),s2=1,ncon)
-   enddo
+!   do s1=1,noofpair
+!      write(*,119)'3X cpair: ',s1,cpair(s1),(dcpair(s1,s2),s2=1,ncon)
+!   enddo
 119 format(a,i2,F10.7,2x,8F10.6)
 !
 !   check pairs are unity ... this pair fraction is wrong anyway ...
@@ -5434,7 +5448,7 @@
 ! first derivatives, dSsub/dquad
       lsub(q1)=tsub
       ssub=ssub+phvar%yfr(q1)*tsub
-      write(*,702)'3X ssub2: ',q1,ssub,phvar%yfr(q1),tsub
+!      write(*,702)'3X ssub2: ',q1,ssub,phvar%yfr(q1),tsub
 702   format(a,i3,5(1pe12.4))
    enddo qsub
 ! correct first derivatives with respect to quads using dvvv
@@ -5449,8 +5463,8 @@
       enddo
    enddo
 !   write(*,701)'3X dssub: ',(dssub(q1),q1=1,ncon)
-   write(*,701)'3X SSUB:',ssub,ssub*phvar%amfu,phvar%amfu,phvar%abnorm(1),&
-        phvar%amfu*phvar%abnorm(1)
+!   write(*,701)'3X SSUB:',ssub,ssub*phvar%amfu,phvar%amfu,phvar%abnorm(1),&
+!        phvar%amfu*phvar%abnorm(1)
 701 format(a,5(1pe12.4))
 !   stop
 600 format(a,1pe12.4,2x,6(1pe10.2))
@@ -5510,8 +5524,8 @@
 ! %dfnnsnn can be different for different pairs, composition dependence???
 ! But it should be a sum? or is that taken care of by the sum over p_AB/XY ??
          tend=tend+fqq*log(endkvot(s2))
-         write(*,421)'3X pairs: ',q1,s1,s2,tend,endkvot(s2),&
-              fqq/mqmqa_data%qfnnsnn(s2),fqq,mqmqa_data%qfnnsnn(s2)
+!         write(*,421)'3X pairs: ',q1,s1,s2,tend,endkvot(s2),&
+!              fqq/mqmqa_data%qfnnsnn(s2),fqq,mqmqa_data%qfnnsnn(s2)
 421      format(a,3i3,5(1pe11.3))
 ! first derivatives, note multiplied by p_AB/XY ....
          do s3=1,ncon
@@ -5528,7 +5542,7 @@
 ! derivatives of send wrt quad
    enddo quadcef
 !
-   write(*,600)'3X SEND: ',send,(dsend(s1),s1=1,ncon)
+!   write(*,600)'3X SEND: ',send,(dsend(s1),s1=1,ncon)
 !========================================================================
 ! skip quad entropies
 !   write(*,*)'3X skipping quad entropies'
@@ -5607,7 +5621,7 @@
 !           ee,ff,gg,hh,pairceq
 !
       squad=squad+phvar%yfr(q1)*log(phvar%yfr(q1)/pairceq)
-      write(*,440)'3X squad: ',q1,squad,phvar%yfr(q1),pairceq
+!      write(*,440)'3X squad: ',q1,squad,phvar%yfr(q1),pairceq
 !
 ! New code for the general case
 !                  p_i
@@ -5638,7 +5652,7 @@
 !      write(*,440)'3X SQUAD: ',q1,squad,(dsquad(s1),s1=1,ncon)
    enddo quadloop
 !
-   write(*,600)'3X SQUAD: ',squad,(dsquad(s1),s1=1,ncon)
+!   write(*,600)'3X SQUAD: ',squad,(dsquad(s1),s1=1,ncon)
 ! first derivatives are wrong ....
 !   dsquad=zero
 !   write(*,*)'3X quad derivatives zero'
@@ -5678,8 +5692,8 @@
 !      write(*,431)'3X d2S/Rq2:',(phvar%d2gval(s1,1),s1=1,all2)
 431   format(a,6(1pe12.4),(/6x,6e12.4))
    endif
-   write(*,'(a,3(1pe14.6))')'3X MQMQA:',phvar%gval(1,1),&
-        phvar%gval(1,1)*8.31451,phvar%gval(1,1)*8.31451*phvar%amfu
+!   write(*,'(a,3(1pe14.6))')'3X MQMQA:',phvar%gval(1,1),&
+!        phvar%gval(1,1)*8.31451,phvar%gval(1,1)*8.31451*phvar%amfu
 ! replace pair by cpair to handle endmembers
 ! Creates problems calculating the entropy in this routine ... SUCK
    do s1=1,mqf%npair
@@ -5691,10 +5705,10 @@
       enddo
    enddo
 ! TEST temporary fix
-   do s1=1,mqf%npair
-      write(*,'(a,F9.6,2x,10F10.6)')'3X cpair: ',mqf%pair(s1),&
-           (mqf%dpair(s1,s2),s2=1,mqf%nquad)
-   enddo
+!   do s1=1,mqf%npair
+!      write(*,'(a,F9.6,2x,10F10.6)')'3X cpair: ',mqf%pair(s1),&
+!           (mqf%dpair(s1,s2),s2=1,mqf%nquad)
+!   enddo
 1000 continue
    return
 ! calculates configurational entropy/R for the FactSage MQMQA model

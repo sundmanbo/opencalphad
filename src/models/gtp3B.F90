@@ -590,7 +590,7 @@
    integer iva(maxconst),endm(maxsubl),endm0(maxsubl+1)
    logical externalchargebalance,tupix
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
-   integer s1,mqm1(20),mqm2(20),s2,s3,s4,s5,minus
+   integer s1,mqm1(20),mqm2(20),s2,s3,s4,s5,minus,s8
 ! logicals for models later stored in phase record
    logical i2sl,QCE,uniquac,mqm,clusterr
 !   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
@@ -1154,14 +1154,16 @@
 !               write(*,*)'3B in ',s1,' replace species ',s3,' in position ',s2
                do s4=6,9
 ! loop all pairs, s4, connected to this SNN for sublattice index of s3
-                  s5=mqmqa_data%contyp(s4,s1)
+                  s8=mqmqa_data%contyp(s4,s1)
 !                  write(*,'(a,3i3)')'3B looking in pair: ',s5
-                  if(s5.eq.0) then
+                  if(s8.eq.0) then
 ! failed to find species s3 in any pair
                      write(*,*)'3B Cannot find a sublattice index order!'
                      gx%bmperr=4399; goto 1000
                   endif
-! s5 is now index of a pair, in %contyp(13..14,s5) are species indices
+! s5 is now index of a pair, the index of the pair in %contyp is in ping(s8)
+! and finally in %contyp(13..14,s5) are species indices
+                  s5=mqmqa_data%pinq(s8)
                   if(s3.eq.mqmqa_data%contyp(13,s5)) then
                      mqmqa_data%contyp(s2,s1)=mqmqa_data%contyp(11,s5)
 !                     write(*,35)'3B sublattice 1 index ',&
@@ -7023,6 +7025,7 @@
       mqmqa_data%contyp=0
       mqmqa_data%nconst=0
       mqmqa_data%constoi=zero
+      mqmqa_data%pp=zero
       nend=0
       seqnum='00'
    endif
@@ -7413,8 +7416,9 @@
    integer endmem(2,f1),s1,s2,s3,s4,s5,s6,nend,new(4),need,found,pair
    integer subcon1(f1),subcon2(f1),ncon1,ncon2,ix1,ix2,lattice,indx(f1)
    integer top,stack(0:f1),last,mqm1(f1),mqm2(f1),jk,kkk,ll,loksp,nyfas
-   integer ee,gg,pix,plink(4),pinq(f1),krux
+   integer ee,gg,pix,plink(4),pinq(f1),krux,ccontyp(14,f1)
    character spname1*24,spname2*24,inorder(f1)*24
+   double precision cconstoi(4,f1),ctotstoi(f1)
 !
 !   write(*,*)'3B rearranging contyp'
 ! attempt to fix problem with stoichiometries and order, sort const
@@ -7424,44 +7428,92 @@
       gx%bmperr=4399; goto 1000
    endif
 !   write(*,8)(trim(const(s1)),s1=1,need)
-8  format(/'3B orig: ',20(a,2x))
-! indx(i) gives the alphabetical order of const(1)
+8  format(/'3B orig: ',20(a,1x))
+!   write(*,*)'3B calling MQSORT'
    if(need.gt.1) then
-      call ssort2(const,need,indx)
+      call mqsort(const,need,indx)
       if(buperr.ne.0) then
          gx%bmperr=4399; goto 1000
       endif
 !      write(*,'(a,20i3)')'3B order:  ',(indx(s1),s1=1,need)
    endif
+! indx(i) gives the alphabetical order of const(1)
 !   write(*,9)(trim(const(indx(s1))),s1=1,need)
 9 format('3B sort: ',20(a,2x))
+! set inorder in alphabetical order
+   do s1=1,need
+      inorder(s1)=const(indx(s1))
+   enddo
+!   write(*,'(a,10(1x,a))')'3B quads: ',(trim(inorder(s1)),s1=1,need)
 !   write(*,*)'3B original order:'
 !   do s1=1,need
-!      write(*,7)'3B orig: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,10),&
+! NOTE here -%contyp(10,s1) is the order the species were created
+!      write(*,7)'3B orig: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
 !           (mqmqa_data%constoi(s2,s1),s2=1,4),&
 !           trim(splista(-mqmqa_data%contyp(10,s1))%symbol)
 !   enddo
-!7  format(a,10i3,i4,4F6.2,1x,a)
+!7  format(a,i2,14i3,i4,4F6.2,1x,a)
 ! rearrange contyp and constoi according to indx...
 ! original order: 1 2 3 4 5 6 7 8 9
 ! alphabet order: 7 3 2 5 1 6 8 9 4
 ! stack: push 1; push 7; push 8; push 9; 9 push 4; push 5: find 5=1
 !    stack from top: 5, 4, 9, 8, 7, 1
 !    save(5); copy 4 to (5); copy 9 to (4); copy 8 to (9); copy 7 to (8);
-! this is the position to store inintial ecord index
+! this is the position to store inintial record index
    stack(0)=f1
 !   write(*,'(a,20i3)')'3B index: ',(s3,s3=1,need)
 !   write(*,'(a,20i3)')'3B sort1: ',(indx(s3),s3=1,need)
 !   stop 2
 !
-! Now the constituents are in alphabetical order, we can set links
+! Now the constituents are in alphabetical order, rearrange mqmqa_data%contyp
+! %constoi and totat, don't be smart or fast, just copy
+   do s1=1,need
+      do s2=1,14
+         ccontyp(s2,s1)=mqmqa_data%contyp(s2,s1)
+      enddo
+      do s2=1,4
+         cconstoi(s2,s1)=mqmqa_data%constoi(s2,s1)
+      enddo
+      ctotstoi(s1)=mqmqa_data%totstoi(s1)
+   enddo
+! now write them back in their correct order
+   do s1=1,need
+      s3=indx(s1)
+      do s2=1,14
+         mqmqa_data%contyp(s2,s1)=ccontyp(s2,s3)
+      enddo
+      do s2=1,4
+         mqmqa_data%constoi(s2,s1)=cconstoi(s2,s3)
+      enddo
+      mqmqa_data%totstoi(s1)=ctotstoi(s3)
+! also set correct name in const
+      const(s1)=splista(-mqmqa_data%contyp(10,s1))%symbol
+   enddo
+! We must correct the order of pairs, they must be from 1 and up !!!
+! Later we will change 6..9 in SNN quads to pair indices
+   s2=1
+   do s1=1,need
+      if(mqmqa_data%contyp(5,s1).gt.0) then
+         mqmqa_data%contyp(5,s1)=s2
+         s2=s2+1
+      endif
+   enddo
+!   write(*,*)'3B in alphabetical order?'
+!   do s1=1,need
+! NOTE here -%contyp(10,s1) is the order the species were created
+!      write(*,7)'3B orig: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
+!           (mqmqa_data%constoi(s2,s1),s2=1,4),trim(const(s1))
+!           trim(splista(-mqmqa_data%contyp(10,s1))%symbol)
+!   enddo
+   goto 300
+!------------------------------------------------- dead code below ----
 !   
    skipif1: if(need.gt.1) then
       alpha: do s1=1,need
 ! if indx(s1)=s1 the record is at the correct place
          if(indx(s1).eq.s1) cycle alpha
 ! record s1 is not at its correct place
-!      write(*,2)'3B record ',s1,' should be at ',indx(s1)
+         write(*,2)'3B move ',s1,' ¨',trim(const(s1)),' to ',indx(s1)
 2        format(a,i3,a,i3,a,i3)
          top=0
          s2=s1
@@ -7518,7 +7570,7 @@
          indx(s1)=s1
 !         write(*,'(a,20i3)')'3B sort3: ',(indx(s3),s3=1,need)
       enddo alpha
-! number the endmembers in alphabetical order
+! number the FNN endmembers in alphabetical order
       s4=0
       do s1=1,need
          if(mqmqa_data%contyp(5,s1).gt.0) then
@@ -7528,12 +7580,12 @@
       enddo
    endif skipif1
 !   write(*,'(a,20i3)')'3B indx: ',(indx(s3),s3=1,need)
-   do s1=1,need
+!   do s1=1,need
 !      write(*,7)'3B sort: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
 !           (mqmqa_data%constoi(s2,s1),s2=1,4),&
 !           trim(splista(-mqmqa_data%contyp(10,s1))%symbol)
-      inorder(s1)=splista(-mqmqa_data%contyp(10,s1))%symbol
-   enddo
+!      inorder(s1)=splista(-mqmqa_data%contyp(10,s1))%symbol
+!   enddo
 7  format(a,i3,1x,4i2,1x,i3,1x,4i3,1x,i3,1x,4i3,4F5.2,1x,a)
 ! this needs checking ...
    if(gx%bmperr.ne.0) then
@@ -7547,6 +7599,8 @@
 !   write(*,'(a,10F6.3)')'3B totstoi: ',&
 !        (mqmqa_data%totstoi(s1),s1=1,mqmqa_data%nconst)
 ! search for pairs (with a single constituent in each sublattice)
+!------------------------------------------------- dead code above ----
+300 continue
    pair=0
 !   write(*,*)'3B Search for pairs'
    try1: do s1=1,mqmqa_data%nconst
@@ -7559,8 +7613,10 @@
 !        write(*,'(a,4i4)')'3B endmember ',pair,s1,endmem(1,pair),endmem(2,pair)
 ! save stoichiometry of each constituent in pp(1..2,s1)
          mqmqa_data%pp(1,s1)=2.0D0/mqmqa_data%constoi(1,s1)
-         mqmqa_data%pp(2,s1)=2.0D0/mqmqa_data%constoi(1,s1)
-         write(*,*)'3B pp 1: ',s1,(mqmqa_data%pp(s2,s1),s2=1,2)
+!         mqmqa_data%pp(2,s1)=2.0D0/mqmqa_data%constoi(1,s1) ?????????a
+         mqmqa_data%pp(2,s1)=2.0D0/mqmqa_data%constoi(2,s1)
+!         write(*,'(a,i3,2F12.7,2x,a)')'3B pp 1: ',s1,&
+!              (mqmqa_data%pp(s2,s1),s2=1,2)
       endif
 ! note code above is skipped due to cycle try1
    enddo try1
@@ -7647,7 +7703,9 @@
 !                    mqmqa_data%contyp(12,s4)
                if(mqmqa_data%contyp(11,s5).eq.ee .and. &
                     mqmqa_data%contyp(12,s5).eq.gg) then
-                  pix=pix+1; plink(pix)=s5
+!                  pix=pix+1; plink(pix)=s5
+! not by s5 which is index in %contyp but pair index
+                  pix=pix+1; plink(pix)=mqmqa_data%contyp(5,s5)
 !                  write(*,*)'3B found pair in %contyp ',s5,pix
                   exit fpair
                endif
@@ -7682,7 +7740,6 @@
 !----------------------
 !   write(*,*)'3B replaced all species by pairs'
 !   do s1=1,mqmqa_data%nconst
-! indx(s1) is original place of constituent
 !      write(*,12)'3B quad2: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
 !           (mqmqa_data%constoi(s2,s1),s2=1,4),trim(inorder(s1))
 !   enddo
@@ -7717,7 +7774,7 @@
 !               (3)(2) means 3*2*1/2 = 3
    s3=ncon1*(ncon1-1)*ncon2*(ncon2-1)/4
 !
-   write(*,'(a,5i4)')'3B MQMQA quads: pairs, binary and reciprocal SNN: ',&
+   write(*,'(a,5i4)')'3B MQMQA: quads, pairs, binaris and reciprocal SNNs: ',&
         mqmqa_data%nconst,s1,s2,s3
    if(s1+s2+s3-mqmqa_data%nconst.ne.0) then
       write(*,'(a,5i5)')'3B total number of quadrupoles is wrong',&
@@ -7742,25 +7799,24 @@
    pp: do s1=1,mqmqa_data%nconst
       if(mqmqa_data%contyp(5,s1).gt.0) cycle pp
 ! an SNN quadruplet
-!      write(*,'(a,i3,4F10.6)')'3X %constoi: ',s1,&
-!           (mqmqa_data%constoi(s3,s1),s3=1,4)
+!      write(*,'(a,i3,4i2,i3,1x,4i3,1x,i3,1x,4i3)')'3X %contyp: ',s1,&
+!           (mqmqa_data%contyp(s3,s1),s3=1,14)
       do s2=1,4
 ! s3 is index of a pair in the SNN
          s3=mqmqa_data%contyp(5+s2,s1)
          if(s3.gt.0) then
 ! if there is a pair link, use s3 to associate %constoi with pair ????
             mqmqa_data%pp(s2,s1)=one/mqmqa_data%constoi(s2,s1)
-!            write(*,'(a,3i3,2F10.7)')'3B pairpart 2: ',s1,s2,&
-!                 mqmqa_data%contyp(5+s2,s1),mqmqa_data%constoi(s2,s1),&
-!                 mqmqa_data%pp(s2,s1)
+!            write(*,'(a,3i3,2F12.8,1x,a)')'3B SNN%pp: ',s1,s2,s3,&
+!                 mqmqa_data%constoi(s2,s1),mqmqa_data%pp(s2,s1),const(s1)
          endif
       enddo
    enddo pp
 !
-   do s1=1,mqmqa_data%nconst
-      write(*,'(a,i2,4F10.7)')'3B all pairparts: ',s1,&
-           (mqmqa_data%pp(s2,s1),s2=1,4)
-   enddo
+!   do s1=1,mqmqa_data%nconst
+!      write(*,'(a,i2,4F10.7,1x,a)')'3B all pairparts: ',s1,&
+!           (mqmqa_data%pp(s2,s1),s2=1,4),trim(inorder(s1))
+!   enddo
 1000 continue
    return
  end subroutine mqmqa_rearrange

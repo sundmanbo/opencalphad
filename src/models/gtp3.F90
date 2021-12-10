@@ -1537,7 +1537,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, allocatable, dimension(:,:) :: contyp
 ! quady(i,j) indices of sublattice fractions  ( replaced by 11..14 in contyp)
 !     integer, allocatable :: quady(:,:)
-! for each pair, its index in in %contyp
+! for each pair, its index in in %contyp is in PINQ
      integer, allocatable, dimension(:,:) :: pinq(:)
 ! constoi(1..4,const) real with stoichiometry of species in quadrupole
 ! NOTE for pairs (with one constituent in each sublattice) only two values

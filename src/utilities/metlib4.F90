@@ -710,6 +710,50 @@ CONTAINS
   end SUBROUTINE SSORT2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine mqsort & Sorting MQMQA constituents
+!\begin{verbatim}
+  SUBROUTINE MQSORT(CMD,NS,INDX)
+!...SORTING a character array, max 40 characters long  BUBLESORT
+! it does not change the position of the texts in CMD but return order in ORDER
+    implicit none
+    CHARACTER CMD(*)*(*)
+    integer ns,indx(*)
+!\end{verbatim}
+    CHARACTER STR*40
+    integer j1,j2,bytt
+!    integer, allocatable, dimension(:) :: order
+!
+! links has the the index of the CMD in the increasing order
+    if(ns.le.0) then
+       write(*,*)'QSORT called with no arguments to sort'
+       buperr=1100; goto 900
+    endif
+    do j1=1,ns
+       indx(j1)=j1
+    enddo
+    bytt=1
+    do while(bytt.gt.0) 
+       bytt=0
+!       write(*,*)'QSORT loop ',trim(cmd(indx(1))),' ',trim(cmd(indx(ns)))
+       all: do j1=2,ns
+          if(cmd(indx(j1)).lt.cmd(indx(j1-1))) then
+             j2=indx(j1)
+             indx(j1)=indx(j1-1)
+             indx(j1-1)=j2
+!             write(*,*)'M4 QSORT: ',trim(cmd(indx(j1-1))),' < ',&
+!                  trim(cmd(indx(j1)))
+             bytt=bytt+1
+          endif
+       enddo all
+    enddo
+!    write(*,10)'QSORT done: ',ns,(indx(j1),j1=1,ns)
+10  format(a,i3,2x,20i3)
+900 continue
+    return
+  end SUBROUTINE MQSORT
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 !
 ! >>>> subsection
 ! Routines for manipulation of characters

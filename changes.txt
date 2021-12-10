@@ -19,6 +19,10 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.12.11 OC version 6.039: There is no nobel price in thermodynamics
+but maybe there should be ... . The MQMQA model is a bit more stable
+and spurious stracing removed.  Maybe peace of mind during Christmas.
+
 2021.12.03 OC version 6.038: First calculation with MQMQA with SRO and
 correct reference state.  Still fixing minor bugs and the data
 structures can be improved.  This model violates almost all principles

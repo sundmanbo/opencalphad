@@ -2031,6 +2031,11 @@
    endif
    parlist=1
    if(notallowlisting(privilege)) goto 1000
+! warning for reference state of the MQMQA phase   
+   if(btest(phlista(lokph)%status1,PHMQMQA)) then
+      write(lut,90)
+90    format(' *** WARNING the reference state is not listed correctly ***')
+   endif
 !--------------------------------------------------
 ! return here to list disordered parameters
 100 continue
