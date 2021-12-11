@@ -7816,8 +7816,9 @@
    enddo pp
 !
 !   do s1=1,mqmqa_data%nconst
+! an AB/XY has 4 FNN paris
 !      write(*,'(a,i2,4F10.7,1x,a)')'3B all pairparts: ',s1,&
-!           (mqmqa_data%pp(s2,s1),s2=1,4),trim(inorder(s1))
+!           (mqmqa_data%pp(s2,s1),s2=1,4),trim(const(s1))
 !   enddo
 1000 continue
    return

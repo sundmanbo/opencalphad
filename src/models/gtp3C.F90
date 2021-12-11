@@ -1865,6 +1865,9 @@
 ! possible different gadditions for each composition sets
 !   double precision gadd(9)
 !--------------
+! special reference state for MQMQA liquids
+   logical mqmqa
+!--------------
 ! save all Kohler/Toop ternary records in a pointer array
 ! a smart way to have an array of pointers
    integer, parameter :: maxtoop=50
@@ -1893,6 +1896,7 @@
    tooptop=0
 ! modelid should be used to identify the model
    modelid=' '
+   mqmqa=.FALSE.
 ! this specifies the top line
    topline=1
 !   modelid='123456789.123456789.1234'
@@ -1931,6 +1935,7 @@
 !   elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
    elseif(btest(phlista(lokph)%status1,PHMQMQA)) then
       special(1:1)='Q'; modelid='MQMQA'
+      mqmqa=btest(phlista(lokph)%status1,PHMQMQA)
 !                                123456789.123456789.1234
 ! Topline 2 means bonds rather than sites ...
       topline=2
@@ -2032,10 +2037,10 @@
    parlist=1
    if(notallowlisting(privilege)) goto 1000
 ! warning for reference state of the MQMQA phase   
-   if(btest(phlista(lokph)%status1,PHMQMQA)) then
-      write(lut,90)
-90    format(' *** WARNING the reference state is not listed correctly ***')
-   endif
+!   if(btest(phlista(lokph)%status1,PHMQMQA)) then
+!      write(lut,90)mqmqa
+90    format(' *** WARNING the reference state is not listed correctly ***',l2)
+!   endif
 !--------------------------------------------------
 ! return here to list disordered parameters
 100 continue
@@ -2162,6 +2167,14 @@
               phname(1:len_trim(phname)),text(1:len_trim(text))
 200      format(A,'(',A,',',A,') ')
          ip=len_trim(funexpr)+1
+! check if FNN MQMQA parameter ...
+         if(mqmqa) then
+! ilist is index in fraction list, same as index in mqmqa_data%contyp
+!            intpq=ilist(1)
+!            write(*,*)'3C check if SNN parameter',intpq,&
+!                 mqmqa_data%contyp(5,intpq)
+            if(mqmqa_data%contyp(5,ilist(1)).le.0) goto 203
+         endif
 ! subtract reference states
          if(subref .and. typty.eq.1) then
             call subrefstates(funexpr,ip,lokph,parlist,endm,noelin1)
@@ -2176,6 +2189,7 @@
 !               write(*,*)'after:  ',funexpr(1:ip)
             endif
          endif
+203      continue
 ! this writes the expression
          call list_tpfun(proprec%degreelink(0),1,funexpr(ip:))
          ip=len_trim(funexpr)

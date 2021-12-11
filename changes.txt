@@ -19,7 +19,13 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
-2021.12.11B OC version 6.040: Fixed one more bug for the refence
+2021.12.12 OC version 6.041: Restored using the fraction of the
+reference state of an MQMQA FNN endmember and removed the irrelevant
+reference state from listing of MQMQA SNN parameters.  Now the way to
+transform endmember parameters from DAT to TDB should be stable.  But
+there are still problems to be solved for excess parameters.
+
+2021.12.11B OC version 6.040: Fixed one more bug for the reference
 state.  Now the excess parameters ... and some peace of mind during
 Christmas.
 
