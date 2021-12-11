@@ -7013,6 +7013,7 @@
       if(.not.allocated(mqmqa_data%contyp)) then
 ! these should not be already allocated but ... who knows 
 ! sometimes there can be two liquids in the TDB file ....
+         write(*,*)'3B Allocating mqmqa_data, max quadruplets: ',f1
          allocate(mqmqa_data%contyp(14,f1))
          allocate(mqmqa_data%constoi(4,f1))
          allocate(mqmqa_data%totstoi(f1))
@@ -7035,21 +7036,22 @@
 100 continue
    if(eolch(inline,ip)) goto 900
 ! here a new quadrupole. Third argumment 2 means terminated by space
-! getext increment 1 before extracting so decrement first
+! getext increment ip by 1 before extracting so decrement first
    ip=ip-1
+!   write(*,*)'3B inline: "',trim(inline),'"',ip
    call getext(inline,ip,2,quadname,' ',lenc)
    if(buperr.ne.0) then
       write(*,*)'3B error reading name of quadrupole'
       goto 1000
    endif
 !   write(*,*)'3B quadname: ',trim(quadname),ip
-! a : terminates list of quadrupoles
+! a ":" terminates list of quadrupoles
    if(quadname(1:1).eq.':') goto 900
 ! a slash / separate species in different sublattices   
 ! if a species does not exist skip this quadrupole (not an error)
    jp=index(quadname,'/')
    if(jp.le.0) then
-      write(*,*)'3B missing / in quadrupole name ',trim(quadname)
+      write(*,*)'3B missing / in quadrupole "',trim(quadname),'"'
       gx%bmperr=4399; goto 1000
    endif
    isp=0
@@ -7774,7 +7776,7 @@
 !               (3)(2) means 3*2*1/2 = 3
    s3=ncon1*(ncon1-1)*ncon2*(ncon2-1)/4
 !
-   write(*,'(a,5i4)')'3B MQMQA: quads, pairs, binaris and reciprocal SNNs: ',&
+   write(*,'(a,5i4)')'3B MQMQA: quads, pairs, binary and reciprocal SNNs: ',&
         mqmqa_data%nconst,s1,s2,s3
    if(s1+s2+s3-mqmqa_data%nconst.ne.0) then
       write(*,'(a,5i5)')'3B total number of quadrupoles is wrong',&

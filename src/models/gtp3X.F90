@@ -264,14 +264,18 @@
 ! when we come back mqmqaf should have some arrays allocated ....
 ! DO NOT SET THIS POINTER BEFORE ARRAYS ARE ALLOCATED IN CONFIG_ENTROPY_MQMQA
       mqf=>phres%mqmqaf
-      write(*,777)'3X MQMQA config G:',phres%gval(1,1)*gz%rgast*phres%amfu
-!      (mqf%pair(ll),ll=1,mqf%npair)
-777   format(a,1PE12.4,', pf: ',0P,10F9.6)
+      write(*,'(a,1pe12.4)')'3X MQMQA config G:',&
+           phres%gval(1,1)*gz%rgast*phres%amfu
+      do mqmqj=1,mqf%npair
+!         write(*,777)mqf%pair(mqmqj),(mqf%dpair(mqmqj,kk),kk=1,mqf%nconst)
+!         write(*,777)mqf%pair(mqmqj),mqf%dpair(mqmqj,1),mqf%dpair(mqmqj,2),&
+!              mqf%dpair(mqmqj,3)
+777      format('3X pairs:',F10.6,2x,10F9.5)
+      enddo
    elseif(btest(phlista(lokph)%status1,PHSSRO)) then
 ! Simple short range order entropy model
       write(*,*)'3X calling SSRO liquid model'
       call config_entropy_ssro(moded,lokph,phres,gz%tpv(1))
-!      call config_entropy_ssro(moded,nsl,phlista(lokph)%nooffr,phres,gz%tpv(1))
    else
 !----------- the CF Bragg-Williams ideal configurational entropy per sublattice
 ! NOTE: for phases with disordered fraction set this is calculated
@@ -466,9 +470,6 @@
 ! big loop for all permutation of fractions (ordering option F and B)
 ! including all interaction parameters linked from this endmember
 !
-!      write(*,*)'3X Config G 2: ',associated(endmemrec)
-! mqmqj is used for mqmqa endmembers
-      mqmqj=0
       endmemloop: do while(associated(endmemrec))
 !
 ! The array maxpmq is used for interaction permutations.  It must be
@@ -480,69 +481,7 @@
          sameint=0
 !--------------------------------- quick test of mqmqa reference state
          if(mqmqa) then
-            stop '3X MQMQA separate routune'
-            write(*,*)'3X using MQMQA inside calcg_internal'
-            mqmqj=mqmqj+1
-            kend=mqmqa_data%contyp(5,mqmqj)
-            write(*,'(a,5i3)')'3X mqmqa G:',mqmqj,kend,gz%nofc
-            proprec=>endmemrec%propointer
-            dpyq=zero
-            mq1: do while(associated(proprec))
-! value and derivatives of pyq depend if it is a pair or SNN
-               ll=1
-               if(kend.gt.0) then
-! TESTING with reference terms in all endmembers
-! this is a pair with reference state parameters. dpyq related to pairs
-                  pyq=mqf%pair(kend)
-                  dpyq(1)=one; dpyq(2)=one; dpyq(3)=one;
-               else
-! this is an SNN parameter
-                  id=endmemrec%fraclinks(ll,1)
-                  pyq=phres%yfr(id)
-                  dpyq(id)=one
-                  write(*,'(a,6(1pe12.4))')'3X SNN df/dy: ',&
-                       (dpyq(itp),itp=1,mqmqa_data%nconst)
-               endif
-! derivatives of pyq missing ..............
-!
-               if(pyq.lt.bmpymin) pyq=bmpymin
-               if(pyq.gt.one) pyq=one
-               write(*,'(a,i3,F10.7)')'3X calculate mqmqa G:',mqmqj,pyq
-               typty=proprec%proptype
-               if(typty.ne.1) stop 'illegal typty in mqmqa model'
-               ipy=1
-               lokfun=proprec%degreelink(0)
-               call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
-               if(gx%bmperr.ne.0) goto 1000
-               write(*,'(a,6(1Pe12.4))')'3X vals1:',vals
-               if(ipy.eq.1) then
-!                  if(kend.gt.0) then
-! kend is nonzero for "pairs" with reference state functions
-!                     vals=vals*phres%amfu/rtg
-!                  else
-                     vals=vals/rtg
-!                  endif
-! multiply with fractions and derivatives of fractions                     
-! gz%nofc is total number of independent fractions
-! first derivatives must be correct, remember to apply chain rule!!
-                  do id=1,gz%nofc
-                     do itp=1,3
-                        phres%dgval(itp,id,ipy)=phres%dgval(itp,id,ipy)+&
-                             dpyq(id)*vals(itp)
-                     enddo
-                  enddo
-               endif
-! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
-! finally add to integral properties
-               do itp=1,6
-                  phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
-               enddo
-               proprec=>proprec%nextpr
-            enddo mq1
-            endmemrec=>endmemrec%nextem
-            write(*,*)'3X mqmqa emloop: ',pyq*vals(1)
-            cycle endmemloop
-!----------------------------------------------------- end mqmqa special
+            stop '3X MQMQA separate routine'
          endif
          empermut: do while(epermut.lt.endmemrec%noofpermut)
             epermut=epermut+1
@@ -2160,13 +2099,15 @@
 !   dummy1=one/(phres%abnorm(1)*rtg)
 !   write(*,'(a,3(1pe14.6))')'3X mqmqa scaling: ',dummy1,&
 !        phres%amfu,phres%abnorm(1)
+! This first loop all endmember oarameters
+! this can give SRO contribution and excess from SNN parameters
+! or it makes it possible to calculate the G for the FNN parameters
    endmemloop1: do while(associated(endmemrec))
-! just a check data are transferred from entropy calculation
       mqmqj=mqmqj+1
       if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop1
       kend=mqmqa_data%contyp(5,mqmqj)
       if(kend.le.0) then
-! Here we should calculate and add SNN energy and maybe interactions ...
+! Here we calculate and add SNN energy and maybe interactions ...
 !         write(*,*)'3X SNN endmember record found',mqmqj
          proprec=>endmemrec%propointer
          mqsnn: do while(associated(proprec))
@@ -2181,8 +2122,7 @@
                vals=vals*dummy1
 ! This is an SNN ordering parameter, no reference state
             endif
-!            goto 600
-! skip this for the moment ---------------------------------------
+! goto here to skip SRO            goto 600
             pyq=phres%yfr(mqmqj)
 ! Should I use any factor??
 !         aff=mqmqa_data%pp(1,mqmqj)
@@ -2203,19 +2143,7 @@
          endmemrec=>endmemrec%nextem
          cycle endmemloop1
       endif
-! this is a pair with reference state parameters. dpyq related to pairs
-!      pyq=mqf%pair(kend)
-!      if(pyq.lt.bmpymin) pyq=bmpymin
-!      if(pyq.gt.one) pyq=one
-!      dpyq=zero
-! derivatives of pyq with respect to the quads
-!      do s1=1,gz%nofc
-!         dpyq(s1)=mqf%dpair(kend,s1)
-!      enddo
-!      write(*,180)'3X p, dp/dy: ',kend,pyq,(dpyq(s1),s1=1,gz%nofc)
-180   format(a,i3,F8.5,6(1pe12.4))
-!
-! first loop over all FNN (pairs) to collect reference states ...
+! Second loop over all FNN (pairs) to collect reference states ...
       proprec=>endmemrec%propointer
       mq1: do while(associated(proprec))
          typty=proprec%proptype
@@ -2264,26 +2192,30 @@
       pyq=phres%yfr(mqmqj)
       zp=mqmqa_data%contyp(5,mqmqj)
       pair: if(zp.gt.0) then
-! this is a pair, reference energy in refg(mqmqj,1..6), only one y derivative
+! this is a pair, reference energy in refg(zp,1..6), only one y derivative
 ! %pp(1..4,mqmqj) is stoichiometric factor for the pair
          aff=mqmqa_data%pp(1,mqmqj)
          do itp=1,3
             phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+&
-                 aff*refg(mqmqj,itp)
+                 aff*refg(zp,itp)
          enddo
 ! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
          do itp=1,6
-            phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(mqmqj,itp)
+            phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
          enddo
+!         write(*,205)'3X FNN delta G, ypq, fun: ',mqmqj,zp,pyq,&
+!              aff,refg(zp,1),pyq*aff*refg(zp,1)
+205      format(a,2i3,F8.5,2x,3(1pe12.4))
 !         write(*,210)'3X FNN G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,phres%gval(1,1),&
 !              (phres%dgval(1,s1,1),s1=1,gz%nofc)
 210      format(a,2i3,2F8.5,1pe12.4,2x,6(1pe10.2))
       else
 ! this is an SNN with two or more pairs
+! For each SNN pair add the contribution to the reference state
 !         write(*,'(a,i3,4F10.7)')'3X pp: ',mqmqj,&
 !              (mqmqa_data%pp(s1,mqmqj),s1=1,4)
          snnloop: do s1=6,9
-! zp is index to an FNN record, there can be 2 or 4
+! zp is index to an FNN record, there can be 2 or 4 FNN records
             zp=mqmqa_data%contyp(s1,mqmqj)
             if(zp.eq.0) exit snnloop
 ! %pp(1..4,mqmqj) is stoichiometric factor for the pair
@@ -2296,7 +2228,8 @@
             do itp=1,6
                phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
             enddo
-!            write(*,210)'3X SNN G, dG/dqi: ',zp,mqmqj,pyq,aff,phres%gval(1,1),&
+!            write(*,205)'3X SNN G, dG/dqi: ',mqmqj,zp,pyq,&
+!                 aff,refg(zp,1),pyq*aff*refg(zp,1)
 !                 (phres%dgval(1,s2,1),s2=1,gz%nofc)
          enddo snnloop
       endif pair

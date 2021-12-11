@@ -4882,7 +4882,7 @@
                nundefmpi=nundefmpi+1
                undefmpi(nundefmpi)=trim(name1)
             else
-               write(*,*)'3B too many model parameter identifier errors',&
+               write(*,*)'3E too many model parameter identifier errors',&
                     mundefmpi
             endif
             if(.not.silent) write(kou,*) &
