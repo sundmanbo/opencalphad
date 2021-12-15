@@ -3490,9 +3490,11 @@
       mqmqa_data%nconst=0
    endif
    if(allocated(mqmqa_data%pinq)) then
-! these may not have been allocated ??
-      deallocate(mqmqa_data%qfnnsnn)
       deallocate(mqmqa_data%pinq)
+   endif
+! these are allocated here and there, if error reading database some may not be
+   if(allocated(mqmqa_data%qfnnsnn)) then
+      deallocate(mqmqa_data%qfnnsnn)
       deallocate(mqmqa_data%pp)
    endif
 !   write(*,*)'3E No segmentation error G'
@@ -3928,7 +3930,7 @@
    integer, dimension(10) :: knr,endm
 ! lint(1,*) is sublattice, lint(2,*) is species
    double precision stoik(10),xsl,xxx
-   integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv,rewindx
+   integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv,rewindx,nend
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx,idum,jdum
    logical onlyfun,nophase,ionliq,notent,mqmqa,ferroref
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
@@ -4042,8 +4044,8 @@
             goto 100
          elseif(dodis.ne.1) then
 ! do not give this warning when reading disordered phases ...
-            write(*,122)trim(line)
-122         format(/' *** Warning, ignoring line: "',a,'"'/)
+            write(*,122)nl,trim(line)
+122         format(/'3E *** Warning, ignoring line ',i5,' with "',a,'"'/)
          endif
       endif
    endif
@@ -4513,7 +4515,8 @@
 ! the quadrupole is ignored (not an error)
 ! A/X n1 n2 r3 A,B/X n1 n2 n3 B/X,Y n1 n2 n3 A,B/X,Y n1 n2 n3 n4 ...
 ! The r3 is a FNN/SNN ratio for pairs, normally 2.4
-         call mqmqa_constituents(longline(ip:jp),const,loop)
+! nend is set to zero at first call, then incremented for each FNN endmember
+         call mqmqa_constituents(longline(ip:jp),const,nend,loop)
 !         write(*,*)'3E back from entering constituents',gx%bmperr
          if(gx%bmperr.ne.0) then
             write(*,*)'3E error entering quadrupoles'
@@ -5936,9 +5939,9 @@
    if(keyw.eq.0) then
       ip=1
       if(.not.eolch(line,ip)) then
-         if(ocv()) write(*,*)'Ignoring line: ',nl,ip,line(ip:ip+20)
+         if(ocv()) write(*,*)'3E Ignoring line: ',nl,ip,line(ip:ip+20)
       endif
-      if(.not.onlyfun) write(*,*)' *** Ignoring unknown keyword: ',line(1:24)
+      if(.not.onlyfun) write(*,*)'3E *** Ignoring unknown keyword: ',line(1:24)
 !      read(*,122)ch1
 122   format(a)
       goto 100
@@ -8482,7 +8485,7 @@
 !                        write(*,*)'3C endmember BMAGN2: ',f1,parbm
                         paratyp=16
                      else
-                        write(*,*)'3C ignoring endmember property: ',&
+                        write(*,*)'3E ignoring endmember property: ',&
                              nextprop%proptype
                      endif
                   else
@@ -8943,7 +8946,7 @@
             f1=property%degreelink(0)
             parbm=tpfc(f1)%cfun%coefs(1,1)
          else
-            write(*,*)'3C ignoring compound property ',property%proptype
+            write(*,*)'3E ignoring compound property ',property%proptype
          endif
          property=>property%nextpr
          if(associated(property)) goto 575

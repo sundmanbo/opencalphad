@@ -264,14 +264,14 @@
 ! when we come back mqmqaf should have some arrays allocated ....
 ! DO NOT SET THIS POINTER BEFORE ARRAYS ARE ALLOCATED IN CONFIG_ENTROPY_MQMQA
       mqf=>phres%mqmqaf
-      write(*,'(a,1pe12.4)')'3X MQMQA config G:',&
-           phres%gval(1,1)*gz%rgast*phres%amfu
-      do mqmqj=1,mqf%npair
+!     write(*,'(a,1pe12.4)')'3X MQMQA cfgG:',phres%gval(1,1)*gz%rgast*phres%amfu
+!      write(*,'(a,1pe12.4)')'3X MQMQA cfgG:',phres%gval(1,1)*gz%rgast
+!      do mqmqj=1,mqf%npair
 !         write(*,777)mqf%pair(mqmqj),(mqf%dpair(mqmqj,kk),kk=1,mqf%nconst)
 !         write(*,777)mqf%pair(mqmqj),mqf%dpair(mqmqj,1),mqf%dpair(mqmqj,2),&
 !              mqf%dpair(mqmqj,3)
 777      format('3X pairs:',F10.6,2x,10F9.5)
-      enddo
+!      enddo
    elseif(btest(phlista(lokph)%status1,PHSSRO)) then
 ! Simple short range order entropy model
       write(*,*)'3X calling SSRO liquid model'
@@ -2062,7 +2062,7 @@
    integer mqmqj,kend,s1,s2,s3,id,nofc2,ipy,lokfun,typty,itp,zp
    double precision vals(6),pyq,rtg,aff
    double precision, dimension(:), allocatable :: dpyq(:),d2pyq(:),d2vals(:)
-   double precision, dimension(:,:), allocatable :: dvals(:,:)
+   double precision, dimension(:,:), allocatable :: dvals(:,:),affarr(:)
 ! for saving FNN reference energies
    double precision refg(f1,f1)
    double precision dummy1,dummy2
@@ -2081,11 +2081,19 @@
    allocate(d2pyq(nofc2))
    allocate(dvals(3,gz%nofc))
    allocate(d2vals(nofc2))
+   allocate(affarr(mqf%npair))
+   affarr=zero
    nullify(pystack)
    rtg=globaldata%rgas*ceq%tpval(1)
    mqf=>phres%mqmqaf
 !   refg=zero
    dummy2=zero
+! list %pp
+! %pp( quad , FNN index )
+!   do mqmqj=1,mqmqa_data%nconst
+!      write(*,17)'3X %pp: ',mqmqj,(mqmqa_data%pp(s1,mqmqj),s1=1,4)
+!   enddo
+17 format(a,i3,4(1pe12.4))
 !--------------------------------------
 ! first loop over all FNN endmembers
    mqmqj=0
@@ -2099,7 +2107,7 @@
 !   dummy1=one/(phres%abnorm(1)*rtg)
 !   write(*,'(a,3(1pe14.6))')'3X mqmqa scaling: ',dummy1,&
 !        phres%amfu,phres%abnorm(1)
-! This first loop all endmember oarameters
+! This first loop: all endmember parameters
 ! this can give SRO contribution and excess from SNN parameters
 ! or it makes it possible to calculate the G for the FNN parameters
    endmemloop1: do while(associated(endmemrec))
@@ -2107,7 +2115,7 @@
       if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop1
       kend=mqmqa_data%contyp(5,mqmqj)
       if(kend.le.0) then
-! Here we calculate and add SNN energy and maybe interactions ...
+! This is an SNN parameter we calculate and add SNN energy and interactions ...
 !         write(*,*)'3X SNN endmember record found',mqmqj
          proprec=>endmemrec%propointer
          mqsnn: do while(associated(proprec))
@@ -2143,8 +2151,9 @@
          endmemrec=>endmemrec%nextem
          cycle endmemloop1
       endif
-! Second loop over all FNN (pairs) to collect reference states ...
+! This is an FNN parameter, we calculate and save the value for later use
       proprec=>endmemrec%propointer
+      aff=one/mqmqa_data%pp(1,mqmqj)
       mq1: do while(associated(proprec))
          typty=proprec%proptype
          if(typty.ne.1) stop 'illegal typty in mqmqa model'
@@ -2152,31 +2161,18 @@
          lokfun=proprec%degreelink(0)
          call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
          if(gx%bmperr.ne.0) goto 1000
-!         write(*,'(a,6(1Pe12.4))')'3X vals1:',vals
+!         write(*,'(a,i3,F7.4,3(1Pe10.2))')'3X refg:',mqmqj,aff,vals(1),vals(2)
+! we should divide this by the aff of this pair and we will multiply this
+! FNN same aff but SNN fractions linking to this pair uase another aff
          if(ipy.eq.1) then
-            vals=vals*dummy1
+            vals=vals*dummy1*aff
 ! save values of reference state for use with SNN parameters ??
 ! kend is FNN (pair) index 
             do s1=1,6
                refg(kend,s1)=vals(s1)
             enddo
          endif
-! multiply with fractions and derivatives of fractions                     
-! gz%nofc is total number of independent fractions
-! first derivatives must be correct, remember to apply chain rule!!
-!         do id=1,gz%nofc
-!            do itp=1,3
-!               phres%dgval(itp,id,ipy)=phres%dgval(itp,id,ipy)+&
-!                    dpyq(id)*vals(itp)
-!            enddo
-!         enddo
-!         write(*,'(a,6(1pe12.4))')'3X dG/dyi: ',(dpyq(id)*vals(1),id=1,gz%nofc)
-! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
-! finally add to integral properties
-!         do itp=1,6
-!            phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
-!         enddo
-! next property record
+! next property record (should not be any ...)
          proprec=>proprec%nextpr
 !         write(*,200)'3X FNN G, dG/dqi: ',phres%gval(1,1),&
 !              (phres%dgval(1,s1,1),s1=1,gz%nofc)
@@ -2203,8 +2199,8 @@
          do itp=1,6
             phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
          enddo
-!         write(*,205)'3X FNN delta G, ypq, fun: ',mqmqj,zp,pyq,&
-!              aff,refg(zp,1),pyq*aff*refg(zp,1)
+!         write(*,205)'3X FNN: qix, FNN, aff, pyq, fun, DG: ',mqmqj,zp,aff,&
+!              pyq,refg(zp,1),pyq*aff*refg(zp,1)
 205      format(a,2i3,F8.5,2x,3(1pe12.4))
 !         write(*,210)'3X FNN G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,phres%gval(1,1),&
 !              (phres%dgval(1,s1,1),s1=1,gz%nofc)
@@ -2228,8 +2224,8 @@
             do itp=1,6
                phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
             enddo
-!            write(*,205)'3X SNN G, dG/dqi: ',mqmqj,zp,pyq,&
-!                 aff,refg(zp,1),pyq*aff*refg(zp,1)
+!            write(*,205)'3X SNN: qix, FNN, aff, pyq, fun, DG: ',mqmqj,zp,aff,&
+!                 pyq,refg(zp,1),pyq*aff*refg(zp,1)
 !                 (phres%dgval(1,s2,1),s2=1,gz%nofc)
          enddo snnloop
       endif pair
@@ -4693,14 +4689,16 @@
 ! MAYBE NOT NEEDED when %contyp(11..12,quad) is are constituent indices?
    integer eij(2,fq),nomix,all2,q1,s7
 ! modfied AB/XY loop requires, pq is pair indices, subcon is sublattices indices
+! pqq is pair index in %contyp ...
 ! fq is index in corresponding %constoi
-   integer pq(4),sq1(2),sq2(2),fq1(2),fq2(2)
+   integer pq(4),pqq(4),sq1(2),sq2(2),fq1(2),fq2(2)
 ! to avoid adding quadrupols twice
-   logical done
+   logical done,ddebug
 ! The mqmqa_data provides information about the constituents.
 ! In set_constititution abnorm is set to the real number of atoms in the phase
 ! Here we set this to unity and divides all values by abnorm
 ! Do we need to save the original value for model parameters??
+   ddebug=.FALSE.
    invnorm=phvar%abnorm(1)
 !   invnorm=one
 !   phvar%abnorm(1)=one
@@ -4737,14 +4735,16 @@
 ! wow, using phase constituent order to find quad name !! Keep it at present
       conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
       connames(s1)=conname
-!      write(*,3)s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
-!           (mqmqa_data%constoi(s2,s1),s2=1,4),phvar%yfr(s1),trim(conname)
-3     format('3X mq:',i2,1x,4i3,1x,i3,1x,4i2,1x,i2,4i3,4F5.1,F5.2,1x,a)
+      if(ddebug) write(*,3)s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
+           (mqmqa_data%constoi(s2,s1),s2=1,4),phvar%yfr(s1),trim(conname)
+3     format('3X mq:',i2,1x,4i2,1x,i3,1x,4i2,1x,i2,4i3,4F5.1,F5.2,1x,a)
    enddo
-!   do s1=1,ncon
-!      write(*,4)s1,(mqmqa_data%pp(s2,s1),s2=1,4),trim(connames(s1))
-4     format('3X pp:',i2,4(F8.5),2x,a)
-!   enddo
+   if(ddebug) then
+      do s1=1,ncon
+         write(*,4)s1,(mqmqa_data%pp(s2,s1),s2=1,4),trim(connames(s1))
+4        format('3X pp:',i2,4(F8.5),2x,a)
+      enddo
+   endif
 !   write(*,'(a,20i3)')'3X pinq: ',(mqmqa_data%pinq(s1),s1=1,mqmqa_data%npair)
 !   write(*,6)phvar%yfr
 6  format('3X y: ',9F7.4)
@@ -4769,10 +4769,18 @@
 !----------------------------------------------------
 ! we must calculate a number of auxilliary fraction variables from the
 ! site fractions using mqmqa_data%contyp
+!   do s1=1,ncon
+!      write(*,14)'3X %%contyp: ',s1,(mqmqa_data%contyp(s7,s1),s7=1,14),&
+!           trim(connames(s1))
+14    format(a,i3,1x,4i2,1x,i3,1x,4i3,1x,i3,1x,4i3,1x,a)
+!   enddo
+   mpj=mqmqa_data%npair
+!   write(*,15)'3X pinq: ',mpj,(mqmqa_data%pinq(s1),s1=1,mpj)
+15 format(a,i3,2x,20i4)
    nspin(1)=mqmqa_data%ncon1
    nspin(2)=mqmqa_data%ncon2
 !   noofpair=mqmqa_data%npair
-   mpj=mqmqa_data%npair
+!   write(*,'(a,2i3,2x,i3)')'3X subl const and pairs: ',nspin,mpj
    noofpair=0
 ! BIG LOOP OVER ALL QUADS, calculating fracions of pairs, sublattices etc
    sumfrac: do s1=1,ncon
@@ -4876,14 +4884,18 @@
          once1=one; once2=one; alone1=2.0d0; alone2=2.0d0
          ffceq1=0.5D0; ffceq2=0.5D0
          pq=0; sq1=0; sq2=0
+! pq are the pair indices, 2 or 4
+! but below we use pq as indices to mqmqa_data ... we need pinq(pq(j))
          pq(1)=mqmqa_data%contyp(6,s1)
          pq(2)=mqmqa_data%contyp(7,s1)
+         pqq(1)=mqmqa_data%pinq(pq(2))
+         pqq(2)=mqmqa_data%pinq(pq(2))
 ! here we saved A and X assuming mixing in first sublattice
 ! we must also save the stoichiometric factors of the sublattice species
-         sq1(1)=mqmqa_data%contyp(11,pq(1))
+         sq1(1)=mqmqa_data%contyp(11,pqq(1))
 ! fq1 this is index to %constoi for this sublattice constituent
          fq1(1)=1
-         sq2(1)=mqmqa_data%contyp(12,pq(1))
+         sq2(1)=mqmqa_data%contyp(12,pqq(1))
          fq2(1)=3
          if((mqmqa_data%contyp(1,s1).eq.2)) then
 ! quadruplet AA:XY, pairs AA:XX and AA:YY
@@ -4894,7 +4906,7 @@
             fq1(2)=fq1(1)
 ! replace stoichiometric factor
             fq2(1)=2
-            sq2(2)=mqmqa_data%contyp(12,pq(2))
+            sq2(2)=mqmqa_data%contyp(12,pqq(2))
             fq2(2)=3
             alone2=one
             nomix=1
@@ -4907,7 +4919,7 @@
             sq2(2)=sq2(1)
             fq2(2)=fq2(1)
 ! add second sublattice constituent twice
-            sq1(2)=mqmqa_data%contyp(11,pq(2))
+            sq1(2)=mqmqa_data%contyp(11,pqq(2))
             fq1(2)=2
             alone1=one
             nomix=2
@@ -4917,21 +4929,23 @@
 ! 4 pairs, we have to add 2 more
             pq(3)=mqmqa_data%contyp(8,s1)
             pq(4)=mqmqa_data%contyp(9,s1)
-            sq1(2)=mqmqa_data%contyp(11,pq(3))
+            pqq(3)=mqmqa_data%pinq(pq(3))
+            pqq(4)=mqmqa_data%pinq(pq(4))
+            sq1(2)=mqmqa_data%contyp(11,pqq(3))
 ! 
             fq1(2)=2
             fq2(2)=4
 ! I am not sure how the pairs are arranged 
 ! but testing 3 pairs the sublattice constituent must be different
-            if(sq1(2).eq.sq1(1)) sq1(2)=mqmqa_data%contyp(11,pq(2))
-            sq2(2)=mqmqa_data%contyp(12,pq(2))
-            if(sq2(2).eq.sq2(1)) sq2(2)=mqmqa_data%contyp(12,pq(2))
+            if(sq1(2).eq.sq1(1)) sq1(2)=mqmqa_data%contyp(11,pqq(2))
+            sq2(2)=mqmqa_data%contyp(12,pqq(2))
+            if(sq2(2).eq.sq2(1)) sq2(2)=mqmqa_data%contyp(12,pqq(2))
             alone1=one; alone2=one
             nomix=4
             write(*,*)'3X reciprocal cluster',mqmqa_data%contyp(2,s1)
          endif
-!         write(*,313)'3X pq mm: ',pq,sq1,sq2,fq1,fq2
-313      format(a,4i2,4x,2i2,2x,2i2,4x,2i2,2x,2i2)
+!         write(*,313)'3X pq mm: ',s1,pq,pqq,sq1,sq2,fq1,fq2
+313      format(a,i3,2x,4i2,2x,4i2,4x,2i2,2x,2i2,4x,2i2,2x,2i2)
 ! contribution from all pairs included in this quadruple, nonzero pq
          pqloop: do s2=1,4
 !            write(*,'(a,2i3)')'3x pqloop: ',s2,pq(s2)
@@ -4951,7 +4965,7 @@
 !                 pair(pq(s2)),mqmqa_data%pp(s2,s1),cpair(pq(s2)),&
 !                 dcpair(pq(s2),s1)
          enddo pqloop
-!         write(*,'(a,2i3,2x,2i3)')'3X sqi: ',sq1,sq2
+!         write(*,'(a,i3,2x,2i3,2x,2i3)')'3X sqi: ',s1,sq1,sq2
          s7=0
          subloop: do s2=1,2
 ! For the site fractions and equivalent fraction ceqfi we have to
@@ -4985,9 +4999,12 @@
                ceqf1(eesub)=ceqf1(eesub)+fffy*ffceq1*yfrac
                dceqf1(eesub,s1)=fffy*ffceq1
             endif
+!---------- second sublattice
             if(sq2(s2).gt.0) then
+! constituent index is negative in second sublattice!!
                write(*,*)'3X no constituent in second sublattice!!!',s1,s2,sq2
-               stop
+               write(*,14)'3X %contyp: ',s1,(mqmqa_data%contyp(s7,s1),s7=1,14)
+               gx%bmperr=4399; goto 1000
             else
 ! NOW the species in second sublattice of the pair NOTE negative
                ggsub=sq2(s2)
@@ -5193,6 +5210,7 @@
 120 format('3X pairs:',i3,F7.4,1x,10F6.3)
    if(abs(dummy1-one).gt.1.0D-12) then
       write(*,*)'3X pair fractions does not add up to unity',dummy1
+      write(*,'(a,10F7.4)')'3X pf: ',(pair(s1),s1=1,noofpair)
       gx%bmperr=4399; goto 1000
    endif
 !

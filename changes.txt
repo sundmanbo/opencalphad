@@ -19,6 +19,11 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2021.12.15 OC version 6.042: Working with Nathalie Dupin to make it
+possible for OC to read MQMQA databases using a TDB format.  The
+converter from DAT format written by Nathalie.  Update with some
+bugfixes.
+
 2021.12.12 OC version 6.041: Restored using the fraction of the
 reference state of an MQMQA FNN endmember and removed the irrelevant
 reference state from listing of MQMQA SNN parameters.  Now the way to

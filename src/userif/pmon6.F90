@@ -262,7 +262,7 @@ contains
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
          'ACTIVE_EQUILIBR ','ELEMENTS        ','EXCELL_CSV_FILE ',&
-         '                ','                ','                ']
+         'QUADRUPLETS     ','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -4978,9 +4978,23 @@ contains
           if(gx%bmperr.ne.0) goto 990
 !          write(*,*)'Not implemented yet'
 !------------------------------
-! list ??
+! list QUADRUPLETS
        case(22)
-          write(*,*)'Not implemented yet'
+          qlista: do i1=1,nosp()
+             call get_species_location(i1,loksp,name1)
+             if(gx%bmperr.ne.0) goto 990
+             if(index(name1,'-Q').le.0) cycle qlista
+             call get_species_component_data(loksp,i2,iphl,stoik,xxx,xxy,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             do j4=1,i2
+! pick up element symbols
+                call get_element_data(iphl(j4),ellist(j4),name2,&
+                     dummy,mass,h298,s298)
+             enddo
+             write(kou,1680)i1,loksp,name1,xxx,&
+                  (ellist(j4),stoik(j4),j4=1,i2)
+1680         format(i3,i4,1x,a,1x,F6.2,2x,10(a2,F8.6,1x))
+          enddo qlista
 !------------------------------
 ! list ??
        case(23)
