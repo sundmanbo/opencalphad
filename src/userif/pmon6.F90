@@ -138,7 +138,12 @@ contains
 ! for gradients in MU and interdiffusivities
     integer nend
 ! dimension of mugrad for 16x16 matrix 
-    double precision mugrad(300),mobilities(20)
+!CCI
+    double precision, allocatable, dimension(:) :: mugrad,mobilities
+    double precision, allocatable, dimension(:) :: nsites
+    integer, allocatable, dimension(:) :: nkl
+    integer nsub
+!CCI
 !-------------------
 ! selection of minimizer and optimizer
     integer minimizer,optimizer
@@ -219,6 +224,9 @@ contains
     character cline*256,option*80,aline*128,plotfile*256,eqname*24,aux*4
 ! variable phase tuple
     type(gtp_phasetuple), pointer :: phtup
+!CCI
+    integer :: indexPrecond, indexSplitsolver, typeOfChange
+!CCI
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
@@ -350,7 +358,7 @@ contains
          'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
          'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
          'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_VARIABLE ',&
-         'INITIAL_T_AND_P ','                ','                ']
+         'INITIAL_T_AND_P ','LINEAR_SYSTEM   ','GRID_GENERATOR  ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
          ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -1765,9 +1773,23 @@ contains
 ! mugrad(I,J) are derivatives of the chemical potential of endmember I
 !         with respect to endmember J
 ! mobilities(i) is mobility of component i
-                mugrad=zero
-                mobilities=zero
 ! derivatives of mu and mobilities, the FALSE means not quiet
+                !CCI
+                call get_sublattice_number(phtup%ixphase,nsub,ceq)
+                allocate(nkl(nsub))
+                allocate(nsites(nsub))
+                call get_sublattice_structure(phtup%ixphase,phtup%compset,nsub,nkl,nsites,ceq)
+                nend=1
+                do nv=1,nsub
+                  nend = nend * nkl(nv)
+                enddo
+                deallocate(nkl)
+                deallocate(nsites)
+                allocate(mugrad(nend*nend))
+                allocate(mobilities(noel()))
+                mugrad(:)=zero
+                mobilities(:)=zero
+
                 call equilph1d(phtup,ceq%tpval,xknown,yarr,.FALSE.,&
                      nend,mugrad,mobilities,ceq)
                 if(gx%bmperr.ne.0) goto 990
@@ -1785,6 +1807,11 @@ contains
                 write(kou,2098)noel()
 2098            format(/'Mobility values mols/m2/s ?? for',i3,' components')
                 write(kou,2095)1,(mobilities(jp),jp=1,noel())
+                !CCI
+                deallocate(mugrad)
+                deallocate(mobilities)
+                call list_defined_properties(lut)
+                !CCI
              endif
 !.......................................................
           case(6) ! Quit
@@ -2247,7 +2274,7 @@ contains
 !         'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
 !         'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
 !         'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_VARIABLE ',&
-!         'INITIAL_T_AND_P ','                ','                ']
+!         'INITIAL_T_AND_P ','LINEAR_SYSTEM   ','GRID_GENERATOR  ']
     CASE(3) ! SET SUBCOMMANDS
 ! disable continue optimization
 !       iexit=0
@@ -3051,27 +3078,36 @@ contains
           xxx=ceq%xconv
           call gparrdx('Max error in fraction: ',cline,last,xxy,xxx,&
                '?Set numeric')
-          if(xxy.gt.1.0D-30) then
+!CCI
+          if(xxy.gt.default_minxconv) then
              ceq%xconv=xxy
           else
-             ceq%xconv=1.0D-30
+             ceq%xconv=default_minxconv
           endif
+!CCI
 !------------ what is this? not used in gtp3X.F90
           xxx=ceq%gdconv(1)
           call gparrdx('Max cutoff driving force: ',cline,last,xxy,xxx,&
                '?Set numeric')
-          if(xxy.gt.1.0D-5) then
+          if(xxy.gt.default_mingdconv) then
              ceq%gdconv(1)=xxy
+!CCI
+          else
+             ceq%gdconv(1)=default_mingdconv
+!CCI
           endif
 !------------ if the point between two gridpoints in a phase is less then merge
           xxx=ceq%gmindif
           call gparrdx('Min difference merging gridpoints: ',cline,last,&
                xxy,xxx,'?Set numeric')
-          if(xxy.gt.-1.0D-5) then
+!CCI
+!strange old value was 1000 times lower -1e-5 in the test vs -1.e-2 as default
+          if(xxy.gt.default_mingridmin) then
              ceq%gmindif=xxy
           else
-             ceq%gmindif=-1.0D-2
+             ceq%gmindif=default_mingridmin
           endif
+!CCI
 !-------------------------------------------------------------
        case(14) ! set axis
           if(btest(globaldata%status,GSNOPHASE)) then
@@ -3674,10 +3710,38 @@ contains
           if(buperr.ne.0) goto 100
           ceq%tpval(2)=xxx
 !------------------------- 
-       case(26) ! unused
-          continue
+!CCI
+       case(26) ! SET LINEAR_SYSTEM
+!------------ Splitsolver?
+          indexSplitsolver = default_splitsolver
+          call gparidx('Would you allow the splitting of the linear system? (1=Y; 0=N) : ',&
+          cline,last, indexSplitsolver,0,'?Set LINEAR_SYSTEM')
+          if((indexSplitsolver.eq.0).or.(indexSplitsolver.eq.1)) then
+            ceq%splitsolver = indexSplitsolver
+          else
+            ceq%splitsolver = default_splitsolver
+          endif
+!------------ Pre-conditioner?
+          indexPrecond = default_precondsolver
+          call gparidx('Would you enable the use of a Jacobi preconditioner? (1=Y; 0=N) : ',&
+          cline,last, indexPrecond,0,'?Set LINEAR_SYSTEM')
+          if((indexPrecond.eq.0).or.(indexPrecond.eq.1)) then
+            ceq%precondsolver = indexPrecond
+          else
+            ceq%precondsolver = default_precondsolver
+          endif
+!------------ Scale the change of phase amount?
+          typeOfChange = default_typechangephaseamount
+          call gparidx('How do scale all changes in phase amount with total number of atom ? (2=max, 1=sum; 0=one) : ',&
+          cline,last, typeOfChange,0,'?Set LINEAR_SYSTEM')
+          if((typeOfChange.eq.0).or.(typeOfChange.eq.1).or.(typeOfChange.eq.2)) then
+            ceq%type_change_phase_amount = typeOfChange
+          else
+            ceq%type_change_phase_amount = default_typechangephaseamount
+          endif
+!CCI
 !------------------------- 
-       case(27) ! unused
+       case(27) ! SET GRID_GENERATOR
           continue
        END SELECT set
 !=================================================================
@@ -5766,17 +5830,17 @@ contains
     case(15)
        write(kou,15010)version,linkdate
 15010  format(/'This is OpenCalphad (OC), a free software for ',&
-            'thermodynamic calculations as'/&
-            'described in B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
-            'Integrating'/'Materials and Manuf. Innov. (2015) 4:1; ',&
-            'B Sundman, X-G Lu and H Ohtani,'/'Comp Mat Sci, Vol 101 ',&
-            '(2015) 127-137 and B Sundman et al., Comp Mat Sci, '/&
-            'Vol 125 (2016) 188-196'//&
+            'thermodynamic calculations as described in:'/&
+            'B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
+            'Integ Mat and Manuf Innov (2015) 4:1; '/&
+            'B Sundman, X-G Lu and H Ohtani, Comp Mat Sci, Vol 101 ',&
+            '(2015) 127-137'/'B Sundman, N Dupin and B Hallstedt, ',&
+            'Calphad, Vol 75 (2021) 102330'//&
             'It is available for download at http://www.opencalphad.org or'/&
-            'the sundmanbo/opencalphad repository at http://www.github.com'//&
+            'the sundmanbo/opencalphad repository at https://www.github.com'//&
             'This software is protected by the GNU General Public License'/&
             'either version 2 of the license, or any later version.'/&
-            'You may freely distribute copies as long as you also provide ',&
+            'You may use freely and distribute copies as long as you provide ',&
             'the source code'/'and use the GNU GPL license also for your own',&
             ' additions and modifications.'//&
             'The software is provided "as is" without any warranty of any ',&
@@ -5784,7 +5848,7 @@ contains
             'The full license text is provided with the software'/&
             'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2011-2020, Bo Sundman, Gif sur Yvette, France.'/&
+            'Copyright 2011-2022, Bo Sundman, Gif sur Yvette, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version ',a,' was compiled ',a/)
 !=================================================================

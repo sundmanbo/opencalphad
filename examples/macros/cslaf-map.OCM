@@ -1,0 +1,40 @@
+@$ Testing CsLaF with reference states
+
+new Y
+
+set echo Y
+
+r t ./cslaf-refs-sro
+
+
+
+@&
+
+set c t=1500 p=1e5 n(cs)+n(la)=1 n(la)=.7 ac(f)=1
+
+c e
+
+
+l , 2
+
+
+@&
+
+set ax 1 n(la) 0 1 .01
+
+set ax 2 t 300 2000 10
+
+
+map
+
+
+@&
+
+plot x(*,la)
+t
+
+
+
+
+
+set inter

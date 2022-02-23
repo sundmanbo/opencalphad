@@ -8,6 +8,24 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     1. Initialization
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!CCI
+!\addtotable subroutine initialize_default_global_parameters
+subroutine initialize_default_global_parameters(firsteq)
+    type(gtp_equilibrium_data), pointer :: firsteq
+!\end{verbatim}
+    firsteq%type_change_phase_amount = default_typechangephaseamount
+    firsteq%scale_change_phase_amount= default_scalechangephaseamount
+    firsteq%gmindif= default_mingridmin
+    firsteq%precondsolver=default_precondsolver
+    firsteq%splitsolver=default_splitsolver
+    firsteq%xconv=default_xconv
+    firsteq%maxiter=default_maxiter
+    firsteq%gdconv(1)=default_gdconv1
+    firsteq%gdconv(2)=default_gdconv2
+    return
+end subroutine initialize_default_global_parameters
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine init_gtp
 !\begin{verbatim}
@@ -38,7 +56,9 @@
    phases=0
    allocate(phasetuple(0:2*maxph))
    do jl=1,2*maxph
-      phasetuple%nextcs=0
+!CCI (array not scalar)
+      phasetuple(jl)%nextcs=0
+!CCI
    enddo
 ! phases(0) is refrence phase, evidently this index is never set
    phases(0)=0
@@ -125,10 +145,9 @@
    csfree=1; highcs=0
 ! convergence criteria for constituent fractions, 1e-6 works most often
 ! But one should take care to equilibrate fractions smaller than xconv!!!
-   firsteq%xconv=1.0D-6
-   firsteq%maxiter=500
-   firsteq%gdconv(1)=4.0D-3
-   firsteq%gdconv(2)=zero
+!CCI
+    call initialize_default_global_parameters(firsteq)
+!CCI
 ! initiate tp functions
 !   write(*,*)'init_gtp: initiate TP fuctions'
    jl=maxtpf
@@ -1800,11 +1819,32 @@ end function find_phasetuple_by_indices
  end subroutine get_species_component_data
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!CCI
+!\addtotable subroutine get_stoichiometry
+!\begin{verbatim}
+ subroutine get_stoichiometry(loksp, jl, el_name, stoi)
+! Get the stoichiometric coefficient and the name of the jl-th element
+! of the loksp-th species
+! loksp: index of the species (input integer)
+! el_name: name of the element (output character)
+! stoi: value of the stoichiometric coefficient (output double precision)
+   implicit none
+   integer, intent(in):: loksp,jl
+   double precision, intent(inout):: stoi
+   character*(*), intent(inout) :: el_name
+!\end{verbatim}
+!
+    el_name=ellista(splista(loksp)%ellinks(jl))%name
+    stoi=splista(loksp)%stoichiometry(jl)
+!
+ end subroutine get_stoichiometry
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine set_new_stoichiometry
 !\begin{verbatim}
  subroutine set_new_stoichiometry(loksp, new_stoi, ispel)
-! provided by Clement Instoini
+! provided by Clement Introini
 ! Change the stoichiometric coefficient of the ispel-th element of loksp-th
 ! species (the last one when ispel is not given)
 ! loksp: index of the species (input integer)
@@ -2022,7 +2062,10 @@ end function find_phasetuple_by_indices
 ! ceq: pointer, to current gtp_equilibrium_data record
    implicit none
    integer, intent (in) :: iph,ics,nsl
-   integer, dimension(nsl), intent (out) :: nkl, nsites
+   integer, dimension(nsl), intent (out) :: nkl
+!CCI
+   double precision, dimension(nsl), intent (out) :: nsites
+!CCI
    TYPE(gtp_equilibrium_data), pointer :: ceq
    integer :: i, lokph,lokcs, ncs
 !
@@ -2055,47 +2098,56 @@ end function find_phasetuple_by_indices
  !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
  !\begin{verbatim}
- subroutine get_constituent_data(iph,ics,icons,yarr,charge,csname,ceq)
- ! return the constitution for phase iph (ics composition set)
- ! yarr: double, fraction of constituent
- ! charge: integer, charge of constituent
- ! consname: name of the constituent
- ! ceq: pointer, to current gtp_equilibrium_data record
-   implicit none
-   integer, intent (in) :: iph,ics,icons
-   double precision, intent (inout) :: yarr
-   integer, intent (inout) :: charge
-   character*(*) , intent (inout) :: csname
-   
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   integer :: i, lokph,lokcs,ncs,loksp
+!CCI (adding ncel)
+ subroutine get_constituent_data(iph,ics,icons,yarr,charge,csname,ncel,ceq)
+!CCI
+     ! return the constitution for phase iph (ics composition set)
+     ! yarr: double, fraction of constituent
+     ! charge: integer, charge of constituent
+     ! ncel: integer, number of element in the constituant
+     ! consname: name of the constituent
+     ! ceq: pointer, to current gtp_equilibrium_data record
+     implicit none
+     integer, intent (in) :: iph,ics,icons
+     double precision, intent (inout) :: yarr
+!CCI (adding ncel)
+     integer, intent (inout) :: charge,ncel
+!CCI
+     character*(*) , intent (inout) :: csname
 
-   if(iph.lt.1 .or. iph.gt.noofph) then
-      gx%bmperr=4050; goto 1000
-   else
-      lokph=phases(iph)
-   endif
-   if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
-      gx%bmperr=4072; goto 1000
-   else
-      ncs=max(ics,1)
-   endif
-! extra check if using saved equilibria which may have less composition sets
-   lokcs=phlista(lokph)%linktocs(ncs)
-   if(lokcs.le.0) then
-      write(*,*)'Index of composition set missing, maybe using a saved equil.'
-      gx%bmperr=4072
-      goto 1000
-   endif
-   
-   yarr=ceq%phase_varres(lokcs)%yfr(icons)
-   loksp=phlista(lokph)%constitlist(icons)
-   csname=splista(loksp)%symbol
-   if(loksp.gt.0) then
-      charge = splista(loksp)%charge
-   else
-      charge=0.D0
-   endif
+     TYPE(gtp_equilibrium_data), pointer :: ceq
+     integer :: i, lokph,lokcs,ncs,loksp,jl
+     !
+     if(iph.lt.1 .or. iph.gt.noofph) then
+         gx%bmperr=4050; goto 1000
+     else
+         lokph=phases(iph)
+     endif
+     if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
+         gx%bmperr=4072; goto 1000
+     else
+         ncs=max(ics,1)
+     endif
+     ! extra check if using saved equilibria which may have less composition sets
+     lokcs=phlista(lokph)%linktocs(ncs)
+     if(lokcs.le.0) then
+         write(*,*)'Index of composition set missing, maybe using a saved equil.'
+         gx%bmperr=4072
+         goto 1000
+     endif
+
+     yarr=ceq%phase_varres(lokcs)%yfr(icons)
+     loksp=phlista(lokph)%constitlist(icons)
+     csname=splista(loksp)%symbol
+     if(loksp.gt.0) then
+         charge = splista(loksp)%charge
+     else
+         charge=0.D0
+     endif
+!CCI (adding ncel)
+     ncel = splista(loksp)%noofel
+!CCI
+
 1000 continue
    return
  end subroutine get_constituent_data
@@ -2938,6 +2990,7 @@ end function find_phasetuple_by_indices
 !\end{verbatim}
    integer ii,tupix
    ii=ics
+! default tupix is phase index
    tupix=iph
    loop: do while(ii.gt.1)
       tupix=phasetuple(tupix)%nextcs
@@ -2946,6 +2999,9 @@ end function find_phasetuple_by_indices
       endif
       ii=ii-1
    enddo loop
+   write(*,'(a,3i5)')'3X gettupix: ',iph,ics,tupix
+! gettupix never assigned a value. Is it used?/BoS
+   gettupix=tupix
    return
  end function gettupix
 

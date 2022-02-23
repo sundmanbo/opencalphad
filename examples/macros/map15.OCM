@@ -160,7 +160,7 @@ title Map 15 fig 2b: BEF model Mo-Ni-Re isotherm 1500 K
 @$-------------------------------------------------------
 @$ Finally at 2500 K
 
-set c t=2500 p=1e5 n=1 x(re)=.6 x(ni)=.3
+set c t=2500 p=1e5 n=1 x(re)=.7 x(ni)=.27
 
 c e
 

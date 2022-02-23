@@ -57,11 +57,24 @@ title map 6 fig 1
 render
  
  
+@$ All lines at at w(cr)=0.92 at the rght because there is 8% Ni
+
+@$ A line in the lower middle end above 800 K, add a start point
+
+set c w(cr)=.3 t=1000
+
+c e
+
+map
+n
+
+@$ now plot
 @&
 @$ add some labels
 plot
 
 
+scale y n 800 2200
 title map 6 fig 2
 text 
 0.1 2000

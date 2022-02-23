@@ -8,7 +8,9 @@
 ! 4. A revised online help system using HTML \hypertarget in user guide
 !
 ! To be done:
+!CCI done in ocparam.F90
 ! - move constants ZERO, ONE here (from gtp3)
+!CCI
 ! - use same error code system as in gtp
 ! - revise the online help system
 !
@@ -40,6 +42,11 @@ MODULE METLIB
 ! use tinyfiledialogs to browse for files
   use ftinyopen
 #endif
+
+! ocparam is in models/ocparam.F90
+!CCI
+  use OCPARAM
+!CCI
 !
 !--------------------------------------------------------------------------
 !
@@ -226,8 +233,9 @@ MODULE METLIB
 ! >>>>>>>>>> SYSTEM DEPENDENT <<<<<<<<<<
 !\end{verbatim}
 !
-! some constants
-  double precision, parameter, private :: ZERO=0.0D0,ONE=1.0D0,TEN=1.0D1
+    ! some constants
+    !CCI Comment the next line because of already defined in ocparam.F90
+    !CCI  double precision, parameter, private :: ZERO=0.0D0,ONE=1.0D0,TEN=1.0D1
 !
 ! -------------------------------------------------------------------
 ! GPARxyz routines parameter transfer of integer, real and logical values
@@ -5994,7 +6002,9 @@ CONTAINS
 !      ABRAMOWITZ AND STEGUN: HANDBOOK OF MATHEMATICAL FUNCTIONS,
 !      NATIONAL BUREAU OF STANDARDS, 9TH EDITION, 1970
 !\end{verbatim} %+
-    double precision, parameter :: ONE=1.0D0,TWO=2.0D0,PI=3.141592654D0
+    !CCI Comment the next line because of already defined in ocparam.F90
+    !CCI double precision, parameter :: ONE=1.0D0,TWO=2.0D0,PI=3.141592654D0
+    !CCI
     double precision A,C,Q
     integer i
     IF(PECN.LE.8.5D0) THEN
@@ -6034,7 +6044,8 @@ CONTAINS
 !\end{verbatim} %+
 ! value of PI not very accurate ....
 !    double precision, parameter :: ZERO=0.0D+00,PI=3.14159D0
-    double precision, parameter :: PI=3.14159D0
+    !CCI Comment the next line because of already defined in ocparam.F90
+    !CCI double precision, parameter :: PI=3.14159D0
     double precision, parameter :: PI3=PI*PI*PI
 !
     integer loopmx
@@ -6083,8 +6094,9 @@ CONTAINS
     implicit none
     double precision X0
 !    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!\end{verbatim}
-    double precision, parameter :: ONE=1.0D0,TWO=2.0D0
+    !\end{verbatim}
+    !CCI Comment the next line because of already defined in ocparam.F90
+    !CCI    double precision, parameter :: ONE=1.0D0,TWO=2.0D0
     double precision P,A1,A2,A3,A4,A5,PI,S,X,T,Q
     DATA P,A1,A2,A3,A4,A5,PI/.3275911D0,.254829592D0,-.284496736D0, &
          1.421413741D0,-1.453152027D0,1.061405429D0,3.141592654D0/

@@ -644,8 +644,9 @@
    if(allocated(xarr)) deallocate(xarr)
    if(gx%bmperr.ne.0) then
       ceq%status=ibset(ceq%status,EQFAIL)
-   elseif(what.eq.-1) then
-      if(nystph.gt.0) what=nystph
+! calling gridmin with what=-1 no longer supported
+!   elseif(what.eq.-1) then
+!      if(nystph.gt.0) what=nystph
    elseif(.not.btest(globaldata%status,GSSILENT)) then
       write(*,1010)noofgridpoints,finish2-starting,&
            endoftime-starttid,ceq%tpval(1)

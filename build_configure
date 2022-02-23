@@ -1,0 +1,41 @@
+#!/bin/bash
+
+function header {
+echo "============== Log Start ================="
+date 
+echo "============ Tools & Path ================"
+which aclocal
+echo "...version : "`aclocal --version | head -1`
+echo " "
+which libtoolize
+echo "...version : "`libtoolize --version | head -1`
+echo " "
+which automake
+echo "...version : "`automake --version | head -1`
+echo " "
+which autoconf
+echo "...version : "`autoconf --version | head -1`
+echo " "
+}
+
+function tools {
+echo "===========  Now Running Tools =========="
+set -x
+libtoolize --automake --force
+aclocal -I m4
+automake --add-missing --force-missing --foreign
+autoconf
+}
+
+function sequence {
+header
+tools
+}
+
+########################################
+cat configure.ac.1 > configure.ac
+
+echo "AC_OUTPUT" >> configure.ac
+
+##############
+sequence 2>&1 | tee -a build_configure.log

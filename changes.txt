@@ -19,6 +19,13 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.02.21 OC version 6.043: Clement Introini and his colleagues at
+CEA Cadarache have worked extensively with the grid minimizer and
+various other parts of the code and has allowed that to be shared by
+all users of OC.  The integration is still ongoing and there are some
+examples that may fail until all is finished as well as some which
+work better.
+
 2021.12.15 OC version 6.042: Working with Nathalie Dupin to make it
 possible for OC to read MQMQA databases using a TDB format.  The
 converter from DAT format written by Nathalie.  Update with some

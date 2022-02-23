@@ -4821,6 +4821,12 @@
              write(*,*)'Occational error around line 4487',remph
              remph=-remph
           endif
+          if(remph.gt.size(meqrec1%phr)) then
+! error calculating Cp for pure Al in Al-Mo ....
+             write(*,'(a,4i4)')'SMP Too large phase indes',&
+                  remph,phfix,meqrec1%nstph
+             gx%bmperr=4399; goto 1000
+          endif
           meqrec1%phr(remph)%itrem=meqrec1%noofits
           meqrec1%phr(remph)%prevam=zero
           meqrec1%phr(remph)%stable=0
@@ -8160,6 +8166,9 @@
 ! maptop%next is the the same mapnode !!!
     seqx=maptop%next%seqx+1
 !    seqy=maptop%next%seq+1
+! seqy commented away but used later (some 50 lines below)
+! I think it should probably be set here .../BoS 220220
+    seqy=maptop%next%seqy+1
     maptop%next%seqx=seqx
     call wriint(eqname,jp,seqx)
 ! make a copy of ceq in a new equilibrium record with the pointer neweq
@@ -9754,6 +9763,8 @@
 ! the rest here works but not converting the startpoint to lines.
     write(*,*)'SMP *** in auto_startpoints'
     ceq=>starteqs(1)%p1
+! added assignment to started as used below
+    starteq=>ceq
     mode=1
     eqname='_STARTEQ_00'
     nss=0
@@ -9812,8 +9823,9 @@
              endif
              write(*,*)'SMP Created equilibrium: ',trim(eqname),neweq%eqno
              neweq%multiuse=20+nss
-! create the list, ceq is always same equilibrium as stareq
+! create the list, ceq is always same equilibrium as starteq
              neweq%nexteq=ceq%nexteq
+! starteq not assigned here ... set to ceq above /BoS 20200220
              starteq%nexteq=neweq%eqno
           endif
        enddo cycle2

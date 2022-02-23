@@ -21,6 +21,11 @@ del tinyfiledialogs.c
 del tinyfiledialogs.h
 del ftinyopen.F90
 
+REM NEW global constants mm
+copy src\models\ocparam.F90 .
+gfortran -c -O2 ocparam.F90
+del ocparam.F90
+
 REM some utilites and the command line interface
 REM Changed to utiliy package metlib4
 copy src\utilities\metlib4.F90 .
@@ -33,8 +38,9 @@ gfortran -c -fopenmp -O2 oclablas.F90
 del oclablas.F90
 
 REM some more numerical routines
+REM NEW if no external LAPACK
 copy src\numlib\ocnum.F90 .
-gfortran -c  -fopenmp -O2 ocnum.F90
+gfortran -c  -DNOLAPACK -fopenmp -O2 ocnum.F90
 del ocnum.F90
 
 REM the MINPACK package for least square fitting and solving nonlinear eqs.
@@ -69,7 +75,8 @@ mkdir libs
 del libs\liboceq.a
 
 REM generating the library (needed also for TQ library)
-ar sq libs\liboceq.a metlib4.o ocnum.o oclablas.o gtp3.o matsmin.o minpack1.o
+REM NEW ocnum.o missing???
+ar sq libs\liboceq.a metlib4.o oclablas.o gtp3.o matsmin.o minpack1.o ocnum.o
 
 REM What about the mod file liboceqplus.mod ?
 

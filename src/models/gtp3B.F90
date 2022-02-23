@@ -275,10 +275,9 @@
 200    continue
       elindex(jl)=jk
       if(jk.ge.0) then
-         if(stoik(jl).le.zero) then
-            write(*,203)'3B zero or negative stoichiometry in: ',&
-                 trim(symb),jl,(stoik(jk),jk=1,noelx)
-203         format(a,a,2x,i3,10F6.3)
+!CCI : when GSVIRTUAL is added, negative stoechiometry is allowed (numerically) 
+         if( (stoik(jl).lt.zero) .and. (.not.btest(globaldata%status,GSVIRTUAL))) then
+!CCI
             gx%bmperr=4047
             goto 1000
          else
@@ -1149,7 +1148,7 @@
 ! and species indices in %contyp(11..14,s1)
 ! replace the species index in 11..14 by sublattuce fraction index in
 ! %contyp(11..12,pair).  The original species indices in %contyp(13..14,pair)
-! det gäller att hålla tungan rätt i mun ... (swedish saying)
+! det galler att halla tungan ratt i mun ... (swedish saying)
 ! NOTE: indices in 2nd sublattice set as negative!!!
 !            minus=1
             allsubsp: do s2=11,14
@@ -1863,6 +1862,9 @@
 !$      goto 1000
 !$   endif
 ! find the tuple for this phase+compset
+!CCI
+   tuple = 0
+!CCI
    loop: do jl=1,nooftuples
 !      write(*,*)'3B tuple compset: ',jl,ics,phasetuple(jl)%compset
 !      if(phasetuple(jl)%phaseix.eq.lokph) then
@@ -4877,7 +4879,7 @@
          pch(ip:)='*:'
       else
 ! splista is ordered as the species are entered, thus splista(1) is VA
-! species(i) is the índex in splista of elements in alphabetcal order
+! species(i) is the index in splista of elements in alphabetcal order
          pch(ip:)=trim(splista(species(elal(ls)))%symbol)//':'
       endif
       ip=len_trim(pch)+1
@@ -5286,7 +5288,7 @@
          pch(ip:)='*:'
       else
 ! splista is ordered as the species are entered, thus splista(1) is VA
-! species(i) is the índex in splista of elements in alphabetcal order
+! species(i) is the index in splista of elements in alphabetcal order
          pch(ip:)=trim(splista(species(elal(ls)))%symbol)//':'
       endif
       ip=len_trim(pch)+1
@@ -5508,7 +5510,7 @@
          pch(ip:)='*:'
       else
 ! splista is ordered as the species are entered, thus splista(1) is VA
-! species(i) is the índex in splista of elements in alphabetcal order
+! species(i) is the index in splista of elements in alphabetcal order
          pch(ip:)=trim(splista(species(elal(ls)))%symbol)//':'
       endif
       ip=len_trim(pch)+1
@@ -7273,8 +7275,10 @@
       elstoi: do jp=1,nspel
          notnew: do ee=1,nel
             if(ielno(jp).eq.jelno(ee)) then
-               write(*,'(a,2i3,2x,2i3,": ",a,a)')'3X elstoi loop',jp,nspel,&
-                    ee,nel,trim(cation1),', same element in two cat- or anions'
+!               write(*,'(a,2i3,2x,2i3,": ",a,a)')'3B elstoi loop',jp,nspel,&
+!                    ee,nel,trim(cation1),', same element in two cat- or anions'
+               write(*,'(a,a,a,2x,2i3,2x,2i3)')'3B same element twice',&
+                    ', as cation or anion in: ',trim(quadname),jp,nspel,ee,nel
 ! Problems here if species has 2 or more elements
 ! Or if the same element occur in two anion/cation species, such as Fe+2/Fe+3
 ! we must treat all elements as new??
@@ -7594,7 +7598,7 @@
 ! if indx(s1)=s1 the record is at the correct place
          if(indx(s1).eq.s1) cycle alpha
 ! record s1 is not at its correct place
-         write(*,2)'3B move ',s1,' ¨',trim(const(s1)),' to ',indx(s1)
+         write(*,2)'3B move ',s1,' at',trim(const(s1)),' to ',indx(s1)
 2        format(a,i3,a,i3,a,i3)
          top=0
          s2=s1
@@ -7845,7 +7849,7 @@
 ! pairs:
    s1=ncon1*ncon2
    if(s1-pair.ne.0) write(*,*)'3B wrong number of endmembers: ',s1,pair
-! binära SNN:  ncon1*(ncon1-1)/2*ncon2 (in both sublattices): 
+! binara SNN:  ncon1*(ncon1-1)/2*ncon2 (in both sublattices): 
 !              (3)(2) means (3*2/2)*(2) + (3)*(2*1/2) =  6+3 = 9
 !              (4)(2) means (4*3/2)*(2) + (4)*(2*1/2) = 12+4 = 16
 !              (4)(3) means (4*3/2)*(3) + (4)*(3*2/2) = 18+12 = 30

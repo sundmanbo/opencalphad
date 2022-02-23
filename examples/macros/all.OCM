@@ -1,4 +1,13 @@
+@$
 @$ running all test macros
+@$
+@$
+@$
+@$ Before running this use the command SET ADVANCED WORKSPACE
+@$ to the directory with the "all.OCM" file
+@$ That should make all files created to reside on that directory
+@$
+
 set echo Y
 
 @$
@@ -211,6 +220,12 @@ mac ./map18
 @$ *********************************************************
 
 mac ./uniquac
+
+@& *********************************************************
+@$ First test of the MQMQA model
+@$ *********************************************************
+
+mac ./cslaf-map
 
 @& *********************************************************
 @$ Calculation for 20 elements and 191 phases using COST507

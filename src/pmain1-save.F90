@@ -10,7 +10,9 @@ PROGRAM pmain1
 !
   implicit none
 !
-  character linkdate*12,version*8
+  character linkdate*12
+! version moved to models/gtp3.F90
+!  character linkdate*12,version*8
   TYPE(gtp_equilibrium_data), pointer :: ceq
 ! these will be used later for dimensioning things and efaul
   integer i,narg,intvar(10)
@@ -23,8 +25,8 @@ PROGRAM pmain1
 ! This line replaced by linkocdate to the date when compiling this program.
   linkdate=date(1:4)//'-'//date(5:6)//'-'//date(7:8)
 ! for example: linkdate='2019-11-27'
-! this is the overall version identifier
-  version='  6.042 '
+! this is the overall version identifier, moved to gtp3.F90
+!  version='  6.043 '
 ! intvar and dblvar will eventually be used for allocations
   intvar(1)=30
   call init_gtp(intvar,dblvar)

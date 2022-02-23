@@ -324,7 +324,8 @@ contains
 !
 !     **********
     integer i,j
-    double precision eps,epsmch,h,temp,zero
+    double precision eps,epsmch,h,temp
+!    double precision eps,epsmch,h,temp,zero
 !    integer, parameter :: niter=0
 ! added as argumnet added to fcn and it may be incremented in fcn ...
     integer :: niter=0

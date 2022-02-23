@@ -58,6 +58,12 @@ plot
 np(*)
 T
 title step-scheil Fig 1
+text
+.15
+830
+.8
+24
+Equilibrium liquid fraction
 output ./equil-solidific
 Y
 render

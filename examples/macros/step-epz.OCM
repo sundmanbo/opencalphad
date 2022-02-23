@@ -76,7 +76,7 @@ plot
 text
 0.004
 1100
-.8
+1
 0
 y
 @$ empty line means calculate equilibrium
@@ -93,6 +93,14 @@ text
 n
 .004
 980
+.8
+0
+y
+
+text
+n
+.0012
+1020
 .8
 0
 y
@@ -159,27 +167,38 @@ C
 plot
 
 
+
+
+@&
+@$ Scale the x-axis
+plot
+
+
+scale x n 0 .008
 text
-.0044
-1010
+.0015
+1073
 .8
-0
+-19
 FCC paraequilibrium line
+
 
 @$ the carbon solubility curves, in fcc and bcc
 @$ the calculation failed at the highest T
+@$ ==============================================================
 @&
+@$ Append this on the previous diagram
 
 plot
 
 
 app ./epzpd
-scale y n 750 1200
-out ./epzpdtz
+scale x n 0 .008
+out ./epzpdpara
 y
 
 
-@$ Plot togehther with the equilibrium diagram
+@$ We have plotted paraequilibrium lines together with the equilibrium diagram
 @$ The paraequilibrium solubility lines are inside
 @$ the stable two-phase region and the carbides suspended
 
@@ -190,6 +209,8 @@ y
 @$ Finally calculate the tzero line with equal
 @$ Gibbs energy for FCC and BCC
 @$ This is the limit for diffusionless transformation (martensite)
+
+l c
 
 
 c tz
@@ -218,13 +239,13 @@ w(c)
 T
 text
 .0039
-890
+895
 .8
-0
+-24
 Tzero line
 
 
-@$ Plot the Tzero line with a label
+@$ We have plotted the Tzero line with a label
 @$ *************************************
 @&
 
@@ -235,7 +256,7 @@ Tzero line
 plot
 
 
-app ./epzpdtz
+app ./epzpdpara
 
 
 

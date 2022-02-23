@@ -24,6 +24,9 @@ MODULE OCNUM
 !  double precision, private, parameter :: DSMIN=1.0D-18,DSMAX=1.0D+18,&
 !       DMAX=1.0D+36,DMIN=1.0D-36,epsx=1.0D-10,r=8.31451D0,&
 !       unity=1.0D0,zero=0.0D0
+! COMPILER WARNING ABOUT UNINITIALIZED ZERO, DSMIN, DSMAX, DMAX, DMIN, UNITY
+!  double precision, private, parameter :: DSMIN=1.0D-18,DSMAX=1.0D+18,&
+!       DMAX=1.0D+36,DMIN=1.0D-36,unity=1.0D0,zero=0.0D0
 ! modified to handle gas phases with fractions 1.0D-30 
 !  double precision, private, parameter :: DSMIN=1.0D-33,DSMAX=1.0D+33,&
 !       DMAX=1.0D+60,DMIN=1.0D-60,&
@@ -38,10 +41,99 @@ MODULE OCNUM
 ! it is not optimized for any hardware.  If you have a full LAPACK+BLAS
 ! library for your hardware you should use that.
 !
+#ifdef NOLAPACK
 use oclablas
+! compile with -DLAPACK if LAPCK not extermal
+#endif
+!
+! COMPILER WARNING ABOUT UNINITIALIZED ZERO, DSMIN, DSMAX, DMAX, DMIN, UNITY
+  double precision, private, parameter :: DSMIN=1.0D-18,DSMAX=1.0D+18,&
+       DMAX=1.0D+36,DMIN=1.0D-36,unity=1.0D0,zero=0.0D0
+! declaration above must follow after USE
 !
 CONTAINS
-!
+    !
+    !CCI
+    !-----------------------------------------------------------------------
+    !-----------------------------------------------------------------------
+    ! Development based on the work of Joao Pedro Carvalho Teuber 12/2020
+    ! Linear system solved by splitting approch for conditions giving square
+    ! mass matrix. Otherwise lingld is used
+    SUBROUTINE lingldSplit(ND1,ND2,RMAT,X,N,M,NCONST,NPH)
+        !-----------------------------------------------------------------------
+        !     Solving a system of n linear equations with n unknowns
+        !     | Masse  0      |  |X| = | Gibbs  |
+        !     | Ca     MasseT |  | |   | Cig    |
+        !-----------------------------------------------------------------------
+        implicit none
+        integer M,N,ND1,ND2, NPH, NCONST
+        double precision RMAT(ND1,ND2),X(ND1)
+        !-----------------------------------------------------------------------
+        character trans*1
+        integer i,j,k,nrhs,lda,ldb,info
+        integer ipiv1(n), ipiv2(n), ipiv(n)
+        double precision, allocatable :: a(:,:),Masse(:, :), Gibbs(:),MasseT(:, :), Cig(:)
+        !
+        allocate(a(n,n))
+        allocate(Cig(NCONST))
+        allocate(Masse(NPH, NCONST))
+        allocate(Gibbs(NPH))
+        allocate(MasseT(NCONST, NPH))
+        !
+        ipiv=0
+        ipiv1=0
+        ipiv2=0
+        nrhs=1
+        trans='N'
+        lda=n
+        ldb=n
+        !
+        do j=1,N
+            do k=1,N
+                a(j,k)=rmat(j,k)
+            enddo
+            x(j)=rmat(j,n+1)
+        enddo
+        do j=1,NPH
+            do k=1, NCONST
+                Masse(j,k) = a(j,k)
+                Gibbs(j) = x(j)
+            enddo
+        enddo
+        MasseT = transpose(Masse)
+        ! Solve first part of the system
+        call DGETRF(NPH, NCONST,Masse, NPH,IPIV1,INFO)
+        if(info.ne.0) then
+            write(*,*)'lingldSplit: Error return from dgetrf',info
+            goto 900
+        endif
+        call DGETRS(TRANS,NPH,NRHS,Masse,NPH,IPIV1,Gibbs,NPH,INFO)
+        ! Solve second part of the system
+        ! Ca = a(j+NPH,1:NCONST)
+        do j=1, NCONST
+            Cig(j) = x(j+NPH) - DOT_PRODUCT(a(j+NPH,1:NCONST), Gibbs)
+        enddo
+        call DGETRF(NCONST, NPH, MasseT, NCONST,IPIV2,INFO)
+        if(info.ne.0) then
+            write(*,*)'lingldSplit: Error return from dgetrf',info
+            goto 900
+        endif
+        call DGETRS(TRANS,NCONST,NRHS,MasseT,NCONST,IPIV2,Cig,NCONST,INFO)
+        ! get solution
+        do j=1, N
+            if(j.LE.NCONST) then
+                x(j) = Gibbs(j)
+            else
+                x(j) = Cig(j-NPH)
+            endif
+        enddo
+900 continue
+        deallocate(a,Masse, Gibbs,MasseT, Cig)
+        return
+    END SUBROUTINE lingldSplit
+!CCI
+
+!-----------------------------------------------------------------------
   SUBROUTINE LINGLDY (ND1,ND2,RMAT,X,N,M)
 !-----------------------------------------------------------------------
 !     System of n linear equations with n unknowns,
@@ -203,36 +295,70 @@ CONTAINS
     SAVE K
     DATA K/0,0,0,0/
 !-----------------------------------------------------------------------
-10  FORMAT (' Following message appears last time')
-20  FORMAT (' Temperature',F8.2,' above maximum Temp.:',F8.2, &
+10  FORMAT (a,': Following message appears last time')
+20  FORMAT (a,': Temperature',F8.2,' above maximum Temp.:',F8.2, &
     ' IPHEXC(*,1-2) =',2I3)
-30  FORMAT (' Phase stability of component',I3,' of phase',I3/5X, &
+30  FORMAT (a,': Phase stability of component',I3,' of phase',I3/5X, &
     'is not defined for T =',F8.2,', range from',F8.2,' taken')
-40  FORMAT (' Error in LINGLD, place(',I2,',',I2,')')
-50  FORMAT (' d2G/dx2 suffers from rounding, phase',I3,' type',I3, &
+40  FORMAT (a,': Error in LINGLD, place(',I2,',',I2,')')
+50  FORMAT (a,': d2G/dx2 suffers from rounding, phase',I3,' type',I3, &
     ' x =',E10.3,' test',E9.2)
-90  FORMAT (' Subroutine WARNGB called with NR =',I3)
+90  FORMAT (a,': Subroutine WARNGB called with NR =',I3)
 !-----------------------------------------------------------------------
-!    write(*,*)'enter warngb'
+!    write(*,*)'enter WARNGB'
     return
     IF (NR.LT.1.OR.NR.GT.4) GOTO 900
     K(NR)=K(NR)+1
     IF (K(NR).GT.5) RETURN
-    IF (K(NR).EQ.5) WRITE (*,10)
+    IF (K(NR).EQ.5) WRITE (*,10)'WARNGB'
     GOTO (200,300,400,500),NR
-200 WRITE (*,20) A1,A2,I1,I2
+200 WRITE (*,20)'WARNGB', A1,A2,I1,I2
     RETURN
-300 WRITE (*,30) I1,I2,A1,A2
+300 WRITE (*,30)'WARNGB', I1,I2,A1,A2
     RETURN
-400 WRITE (*,40) I1,I2
+400 WRITE (*,40)'WARNGB', I1,I2
     RETURN
-500 WRITE (*,50) I1,I2,A1,A2
+500 WRITE (*,50)'WARNGB', I1,I2,A1,A2
     RETURN
-900 WRITE (*,90) NR
+900 WRITE (*,90)'WARNGB', NR
     STOP
   END SUBROUTINE WARNGB
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE PRECOND (ND1,ND2,RMAT,BADMAT)
+! This is called from matsmin, code added by Clement/Joao from CEA
+    implicit none
+    INTEGER ND1,ND2, J
+    DOUBLE PRECISION RMAT(ND1,ND2), INVERSIBLE
+    LOGICAL BADMAT
+
+    BADMAT=.FALSE.
+    INVERSIBLE = 1.D20
+    DO J=1,ND1
+       INVERSIBLE = min(INVERSIBLE,DABS(RMAT(J,J)))
+    ENDDO
+    IF ((INVERSIBLE.GT.0.D0).AND.(ND1.EQ.ND2-1)) THEN
+       DO J=1,ND1
+          RMAT(J,ND2) = RMAT(J,ND2)/RMAT(J,J)
+          RMAT(J,J) = 1.0D0
+       ENDDO
+    ELSE
+! Added due to problems in parallel2 running all macros /2022.02.20 BOS
+! probably because NEW Y does not reinitiate
+!       write(*,*)'PRECOND: Matrix illconditioned',INVERSIBLE
+       BADMAT=.TRUE.
+! ignoring this message .... it does not seem to matter  2020.02.19/BoS
+!        IF (ND1.NE.ND2-1) THEN
+!            WRITE(*,*) 'PRECOND: No Square Matrix - no preconditiong applied'
+!        ELSE
+!           WRITE(*,77)ND1,ND2,INVERSIBLE
+!77         format('PRECOND: Matrix not inversible - no preconditiong applied',&
+!                2i4,1pe12.4)
+!        ENDIF
+    ENDIF
+    RETURN
+  END SUBROUTINE PRECOND
 
   SUBROUTINE LINGLD (ND1,ND2,RMAT,X,N,M)
 !-----------------------------------------------------------------------
@@ -300,6 +426,9 @@ CONTAINS
 !        write(*,*)'Solving equilibrium matrix with DGETRS',m
 !     endif
 1000 continue
+!CCI
+     deallocate (a, ipiv)
+!CCI
      return
    END SUBROUTINE LINGLD
 
@@ -348,7 +477,7 @@ CONTAINS
     allocate(work(800))
     CALL DSYTRF(UPLO,N,RMAT,LDA,IPIV,WORK,m,INFO)
     if(info.ne.0) then
-       write(*,*)'Error from DSYTRF: ',info
+       write(*,*)'MDINV: Error from DSYTRF: ',info
        IS=0
        goto 1000
     endif

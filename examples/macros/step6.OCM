@@ -80,15 +80,20 @@ render
 @$ Plot with wildcards on x axis and factor
 
 plot
-0.001*gm(*)
+gm(*)
 x(mo)
 title step 6 fig 3
+
 
 @&
 
 plot
 x(mo)
-0.001*gm(*)
+gm(*)
+@$ This adds a scaling factor
+extra axis
+y
+
 axis y
 Gibbs energy kJ/mol
 title step 6 fig 4

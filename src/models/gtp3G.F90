@@ -1788,7 +1788,7 @@
    firsteq%phase_varres(lokcs)%status2=&
         ibset(firsteq%phase_varres(lokcs)%status2,CSDLNK)
 ! we have to reserve a phase_varres record for calculations
-!  ... det gäller att hålla tungan rätt i mun ...
+!  ... det galler att halla tungan ratt i mun ...
 !   nprop=10
 !   call create_parrecords(nyttcs,nnn,mmm,nprop,iva,firsteq)
    call create_parrecords(lokph,nyttcs,nnn,mmm,maxcalcprop,iva,firsteq)

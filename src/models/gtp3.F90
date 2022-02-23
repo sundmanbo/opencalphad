@@ -1,3 +1,4 @@
+!
 !***************************************************************
 ! General Thermodynamic Package (GTP)
 ! for thermodynamic modelling and calculations
@@ -123,6 +124,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !--------------------------------------------------------------------------
 !
+!CCI
+use ocparam
+!CCI
 ! EXTERNAL MODULES
 ! metlib package
   use metlib
@@ -134,6 +138,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! for parallel processing
 !$  use OMP_LIB
 !
+!=================================================================
+!
+  IMPLICIT NONE
+!
+!-----------------------------------------------------------------
+! error messages
+! numbers 4000 to 4220 defined.  gx%bmperr is set to message index
+! A lot of error flags set have no messages ....
+  integer, parameter :: nooferm=4399
 !--------------------------------------------------------------------------
 !
 ! Versions
@@ -144,17 +157,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 2017.02.10 Release version 4
 ! 2018.03.02 Release version 5
 ! 2020.03.12 Release version 6
-! after version on github numbered 4.011, incremented for each update
-!
-!=================================================================
-!
-  IMPLICIT NONE
-!
-!-----------------------------------------------------------------
-! error messages
-! numbers 4000 to 4220 defined.  gx%bmperr is set to message index
-! A lot of error flags set have no messages ....
-  integer, parameter :: nooferm=4399
+  character (len=8), parameter :: version='  6.043 '
+!---------------------------------------------------------------------------
   character (len=64), dimension(4000:nooferm) :: bmperrmess
 ! The first 30 error messages mainly for TP functions
   data bmperrmess(4000:4199)&
@@ -823,38 +827,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !----------------------------------------------------------------------
 !
-!\begin{verbatim}
-! Parameters defining the size of arrays etc.
-! max elements, species, phases, sublattices, constituents (ideal phase)
-!  integer, parameter :: maxel=100,maxsp=1000,maxph=600,maxsubl=10,maxconst=1000
-! NOTE increasing maxph to 600 and maxtpf to 80*maxph made the equilibrium
-! record very big and created problems storing equilibria at STEP/MAP!!!
-  integer, parameter :: maxel=100,maxsp=1000,maxph=600,maxsubl=10,maxconst=1000
-! maximum number of constituents in non-ideal phase
-  integer, parameter :: maxcons2=300
-! maximum number of elements in a species
-  integer, parameter :: maxspel=10
-! maximum number of references
-  integer, private, parameter :: maxrefs=1000
-! maximum number of equilibria
-  integer, private, parameter :: maxeq=900
-! some dp values, default precision of Y and default minimum value of Y
-! zero and one set in tpfun
-  double precision, private, parameter :: YPRECD=1.0D-6,YMIND=1.0D-30
-! dimension for push/pop in calcg, max composition dependent interaction
-  integer, private, parameter :: maxpp=1000,maxinter=3
-! max number of TP symbols, TOO BIG VALUE MAKES SAVE AT STEP/MAP DIFFICULT
-  integer, private, parameter :: maxtpf=20*maxph
-!  integer, private, parameter :: maxtpf=80*maxph
-! max number of properties (G, TC, BMAG MQ%(...) etc)
-  integer, private, parameter :: maxprop=50
-! max number of state variable functions
-  integer, private, parameter :: maxsvfun=500
-! version number of GTP (not OC)
-  character*8, parameter :: gtpversion='GTP-3.30'
-! THIS MUST BE CHANGED WHENEVER THE UNFORMATTED FILE FORMAT CHANGES!!!
-  character*8, parameter :: savefile='OCF-3.20'
-!\end{verbatim}
 !=================================================================
 !\begin{verbatim}
 ! The number of additions to the Gibbs energy of a phase is increasing
@@ -936,7 +908,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! length of a function symbol
   integer, parameter :: lenfnsym=16
   integer, private :: freetpfun
-  double precision, parameter :: zero=0.0D0,one=1.0D0
 !
 !\begin{verbatim}
   TYPE gtp_parerr
@@ -1878,11 +1849,24 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! smaller value creates problem for test step3.OCM, MC and austenite merged
 !     double precision :: gmindif=-5.0D-2
 ! testing merging again 190604/BoS
-     double precision :: gmindif=-1.0D-2
+!CCI
+     double precision :: gmindif
+!CCI
 ! maxiter: maximum number of iterations allowed
-     integer maxiter
+     integer :: maxiter
+! CCI
+! New parameters based on the work of Joao Pedro Teuber Carvalho (12/2020)
+! To scale all changes in phase amount with total number of atoms.
+     integer ::  type_change_phase_amount
+     double precision :: scale_change_phase_amount
+
+! splitsolver : flag to allow the splitting resolution when conditions lead to a square mass matrix
+! precondsolver : flag to allow the preconditionning of the matrix before solving linear system
+     integer :: precondsolver
+     integer :: splitsolver
+!CCI
 ! CCI number of iterations needed for the equilibrium calculation
-     integer conv_iter
+     integer :: conv_iter
 ! This is to store additional things not really invented yet ...
 ! It may be used in ENTER MANY_EQUIL for things to calculate and list
      character (len=80), dimension(:), allocatable :: eqextra

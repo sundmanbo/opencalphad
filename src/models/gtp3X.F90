@@ -3021,6 +3021,7 @@
    write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
 10 format('3X in calc_toop with binary; degree:',2i3,'; ',i2,2x,20('<'))
 ! note vals, dvals and d2vals hare zero here
+   rtg=gz%rgast
    if(lokpty%degree.eq.0) then
 ! quick exit if no composition dependence
       lfun=lokpty%degreelink(0)

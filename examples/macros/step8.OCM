@@ -141,9 +141,8 @@ T
 title step 8 fig 1
 
 
-@&
 @$ The maximum T is about 8 moles of O
-
+@&
 plot
 ac(o)
 T
@@ -158,11 +157,14 @@ title step 8 fig 2
 plot
 n(o)
 y(gas,*)
+extra log
+y
 title step 8 fig 3
 
 
 @&
-@$ At present we can only plot constiton species one by one (or all)
+
+@$ we can only plot the constitution of species one by one (or all)
 plot
 n(o)
 y(gas,h2o1)
