@@ -19,6 +19,15 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.03.24 OC version 6.044: The guerre in Ukraine has made me think
+developing thermodynamic software is not very important.  But anyway
+there is a new command "LIST ESTIMAT_ACCURACY" which can be used after
+an equilibrium calculation to obtain error estimates of the results by
+calculating mumltiple equilibria varying the value of the conditions
+with +/-5%.  This can be useful to know how the system will behave in
+a production situation when it can be difficult to keep compositions
+or temperatures at the optimal values.
+
 2022.02.21 OC version 6.043: Clement Introini and his colleagues at
 CEA Cadarache have worked extensively with the grid minimizer and
 various other parts of the code and has allowed that to be shared by
