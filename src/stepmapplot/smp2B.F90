@@ -8,8 +8,8 @@
 ! Main plotting routine, generates a GNUPLOT data file for a step/map calc
 ! NOTE for isothermal section ocplot3 is used (when 2 axis with wildcards)
 ! ndx is mumber of plot axis, 
-! pltax is text with plotaxis variables
-! filename is the name of the GNUPLOT file
+! - pltax is text with plotaxis variables
+! - filename is the name of the GNUPLOT file
 ! maptop is map_node record with all results
 ! axarr is array of axis records
 ! graphopt is graphical option record
@@ -1537,6 +1537,8 @@
           '# set xrange [0.5 : 0.7] '/&
           '# Adding manually a line and keep scaling:'/&
           '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
+          '# Add a red dot at 0.1,1000:'/&
+          '# set object 1 circle fc "fc0000" fs solid ps 2 noclip at 1, 100'/&
           '# Plotting symbols instead of line:'/&
           '# ... using 2:i with points pt 7 ps 3 '/&
           '# set multiplot'/&
@@ -2756,6 +2758,8 @@
           '# set xrange [0.5 : 0.7] '/&
           '# Adding manually a line and keep scaling:'/&
           '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
+          '# Add a red dot at 1,100:'/&
+          '# set object 1 circle fc "fc0000" fs solid ps 2 noclip at 1, 100'/&
           '# Plotting symbols instead of line:'/&
           '# ... using 2:i with points pt 7 ps 3'/&
           '# set multiplot'/&
@@ -2978,7 +2982,7 @@
 ! plotkod -1 negative means ignore
 ! plotkod -100 and -101 used for tie-lines
           if(jj.eq.2 .and. plotkod(iz).eq.-1) then
-             write(*,*)'Ignoring this line ',jj,iz,plotkod(iz)
+             write(*,*)'SMPB: Ignoring this line ',jj,iz,plotkod(iz)
 !             cycle pair
              cycle point
           endif
@@ -3132,7 +3136,7 @@
     ii=0
     kk=graphopt%linett-1
     if(kk.ne.0) then
-       write(*,*)'Ignoring manipulation of line colors'
+       write(*,*)'SMP2B: Ignoring manipulation of line colors'
     endif
 ! if graphopt%linestyle=0 use lines, otherwise linespoints
 ! this never worked ...

@@ -285,7 +285,8 @@
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,*)'3X segmentation fault 10'
 !-------------------------------------------------------------------
-! MQMQA separate calculation of G
+! MQMQA separate calculation of G as well as entropy!!!
+! NO no 2state model, einstein, magnetism etc.
    if(mqmqa) then
 !      write(*,*)'3X Separate routine for MQMQA'
       call calc_mqmqa(lokph,phres,mqf,ceq)
@@ -662,8 +663,8 @@
             proprec=>endmemrec%propointer
 ! for liquids with twostate models first calculate the g2 parameter
             if(btest(phlista(lokph)%status1,PH2STATE)) then
-!               write(*,*)'3X Phase ',trim(phlista(lokph)%name),&
-!                    ' has PH2STATE bit set'
+               write(*,*)'3X Phase ',trim(phlista(lokph)%name),&
+                    ' has PH2STATE bit set'
                call calc_twostate_model_endmember(proprec,g2val,ceq)
                if(gx%bmperr.ne.0) goto 1000
 !               write(*,'(a,6(1pe12.4))')'3X g2val:',g2val
@@ -2095,7 +2096,7 @@
 !   enddo
 17 format(a,i3,4(1pe12.4))
 !--------------------------------------
-! first loop over all FNN endmembers
+! first loop over ALL endmembers
    mqmqj=0
    endmemrec=>phlista(lokph)%ordered
 ! This should be number of atoms for scaling G
@@ -2119,8 +2120,9 @@
 !         write(*,*)'3X SNN endmember record found',mqmqj
          proprec=>endmemrec%propointer
          mqsnn: do while(associated(proprec))
+! This loop is not really necessay, in mqmqa the only property is G at present
             typty=proprec%proptype
-            if(typty.ne.1) stop 'illegal typty in mqmqa model'
+            if(typty.ne.1) stop '3X illegal typty in mqmqa model'
             ipy=1
             lokfun=proprec%degreelink(0)
             call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
@@ -2128,17 +2130,20 @@
 !            write(*,'(a,6(1Pe12.4))')'3X vals1:',vals
             if(ipy.eq.1) then
                vals=vals*dummy1
-! This is an SNN ordering parameter, no reference state
+! This is an SNN ordering parameter, reference state addel in second loop
             endif
-! goto here to skip SRO            goto 600
             pyq=phres%yfr(mqmqj)
 ! Should I use any factor??
 !         aff=mqmqa_data%pp(1,mqmqj)
             aff=one
+! NOTE the reference state contribution to this SNN added in next loop
+! for all quads!!
             do itp=1,3
                phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+vals(itp)
             enddo
 ! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
+! ipy is property, ipy=1 means G, ipy=2 means Curie T etc.
+! %gval(1,1) is total G, %gval(2,1) is total dG/dT  etc.
             do itp=1,6
                phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
             enddo
@@ -2146,8 +2151,8 @@
 !                 phres%gval(1,1),(phres%dgval(1,s1,1),s1=1,gz%nofc)
             proprec=>proprec%nextpr
          enddo mqsnn
-600      continue
-!         write(*,*)'3X skipping any excess parameters ...'
+!600      continue
+!         write(*,*)'3X any excess parameters will be handled in 3rd loop'
          endmemrec=>endmemrec%nextem
          cycle endmemloop1
       endif
@@ -2174,21 +2179,25 @@
          endif
 ! next property record (should not be any ...)
          proprec=>proprec%nextpr
+         if(associated(proprec)) then
+            write(*,*)'3X Warning: ignoring second mqmqa property recotd!'
+         endif
 !         write(*,200)'3X FNN G, dG/dqi: ',phres%gval(1,1),&
 !              (phres%dgval(1,s1,1),s1=1,gz%nofc)
 200      format(a,1pe12.4,2x,6(1pe12.4))
       enddo mq1
       endmemrec=>endmemrec%nextem
    enddo endmemloop1
-!----------------------------------------------------- end FNN loop
+!--------------------------------------------------- end first endmember loop
 ! second loop over all quads, ignore endmember records
+! but add reference state parameters to SNN energies
    ipy=1
    qloop: do mqmqj=1,gz%nofc
-! this is quad fraction, multiply with all FNN reference energyes
+! this is quad fraction, multiply with all FNN reference energies
       pyq=phres%yfr(mqmqj)
       zp=mqmqa_data%contyp(5,mqmqj)
       pair: if(zp.gt.0) then
-! this is a pair, reference energy in refg(zp,1..6), only one y derivative
+! this is an FNN  pair, reference energy in refg(zp,1..6), only one y derivative
 ! %pp(1..4,mqmqj) is stoichiometric factor for the pair
          aff=mqmqa_data%pp(1,mqmqj)
          do itp=1,3
@@ -2216,11 +2225,15 @@
             if(zp.eq.0) exit snnloop
 ! %pp(1..4,mqmqj) is stoichiometric factor for the pair
             aff=mqmqa_data%pp(s1-5,mqmqj)
+!          write(*,212)zp,mqmqj,ipy,phres%dgval(1,mqmqj,ipy),aff,aff*refg(zp,1)
+212         format('3X adding reference state to SNN parameter:',3i3,3(1pe12.4))
             do itp=1,3
                phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+&
                     aff*refg(zp,itp)
             enddo
 ! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
+            write(*,213)zp,mqmqj,ipy,phres%gval(1,ipy),pyq,aff,aff*refg(zp,1)
+213         format('3X adding reference state to SNN parameter:',3i3,4(1pe12.4))
             do itp=1,6
                phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
             enddo
@@ -2230,45 +2243,52 @@
          enddo snnloop
       endif pair
    enddo qloop
-   goto 800
+!   goto 800
 !---------------------------------------------------------------------
-!--------------------- code below maybe needed for SNN and excess parameters
+!--------------------- code below needed for excess parameters
 ! NOTE many of them may be missing
    mqmqj=0
    endmemrec=>phlista(lokph)%ordered
    endmemloop2: do while(associated(endmemrec))
       mqmqj=mqmqj+1
-      if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop2
       kend=mqmqa_data%contyp(5,mqmqj)
-      if(kend.gt.0) then
-         endmemrec=>endmemrec%nextem
-         cycle endmemloop2
-      endif
-! this is an SNN parameter with possible excess parameters
-!      write(*,'(a,5i3)')'3X SNN G:',mqmqj,kend,gz%nofc
-      proprec=>endmemrec%propointer
+!      write(*,311)associated(endmemrec),mqmqj,mqmqa_data%nconst,kend
+311   format('3X second loop for endmember records: ',l2,3i5)
+      if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop2
+      intrec=>endmemrec%intpointer
+! interaction parameters are NOT linked from SNN endmembers!!
+      write(*,*)'3X Check for interaction parameters 1',associated(endmemrec),&
+           associated(intrec),mqmqj,kend
+      if(.not.associated(intrec)) cycle endmemloop2
+! this is an endmember parameter with possible excess parameters
+      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
+! just excess parameters, we must calculate product of fractions
       dpyq=zero
-! first loop over all FNN (pairs) to collect reference states ...
-      mq2: do while(associated(proprec))
 ! the fraction variable is found from the endmember record
-         id=endmemrec%fraclinks(1,1)
-         pyq=phres%yfr(id)
-         if(pyq.lt.bmpymin) pyq=bmpymin
-         if(pyq.gt.one) pyq=one
-! this parameter depend on a single fraction variable
-         dpyq(id)=one
-         write(*,'(a,i2,F10.6,6(1pe12.4))')'3X SNN df/dy: ',id,pyq,&
-              (dpyq(itp),itp=1,gz%nofc)
-         typty=proprec%proptype
-         if(typty.ne.1) stop 'illegal typty in mqmqa model'
-         ipy=1
-         lokfun=proprec%degreelink(0)
-         call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
-         if(gx%bmperr.ne.0) goto 1000
-         write(*,'(a,i4,6(1Pe12.4))')'3X SNN vals1:',lokfun,vals
-         if(ipy.eq.1) then
-            vals=vals/rtg
-         endif
+      id=endmemrec%fraclinks(1,1)
+      pyq=phres%yfr(id)
+      if(pyq.lt.bmpymin) pyq=bmpymin
+      if(pyq.gt.one) pyq=one
+! the endmember parameter already calculated
+      dpyq(id)=one
+! BRANCH for intrec%highlink and intrec%nexlink
+!      write(*,'(a,i2,F10.6,6(1pe12.4))')'3X SNN df/dy: ',id,pyq,&
+!           (dpyq(itp),itp=1,gz%nofc)
+      proprec=>intrec%propointer
+      typty=proprec%proptype
+      if(typty.ne.1) stop 'illegal typty in mqmqa model'
+      ipy=1
+      lokfun=proprec%degreelink(0)
+      call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
+      if(gx%bmperr.ne.0) goto 1000
+      write(*,'(a,i4,6(1Pe12.4))')'3X excess vals1:',lokfun,vals
+      if(ipy.eq.1) then
+         vals=vals/rtg
+      endif
+! ---------------------------------
+! unfinished below
+! ---------------------------------
+      cycle endmemloop2
 ! multiply with fractions and derivatives of fractions                     
 ! gz%nofc is total number of independent fractions
          do s1=1,gz%nofc
@@ -2283,9 +2303,18 @@
             phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
          enddo
          proprec=>proprec%nextpr
-         write(*,200)'3X SNN G, dG/dq: ',phres%gval(1,1),&
-              (phres%dgval(1,s1,1),s1=1,gz%nofc)
-      enddo mq2
+!         write(*,200)'3X SNN G, dG/dq: ',phres%gval(1,1),&
+!              (phres%dgval(1,s1,1),s1=1,gz%nofc)
+!      enddo mq2
+! check for excess parameters ....
+!      intrec=>endmemrec%intpointer
+!      write(*,*)'3X Check for interaction parameters 2',associated(endmemrec),&
+!           associated(intrec),mqmqj
+!      do while(associated(intrec))
+! calculate the excess parameter!!!
+!         write(*,*)'3X there is an interaction parameter!!'
+!      enddo
+! next endmember ....
       endmemrec=>endmemrec%nextem
    enddo endmemloop2
 !----------------------------------------------------- end SNN loop
@@ -4233,7 +4262,7 @@
 
  !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine config_entropy_tisr_try2
+!\addtotable subroutine config_entropy_tisr provided by Ed Kremer
 !\begin{verbatim}
  subroutine config_entropy_tisr(moded,ncon,phvar,phrec,tval)
 !
@@ -4351,7 +4380,7 @@
 !   phvar%gval(2,1)=((one-gamma)*ggx(1)+gamma*ggx(2))/tval
    phvar%gval(1,1)=ggg+gamma*ggx(2)
    phvar%gval(2,1)=(gamma*ggx(2))/tval
-   write(*,'(a,5(1pe12.4))')'3X GVAL: ',phvar%gval(1,1),ggx
+   write(*,'(a,5(1pe12.4))')'3X GVAL: ',phvar%gval(1,1),ggx,gamma
 ! first derivatives of p_ij
 ! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
 ! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
@@ -4366,212 +4395,37 @@
       phvar%dgval(1,ia+1,1)=gamma*(one+log(pij(ia)*rrk(ia)))
       phvar%dgval(2,ia+1,1)=phvar%dgval(1,ia+1,1)/tval
    enddo
-   write(*,'(a,5(1pe12.4))')'3X dgdy1: ',(phvar%dgval(1,ia,1),ia=1,ncon)
+   write(*,'(a,5(1pe12.4))')'3X dg/dy1: ',(phvar%dgval(1,ia,1),ia=1,ncon)
 !------------------------------------------------------
 ! second derivatives, symmetric, stored only upper half
 ! approximate with 1/pij
 ! NOTE phvar%d2gval(*,1) is zero when we come here
    jxsym=0
    jb=1
+   phvar%d2gval=zero
    do ia=1,ncon
-      do ib=ia,ncon
-         jxsym=jxsym+1
-         if(ib.eq.ia) then
+      phvar%d2gval(ixsym(ia,ia),1)=gamma/pij(ia-1)
+   enddo
+   write(*,'(a,5(1pe12.4))')'3X d2g/dy2: ',&
+        (phvar%d2gval(ixsym(ia,ia),1),ia=1,ncon)
+!-   do ia=1,ncon
+!-      do ib=ia,ncon
+!-         jxsym=jxsym+1
+!-         if(ib.eq.ia) then
 !            phvar%d2gval(jxsym,1)=gamma*rrk(ib-1)/pij(ib-1)  ???
 !            phvar%d2gval(jxsym,1)=gamma/(pij(ib-1)*rrk(ib-1))
-            phvar%d2gval(jxsym,1)=gamma/pij(ib-1)
+!-            phvar%d2gval(jxsym,1)=gamma/pij(ib-1)
 !            write(*,'(a,3i3,1pe12.4)')'3X pij: ',ia,ib,jxsym,pij(ib-1)
-         endif
-      enddo
-      write(*,'(a,5(1pe11.3))')'3X d2gdy2: ',(phvar%d2gval(ja,1),ja=jb,jxsym)
-      jb=jxsym+1
-   enddo
-!   write(*,'(a,5(1pe12.4))')'3X dgdy2: ',(phvar%dgval(1,ia,1),ia=1,ncon)
+!-         endif
+!-      enddo
+!-      write(*,'(a,i2,5(1pe11.3))')'3X d2gdy2: ',&
+!-           jb,(phvar%d2gval(ja,1),ja=jb,jxsym)
+!-      jb=jxsym+1
+!-   enddo
 !-----------------------------------
 1000 continue
    return
  end subroutine config_entropy_tisr
-
- !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine config_entropy_tisr_try1
-!\begin{verbatim}
- subroutine config_entropy_tisr_try1(moded,ncon,phvar,phrec,tval)
-!
-! calculates configurational entropy/R for the Kremer liquid SRO model
-! started 2021-02-12
-!
-! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
-! ncon is number of constituents
-! phvar is pointer to phase_varres record
-! phrec is the phase record
-! tval is current value of T
-   implicit none
-   integer moded,ncon
-   TYPE(gtp_phase_varres), pointer :: phvar
-   TYPE(gtp_phaserecord) :: phrec
-   double precision tval
-!\end{verbatim}
-!---------------------------------------------------------------------------
-! FOR A BINARY, two external variables treated as fractions although not
-! 
-   integer ia,ib,ja,jb,kk,mm,alpha,jxsym
-   double precision sum,rk,ggx(2),ggg,dgg(2),rtg
-   double precision s1,s2,s11,s12,s21,s22
-   double precision s111,s112,s121,s122,s211,s212,s221,s222
-   double precision :: lambdasum=1
-! is this needed?
-   save lambdasum
-! model is tetrahedron with 5 p_i ?
-! model constants 
-   double precision beta,gamma
-   double precision, allocatable, dimension(:) :: uijalpha,wwij,pij,lambda,xx
-! rk is 1/kk; tetrahedron in fcc lattice, z=12; m=4
-   kk=4; rk=0.25D0
-   beta=6
-   gamma=2.0D0
-! ncon should be 2, the lambdas
-   write(*,'(a,i2,F7.3,2x,7(F7.3))')'3X testing TISR ',ncon,lambdasum,&
-        (phvar%yfr(ia),ia=1,ncon)
-   if(ncon.ne.2) then
-! attempt to include vacancies ...
-      write(*,*)'3X Last constituent ignored',ncon
-   endif
-! the first two should be the real elements
-   allocate(xx(1:2))
-   allocate(lambda(1:2))
-   allocate(uijalpha(0:4))
-   allocate(wwij(0:4))
-   allocate(pij(0:4))
-   uijalpha=zero
-! alpha is the configuration as A4, A3B1, A2B2 etc. Assume only one uijalpha 
-! A4  : i=0, j=4; alpha=0   pp(0)
-! A3B1: i=1, j=3; alpha=1   pp(1)
-! A2B2: i=2, j=2; alpha=2   pp(2)
-! A1B3: i=3, j=1; alpha=3   pp(3)
-! B4  : i=4, j=0; alpha=4   pp(4)
-! uijalpha is in J/mol; globaldata%rgas is J/(mol*K).  only a2b2 ordering
-   rtg=globaldata%rgas*tval
-   uijalpha(2)=-5.0D2*beta/rtg
-!-------------------------------------------------------------------
-! lambda are the "symbolic" fraction variables ... they are scaled by lambdasum
-   lambda(1)=phvar%yfr(1)*lambdasum
-   lambda(2)=phvar%yfr(2)*lambdasum
-! lambdasum can be updated at each iteration, but it will always be unity ??
-   lambdasum=lambda(1)+lambda(2)
-! Calculate w_ij and p_ij
-   sum=zero
-   do alpha=0,4
-      wwij(alpha)=exp(-uijalpha(alpha)/gamma)
-! index i is same as alpha, j=k-i
-      ia=alpha; ja=kk-ia
-      pij(alpha)=wwij(alpha)*exp(ia*lambda(1)+ja*lambda(2))
-      sum=sum+pij(alpha)
-   enddo
-   write(*,'(a,5(1pe12.4))')'3X ggx: ',(wwij(ia),ia=0,4)
-! normalize pij and calculate mole fractions
-   do ia=0,4
-      pij(ia)=pij(ia)/sum
-   enddo
-   xx=zero
-   do ia=0,4
-      xx(1)=xx(1)+ia*rk*pij(ia)
-      xx(2)=xx(2)+(kk-ia)*rk*pij(ia)
-   enddo
-   write(*,'(a,5F7.3,2x,3F7.3)')'3X pij&xi: ',(pij(ia),ia=0,4),xx(1),xx(2),sum
-   if(abs(xx(1)+xx(2)-one).gt.1.0D-12) then
-      write(*,*)'3X sum of mole fractions not unity',xx(1)+xx(2)
-   endif
-! This subroutine return value divided by RT
-   ggg=zero
-! This is the enthalpy part
-   do ia=0,4
-      ggg=ggg+uijalpha(ia)*pij(ia)
-   enddo
-   write(*,*)'3X enthalpy: ',ggg
-! this is the entropy part   
-   ggx=zero
-   do ia=1,2
-      ggx(1)=ggx(1)+xx(ia)*log(xx(ia))
-      ggx(2)=ggx(2)+xx(ia)*lambda(ia)
-   enddo
-!   do ia=0,4
-!      ggx(2)=ggx(2)+pij(ia)*log(pij(ia))
-!   enddo
-! gval(1:6,1) are G, dG/dT, dG/dP, d2G/dT2, d2G/dTdP and d2G/dP2
-   phvar%gval(1,1)=ggg+(one-gamma)*ggx(1)+gamma*ggx(2)
-   phvar%gval(2,1)=((one-gamma)*ggx(1)+gamma*ggx(2))/tval
-   write(*,'(a,5(1pe12.4))')'3X GVAL: ',phvar%gval(1,1),ggx
-! derivatives, usind Ed's notation, note pp(1) has i=0; s=1.0
-! first derivatives
-   s1=pij(1) +2*pij(2)+3*pij(3) +4*pij(4); s2=kk-s1
-   s11=pij(1)+4*pij(2)+9*pij(3)+16*pij(4); s12=kk*s1-s11; s22=kk**2-2*kk*s1+s11
-! is s_21=s_12 ???
-   s21=s12
-! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
-! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
-! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
-! original derivatives
-   phvar%dgval(1,1,1)=(one-gamma)*rk*(s11*log(s1*rk)+s21*log(s1*rk)+s11+s12)+&
-        gamma*rk*(s1*lambda(1)+s2*lambda(2))
-   phvar%dgval(2,1,1)=phvar%dgval(1,1,1)/tval
-   phvar%dgval(1,2,1)=(one-gamma)*(s12*rk*log(s1*rk)+s22*rk*log(s1*rk)+&
-        s12*rk+s22*rk)+gamma*rk*(s1*lambda(1)+s2*lambda(2))
-   phvar%dgval(2,2,1)=phvar%dgval(1,2,1)/tval
-!--------------------------------------------------
-! using p*log(p) for ordered part
-!   phvar%dgval(1,1,1)=(one-gamma)*rk*(s11*log(s1*rk)+s21*log(s1*rk)+s11+s12)+&
-!        gamma*rk*s1*(one+log(pijlambda(1)+s2*lambda(2))
-!   phvar%dgval(2,1,1)=phvar%dgval(1,1,1)/tval
-!   phvar%dgval(1,2,1)=(one-gamma)*(s12*rk*log(s1*rk)+s22*rk*log(s1*rk)+&
-!        s12*rk+s22*rk)+gamma*rk*(s1*lambda(1)+s2*lambda(2))
-!   phvar%dgval(2,2,1)=phvar%dgval(1,2,1)/tval
-!------------------------------------------------------
-! second derivatives, symmetric, stored only upper half
-! approximate with 1/xx
-   jxsym=1
-   phvar%d2gval(jxsym,1)=(one-gamma)*rk/xx(1)
-   jxsym=3
-   phvar%d2gval(jxsym,1)=(one-gamma)*rk/xx(2)
-   goto 900
-!--------------------------------
-! some missing s_ijk ?
-   s111=pij(1)+8*pij(2)+27*pij(3)+64*pij(4); s112=kk*s11-s111
-   s122=kk**2*s1-2*kk*s11+s111;          s222=kk**3-3*kk**2+3*kk*s11+s111
-! d2dval(jxsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
-   jxsym=1
-! sigma=1, rho=1
-   phvar%d2gval(jxsym,1)=(one-gamma)*rk*(s111*log(s1*rk)+s211*log(s2*rk)+&
-        s11/s1*s11+s12/s2*s2+s111+s211)+&
-        gamma*rk*(s111*lambda(1)+s211*lambda(2)+s11+s11)
-! sigma=1, rho=2
-   jxsym=jxsym+1
-   phvar%d2gval(jxsym,1)=(one-gamma)*rk*(s112*log(s1*rk)+s212*log(s2*rk)+&
-        s11/s1*s11+s12/s2*s2+s111+s211)+&
-        gamma*rk*(s111*lambda(1)+s211*lambda(2)+s11+s11)
-! sigma=2; rho=2
-   jxsym=jxsym+1
-   phvar%d2gval(jxsym,1)=(one-gamma)*rk*(s111*log(s1*rk)+s211*log(s2*rk)+&
-        s11/s1*s11+s12/s2*s2+s111+s211)+&
-        gamma*rk*(s111*lambda(1)+s211*lambda(2)+s11+s11)
-   
-   gx%bmperr=4399
-!-----------------------------------
-900 continue
-! Also first derivatives of the enthalpy part
-!  ggx(1)=uijalpha(ia)*pij(ia)
-   dgg=zero
-   do ia=0,4
-      dgg(1)=dgg(1)+uijalpha(ia)*s1
-      dgg(2)=dgg(2)+uijalpha(ia)*s2
-   enddo
-   phvar%dgval(1,1,1)=phvar%dgval(1,1,1)+dgg(1)
-   phvar%dgval(1,1,1)=phvar%dgval(1,2,1)+dgg(2)
-!-----------------------------------
-1000 continue
-   return
-! calculates configurational entropy/R for the Kremer liquid SRO model
- end subroutine config_entropy_tisr_try1
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

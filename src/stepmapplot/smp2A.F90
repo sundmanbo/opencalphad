@@ -7869,7 +7869,7 @@
              goto 500
           endif
 ! set phase as entered
-!          write(*,*)'Set phase stable ',itup,entphcs(itup)%phase
+!          write(*,*)'Trying to calculate line for phasetuple: ',itup
           call change_phase_status(entphcs(itup)%ixphase,&
                entphcs(itup)%compset,1,one,ceq)
 !               entphcs(itup)%compset,0,one,ceq)
@@ -7890,20 +7890,32 @@
 ! if condition is a composition set it to be the current value with the
 ! default composition of the phase, 17 is mole fraction
           svr=>pcond%statvar(1)
-          if(svr%statevarid.eq.17) then
+          call get_phase_variance(entphcs(itup)%ixphase,nv)
+          call get_phasetuple_name(entphcs(itup),name)
+!          write(*,*)'SMP2A axis condition type: ',svr%statevarid,nv
+! skip phases with no variation of axis is not a potential
+          if(nv.eq.0 .and. svr%statevarid.gt.5) then
+             write(*,71)trim(name)
+71           format('SMP2A ignoring phase ',a,' with fixed composition: ')
+             goto 500
+          endif
+          call state_variable_val(svr,val,ceq)
+          if(gx%bmperr.ne.0) goto 500
+! 16=N, 17=X, 18=B, 19=W, 20=Y
+!          if(svr%statevarid.eq.17) then
 ! this call calculates the value of the axis condition with default composition
-             call state_variable_val(svr,val,ceq)
-             if(gx%bmperr.ne.0) goto 500
-             call get_phasetuple_name(entphcs(itup),name)
-! axis variable is composition, skip hases with no variance
-             call get_phase_variance(entphcs(itup)%ixphase,nv)
-             if(nv.eq.0) then
-                write(*,71)name(1:len_trim(name)),val
-71              format(/'Ignoring phase with fixed composition: ',a,F10.6)
+!             call state_variable_val(svr,val,ceq)
+!             if(gx%bmperr.ne.0) goto 500
+!             call get_phasetuple_name(entphcs(itup),name)
+! axis variable is composition, skip phases with no variance
+!             call get_phase_variance(entphcs(itup)%ixphase,nv)
+!             if(nv.eq.0) then
+!                write(*,71)name(1:len_trim(name)),val
+!71              format(/'Ignoring phase with fixed composition: ',a,F10.6)
 !----------------
-                lokcs=phasetuple(iph)%lokvares
-                write(*,*)'indices: ',iph,phasetuple(iph)%ixphase,lokcs
-                goto 500
+!                lokcs=phasetuple(iph)%lokvares
+!                write(*,*)'indices: ',iph,phasetuple(iph)%ixphase,lokcs
+!                goto 500
 ! handle stoichiometric phases in step_separate ....
 ! we need to initiate a line with just one point
 ! special call to map_startpoint/map_findline for just one point
@@ -7933,34 +7945,35 @@
 !                call map_lineend(mapline,val,ceq)
 !                goto 500
 !----------------
-             endif
+!             endif
 !             if(ocv()) write(*,73)name(1:len_trim(name)),val
 ! check if val is within axis limits
-             if(val.lt.axarr(1)%axmin .or. val.gt.axarr(1)%axmax) then
+          if(val.lt.axarr(1)%axmin .or. val.gt.axarr(1)%axmax) then
 ! write adjusting startpoint to be inside limits
-                val=axarr(1)%axmin+0.1D0*(axarr(1)%axmax-axarr(1)%axmin)
-             endif
-             write(*,73)name(1:len_trim(name)),val
-73           format(/'Setting start condition for ',a,f10.5)
-! first argument 1 means to extract the value, 0 means to set the value
-             call condition_value(0,pcond,val,ceq)
-             if(gx%bmperr.ne.0) goto 500
+             val=axarr(1)%axmin+0.1D0*(axarr(1)%axmax-axarr(1)%axmin)
           endif
+          write(*,73)trim(name),val
+73        format(/'Setting start condition for ',a,f10.5)
+! first argument 1 means to extract the value, 0 means to set the value
+          call condition_value(0,pcond,val,ceq)
+          if(gx%bmperr.ne.0) goto 500
           mode=-1
 !
           if(notop.eq.0) then
-             notop=-1
+!             notop=-1
 ! create maptop and things for storing results
 ! map_startpoint calculates the equilibrium and generates two start points
-!             write(*,*)'Creating start point',itup
+!             write(*,*)'Creating start point',itup,notop
              inactive=0
              call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,ceq)
              if(gx%bmperr.ne.0) goto 500
+!             write(*,*)'Start point created'
 ! create array of equilibrium records for saving results
 ! if larger than 500 I get segmentation fault ,,,,
              saveq=maxsavedceq
              call create_saveceq(maptop%saveceq,saveq)
              if(gx%bmperr.ne.0) goto 900
+             notop=-1
 ! initiate line counter (redundant) ... maybe if several step separate?
 !             if(seqxyz(2).ne.0) then
 !                write(*,*)'step_separate seqy: ',seqxyz(2)
@@ -7968,7 +7981,7 @@
           else
 ! we generate a second or later startpoint for another phase
 ! note that maptop is allocated a new map_node linked from this
-!             write(*,*)'Creating next start point',itup
+!             write(*,*)'Creating next start point',itup,notop
              inactive=0
              call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,ceq)
              if(gx%bmperr.ne.0) then
@@ -8062,7 +8075,7 @@
           if(firstline) then
 ! follow the axis in the other direction
              if(gx%bmperr.ne.0) then
-                write(*,*)'Removing error code',gx%bmperr
+                write(*,*)'Reset error code',gx%bmperr
              endif
              firstline=.FALSE.
              goto 200
@@ -8071,7 +8084,7 @@
 500       continue
 ! remove any error before calculating next phase
           if(gx%bmperr.ne.0) then
-             write(*,*)'Removing error code to calculate next phase',gx%bmperr
+             write(*,*)'Reset error code to calculate next phase',gx%bmperr
              gx%bmperr=0
           endif
        endif

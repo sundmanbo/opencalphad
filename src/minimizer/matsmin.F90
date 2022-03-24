@@ -622,7 +622,8 @@ CONTAINS
           endif
        else
 ! this can happen if activity condition and calculating without gridmin
-          write(*,*)'Warning: meqrec has already mufixel allocated!'
+!          write(*,*)'Warning: meqrec has already mufixel allocated!'
+          write(*,'("MM Calculate with activity condition")')
        endif
        if(np.gt.1) then
 ! sort components with fix MU in increasing order to simplify below
@@ -11247,6 +11248,347 @@ if(meqrec%noofits.eq.1) then
     return
   end subroutine two_stoich_same_comp
 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_conf_interval
+!\begin{verbatim}
+  recursive subroutine calc_conf_interval(lut,unc,ceq)
+! Provide some confidence intervals of the results
+! lut is output unit
+! unc is condition uncertainty in %
+! ceq is equilibrium record
+    implicit none
+    integer lut
+    double precision unc
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer ie,je,ip,it,jt,kt,cc,loktup,iph,ics,mode,nterm,kp
+    logical once,noTcond,silent
+    character name*32,text*128
+! max/min for stable phase amounts, chemical potentials
+    double precision, allocatable :: pham(:),phamax(:),phamin(:)
+    double precision, allocatable :: mum(:),mumax(:),mumin(:)
+    double precision, allocatable :: cmax(:),cmin(:)
+    double precision porg,gm,gmin,gmax,sm,smin,smax,gsum,ssum,rtg
+    TYPE(gtp_phase_varres), pointer :: varrec
+    TYPE(gtp_condition), pointer :: pcond,last
+    TYPE(gtp_state_variable), pointer :: svrrec
+!
+    write(kou,2)
+2   format(/'Providing an estimate of the confidence intervals'/&
+         'If T is a condition it must be the first'/)
+!    write(*,*)'Not implemented yet'
+!    goto 1000
+    if(unc.gt.1.0D1) then
+       write(*,*)'Condition uncertainties must be less than 10%'
+       goto 1000
+    endif
+! Equilibrium should already be calculated, do not use the grid minimizer
+    call calceq2(0,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Please calculate the equilibrium before this command!'
+       ceq%status=ibset(ceq%status,EQFAIL)
+       goto 1000
+    endif
+! allocate arrays: stable phases, potentials (including T)
+    ie=noel()
+    allocate(mum(ie+1),mumin(ie+1)); allocate(mumax(ie+1))
+! ip is phaces, it is tuples, a phase may have more than one composition set
+    ip=noph()
+    it=nooftup()
+    allocate(pham(it),phamin(it)); allocate(phamax(it))
+! conditions is ie+2
+    allocate(cmin(ie+2)); allocate(cmax(ie+2))
+! list the current equilibrium, maybe replaced by using LIST RESULT before
+! this may eventually be provided by case(12) in pmon6
+    write(lut,*)' *** Conditions:'
+    call list_conditions(lut,ceq)
+    write(lut,*)' *** Some global data:'
+    call list_global_results(lut,ceq)
+! mode=1000 means list stable phases with mole fractions in value order
+    mode=1000
+    once=.TRUE.
+    write(lut,5)
+5   format(/' *** Stable phase data:')
+    phloop: do iph=1,ip
+       do ics=1,9
+          call list_phase_results(iph,ics,mode,lut,once,ceq)
+! if a composition set does not exist take next phase
+          if(gx%bmperr.ne.0) then
+             gx%bmperr=0; cycle phloop
+          endif
+       enddo
+    enddo phloop
+! loop to collect element data, it is stored in ceq%phase_varres
+!    write(*,*)'Extracting chemical potentials: ',allocated(ceq%cmuval),&
+!         size(ceq%cmuval),size(mum)
+    do je=1,ie
+       mum(je)=ceq%cmuval(je)
+       mumin(je)=ceq%cmuval(je)
+       mumax(je)=ceq%cmuval(je)
+    enddo
+! maybe T is not a condition?
+    mum(ie+1)=ceq%tpval(1)
+    mumin(ie+1)=ceq%tpval(1)
+    mumax(ie+1)=ceq%tpval(1)
+    gsum=zero; ssum=zero
+    do loktup=1,it
+! wow phase_varres(1) is for the SER phase .... ???
+!       varrec=>ceq%phase_varres(loktup+1)
+       varrec=>ceq%phase_varres(phasetuple(loktup)%lokvares)
+       if(varrec%dgm.eq.zero) then
+! this is a stable phase, its amount can be zero
+          pham(loktup)=varrec%amfu
+          phamin(loktup)=varrec%amfu
+          phamax(loktup)=varrec%amfu
+          gsum=gsum+varrec%amfu*varrec%gval(1,1)
+          ssum=ssum+varrec%amfu*varrec%gval(2,1)
+       else
+          pham(loktup)=varrec%dgm
+          phamin(loktup)=varrec%dgm
+          phamax(loktup)=varrec%dgm
+       endif
+    enddo
+! total G and S
+    gm=gsum
+    gmin=gsum
+    gmax=gsum
+    sm=-ssum
+    smin=-ssum
+    smax=-ssum
+! loop to list phases close to stability
+    do jt=1,it
+       if(pham(jt).lt.zero .and. pham(jt).gt.-0.1D0) then
+          call get_phasetuple_name(phasetuple(jt),name)
+          write(lut,220)pham(jt),trim(name)
+220       format('Phase close to become stable ',1pe12.4,': ',a)
+       endif
+    enddo
+! Suppress output from calceq
+    silent=btest(globaldata%status,GSSILENT)
+    globaldata%status=ibset(globaldata%status,GSSILENT)
+    write(lut,230)
+230 format(/'Condition=value;   +/-phase change relative original equilibrium')
+! now loop for all conditions to change each with +/-unc limit
+! and calculate extra equilibria to provide a confidence interval
+! save results from all and try to provide some estimate 
+    noTcond=.TRUE.
+    last=>ceq%lastcondition%next
+    pcond=>last
+    cond: do while(.TRUE.)
+       if(pcond%active.eq.0) then
+! condition is active          
+          if(pcond%noofterms.gt.1) then
+!             write(*,*)'Ignoring expressions as conditions'
+             goto 500
+          elseif(pcond%statev.lt.0) then
+!             write(*,*)'Ignoring fix phase as conditions'
+             goto 500
+          endif
+!          write(*,250)pcond%statev,pcond%prescribed
+250       format('State variable index and value: ',i4,1pe12.4,l2)
+! special if no T condition
+          if(pcond%statev.eq.1) noTcond=.FALSE.
+! ignore P
+          if(pcond%statev.eq.2) goto 500
+! ignore N= (add also B and some others)
+          if(pcond%statev.eq.110) goto 500
+! ignore conditions with a symbol as value
+          if(pcond%symlink1.gt.0) goto 500
+! change condition -unc, calculate without gridmin to avoid creare new comp.sets
+          porg=pcond%prescribed
+          pcond%prescribed=pcond%prescribed*(one-0.01D0*unc)
+! save condition value just changed in "text"
+          kp=1
+          text=' '
+          svrrec=>pcond%statvar(1)
+          call encode_state_variable(text,kp,svrrec,ceq)
+          if(gx%bmperr.ne.0) goto 1000
+          text(kp:kp)='='
+          kp=kp+1
+          call wrinum(text,kp,10,0,pcond%prescribed)
+          text(kp:kp)=';'
+          kp=max(kp+2,20)
+!          call list_conditions(lut,ceq)
+          call calceq2(0,ceq)
+          if(gx%bmperr.ne.0) then
+             write(lut,*)'Estimation failed as equilibrium calculation failed'
+             write(*,*)'Estimation failed as equilibrium calculation failed'
+             ceq%status=ibset(ceq%status,EQFAIL)
+! restore condition value
+             pcond%prescribed=pcond%prescribed+0.01D0*unc
+             goto 1000
+          endif
+! save change in potentials
+          do je=1,ie
+             if(mumin(je).gt.ceq%cmuval(je)) mumin(je)=ceq%cmuval(je)
+             if(mumax(je).lt.ceq%cmuval(je)) mumax(je)=ceq%cmuval(je)
+          enddo
+          if(noTcond) then
+! if T is not a condition save it
+             if(mumin(ie+1).gt.ceq%tpval(1)) mumin(ie+1)=ceq%tpval(1)
+             if(mumax(ie+1).lt.ceq%tpval(1)) mumax(ie+1)=ceq%tpval(1)
+          endif
+! save changes in phase amount and stability
+          gsum=zero; ssum=zero
+          do loktup=1,it
+! REMEMBER phase_varres(1) is for the SER phase ???
+!             varrec=>ceq%phase_varres(loktup+1)
+!             varrec=>ceq%phase_varres(loktup)
+             varrec=>ceq%phase_varres(phasetuple(loktup)%lokvares)
+             if(varrec%dgm.eq.zero) then
+! the ohase is stable
+                if(pham(loktup).lt.zero) then
+! the phase was not stable originally
+                   call get_phasetuple_name(phasetuple(loktup),name)
+                   text(kp:)='+'//name
+                   kp=len_trim(text)+2
+                   phamax(loktup)=varrec%amfu
+                else
+                   if(phamin(loktup).gt.varrec%amfu) phamin(loktup)=varrec%amfu
+                   if(phamax(loktup).lt.varrec%amfu) phamax(loktup)=varrec%amfu
+                endif
+                gsum=gsum+varrec%amfu*varrec%gval(1,1)
+                ssum=ssum+varrec%amfu*varrec%gval(2,1)
+             else
+! the phase is not stable
+                if(pham(loktup).ge.zero) then
+                   call get_phasetuple_name(phasetuple(loktup),name)
+                   text(kp:)='-'//name
+                   kp=len_trim(text)+2
+                   phamin(loktup)=varrec%dgm
+                else
+                   if(phamin(loktup).gt.varrec%dgm) phamin(loktup)=varrec%dgm
+                   if(phamax(loktup).lt.varrec%dgm) phamax(loktup)=varrec%dgm
+                endif
+             endif
+          enddo
+          if(gmin.gt.gsum) gmin=gsum
+          if(gmax.lt.gsum) gmax=gsum
+          if(smin.gt.-ssum) smin=-ssum
+          if(smax.lt.-ssum) smax=-ssum
+! list new condition value just calculated, possibly with new phases
+          write(lut,'(a)')trim(text)
+! change condition +unc to upper limit -------------------
+          pcond%prescribed=porg*(one+0.01D0*unc)
+! save condition value just changed in "text"
+          kp=1
+          text=' '
+          svrrec=>pcond%statvar(1)
+          call encode_state_variable(text,kp,svrrec,ceq)
+          if(gx%bmperr.ne.0) goto 1000
+          text(kp:kp)='='
+          kp=kp+1
+          call wrinum(text,kp,10,0,pcond%prescribed)
+          text(kp:kp)=';'
+          kp=max(kp+2,20)
+!          call list_conditions(lut,ceq)
+          call calceq2(0,ceq)
+          if(gx%bmperr.ne.0) then
+             write(lut,*)'Estimation failed as equilibrium calculation failed'
+             write(*,*)'Estimation failed as equilibrium calculation failed'
+             ceq%status=ibset(ceq%status,EQFAIL)
+! restore condition value
+             pcond%prescribed=pcond%prescribed+0.01D0*unc
+             goto 1000
+          endif
+! save change in potenials
+          do je=1,ie
+             if(mumin(je).gt.ceq%cmuval(je)) mumin(je)=ceq%cmuval(je)
+             if(mumax(je).lt.ceq%cmuval(je)) mumax(je)=ceq%cmuval(je)
+          enddo
+          if(noTcond) then
+! note je is ie+1 after loop above
+             if(mumin(ie+1).gt.ceq%tpval(1)) mumin(ie+1)=ceq%tpval(1)
+             if(mumax(ie+1).lt.ceq%tpval(1)) mumax(ie+1)=ceq%tpval(1)
+          endif
+! save changes in phase amount and stability
+          gsum=zero; ssum=zero
+          do loktup=1,it
+             varrec=>ceq%phase_varres(phasetuple(loktup)%lokvares)
+             if(varrec%dgm.eq.zero) then
+! the phase is stable
+!                write(*,*)'check: ',loktup,pham(loktup)
+                if(pham(loktup).lt.zero) then
+! the phase was not stable originally
+                   call get_phasetuple_name(phasetuple(loktup),name)
+                   text(kp:)='+'//name
+                   kp=len_trim(text)+2
+                   phamax(loktup)=varrec%amfu
+                else
+                   if(phamin(loktup).gt.varrec%amfu) phamin(loktup)=varrec%amfu
+                   if(phamax(loktup).lt.varrec%amfu) phamax(loktup)=varrec%amfu
+                endif
+                gsum=gsum+varrec%amfu*varrec%gval(1,1)
+                ssum=ssum+varrec%amfu*varrec%gval(2,1)
+             else
+! the phase is not stable
+                if(pham(loktup).ge.zero) then
+                   call get_phasetuple_name(phasetuple(loktup),name)
+                   text(kp:)='-'//name
+                   kp=len_trim(text)+2
+                   phamax(loktup)=varrec%amfu
+                else
+                   if(phamin(loktup).gt.varrec%dgm) phamin(loktup)=varrec%dgm
+                   if(phamax(loktup).lt.varrec%dgm) phamax(loktup)=varrec%dgm
+                endif
+             endif
+          enddo
+          if(gmin.gt.gsum) gmin=gsum
+          if(gmax.lt.gsum) gmax=gsum
+          if(smin.gt.-ssum) smin=-ssum
+          if(smax.lt.-ssum) smax=-ssum
+! list new condition value just calculated, possibly with new phases
+          write(lut,'(a)')trim(text)
+! restore original condition
+          pcond%prescribed=porg
+! next condition
+       endif
+500    continue
+       pcond=>pcond%next
+       if(associated(pcond,last)) exit cond
+    enddo cond
+! listing variations in potentials
+    write(lut,600)
+600 format(/'Variations in chemical potentials/RT:'/&
+         'Element        original          min         max')
+    do je=1,ie
+! there is no way to get element names from index ... suck
+       call get_component_name(je,name,ceq)
+       write(lut,610)name(1:2),mum(je),mumin(je),mumax(je)
+610    format(a,10x,1pe14.6,5x,2e12.4)
+    enddo
+    if(noTcond) then
+       write(lut,615)mum(ie+1),mumin(ie+1),mumax(ie+1)
+615    format(/'Variation of T:: ',F10.2,5x,2F10.2,' K')
+    endif
+    rtg=globaldata%rgas*ceq%tpval(1)
+    write(lut,620)gm*rtg,gmin*rtg,gmax*rtg,sm*rtg,smin*rtg,smax*rtg
+620 format(/'Gibbs energy: ',1pe14.6,5x,2e12.4,' J'/&
+            'Entropy     : ',1pe14.6,5x,2e12.4,' J/K')
+    write(lut,630)
+630 format(/'Variations in stable phase amounts:',&
+         ' (negative value means unstable)'/&
+         'original amount     min         max')
+    loop7: do jt=1,it
+       iph=phasetuple(jt)%lokph; ics=phasetuple(jt)%compset
+! skip phases that are not entered
+       if(test_phase_status(iph,ics,gsum,ceq).lt.-1) cycle loop7
+       if(phamax(jt).ge.zero) then
+          call get_phasetuple_name(phasetuple(jt),name)
+          write(lut,640)pham(jt),phamin(jt),phamax(jt),trim(name)
+640       format(1pe12.4,5x,2e12.4,3x,a)
+       endif
+    enddo loop7
+! of the confidence interval within the condition uncertainties
+1000 continue
+! resstore silen mode
+    if(.NOT.silent) then
+       globaldata%status=ibclr(globaldata%status,GSSILENT)
+    endif
+    return
+  end subroutine calc_conf_interval
+    
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 end MODULE liboceqplus

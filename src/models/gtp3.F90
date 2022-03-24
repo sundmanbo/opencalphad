@@ -157,7 +157,7 @@ use ocparam
 ! 2017.02.10 Release version 4
 ! 2018.03.02 Release version 5
 ! 2020.03.12 Release version 6
-  character (len=8), parameter :: version='  6.043 '
+  character (len=8), parameter :: version='  6.044 '
 !---------------------------------------------------------------------------
   character (len=64), dimension(4000:nooferm) :: bmperrmess
 ! The first 30 error messages mainly for TP functions
@@ -667,7 +667,7 @@ use ocparam
 ! HID phase is hidden (not implemented)
 ! IMHID phase is implictly hidden (not implemented)
 ! ID phase is ideal, substitutional and no interaction
-! NOCV phase has no concentration variation (I am not sure it is set or used)
+! NOCV phase has no concentration variation
 ! HASP phase has at least one parameter entered
 ! FORD phase has 4 sublattice FCC ordering with parameter permutations
 ! BORD phase has 4 sublattice BCC ordering with parameter permutations
@@ -677,7 +677,7 @@ use ocparam
 ! LIQ phase is liquid (can be several but listed directly after gas)
 ! IONLIQ phase has ionic liquid model (I2SL)
 ! AQ1 phase has aqueous model (not implemented)
-! STATE elemental liquid twostate (2-state) model parameter
+! 2STATE elemental liquid twostate model parameter (not same as I2SL!)
 ! QCE phase has corrected quasichemical entropy (Hillerst-Selleby-Sundman)
 ! CVMCE phase has some CVM ordering entropy (not implemented)
 ! EXCB phase need explicit charge balance (has ions)
@@ -1495,7 +1495,7 @@ use ocparam
 !-----------------------------------------------------------------
 ! data for liquid phase with mqmqa model (only one!)
   TYPE gtp_mqmqa
-! contains special information for liquid models with MQMQA
+! contains special STATIC information for liquid MQMQA model
 ! nconst is number of constituents, ncon1, ncon2 in subl, npair #of pairs
      integer nconst,ncon1,ncon2,npair
 ! contyp(1..4,const) 1,2 species in first sublattice, -1,-2 in second sublattice
@@ -1524,22 +1524,26 @@ use ocparam
      double precision, allocatable :: pp(:,:) 
   end TYPE gtp_mqmqa
 !  TYPE(gtp_mqmqa), private :: mqmqa_data
-! it should be private when everything work and can be removed from pmon6
+! it should be made private when everything work and removed from pmon6
   TYPE(gtp_mqmqa) :: mqmqa_data
 !
 !-----------------------------------------------------------------
 ! data for liquid phase with mqmqa model (part of phase_varres record)
 ! separate records for each compset because the liquid may have miscibility gaps
   TYPE gtp_mqmqa_var 
+! The quadruplet fractions are the "normal" constituent fractions
 ! size of arrays
      integer nquad,npair,ns1,ns2
-! site fractions and derivatives
+! (dynamic) site fractions and derivatives
      double precision, allocatable :: yy1(:),yy2(:),dyy1(:,:),dyy2(:,:)
      double precision, allocatable :: d2yy1(:,:),d2yy2(:,:)
 ! charge equivalent fractions (per sublattice)
      double precision, allocatable :: ceqf1(:),ceqf2(:),dceqf1(:,:),dceqf2(:,:)
 ! normallized pair fractions and derivatives
      double precision, allocatable :: pair(:),dpair(:,:)
+! constituent equivalent fractions, needed for excess parameters (NEW)
+     double precision, allocatable :: eqf1(:),deqf1(:,:),d2eqf1(:,:)
+     double precision, allocatable :: eqf2(:),deqf2(:,:),d2eqf2(:,:)
   end type gtp_mqmqa_var
 !===================================================================
 !

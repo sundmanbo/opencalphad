@@ -230,7 +230,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=24,ncalc=15,ncent=21,ncread=6
+    integer, parameter :: ncbas=30,nclist=24,ncalc=18,ncent=21,ncread=6
     integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=12
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
@@ -270,7 +270,7 @@ contains
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
          'ACTIVE_EQUILIBR ','ELEMENTS        ','EXCELL_CSV_FILE ',&
-         'QUADRUPLETS     ','                ','                ']
+         'QUADRUPLETS     ','ESTIMAT_ACCURACY','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -293,7 +293,8 @@ contains
          'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
          'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
          'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ',&
-         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','PARAEQUILIBRIUM ']
+         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','PARAEQUILIBRIUM ',&
+         '                ','                ','                ']
 !-------------------
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
@@ -384,7 +385,7 @@ contains
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
 ! subsubsubcommands to SET PHASE BITS
-! The bits can still be set here by numbers but the text is no longer shwon
+! Some bits can still be set here by numbers but the text is no longer shown
 ! most bits are set by AMEND PHASE command
     character (len=16), dimension(nsetphbits) :: csetphbits=&
          ['                ','                ','                ',&
@@ -1575,7 +1576,8 @@ contains
 !         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
 !         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
 !         'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ',&
-!         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','PARAEQUILIBRIUM ']
+!         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','PARAEQUILIBRIUM ',&
+!         '                ','                ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8,'?TOPHLP')
        calculate: SELECT CASE(kom2)
@@ -1925,6 +1927,7 @@ contains
           endif
 ! calceq2 set appropriate bits for listing
           if(gx%bmperr.ne.0) then
+             if(gx%bmperr.eq.4204) write(*,*)'Try using "CALCULATE CAREFULLY"'
              ceq%status=ibset(ceq%status,EQFAIL)
              goto 990
           endif
@@ -2172,7 +2175,7 @@ contains
 ! a warning when list equilibria
           ceq%status=ibset(ceq%status,EQINCON)
 !-------------------------------------------------------
-!       case(12) ! almost same as 14
+!       case(12) ! merged with case(14)
 !-------------------------------------------------------
        case(13) ! Only gridmin no merge
 ! extract values for mass balance calculation from conditions
@@ -2263,6 +2266,15 @@ contains
                ' only the compositions'/)
 ! what are the conditions??
 !          call list_conditions(kou,ceq)
+!-------------------------------------------------------
+       case(16) ! CALCULATE ??
+          write(kou,*)'Not implemented yet'
+!-------------------------------------------------------
+       case(17) ! CALCULATE ??
+          write(kou,*)'Not implemented yet'
+!-------------------------------------------------------
+       case(18) ! CALCULATE ??
+          write(kou,*)'Not implemented yet'
        END SELECT calculate
 !=================================================================
 ! SET SUBCOMMANDS
@@ -4560,7 +4572,7 @@ contains
           if(kom2.eq.19 .and. jp.gt.0) &
                write(lut,'(/"Number of equilibria with zero weight: ",i4)')jp
 !------------------------------
-       case(12) ! list results
+       case(12) ! LIST RESULTS (maybe also LIST ESTIMATED_ACCURA?)
 ! skip if no calculation made
           if(btest(globaldata%status,GSNOPHASE)) then
              write(kou,*)'No results as no data'
@@ -4992,12 +5004,18 @@ contains
                 endif
              endif
           endif
-! output file
+! output file, NOTE if /APPEND the file already open!
+          if(optionsset%lut.ne.kou) then
+             write(*,*)'Appended on CSV files not implemented yet',&
+                  optionsset%lut
+             close(optionsset%lut); optionsset%lut=0
+!             goto 1234
+          endif
           if(buperr.ne.0) buperr=0
 ! What does -5 as argument mean?? Well, open for write!!
           call gparfilex('Output file: ',cline,last,1,plotfile,' ',-5,&
                '?List excell CSV')
-! make sure there is a plt extention
+! make sure there is a file name
           if(len_trim(plotfile).le.0) then
              plotfile=' '
              if(buperr.ne.0) then
@@ -5028,6 +5046,7 @@ contains
 !             write(*,*)'PMON working directory: ',trim(workingdir)
              write(*,*)'Saving on file: ',trim(plotfile)
           endif
+1234      continue
 ! use the graphics record to transfer data ...
           graphopt%pltax(1)=axplot(1)
           graphopt%pltax(2)=axplot(2)
@@ -5060,9 +5079,23 @@ contains
 1680         format(i3,i4,1x,a,1x,F6.2,2x,10(a2,F8.6,1x))
           enddo qlista
 !------------------------------
-! list ??
-       case(23)
-          write(*,*)'Not implemented yet'
+! LIST ESTIMATE_ACCURACY.  Additional calculations are made
+! Eventually included in case(12) ???
+       case(23) 
+          if(btest(ceq%status,EQNOEQCAL) .or. btest(ceq%status,EQFAIL)) then
+             write(*,*)'You must calculate an equilibrium first'
+             goto 100
+          endif
+          xxy=5.0
+          call gparrdx('Estimated uncertainty in conditions (%): ',&
+               cline,last,xxx,xxy,'?Calculate confidence interval')
+          i1=optionsset%lut
+          if(i1.eq.0) i1=kou
+          call calc_conf_interval(i1,xxx,ceq)
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+             goto 990
+          endif
 !------------------------------
 ! list ??
        case(24)
@@ -5832,7 +5865,7 @@ contains
 15010  format(/'This is OpenCalphad (OC), a free software for ',&
             'thermodynamic calculations as described in:'/&
             'B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
-            'Integ Mat and Manuf Innov (2015) 4:1; '/&
+            'Int Mat and Manu Innov (2015) 4:1; '/&
             'B Sundman, X-G Lu and H Ohtani, Comp Mat Sci, Vol 101 ',&
             '(2015) 127-137'/'B Sundman, N Dupin and B Hallstedt, ',&
             'Calphad, Vol 75 (2021) 102330'//&

@@ -657,8 +657,9 @@
        ['T   ','P   ','MU  ','AC  ','LNAC','U   ','S   ','V   ',&
         'H   ','A   ','G   ','NP  ','BP  ','DG  ','Q   ','N   ',&
         'X   ','B   ','W   ','Y   ']
-!        1      2      3      4      4      6      7      8         
-!        9      10     11     12  ...
+!        1      2      3      4      5?     6      7      8         
+!        9      10     11     12     13     14     15     16
+!        17     18     19     20
    character statevar*(*)
    integer istv,iref,iunit
    integer, dimension(4) :: indices
@@ -905,8 +906,8 @@
    if(lstate(jp:jp).eq.'S') then
       jp=jp+1
       iref=-1
-   elseif(lstate(jp:jp).eq.'R') then
-      write(*,*)'Ignoring suffix "R" on ',trim(statevar),&
+   elseif(lstate(jp:jp+1).eq.'R(') then
+      write(*,*)'3F Ignoring suffix "R" on ',trim(statevar),&
            ', user reference is default'
       jp=jp+1
    endif
