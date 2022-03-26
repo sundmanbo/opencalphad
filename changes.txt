@@ -19,6 +19,17 @@ answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.03.26 OC version 6.045: The reading of TDB files has been
+simplified by reading all TYPE_DEF first, before any other keyword.
+The reason is that in OC a TYPE_DEF character had to be defined before
+it was used in a PHASE keyword.  But many TDB files are organized
+differently and it as is accepted by other software it is now finally
+accepted also by OC.  This should not affect anything in the
+calculations but please report problems!  Additionally a parameter
+identifier "BM", used as abbreviation for BMAGN (for the Bogr magneton
+number), will be interpreted as BMAG, which is the coresponding OC
+parameter identifier.
+
 2022.03.24 OC version 6.044: The guerre in Ukraine has made me think
 developing thermodynamic software is not very important.  But anyway
 there is a new command "LIST ESTIMAT_ACCURACY" which can be used after

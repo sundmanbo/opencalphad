@@ -14,7 +14,6 @@
 *.ocu
 *~
 *.txt
-src/pmain1.F90
 .*
 crfemo-1400-leftcorner.pdf
 examples/macros/cp-cumg2.pdf
