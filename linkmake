@@ -89,7 +89,7 @@ del src\pmain1-save.F90
 REM Finally linking all together
 gfortran -o oc6A src\pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o libs\liboceq.a -lcomdlg32 -lole32
 
-REM copy oc6A.exe bin\
+copy oc6A.exe bin\
 
 REM *******************************************
 REM ** OC graphics require GNUPLOT 5.2 or later

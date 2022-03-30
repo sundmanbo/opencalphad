@@ -4067,6 +4067,35 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine readencrypt
+!\begin{verbatim}
+ subroutine readencrypt(line,nr)
+! This is a dummy routine because the real one is not part of open source
+! line contans "ENCRYPTED filename (and maybe more)
+! nr is missing functions reading here
+   character line*(*)
+   integer nr
+!\end{verbatim}
+   write(*,*)'Inside dummy readencrypt'
+   return
+ end subroutine readencrypt
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine notallowlisting
+!\begin{verbatim}
+ logical function notallowlisting(privil)
+! check if user is allowed to list data
+   double precision privil
+!\end{verbatim}
+   logical ok
+   ok=.FALSE.
+   notallowlisting=ok
+   return
+ end function notallowlisting
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 ! END MODULE TPFUNLIB
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

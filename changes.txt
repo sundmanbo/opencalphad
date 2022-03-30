@@ -7,37 +7,43 @@ OC6-macros.pdf.
 There is now a precompiled installation of OC on Windows on the
 OpenCalphad web page.  It includes an introduction, on-line help and
 examples with macro files and some small databases.  For graphics the
-GNUPLOT software must be installed separately from Sourceforge or a
-similar website.
+free GNUPLOT software must be installed separately from Sourceforge or
+a similar website.
 
 On Linux, MacOS and other OS the installation requires some general
 knowledge about compiling and linking of software.  There is an
 installation manual (and an old mainly redundant video on You Tube)
 but if you are not familiar with such procedures please ask a local
-guru for help.  We who are providing this software do not have time to
-answer such questions.
+guru for help.  Installation problems depend on your local
+envirionment and we who are providing this software do not have time
+to answer such questions.
 
 In the list below the most recent changes come first.
 
-2022.03.26 OC version 6.045: The reading of TDB files has been
-simplified by reading all TYPE_DEF first, before any other keyword.
-The reason is that in OC a TYPE_DEF character had to be defined before
-it was used in a PHASE keyword.  But many TDB files are organized
-differently and it as is accepted by other software it is now finally
-accepted also by OC.  This should not affect anything in the
-calculations but please report problems!  Additionally a parameter
-identifier "BM", used as abbreviation for BMAGN (for the Bogr magneton
-number), will be interpreted as BMAG, which is the coresponding OC
-parameter identifier.
+2022.03.30 OC version 6.045: In order to prepare OC to read encrypted
+databases some restructuring of the data structures and subroutines
+has been made.  There should be no change for using unencrypted
+databases.  Please report any problems!
 
-2022.03.24 OC version 6.044: The guerre in Ukraine has made me think
-developing thermodynamic software is not very important.  But anyway
-there is a new command "LIST ESTIMAT_ACCURACY" which can be used after
-an equilibrium calculation to obtain error estimates of the results by
-calculating mumltiple equilibria varying the value of the conditions
-with +/-5%.  This can be useful to know how the system will behave in
-a production situation when it can be difficult to keep compositions
-or temperatures at the optimal values.
+2022.03.26 OC version 6.044: The war in Ukraine has made me think
+developing thermodynamic software is not very important.  But work
+goes on also, the reading of TDB files has been simplified by reading
+all TYPE_DEF first, before any other keyword.  The reason is that in
+OC a TYPE_DEF character had to be defined before it was used in a
+PHASE keyword.  But many TDB files are organized differently and as it
+is accepted by other software it is now finally accepted also by OC.
+This should not affect anything in the calculations but please report
+problems!  Additionally a parameter identifier "BM", used as
+abbreviation for BMAGN (for the Bohr magneton number), will be
+interpreted as BMAG, which is the coresponding OC parameter
+identifier.
+
+There is a new command "LIST ESTIMAT_ACCURACY" which can be used after
+an equilibrium calculation to obtain error estimates of the results.
+This is done by calculating mumltiple equilibria varying the value of
+the conditions with +/-5%.  It can be useful to understand how the
+system will behave in a production situation when it can be difficult
+to keep compositions or temperatures at the optimal values.
 
 2022.02.21 OC version 6.043: Clement Introini and his colleagues at
 CEA Cadarache have worked extensively with the grid minimizer and

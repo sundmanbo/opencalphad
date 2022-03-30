@@ -3942,7 +3942,10 @@
    integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz,dismag
    integer enteredpar,loop,emodel
    type(gtp_phase_add), pointer :: addrec
-   logical warning
+   logical warning,only_typedefs
+! this is used for reading encrypted FUNCTION and PARAMETER part of a TDB file
+   integer encrypted
+   character encryptline*128
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
 ! to prevent any output
@@ -3956,6 +3959,7 @@
 !   dbcheck=.FALSE.
    warning=.FALSE.
    silent=.FALSE.
+   encrypted=0
 ! this was Ting request to have ferromanetic reference state for alloys
    ferroref=.FALSE.
    nphrej=0
@@ -4010,6 +4014,8 @@
 ! expecting next keyword to be CONSTITUENT
    nophase=.TRUE.
    rewindx=0
+! read whole file FIRST to pick up TYPE_DEFs
+   only_typedefs=.TRUE.
 ! return here after rewind
 90  continue
    nl=0
@@ -4018,6 +4024,18 @@
    read(21,110,end=2000)line
 110 format(a)
    nl=nl+1
+   if(nl.eq.1) then
+      if(line(1:10).eq.'ENCRYPTED ') then
+! encrypted files consists of a "structure" part with elements, phases etc
+! which are not encrypted and a file name with the encrypted FUNCTION and
+! PARAMETER keywords.  After reading the structure part call readencrypt
+! onlyfun is set TRUE and that triggers read the encrypted part
+         encrypted=encrypted+1
+         encryptline=line
+         if(encrypted.eq.1) write(*,*)'3E reading encrypted database: '
+         goto 100
+      endif
+   endif
    if(len_trim(line).gt.80) then
       if(.not.silent) write(*,121)nl
 121   format(' *** Warning: line ',i5,' has characters beyond position 80,'/&
@@ -4042,8 +4060,10 @@
             goto 100
          elseif(trim(line).eq.'DEFINE_SYSTEM_DEFAULT ELEMENT 2 !') then
             goto 100
-         elseif(dodis.ne.1) then
+!         elseif(dodis.ne.1) then
+         elseif(dodis.ne.1 .and. .not.only_typedefs) then
 ! do not give this warning when reading disordered phases ...
+! This message came also during reading only_typedfs ...
             write(*,122)nl,trim(line)
 122         format(/'3E *** Warning, ignoring line ',i5,' with "',a,'"'/)
          endif
@@ -4056,9 +4076,15 @@
       endif
       goto 100
    elseif(onlyfun) then
+! keyw=5 is FUNCTION
       if(keyw.eq.5) goto 800
       goto 100
+   elseif(only_typedefs) then
+! extract only_typdefs at first read
+      if(keyw.ne.7) goto 100
+!      write(*,*)'3E reading a TYPE_DEF'
    endif
+!
    if(.not.nophase .and. keyw.ne.4) then
 ! after a PHASE keyword one should have a CONSTITUENT
       if(.not.silent) write(kou,*)'WARNING expeciting CONSTITUENT: ',line(1:30)
@@ -4084,6 +4110,7 @@
          endif
       endif
    enddo
+! Here we have read data for the keyword up to !
 !   write(*,71)'3E line 2 ',ip,trim(longline)
 71 format(a,i4,1x,a)
    if(dodis.eq.1) then
@@ -4875,6 +4902,13 @@
       if(typty.eq.0) then
 ! find the property associated with this symbol
 !         write(*,*)'psym1: ',trim(name1)
+! HANDLE THE ABBREVIATION BM to be accepted as BMAG         
+         if(name1(1:3).eq.'BM ') then
+            write(kou,*)&
+                 ' *** WARNING unknown parameter identifier "BM"',&
+                 ' assumed to mean "BMAG" on line',nl
+            name1='BMAG'
+         endif
          call get_parameter_typty(name1,lokph,typty,fractyp)
          if(gx%bmperr.ne.0) then
             lp2=len_trim(name1)
@@ -5183,6 +5217,11 @@
    case(7) !TYPE_DEFINITION 
 !123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
 ! TYPE_DEFINITION & GES A_P_D BCC_A2 MAGNETIC  -1.0    4.00000E-01 !
+      if(.not.only_typedefs) then
+! skip TYPE_DEFS unless only_typdefs is TRUE
+!         write(*,*)'3E skipping TYPE_DEFS at later rewind',rewindx
+         goto 100
+      endif
       nytypedef=nytypedef+1
       typedefchar(nytypedef)=longline(nextc+1:nextc+1)
 ! in TC the same typedef "letter" can be used several times
@@ -5295,20 +5334,21 @@
                     trim(dispartph(disparttc)),orddistyp(disparttc)
 82             format('3E Found a type_def DIS_PART:',i2,&
                     ' with ',a,' and ',a,' type:',i2)
+! THIS CODE REDUNDANT BECAUSE ALL TYPE_DEFS READ BEFORE PHASES ARE ENTERED
 ! if the disordered part phase already entered give warning and advice
-               call find_phase_by_name(dispartph(disparttc),iph,ics)
-               if(gx%bmperr.ne.0) then
-                  gx%bmperr=0
-               else
-                  if(.not.silent) write(kou,83)dispartph(disparttc)
-83                format('3E *** Warning, the disordered phase is already',&
-                       ' entered ***'/' Please rearrange the TDB file so',&
-                       ' this TYPE_DEF comes before'/&
-                       ' the PHASE keyword for the disordered phase: ',a/&
-                       ' *** The disordered part ignored ***')
-                  disparttc=disparttc-1
-                  warning=.TRUE.
-               endif
+!               call find_phase_by_name(dispartph(disparttc),iph,ics)
+!               if(gx%bmperr.ne.0) then
+!                  gx%bmperr=0
+!               else
+!                  if(.not.silent) write(kou,83)dispartph(disparttc)
+!83                format('3E *** Warning, the disordered phase is already',&
+!                       ' entered ***'/' Please rearrange the TDB file so',&
+!                       ' this TYPE_DEF comes before'/&
+!                       ' the PHASE keyword for the disordered phase: ',a/&
+!                       ' *** The disordered part ignored ***')
+!                  disparttc=disparttc-1
+!                  warning=.TRUE.
+!               endif
 84             continue
             else
                km=index(longline,' LIQUID 2-STATE ')
@@ -5659,6 +5699,15 @@
 ! end of file found, act differently if reading functions
 2000 continue
    rewindx=rewindx+1
+   if(only_typedefs) then
+! new feature, read only_typdes at first run, then set it false
+      only_typedefs=.FALSE.
+      write(*,*)'3E Finished reading all TYPE_DEFS, now the rest of the file'
+      gx%bmperr=0
+      rewind(21)
+      nl=0
+      goto 100
+   endif
    rewindfile: if(dodis.eq.0 .and. disparttc.gt.0) then
 ! rewind to read disordred parts
       if(.not.silent) &
@@ -5677,6 +5726,17 @@
 2002 format('Found end-of-file, rewind to find functions',i5)
       nl=0
       goto 100
+   elseif(encrypted.gt.0) then
+! on encrypted TDB files the FUNCTION and PARAMETER keywords are
+! in a separate file.  When onlyfun is TRUE then we swich to this file
+      close(21)
+      write(*,*)'3E closing TDB file to read encrypted part'
+      call readencrypt(encryptline,nr)
+! nr is missing functions ...
+      if(nr.gt.0) then
+         write(*,*)'3E read encrypted part, missing functions: ',nr
+      endif
+      return
    elseif(nofunent.gt.0) then
 ! rewind if there were functions entered last time
       rewind(21)
@@ -9133,30 +9193,6 @@
 1000 continue
    return
  end subroutine intsort
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable subroutine notallowlisting
-!\begin{verbatim}
- logical function notallowlisting(privil)
-! check if user is allowed to list data
-   double precision privil
-!\end{verbatim}
-   logical ok
-   ok=.TRUE.
-   if(proda.ne.zero) then
-      write(*,*)'3E Testing if listing allowed'
-      if(privil.ne.proda) then
-         ok=.FALSE.
-      else
-         write(*,*)'Sorry you are not allowed to list data'
-      endif
-   else
-      ok=.FALSE.
-   endif
-   notallowlisting=ok
-   return
- end function notallowlisting
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
