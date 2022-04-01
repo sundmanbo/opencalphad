@@ -20,6 +20,9 @@ to answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.04.01 OC version 6.046: The Makefiles has now been updated for
+all the changes made.
+
 2022.03.30 OC version 6.045: In order to prepare OC to read encrypted
 databases some restructuring of the data structures and subroutines
 has been made.  There should be no change for using unencrypted
@@ -27,7 +30,7 @@ databases.  Please report any problems!
 
 2022.03.26 OC version 6.044: The war in Ukraine has made me think
 developing thermodynamic software is not very important.  But work
-goes on also, the reading of TDB files has been simplified by reading
+goes on, the reading of TDB files has been simplified by reading
 all TYPE_DEF first, before any other keyword.  The reason is that in
 OC a TYPE_DEF character had to be defined before it was used in a
 PHASE keyword.  But many TDB files are organized differently and as it
@@ -43,7 +46,7 @@ an equilibrium calculation to obtain error estimates of the results.
 This is done by calculating mumltiple equilibria varying the value of
 the conditions with +/-5%.  It can be useful to understand how the
 system will behave in a production situation when it can be difficult
-to keep compositions or temperatures at the optimal values.
+to keep compositions and temperatures at the optimal values.
 
 2022.02.21 OC version 6.043: Clement Introini and his colleagues at
 CEA Cadarache have worked extensively with the grid minimizer and

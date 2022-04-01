@@ -79,15 +79,15 @@ clean:
 # IMPORTRANT 1:
 # To have the command line editing and history feature on your OS
 # you must uncomment the appropriate line after the header getkey.o:
-
+£ Default is Linux
 getkey.o:
-	echo "Do not forget to uncomment a line below for your OS"
+	echo "Do not forget to uncomment tne correct line below for your OS"
 	# compile utilities/GETKEY for command line editing
 	# uncomment the line for the kind of Linux system you have
 	# Mac >>
 	#$(C) -c $(FCOPT) -DBSD src/utilities/GETKEY/getkey.c
 	# Linux >>
-	#$(C) -c $(FCOPT) -DLinux src/utilities/GETKEY/getkey.c
+	$(C) -c $(FCOPT) -DLinux src/utilities/GETKEY/getkey.c
 	# other UNIX systems >>
 	#$(C) -c $(FCOPT) -DG77 src/utilities/GETKEY/getkey.c
 	# CYGWIN >> 
@@ -108,6 +108,7 @@ ftinyopen.o:
 	$(FC) -c $(FCOPT) src/utilities/TINYFILEDIALOGS/ftinyopen.F90
 
 metlib4.o:	src/utilities/metlib4.F90
+	$(FC) -c $(FCOPT) src/models/ocparam.F90
 	# lixed for command line editing,
 	# tinyfd for open files
 	# lixhlp for browser help on Linux and MacOS
@@ -117,7 +118,7 @@ oclablas.o:	src/numlib/oclablas.F90
 	$(FC) -c $(FCOPT) src/numlib/oclablas.F90
 
 ocnum.o:	src/numlib/ocnum.F90
-	$(FC) -c $(FCOPT) src/numlib/ocnum.F90
+	$(FC) -c $(FCOPT) -DNOLAPACK src/numlib/ocnum.F90
 
 minpack1.o:      src/numlib/minpack1.F90
 	$(FC) -c $(FCOPT) src/numlib/minpack1.F90
@@ -153,8 +154,10 @@ liboctqcpp.o:	./examples/TQ4lib/Cpp/Matthias/liboctqcpp.cpp
 
 $(EXE): 
 	# Add date of linking to main program
+	cp src/pmain1.F90 src/pmain1-save.F90
 	$(FC) -o linkoc src/linkocdate.F90
 	./linkoc
+	rm src/pmain1-save.F90
 	# create library liboceq.a
 	mkdir -p libs
 	ar sq libs/liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
