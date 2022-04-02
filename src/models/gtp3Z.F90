@@ -152,6 +152,7 @@
 ! one should signal if T is lower than lowest limit or higher than highest
 ! used  saved reults if same T and P
 !
+!   write(*,*)'3Z in eval_tpfun',lrot,btest(tpfuns(lrot)%status,TPCONST)
    if(lrot.le.0) then
       result=zero
       goto 1000
@@ -161,6 +162,8 @@
       result=zero
       result(1)=tpfuns(lrot)%limits(1)
 ! wow, we must not forget to store the constant in tpres(lrot)%results!
+!      write(*,*)'3Z const: ',tpres(lrot)%forcenewcalc,tpfuns(lrot)%forcenewcalc
+!      write(*,*)'3Z store: ',lrot,result(1),tpres(lrot)%results(1)
       goto 990
    else
 ! check if previous values can be used
@@ -2440,8 +2443,12 @@
 ! mark this is a single value
    tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPCONST)
 200 continue
+!   write(*,*)'3Z store tpconstant: ',lrot,value
    tpfuns(lrot)%limits(1)=value
    nullify(tpfuns(lrot)%funlinks)
+! OBS! calculate all tpfun after this to make sure value is propagated!!
+! This indicate for all TPFUN that they must be recalculated
+   call force_recalculate_tpfuns
 1000 continue
    return
  end subroutine store_tpconstant
@@ -4076,7 +4083,9 @@
    character line*(*)
    integer nr
 !\end{verbatim}
-   write(*,*)'Inside dummy readencrypt'
+   nr=0
+   write(*,*)'3Z This OC version cannot read encrypted databases'
+   gx%bmperr=4399
    return
  end subroutine readencrypt
 

@@ -36,7 +36,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !$ use OMP_LIB
 !
 ! overall version number
-  character (len=8), parameter :: version='  6.046 '
+  character (len=8), parameter :: version='  6.047 '
+!
 !
 ! data structure nor non-encrypted TP functions
 !

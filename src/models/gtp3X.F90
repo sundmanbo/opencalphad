@@ -4297,9 +4297,10 @@
 !   rrk=one
    rrk(0)=one; rrk(1)=0.25D0; rrk(2)=one/6.0D0; rrk(3)=0.25; rrk(4)=one
    beta=6.0D0
-   gamma=one
-   write(*,'(a,i2,8(F7.3))')'3X testing TISR try 2: ',ncon,&
-        (phvar%yfr(ia),ia=1,ncon)
+! modified
+   gamma=4.0d0
+!   write(*,'(a,i2,8(F7.3))')'3X testing TISR try 2: ',ncon,&
+!        (phvar%yfr(ia),ia=1,ncon)
    if(ncon.gt.5) then
 ! ncon should be less than 5 for the moment ...
       write(*,*)'3X too big system'
@@ -4346,7 +4347,7 @@
       xx(2)=xx(2)+ia*rk*pij(ia)
    enddo
 ! xx(1) is fraction of A, xx(2) fraction of B
-   write(*,'(a,5F7.3,2x,3F7.3)')'3X pij&xi: ',(pij(ia),ia=0,4),xx(1),xx(2)
+!   write(*,'(a,5F7.3,2x,3F7.3)')'3X pij&xi: ',(pij(ia),ia=0,4),xx(1),xx(2)
 !
 ! This subroutine return values divided by RT
    ggg=zero
@@ -4363,7 +4364,7 @@
    do ia=0,4
       phvar%dgval(1,ia+1,1)=uijalpha(ia)
    enddo
-   write(*,'(a,7(1pe11.3))')'3X H1: ',ggg,(phvar%dgval(1,ia,1),ia=1,ncon)
+!   write(*,'(a,7(1pe11.3))')'3X H1: ',ggg,(phvar%dgval(1,ia,1),ia=1,ncon)
 ! this is random entropy part   
    ggx=zero
 !   do ia=1,2
@@ -4380,7 +4381,7 @@
 !   phvar%gval(2,1)=((one-gamma)*ggx(1)+gamma*ggx(2))/tval
    phvar%gval(1,1)=ggg+gamma*ggx(2)
    phvar%gval(2,1)=(gamma*ggx(2))/tval
-   write(*,'(a,5(1pe12.4))')'3X GVAL: ',phvar%gval(1,1),ggx,gamma
+!   write(*,'(a,5(1pe12.4))')'3X GVAL: ',phvar%gval(1,1),ggx,gamma
 ! first derivatives of p_ij
 ! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
 ! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
@@ -4395,7 +4396,7 @@
       phvar%dgval(1,ia+1,1)=gamma*(one+log(pij(ia)*rrk(ia)))
       phvar%dgval(2,ia+1,1)=phvar%dgval(1,ia+1,1)/tval
    enddo
-   write(*,'(a,5(1pe12.4))')'3X dg/dy1: ',(phvar%dgval(1,ia,1),ia=1,ncon)
+!   write(*,'(a,5(1pe12.4))')'3X dg/dy1: ',(phvar%dgval(1,ia,1),ia=1,ncon)
 !------------------------------------------------------
 ! second derivatives, symmetric, stored only upper half
 ! approximate with 1/pij
@@ -4406,8 +4407,8 @@
    do ia=1,ncon
       phvar%d2gval(ixsym(ia,ia),1)=gamma/pij(ia-1)
    enddo
-   write(*,'(a,5(1pe12.4))')'3X d2g/dy2: ',&
-        (phvar%d2gval(ixsym(ia,ia),1),ia=1,ncon)
+!   write(*,'(a,5(1pe12.4))')'3X d2g/dy2: ',&
+!        (phvar%d2gval(ixsym(ia,ia),1),ia=1,ncon)
 !-   do ia=1,ncon
 !-      do ib=ia,ncon
 !-         jxsym=jxsym+1

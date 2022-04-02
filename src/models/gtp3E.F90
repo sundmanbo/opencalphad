@@ -4032,7 +4032,7 @@
 ! onlyfun is set TRUE and that triggers read the encrypted part
          encrypted=encrypted+1
          encryptline=line
-         if(encrypted.eq.1) write(*,*)'3E reading encrypted database: '
+         if(encrypted.eq.1) write(*,*)'3E this database has an encrypted part'
          goto 100
       endif
    endif
@@ -5702,7 +5702,7 @@
    if(only_typedefs) then
 ! new feature, read only_typdes at first run, then set it false
       only_typedefs=.FALSE.
-      write(*,*)'3E Finished reading all TYPE_DEFS, now the rest of the file'
+!      write(*,*)'3E Finished reading all TYPE_DEFS, now the rest of the file'
       gx%bmperr=0
       rewind(21)
       nl=0
@@ -5733,8 +5733,12 @@
       write(*,*)'3E closing TDB file to read encrypted part'
       call readencrypt(encryptline,nr)
 ! nr is missing functions ...
-      if(nr.gt.0) then
-         write(*,*)'3E read encrypted part, missing functions: ',nr
+      if(gx%bmperr.eq.0) then
+         if(nr.gt.0) then
+            write(*,*)'3E read encrypted part, missing functions: ',nr
+         endif
+      else
+         write(*,*)'3E error reading encrypted part',gx%bmperr
       endif
       return
    elseif(nofunent.gt.0) then

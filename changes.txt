@@ -20,7 +20,14 @@ to answer such questions.
 
 In the list below the most recent changes come first.
 
-2022.04.01 OC version 6.046: The Makefiles has now been updated for
+2022.04.02 OC version 6.047: I have now implemented a binary version
+of the TISR model for SRO, (see a recent Calphad journal).  I have
+also made additional changes to prepare for reading encrypted
+databases with OC.  This means changes in datastructures that I have
+not touched for many years and this may cause trouble for some
+applications, please report problems!
+
+2022.04.01 OC version 6.046: The Makefiles have now been updated for
 all the changes made.
 
 2022.03.30 OC version 6.045: In order to prepare OC to read encrypted

@@ -3824,6 +3824,7 @@ contains
                 if(buperr.ne.0) goto 990
                 call capson(name1)
                 call store_tpconstant(name1,xxy)
+! we must evaluate all TPFUNS in all equilibria to be sure value propagates!
              endif
           endif
 !---------------------------------------------------------------

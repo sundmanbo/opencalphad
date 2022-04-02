@@ -23,10 +23,9 @@ PROGRAM pmain1
 !  call date_and_time(date)
 !  write(*,*)'Stored linking date: ',date
 ! This line replaced by linkocdate to the date when compilin
-  linkdate='2022-04-01'
-! for example: linkdate='2022-04-01'
-! this is the overall version identifier.  It is now in gtp3
-!  version='  6.043 '
+  linkdate='2022-04-02'
+! for example: linkdate='2022-04-02'
+! the overall version identifier is now in gtp3.F90
 ! intvar and dblvar will eventually be used for allocations
   intvar(1)=30
   call init_gtp(intvar,dblvar)
