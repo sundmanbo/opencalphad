@@ -36,7 +36,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !$ use OMP_LIB
 !
 ! overall version number
-  character (len=8), parameter :: version='  6.047 '
+  character (len=8), parameter :: version='  6.048 '
 !
 !
 ! data structure nor non-encrypted TP functions
@@ -64,6 +64,9 @@ include "gtp3D.F90"
 ! 7: state variable manipulations
 include "gtp3E.F90"
 
+! dummy routines for encrypted databases
+include "gtp3EN.F90"
+
 ! 8-9: state variable functions, interactive things
 include "gtp3F.F90"
 
@@ -79,7 +82,7 @@ include "gtp3X.F90"
 ! 17-18: Grid minimizer and miscellaneous
 include "gtp3Y.F90"
 
-! 19: Assessment subroutine 
+! 19: TPFUN routines for non-encrypted databases
 include "gtp3Z.F90"
 
 

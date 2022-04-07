@@ -20,6 +20,8 @@ to answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.04.07 OC version 6.048: A number of minor bugfixes and other things.
+
 2022.04.02 OC version 6.047: I have now implemented a binary version
 of the TISR model for SRO, (see a recent Calphad journal).  I have
 also made additional changes to prepare for reading encrypted

@@ -65,7 +65,7 @@ map
 plot
 
 
-
+Title step-epz Fig 1
 
 @&
 @$ Save the diagram on a gnuplot file epzpd.plt
@@ -105,6 +105,7 @@ n
 0
 y
 
+Title step-epz Fig 2
 out ./epzpd
 y
 
@@ -167,6 +168,7 @@ C
 plot
 
 
+Title step-epz Fig 2
 
 
 @&
@@ -181,6 +183,7 @@ text
 .8
 -19
 FCC paraequilibrium line
+Title step-epz Fig 3
 
 
 @$ the carbon solubility curves, in fcc and bcc
@@ -194,6 +197,7 @@ plot
 
 app ./epzpd
 scale x n 0 .008
+Title step-epz Fig 4
 out ./epzpdpara
 y
 
@@ -243,6 +247,7 @@ text
 .8
 -24
 Tzero line
+Title step-epz Fig 5
 
 
 @$ We have plotted the Tzero line with a label
@@ -256,6 +261,7 @@ Tzero line
 plot
 
 
+Title step-epz Fig 6
 app ./epzpdpara
 
 
@@ -272,10 +278,12 @@ plot
 scale y n
 750
 1150
+Title step-epz Fig 7
 out ./epzall
 y
 
 
 
 set inter
+
 

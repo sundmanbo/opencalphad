@@ -394,6 +394,9 @@
     elseif(model(1:5).eq.'TISR ') then
        entropymodel=5
        defnsl=1
+    elseif(model(1:5).eq.'SROT ') then
+       entropymodel=6
+       defnsl=1
     elseif(model(1:6).eq.'CVMCE ') then
        entropymodel=4
        defnsl=1
@@ -401,6 +404,7 @@
     sites=one
     write(*,*)'3B model: ',trim(model),'  ',phtype
     if(model(1:6).eq.'IDEAL ' .or. model(1:4).eq.'RKM ' .or. &
+         model(1:5).eq.'SROT ' .or. &
          model(1:5).eq.'TISR ' .or. model(1:6).eq.'CVMCE ' .or. &
          model(1:4).eq.'QCE ' .or. model(1:6).eq.'MQMQA ') then
 ! ideal, regular and quasichemical models have 1 sublattice with 1 site
@@ -436,7 +440,7 @@
 ! ideal and RKM models have one set of sites with 1 place ...
           sites(1)=one
        elseif(model(1:4).eq.'QCE ' .or. model(1:6).eq.'CVMCE ' .or. &
-            model(1:5).eq.'TISR ') then
+            model(1:5).eq.'SROT ') then
           call gparrdx('Number of bonds: ',cline,last,sites(1),6.0D0,&
                'Enter phase bonds')
           if(buperr.ne.0) goto 900
@@ -919,7 +923,8 @@
 ! sites must be stored in phase_varres
 !   if(QCE) then
    if(model(1:5).eq.'TISR ' .or. model(1:6).eq.'CVMCE ' .or. &
-         model(1:4).eq.'QCE ' .or. model(1:6).eq.'MQMQA ') then
+        model(1:5).eq.'SROT ' .or. &
+        model(1:4).eq.'QCE ' .or. model(1:6).eq.'MQMQA ') then
 ! very special, we have a quasichemical model, the bonds are in sites(1)
 ! copy them also to qcbonds
 ! HM, confusion ... now I store bonds in sites(1) ....2021/02/17
@@ -1210,6 +1215,10 @@
       phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHTISR)
       write(*,*)'3B PHTISR bit set'
+   elseif(emodel.eq.6) then
+      phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
+      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHSROT)
+      write(*,*)'3B PHSROT bit set'
    endif
 ! nullify links
    nullify(phlista(nyfas)%additions)
@@ -2503,7 +2512,7 @@
          allocate(elinks(1,1))
    endif
    call create_endmember(lokph,newem,noperm,nsl,iord,elinks)
-!    write(*,*)'3B enter_par: created endmember ',new
+!   write(*,*)'3B enter_par: created endmember ',lokph
    if(gx%bmperr.ne.0) goto 1000
 ! insert link to new from last end member record, lastem.
    if(.not.associated(lastem)) then

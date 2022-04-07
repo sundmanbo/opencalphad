@@ -580,7 +580,7 @@
 !         '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
    jl=0
    trailer=' '
-!   write(*,*)'In list_all_phases',noofph
+   write(*,*)'In list_all_phases',noofph
 !   allocate(dormant(noofph))
 !   dormant=0
    ndorm=0
@@ -1704,8 +1704,9 @@
         btest(phlista(lokph)%status1,PHCVMCE) .or. &
 !        btest(phlista(lokph)%status1,PHFACTCE) .or. &
         btest(phlista(lokph)%status1,PHMQMQA) .or. &
+        btest(phlista(lokph)%status1,PHSROT) .or. &
         btest(phlista(lokph)%status1,PHTISR)) then
-! this is for the quasichemical models, qce, cvmqe, mqmqa, tisr
+! this is for the quasichemical models, qce, cvmqe, mqmqa, tisr, srot
       write(lut,111)phname,phlista(lokph)%models(1:40),&
            ceq%phase_varres(lokcs)%qcbonds,phlista(lokph)%status1,&
            ceq%phase_varres(lokcs)%status2
@@ -1892,6 +1893,7 @@
    TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_phase_add), pointer :: addrec
 !
+!   write(*,*)'3C in list_phase_data',iph
 ! toop/kohler methods
    tooptop=0
 ! modelid should be used to identify the model
@@ -1947,6 +1949,8 @@
       topline=2
    elseif(btest(phlista(lokph)%status1,PHTISR)) then
       special(1:1)='E'; modelid='TISR'
+   elseif(btest(phlista(lokph)%status1,PHSROT)) then
+      special(1:1)='E'; modelid='SROT'
       topline=2
    elseif(btest(phlista(lokph)%status1,PHUNIQUAC)) then
       special(1:1)='U'; modelid='UNIQAC polymer model'
@@ -2035,7 +2039,11 @@
       subref=.TRUE.
    endif
    parlist=1
-   if(notallowlisting(privilege)) goto 1000
+!   write(*,*)'3C check if listing allowed',privilege,notallowlisting(privilege)
+   if(notallowlisting(privilege)) then
+      write(*,*)'3C You are not allowed to list data'
+      goto 1000
+   endif
 ! warning for reference state of the MQMQA phase   
 !   if(btest(phlista(lokph)%status1,PHMQMQA)) then
 !      write(lut,90)mqmqa
@@ -2681,6 +2689,11 @@
 !--------------------------------------------------
 ! return here to list disordered parameters
 100 continue
+! check if encrypted database
+   if(notallowlisting(privilege)) then
+      write(*,*)'3C You are not allowed to list data'
+      goto 1000
+   endif
 ! parlist changed below for disordered fraction set
    if(parlist.eq.1) then
       endmemrec=>phlista(lokph)%ordered
@@ -3076,12 +3089,13 @@
       nsl=disfra%ndd
    endif
    ie=0
-! do not multiply swith sites for models PHCVMCQ, TISR, MQMQA, CRC
+! do not multiply swith sites for models PHCVMCQ, TISR, MQMQA, CRC, SROT
    if(nsl.eq.1 .and. &
         (btest(phlista(lokph)%status1,PHCVMCE) .or.&
 !      btest(phlista(lokph)%status1,PHFACTCE) .or.&
       btest(phlista(lokph)%status1,PHMQMQA) .or.&
       btest(phlista(lokph)%status1,PHQCE) .or.&
+      btest(phlista(lokph)%status1,PHSROT) .or.&
       btest(phlista(lokph)%status1,PHTISR))) then
       bonds=firsteq%phase_varres(lokcs)%sites(1)
       firsteq%phase_varres(lokcs)%sites(1)=one
@@ -3198,6 +3212,7 @@
 !      btest(phlista(lokph)%status1,PHFACTCE) .or.&
       btest(phlista(lokph)%status1,PHMQMQA) .or.&
       btest(phlista(lokph)%status1,PHQCE) .or.&
+      btest(phlista(lokph)%status1,PHSROT) .or. &
       btest(phlista(lokph)%status1,PHTISR)) then
       firsteq%phase_varres(lokcs)%sites(1)=bonds
    endif

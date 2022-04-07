@@ -86,5 +86,16 @@ title map 16 Fig 1
 
 @$ The lines with the same phase fix has the same color
 
+plot
+ac(c)
+T
+Title Map 16 Fig 2
+
+
+@$ This diagram is strange as we have 2 potential axis in a ternary system
+@$ The one and two-phase regions are areas
+@$ but the 3-phase regions are lines (the line FCC+M7C+M23C!!)
+@$ and the invariant equilibrium is a point
+
 set inter
 

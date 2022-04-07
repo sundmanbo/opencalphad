@@ -79,7 +79,7 @@ clean:
 # IMPORTRANT 1:
 # To have the command line editing and history feature on your OS
 # you must uncomment the appropriate line after the header getkey.o:
-£ Default is Linux
+# Default is Linux
 getkey.o:
 	echo "Do not forget to uncomment tne correct line below for your OS"
 	# compile utilities/GETKEY for command line editing

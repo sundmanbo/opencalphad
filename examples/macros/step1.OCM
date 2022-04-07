@@ -235,6 +235,17 @@ title step 1 fig 9
 
 @&
 
+plot
+
+
+title step1 fig 10
+scale y n
+-0.3
+0
+
+set inter
+
+
 @$ This is clearly too many phases, only a few are interesting
 @$ However, to select them we have to recalculate the step with just the phases
 @$ we think are interesting, the other set as suspended.
@@ -275,7 +286,7 @@ bottom left
 12
 @$ Add symbols on the lines to make them easier to identify
 extra line 10
-title step 1 fig 10
+title step 1 fig 11
 
 
 
@@ -294,7 +305,7 @@ Y
 N
 -0.2
 0
-title step 1 fig 11
+title step 1 fig 12
 
 @$ Note the DGM of the BCC phase, it is stable at high T
 @$ and comes back at low T
@@ -305,7 +316,7 @@ title step 1 fig 11
 plot
 
 np(*)
-title step 1 fig 12
+title step 1 fig 13
 
 
 

@@ -250,10 +250,12 @@
            phlista(lokph),gz%tpv(1))
 ! phstate
    elseif(btest(phlista(lokph)%status1,PHTISR)) then
-! the configurational model by E Kremer (CVM without LRO?)
-!      write(*,'(a,10(1pe12.4))')'3X tisr1: ',&
-!           (phres%dgval(1,j2,1),j2=1,phlista(lokph)%tnoffr)
+! the configurational model by E Kremer (Calphad 2022)
       call config_entropy_tisr(moded,phlista(lokph)%tnooffr,phres,&
+           phlista(lokph),gz%tpv(1))
+   elseif(btest(phlista(lokph)%status1,PHSROT)) then
+! the configurational model is a modified tetrahedron quasichemical model
+      call config_entropy_srot(moded,phlista(lokph)%tnooffr,phres,&
            phlista(lokph),gz%tpv(1))
 ! phstate
    elseif(mqmqa) then
@@ -2232,7 +2234,7 @@
                     aff*refg(zp,itp)
             enddo
 ! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
-            write(*,213)zp,mqmqj,ipy,phres%gval(1,ipy),pyq,aff,aff*refg(zp,1)
+!            write(*,213)zp,mqmqj,ipy,phres%gval(1,ipy),pyq,aff,aff*refg(zp,1)
 213         format('3X adding reference state to SNN parameter:',3i3,4(1pe12.4))
             do itp=1,6
                phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
@@ -2257,8 +2259,8 @@
       if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop2
       intrec=>endmemrec%intpointer
 ! interaction parameters are NOT linked from SNN endmembers!!
-      write(*,*)'3X Check for interaction parameters 1',associated(endmemrec),&
-           associated(intrec),mqmqj,kend
+!      write(*,*)'3X Check for interaction parameters 1',associated(endmemrec),&
+!           associated(intrec),mqmqj,kend
       if(.not.associated(intrec)) cycle endmemloop2
 ! this is an endmember parameter with possible excess parameters
       write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
@@ -4260,7 +4262,7 @@
    return
  end subroutine config_entropy_cvmce
 
- !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine config_entropy_tisr provided by Ed Kremer
 !\begin{verbatim}
@@ -4268,6 +4270,52 @@
 !
 ! calculates configurational entropy/R for the Kremer liquid SRO model
 ! started 2021-02-12
+!
+! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
+! ncon is number of constituents, each cell a constituent
+! phvar is pointer to phase_varres record
+! phrec is the phase record
+! tval is current value of T
+   implicit none
+   integer moded,ncon
+! to obtain current fractions and store results
+   TYPE(gtp_phase_varres), pointer :: phvar
+! to obtain phase and constituent inforamation
+   TYPE(gtp_phaserecord) :: phrec
+   double precision tval
+!\end{verbatim}
+   integer ii,loksp
+   double precision rtg
+!---------------------------------------------------------------------------
+! 
+! rtg is set to R*T
+   rtg=globaldata%rgas*tval
+   write(*,10)ncon,(trim(splista(phrec%constitlist(ii))%symbol),&
+        phvar%yfr(ii),ii=1,ncon)
+10 format('3X config_entropy_tisr with ',i2,' constituents, fractions:'/&
+        10(a,1x,F7.4,', '))
+! You can enter all calculations here, nothing will be added elsewhere
+   write(*,'(a,1pe16.6)')'3X TISR not implemented yet, G=',phvar%gval(1,1)
+   gx%bmperr=4399
+! Values returned should be:
+! phvar%gval(1,1)     Gibbs energy divided by RT (G/RT below)
+! phvar%gval(2,1)     derivative of G/RT wrt T
+! phvar%dgval(1,ii,1) 1st derivative of G/RT wrt fraction ii
+! phvar%dgval(2,ii,1) 2nd derivative of G/RT wrt T amd fraction ii
+! phvar%d2gval(ixym(ii,jj),1) 2nd derivative of G/RT wrt fracton ii and jj
+!    Normally sufficient to set phvar%d2gval(ixsym(ii,ii))=one/phvar%yfr(ii)
+!-----------------------------------
+1000 continue
+   return
+ end subroutine config_entropy_tisr
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_srot
+!\begin{verbatim}
+ subroutine config_entropy_srot(moded,ncon,phvar,phrec,tval)
+!
+! calculates configurational entropy/R for tetrahedron SRO model
 !
 ! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
 ! ncon is number of constituents, each cell a constituent
@@ -4284,60 +4332,34 @@
 ! FOR A BINARY, with 5 SRO clusters as in tetrahedron FCC 
 ! 
    integer ia,ib,ja,jb,kk,mm,alpha,jxsym,loksp
-   double precision sum,rk,ggx(2),ggg,rtg
-   double precision s1,s2,s11,s12,s21,s22
-   double precision s111,s112,s121,s122,s211,s212,s221,s222
+   double precision rk,ggg,rtg
+!   double precision s1,s2,s11,s12,s21,s22
+!   double precision s111,s112,s121,s122,s211,s212,s221,s222
 ! model constants 
-   double precision beta,gamma
-   double precision, allocatable, dimension(:) :: uijalpha,wwij,pij,lambda,xx
+   double precision escale
+   double precision, allocatable, dimension(:) :: pij,xx
    double precision rrk(0:4)
-! rk is 1/kk; tetrahedron in fcc lattice, z=12; m=4
+! this is a scaling factor for the entropy
+   escale=0.25D0
+! Coefficients to calculate the mole fractions from the clusters
+! which must be ordered A, A0.75B0.25, A.5B.5, A.25B.75, B
    kk=4; rk=0.25D0
-! this is the fraction parmuations, 1, 4, 6, 4, 1 for tetrahedron FCC
-!   rrk=one
+! Tetrahedron in fcc lattice, z=12; m=4.  The factors below are equal to 
+! 1/permutations of the clusters. Needed to obtain ideal ordering at high T
    rrk(0)=one; rrk(1)=0.25D0; rrk(2)=one/6.0D0; rrk(3)=0.25; rrk(4)=one
-   beta=6.0D0
-! modified
-   gamma=4.0d0
-!   write(*,'(a,i2,8(F7.3))')'3X testing TISR try 2: ',ncon,&
-!        (phvar%yfr(ia),ia=1,ncon)
-   if(ncon.gt.5) then
-! ncon should be less than 5 for the moment ...
-      write(*,*)'3X too big system'
-      stop
+   if(ncon.ne.5) then
+! ncon should be 5 for a binary system
+      write(*,*)'3X constituents not 5!',ncon
+      gx%bmperr=4399; goto 1000
    endif
-! check amount of B atoms in the constituents, should go from 0 to 4
-!   do ia=1,ncon
-!      do ib=1,phrec%tnooffr
-!         loksp=phrec%constitlist(ib)
-!         do ja=1,splista(loksp)%noofel
-!           write(*,'(a,a,i2,F7.2)')'3X tisr sp: ',trim(splista(loksp)%symbol),&
-!                 splista(loksp)%ellinks(ja),splista(loksp)%stoichiometry(ja)
-!         enddo
-!      enddo
-!   enddo
-! alpha is the configuration as A4, A3B1, A2B2 etc. Assume only one uijalpha 
-! A4  : i=0, j=4; alpha=0   pp(0)
-! A3B1: i=1, j=3; alpha=1   pp(1)
-! A2B2: i=2, j=2; alpha=2   pp(2)
-! A1B3: i=3, j=1; alpha=3   pp(3)
-! B4  : i=4, j=0; alpha=4   pp(4)
-! the fraction of elements in xx
+! allocations
    allocate(xx(1:2))
-   allocate(uijalpha(0:4))
-   allocate(wwij(0:4))
    allocate(pij(0:4))
-   uijalpha=zero
-! uijalpha is in J/mol; globaldata%rgas is J/(mol*K).  only a2b2 ordering
    rtg=globaldata%rgas*tval
 ! test without any ordering parameters, the system should be ideal ...
-! uija(0) is B4, uija(1) is B3A1
-!   uijalpha(2)=-1.0D0*beta/rtg
 !-------------------------------------------------------------------
    do alpha=0,4
-!      wwij(alpha)=exp(-uijalpha(alpha)/gamma)
-! the pij are the external fraction variables
-! They are in the order A4, A3B1, ... B4; thus "ia" is number of B atoms
+! these are the cluster fractions, for higher order systems must be identified
       pij(alpha)=phvar%yfr(alpha+1)
    enddo
 ! mole fractions, note "ia" is the number of B atoms!!
@@ -4346,87 +4368,35 @@
       xx(1)=xx(1)+(kk-ia)*rk*pij(ia)
       xx(2)=xx(2)+ia*rk*pij(ia)
    enddo
-! xx(1) is fraction of A, xx(2) fraction of B
-!   write(*,'(a,5F7.3,2x,3F7.3)')'3X pij&xi: ',(pij(ia),ia=0,4),xx(1),xx(2)
-!
-! This subroutine return values divided by RT
+   if(abs(xx(1)+xx(2)-one).gt.1.0e-8) stop '3X SROT mole fraction error'
+! xx(1) is fraction of A, xx(2) fraction of B.  NOT USED!!
    ggg=zero
-! all values should be zero here!!!
-!   write(*,'(a,7(1pe11.3))')'3X H0: ',ggg,(phvar%dgval(1,ia,1),ia=1,ncon)
-! This is the enthalpy part
+! This is summing the SRO entropy part
    do ia=0,4
-      ggg=ggg+uijalpha(ia)*pij(ia)
+      ggg=ggg+escale*pij(ia)*log(pij(ia)*rrk(ia))
    enddo
-!   do ia=1,ncon
-!      phvar%dgval(1,ia,1)=zero
-!   enddo
-! First derivatives of the enthalpy part, no T derivative at present
-   do ia=0,4
-      phvar%dgval(1,ia+1,1)=uijalpha(ia)
-   enddo
-!   write(*,'(a,7(1pe11.3))')'3X H1: ',ggg,(phvar%dgval(1,ia,1),ia=1,ncon)
-! this is random entropy part   
-   ggx=zero
-!   do ia=1,2
-!      ggx(1)=ggx(1)+xx(ia)*log(xx(ia))
-!   enddo
-! This is the SRO entropy part
-   do ia=0,4
-!      ggx(2)=ggx(2)+pij(ia)*log(pij(ia)*rrk(ia))
-      ggx(2)=ggx(2)+pij(ia)*log(pij(ia)*rrk(ia))
-   enddo
-! gval(1:6,1) are G, dG/dT, dG/dP, d2G/dT2, d2G/dTdP and d2G/dP2
-! this is version try2...................
-!   phvar%gval(1,1)=ggg+(one-gamma)*ggx(1)+gamma*ggx(2)
-!   phvar%gval(2,1)=((one-gamma)*ggx(1)+gamma*ggx(2))/tval
-   phvar%gval(1,1)=ggg+gamma*ggx(2)
-   phvar%gval(2,1)=(gamma*ggx(2))/tval
-!   write(*,'(a,5(1pe12.4))')'3X GVAL: ',phvar%gval(1,1),ggx,gamma
-! first derivatives of p_ij
-! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
-! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
-! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
-! using p*log(p) for ordered part, we have ncon derivtives ...
+! These are the configurational G/RT and S/R
+   phvar%gval(1,1)=ggg
+   phvar%gval(2,1)=ggg/tval
    do ia=0,4
 ! d/pij ( x1*ln(x1)+x2*log(x2)+  ...+ pij*log(pij)
 ! note "ia" counts the B atoms
-!      phvar%dgval(1,ia+1,1)=(one-gamma)*(one+log(xx(1))+log(xx(2)))+&
-!           gamma*(one/rrk(ia)+log(pij(ia)*rrk(ia)))
-!      phvar%dgval(1,ia+1,1)=gamma*(one/rrk(ia)+log(pij(ia)*rrk(ia)))
-      phvar%dgval(1,ia+1,1)=gamma*(one+log(pij(ia)*rrk(ia)))
+      phvar%dgval(1,ia+1,1)=escale*(one+log(pij(ia)*rrk(ia)))
       phvar%dgval(2,ia+1,1)=phvar%dgval(1,ia+1,1)/tval
    enddo
-!   write(*,'(a,5(1pe12.4))')'3X dg/dy1: ',(phvar%dgval(1,ia,1),ia=1,ncon)
 !------------------------------------------------------
 ! second derivatives, symmetric, stored only upper half
 ! approximate with 1/pij
-! NOTE phvar%d2gval(*,1) is zero when we come here
    jxsym=0
    jb=1
    phvar%d2gval=zero
    do ia=1,ncon
-      phvar%d2gval(ixsym(ia,ia),1)=gamma/pij(ia-1)
+      phvar%d2gval(ixsym(ia,ia),1)=escale/pij(ia-1)
    enddo
-!   write(*,'(a,5(1pe12.4))')'3X d2g/dy2: ',&
-!        (phvar%d2gval(ixsym(ia,ia),1),ia=1,ncon)
-!-   do ia=1,ncon
-!-      do ib=ia,ncon
-!-         jxsym=jxsym+1
-!-         if(ib.eq.ia) then
-!            phvar%d2gval(jxsym,1)=gamma*rrk(ib-1)/pij(ib-1)  ???
-!            phvar%d2gval(jxsym,1)=gamma/(pij(ib-1)*rrk(ib-1))
-!-            phvar%d2gval(jxsym,1)=gamma/pij(ib-1)
-!            write(*,'(a,3i3,1pe12.4)')'3X pij: ',ia,ib,jxsym,pij(ib-1)
-!-         endif
-!-      enddo
-!-      write(*,'(a,i2,5(1pe11.3))')'3X d2gdy2: ',&
-!-           jb,(phvar%d2gval(ja,1),ja=jb,jxsym)
-!-      jb=jxsym+1
-!-   enddo
 !-----------------------------------
 1000 continue
    return
- end subroutine config_entropy_tisr
+ end subroutine config_entropy_srot
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

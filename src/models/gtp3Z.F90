@@ -1717,7 +1717,7 @@
          string(ip:ip)='*'
          ip=ip+1
          nos=0
-         if(coeff(level).eq.zero) write(*,*)'ctwwfn ',ip,string(1:ip)
+         if(coeff(level).eq.zero) write(*,*)'ct1wfn ',ip,string(1:ip)
       elseif(coeff(level).eq.one) then
          nos=1
       else
@@ -4071,37 +4071,6 @@
 !1000 continue
    return
  end subroutine sortcoeffs
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine readencrypt
-!\begin{verbatim}
- subroutine readencrypt(line,nr)
-! This is a dummy routine because the real one is not part of open source
-! line contans "ENCRYPTED filename (and maybe more)
-! nr is missing functions reading here
-   character line*(*)
-   integer nr
-!\end{verbatim}
-   nr=0
-   write(*,*)'3Z This OC version cannot read encrypted databases'
-   gx%bmperr=4399
-   return
- end subroutine readencrypt
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable subroutine notallowlisting
-!\begin{verbatim}
- logical function notallowlisting(privil)
-! check if user is allowed to list data
-   double precision privil
-!\end{verbatim}
-   logical ok
-   ok=.FALSE.
-   notallowlisting=ok
-   return
- end function notallowlisting
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

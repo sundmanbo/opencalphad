@@ -5862,7 +5862,7 @@ if(meqrec%noofits.eq.1) then
 ! The calculated values are used also in other parts of the code 
        call calcg(iph,ics,2,lokcs,ceq)
        if(gx%bmperr.ne.0) then
-          write(*,*)'Error calculating ideal gas',gx%bmperr,iph,ics
+          write(*,*)'MM Error calculating phase',iph,ics,gx%bmperr
           goto 1000
        endif
        eec2: if(globaldata%sysreal(1).gt.one) then

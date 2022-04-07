@@ -98,6 +98,8 @@ BCC
 l,,,,
 
 
+debug symbol  T 946.4939
+
 @$ The tzero T is 946 K (673 degree C).
 @$=====================================================================
 @$ This is not an equilibrium but the limit for diffusionless transformation
@@ -127,6 +129,7 @@ BCC
 plot
 w%(c)
 T
+Title step-tzero Fig 1
 
 @&
 @$ Let us verify this by calculating the Gibbs energy curves at 950 K
@@ -159,7 +162,7 @@ Y
 N
 -6500
 -5000
-
+Title step-tzero Fig 2
 
 
 @$ We can see the Gibbs energy curves cross around w%(C)=0.3

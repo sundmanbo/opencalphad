@@ -912,6 +912,7 @@
    double precision tao2(2),ftao(6),dtao(3,mc),d2tao(mc*(mc+1)/2)
    double precision addgval(6),daddgval(3,mc),d2addgval(mc*(mc+1)/2)
    double precision tn,tcsave,tnsave,gmdo_inf,dgmdo_infdt,d2gmdo_infdt2
+   double precision check(6)
    logical addpermole
    character line*128,tps(2)*3
    TYPE(tpfun_expression), pointer :: exprot
