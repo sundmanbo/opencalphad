@@ -93,7 +93,7 @@ MODULE METLIB
 !
 ! global variables and constants
 !  IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-  implicit none
+!  implicit none
 !
 ! Using open MP parallelization
 !$ use OMP_LIB
