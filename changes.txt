@@ -15,10 +15,18 @@ knowledge about compiling and linking of software.  There is an
 installation manual (and an old mainly redundant video on You Tube)
 but if you are not familiar with such procedures please ask a local
 guru for help.  Installation problems depend on your local
-envirionment and we who are providing this software do not have time
-to answer such questions.
+envirionment and we who provide this software for free do not have the
+time to answer such questions.
 
 In the list below the most recent changes come first.
+
+2022.04.19 OC version 6.049: The declaration of gx%bmperr has been
+moved to METLIB4 in a first step to unify error codes.  Some strange
+problems compiling with OpenMP for parallel had to be fixed.  Some
+more general routines has been moved from gtp3 to metlib, for example
+compare_abbrev.  The TDB reader in gtp3.F90 has been prepared to
+handle reading encrypted databases but such options are outside the
+scope of the free version of OC.
 
 2022.04.07 OC version 6.048: A number of minor bugfixes and other things.
 

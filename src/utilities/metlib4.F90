@@ -16,7 +16,7 @@
 !
 MODULE METLIB
 !
-! Copyright 1980-2021, Bo Sundman bo.sundman@gmail.com 
+! Copyright 1980-2022, Bo Sundman bo.sundman@gmail.com 
 ! 
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -94,6 +94,26 @@ MODULE METLIB
 ! global variables and constants
 !  IMPLICIT DOUBLE PRECISION (A-H,O-Z)
   implicit none
+!
+! Using open MP parallelization
+!$ use OMP_LIB
+!
+! GLOBAL ERROR CODE moved from gtp3
+!\begin{verbatim}
+  TYPE gtp_parerr
+! This record contains the global error code.  In parallel processing each
+! parallel processes has its own error code copied to this if nonzero
+! it should be replaced by gtperr for separate errors in treads
+     INTEGER :: bmperr
+  END TYPE gtp_parerr
+  TYPE(gtp_parerr) :: gx
+!
+! needed to have error code as private in threads
+!$OMP  threadprivate(gx)
+!\end{verbatim}
+!
+!----------------------------------------------------------
+!
 ! Data structures for putfun below (no change 190802)
 !\begin{verbatim}
 ! Data structures in METLIB
@@ -8019,6 +8039,86 @@ CONTAINS
 1000 continue
     return
   end SUBROUTINE INCNUM
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable logical function compare_abbrev
+!\begin{verbatim} %-
+ logical function compare_abbrev(name1,name2)
+! returns TRUE if name1 is an abbreviation of name2
+! termintaes when a space is found in name1
+! each part between _ or - can be abbreviated from the left
+! a slash is treated as _
+! case insensitive. Only 36 first characters compared
+   implicit none
+   character*(*) name1,name2   
+!\end{verbatim}
+   integer, parameter :: maxl=36
+   integer jp,ip,noabbr
+   character ch1*1
+   character (len=maxl) :: lname1,lname2
+   lname1=name1; lname2=name2
+   call capson(lname1)
+   call capson(lname2)
+   compare_abbrev=.FALSE.
+   noabbr=0
+   jp=1
+   bigloop: do ip=1,36
+      ch1=lname1(ip:ip)
+      if(ip.gt.1 .and. ch1.eq.' ') goto 900
+! in species - has a special meaning of charge (and other things)
+      if(ch1.eq.'-') then
+         if(ch1.eq.lname2(jp:jp)) goto 300
+         ch1='_'
+      endif
+! in species / has a special meaning of cluster
+!      if(ch1.eq.'/') then
+!         if(ch1.eq.lname2(jp:jp)) goto 300
+!         write(*,*)'3Z accepting /'
+!      endif
+      if(ch1.eq.lname2(jp:jp)) goto 300
+!      if(ch1.eq.'_' .or. ch1.eq.'-') then
+      if(ch1.eq.'_') then
+! we can abbreviate up to "_" in full name
+200       continue
+         if(jp.eq.maxl) goto 1000
+         jp=jp+1
+         if(lname2(jp:jp).eq.'_') goto 300
+         if(lname2(jp:jp).eq.' ') goto 1000
+         goto 200
+      endif
+      goto 1000
+300    continue
+      jp=jp+1
+!310    continue
+   enddo bigloop
+900 continue
+   compare_abbrev=.TRUE.
+1000 continue
+   return
+ end function compare_abbrev
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine replacetab
+!\begin{verbatim} %-
+ subroutine replacetab(line,nl)
+! replaces TAB by space in line
+   implicit none
+   character line*(*)
+   integer nl
+!\end{verbatim}
+   integer ip
+100 continue
+   ip=index(line,char(9))
+   if(ip.gt.0) then
+      line(ip:ip)=' '
+!      write(*,*)'Replaced TAB by space on line ',nl
+      goto 100
+   endif
+1000 continue
+   return
+ end subroutine replacetab
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

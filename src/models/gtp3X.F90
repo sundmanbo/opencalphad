@@ -4391,7 +4391,7 @@
    jb=1
    phvar%d2gval=zero
    do ia=1,ncon
-      phvar%d2gval(ixsym(ia,ia),1)=escale/pij(ia-1)
+      phvar%d2gval(ixsym(ia,ia),1)=escale/(rrk(ia-1)*pij(ia-1))
    enddo
 !-----------------------------------
 1000 continue
@@ -6677,4 +6677,4 @@
 1000 continue
  end subroutine calc_eec_gibbsenergy
 
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!

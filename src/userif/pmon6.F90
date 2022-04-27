@@ -230,7 +230,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=24,ncalc=18,ncent=21,ncread=6
+    integer, parameter :: ncbas=30,nclist=24,ncalc=18,ncent=21,ncread=9
     integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=12
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
@@ -314,7 +314,8 @@ contains
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
         ['UNFORMATTED     ','TDB             ','QUIT            ',&
-         'DIRECT          ','PDB             ','SELECTED_PHASES ']
+         'DIRECT          ','PDB             ','SELECTED_PHASES ',&
+         'ENCRYPTED       ','                ','                ']
 !-------------------
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
@@ -1593,7 +1594,9 @@ contains
 ! as TP functions call each other force recalculation and calculate all
 ! even if just a single function is requested
           call change_optcoeff(-1,zero)
+          write(*,*)'PM calc tp: ',notpf()
           do j4=1,notpf()
+             write(*,*)'PM call eval_tpfun: ',notpf()
              call eval_tpfun(j4,ceq%tpval,val,ceq%eq_tpres)
              if(gx%bmperr.gt.0) goto 990
           enddo
@@ -5184,7 +5187,14 @@ contains
              write(*,*)'There are experimental data'
           endif
 !---------------------------------------------------------
-       case(2) ! read TDB
+       case(2,7) ! read TDB and read ENCRYPTED
+! indicate if the database is encrypted!
+          if(kom2.eq.7) then
+             globaldata%encrypted=1
+          else
+             globaldata%encrypted=0
+          endif
+          write(*,*)'PM glovaldata%encrypted: ',globaldata%encrypted
           if(tdbfile(1:1).ne.' ') then
 ! set previous tdbfil as default
              text=tdbfile
@@ -5216,6 +5226,11 @@ contains
              write(kou,*)'No elements in the database'
              tdbfile=' '
              goto 100
+          elseif(jp.lt.0) then
+! encrypted databases return jp=-1, we do not know number of elements ...
+             write(kou,*)'Cannot list elements in encrypted databases'
+             j4=20
+             goto 8207
           endif
 !          write(kou,8203)jp,(ellist(kl),kl=1,jp)
           j4=jp
@@ -5224,6 +5239,7 @@ contains
           ellist='  '
           write(kou,8205)
 8205      format('Give the elements to select, finish with empty line')
+8207      continue
           jp=1
           selection='Select elements /all/:'
 8210      continue
@@ -5243,15 +5259,17 @@ contains
                 write(kou,*)'Max number of elements selected: ',size(ellist)
              else
                 ll=last
-! Check if element exist
-                elcheck: do j5=1,j4
-                   if(ellist(jp-1).eq.elbase(j5)) exit elcheck
-                enddo elcheck
+! Check if element exist, unless encrypted ...
+                if(globaldata%encrypted.eq.0) then
+                   elcheck: do j5=1,j4
+                      if(ellist(jp-1).eq.elbase(j5)) exit elcheck
+                   enddo elcheck
 ! if we come here with j4>j5 then ellist(jp) is not in elbase(1..j4)
-                if(j5.gt.j4) then
-                   jp=jp-1
-                   write(kou,'(a,i3,1x,a)')' *** WARNING: No such element: ',&
-                        jp,ellist(jp)
+                   if(j5.gt.j4) then
+                      jp=jp-1
+                      write(kou,'(a,i3,1x,a)')' *** WARNING: No such element:',&
+                           jp,ellist(jp)
+                   endif
                 endif
                 if(eolch(cline,last)) then
 ! if empty line list current selection and prompt for more
@@ -5514,6 +5532,12 @@ contains
 !8221         format(/' *** There were warnings from reading the database'/&
 !                 ' *** If you run a macro file please scroll back and check!'/)
           endif
+!       case(7) ! read ENCRYPTED
+! part of read TDB          
+       case(8) ! read ?
+          write(*,*)'Not implemented yet'
+       case(9) ! read ?
+          write(*,*)'Not implemented yet'
        end SELECT read
 !=================================================================
 ! SAVE in various formats (NOT MACRO and LATEX, use LIST DATA)
@@ -5613,6 +5637,18 @@ contains
 !-----------------------------------------------------------
        case(5) ! save unformatted
 132       continue
+! save unformatted after step/map not recommended as equilibria
+! unless equilibria with _MAPLINE and _MAPNODE not deleted
+! Reading an unformatted file with these prevents any new new STEP/MAP
+          call findeq('_MAPLINE_1 ',ieq)
+          if(gx%bmperr.eq.0) then
+             write(kou,*)'Please use DELETE STEP_MAP before unformatted save'
+             goto 100
+          else
+! there are no map/step equilibria, OK to save
+             gx%bmperr=0
+          endif
+!
           if(ocufile(1:1).ne.' ') then
              text=ocufile
              call gparcdx('File name: ',cline,last,1,ocufile,text,&
@@ -5776,7 +5812,7 @@ contains
        return
 !=================================================================
 ! NEW command, same as reinitiate
-    case(13)
+    case(13) ! NEW
 ! one must deallocate everyting explicitly to use memory again
        call gparcdx('All data will be removed, are you sure?',cline,last,&
             1,ch1,'N','?New')
@@ -5806,7 +5842,7 @@ contains
 !       iexit(2)=1
 !       write(*,*)'No Segmentation fault 4'
 !----- deleting map results ...
-       write(*,*)'Deleting map results'
+!       write(*,*)'PM Deleting map results'
        if(associated(maptopsave)) then
 ! this is necessary only if no plot of last step/map made ...
           write(kou,*)'We link to maptopsave'
@@ -5839,13 +5875,13 @@ contains
        noofstarteq=0
 !
 ! this routine fragile, inside new_gtp init_gtp is called
-!       write(*,*)'No segmentation fault 7'
+!       write(*,*)'No segmentation fault 7, calling new_gtp'
        call new_gtp
        if(gx%bmperr.ne.0) then
           write(*,*)'Error deleting data! Report this error with macro!'
           stop
        endif
-       write(kou,*)'All data removed'
+       write(kou,*)'All data removed, reinitiating'
        call init_gtp(intv,dblv)
        if(gx%bmperr.ne.0) then
           write(*,*)'Error initiating! Report this error with macro!'

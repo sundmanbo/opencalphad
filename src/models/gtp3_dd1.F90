@@ -7,18 +7,20 @@
   integer, parameter :: lenfnsym=16
   integer, private :: freetpfun
 !
-!\begin{verbatim}
-  TYPE gtp_parerr
+! \begin{verbatim}
+! ************* this declaration moved to metlib4
+!  TYPE gtp_parerr
 ! This record contains the global error code.  In parallel processing each
 ! parallel processes has its own error code copied to this if nonzero
 ! it should be replaced by gtperr for separate errors in treads
-     INTEGER :: bmperr
-  END TYPE gtp_parerr
-  TYPE(gtp_parerr) :: gx
-! needed to have error code as private in threads
-!$OMP  threadprivate(gx)
-!\end{verbatim}
+!     INTEGER :: bmperr
+!  END TYPE gtp_parerr
+!  TYPE(gtp_parerr) :: gx
+! needed to have error code as private in threads, also moved to metlib4
+!--- $OMP  threadprivate(gx)
+! \end{verbatim}
 !-----------------------------------------------------------------
+!
 !\begin{verbatim}
   integer, parameter :: tpfun_expression_version=1
   TYPE tpfun_expression

@@ -2932,7 +2932,7 @@ end subroutine get_condition
       ext='.TDB'
       call gparcx('Database: ',cline,last,1,database,' ','?Enter matrial')
 ! this extracts all element symbols from database
-      call checkdb(database,ext,nel,selel)
+      call checkdb2(database,ext,nel,selel)
       if(gx%bmperr.ne.0) goto 1000
       write(kou,70)(selel(nv),nv=1,nel)
 70    format('Elements: ',15(a2,', '))

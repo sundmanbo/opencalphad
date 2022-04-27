@@ -40,6 +40,7 @@
 !\end{verbatim}
    integer ifri
    allocate(tpfuns(nf))
+!   write(*,*)'3Z allocated tpfuns: ',nf
 ! tpres allocated when creating equilibria
 !   allocate(tpres(nf))
 ! create free list for named functions records
@@ -152,7 +153,6 @@
 ! one should signal if T is lower than lowest limit or higher than highest
 ! used  saved reults if same T and P
 !
-!   write(*,*)'3Z in eval_tpfun',lrot,btest(tpfuns(lrot)%status,TPCONST)
    if(lrot.le.0) then
       result=zero
       goto 1000
@@ -2254,64 +2254,6 @@
 1000 continue
    return
  end subroutine nested_tpfun
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable logical function compare_abbrev
-!\begin{verbatim} %-
- logical function compare_abbrev(name1,name2)
-! returns TRUE if name1 is an abbreviation of name2
-! termintaes when a space is found in name1
-! each part between _ or - can be abbreviated from the left
-! a slash is treated as _
-! case insensitive. Only 36 first characters compared
-   implicit none
-   character*(*) name1,name2   
-!\end{verbatim}
-   integer, parameter :: maxl=36
-   integer jp,ip,noabbr
-   character ch1*1
-   character (len=maxl) :: lname1,lname2
-   lname1=name1; lname2=name2
-   call capson(lname1)
-   call capson(lname2)
-   compare_abbrev=.FALSE.
-   noabbr=0
-   jp=1
-   bigloop: do ip=1,36
-      ch1=lname1(ip:ip)
-      if(ip.gt.1 .and. ch1.eq.' ') goto 900
-! in species - has a special meaning of charge (and other things)
-      if(ch1.eq.'-') then
-         if(ch1.eq.lname2(jp:jp)) goto 300
-         ch1='_'
-      endif
-! in species / has a special meaning of cluster
-!      if(ch1.eq.'/') then
-!         if(ch1.eq.lname2(jp:jp)) goto 300
-!         write(*,*)'3Z accepting /'
-!      endif
-      if(ch1.eq.lname2(jp:jp)) goto 300
-!      if(ch1.eq.'_' .or. ch1.eq.'-') then
-      if(ch1.eq.'_') then
-! we can abbreviate up to "_" in full name
-200       continue
-         if(jp.eq.maxl) goto 1000
-         jp=jp+1
-         if(lname2(jp:jp).eq.'_') goto 300
-         if(lname2(jp:jp).eq.' ') goto 1000
-         goto 200
-      endif
-      goto 1000
-300    continue
-      jp=jp+1
-!310    continue
-   enddo bigloop
-900 continue
-   compare_abbrev=.TRUE.
-1000 continue
-   return
- end function compare_abbrev
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

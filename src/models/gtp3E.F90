@@ -208,7 +208,7 @@
 ! 25 svfun version
 ! 26 assessment record list
 ! 27 assessment version
-! 28
+! 28 zero for unencypted, nonzero for encrypted
 ! 29
 ! 30
 ! missing: parameter_id_lista ... step/map/plot data
@@ -512,6 +512,12 @@
    call wrkchk(rsize,miws,iws)
 ! NOTE: savefile is a character*8 in gtp3.F90
    last=5+nwch(40)+nwch(8)+nwch(72)
+!----------------------------------------------------------------------
+!   write(*,*)'3E save unformatted:',rsize,globaldata%encrypted
+   if(globaldata%encrypted.ne.0) then
+      iws(rsize+1)=18
+   endif
+!----------------------------------------------------------------------
    write(lut)id,savefile,comment,noofel,noofsp,noofph,nooftuples,rsize+5
    write(lut)(iws(i),i=1,rsize+5)
    close(lut)
@@ -1904,6 +1910,12 @@
    allocate(iws(last))
    read(lin)(iws(i),i=1,last)
    close(lin)
+!------------------------
+   write(*,*)'3E reading unformatted: ',last,iws(last-4),globaldata%encrypted
+   if(iws(last-4).ne.0 .and. globaldata%encrypted.eq.0) then
+      write(*,*)'3E Illegal attempt to read an encrypted save file'
+      stop
+   endif
 !------------------------
 !>>>>> 2: elementlist, follow link from iws(3)
    if(iws(4).ne.gtp_element_version) then
@@ -3466,6 +3478,7 @@
 !>>>>> 20: delete tpfuns
 !   write(*,*)'3E Delete TP funs, just deallocate??',freetpfun
 !   call delete_all_tpfuns
+! I do not think this deletes anything ... tpfuns is an array of pointers ...
    call tpfun_deallocate
    if(gx%bmperr.ne.0) then
       write(*,*)'3E **** ERROR deleting TP functions'
@@ -3514,6 +3527,7 @@
 ! Maybe these need initiating?
    globaldata%sysreal=zero
    globaldata%sysparam=0
+!   write(*,*)'3E globaldata%encrypted: ',globaldata%encrypted
 ! initiate Toop/Kohler record counter
    uniqid=0
 !
@@ -3883,34 +3897,13 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\addtotable subroutine replacetab
-!\begin{verbatim} %-
- subroutine replacetab(line,nl)
-! replaces TAB by space in line
-   implicit none
-   character line*(*)
-   integer nl
-!\end{verbatim}
-   integer ip
-100 continue
-   ip=index(line,char(9))
-   if(ip.gt.0) then
-      line(ip:ip)=' '
-!      write(*,*)'Replaced TAB by space on line ',nl
-      goto 100
-   endif
-1000 continue
-   return
- end subroutine replacetab
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
 !\addtotable subroutine readtdb
 !\begin{verbatim}
  subroutine readtdb(filename,nel,selel)
 ! reading data from a TDB file with selection of elements, read_tdb
 !-------------------------------------------------------
 ! Not all TYPE_DEFS implemented
+! MODIFIED FOR ENCRYPTED DATABASES
 !-------------------------------------------------------
    implicit none
    integer nel
@@ -3944,7 +3937,7 @@
    type(gtp_phase_add), pointer :: addrec
    logical warning,only_typedefs
 ! this is used for reading encrypted FUNCTION and PARAMETER part of a TDB file
-   integer encrypted
+!   integer encrypted   ---- replaced by globaldata%encrypted
    character encryptline*128
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
@@ -3952,14 +3945,18 @@
    logical silent,thisphaserejected
 !  mmyfr noofph
 ! if warning is true at the end pause before listing bibliography
-!   write(*,*)'3E readtdb',allocated(seltdbph),nselph
+#ifdef encrypopt
+   write(*,*)'3E compiled with option to read encrypted files',&
+        globaldata%encrypted
+#endif   
+!   write(*,*)'3E in readtdb 1:',allocated(seltdbph),nselph
    emodel=0
    nsl=0
 ! dbcheck made global
 !   dbcheck=.FALSE.
    warning=.FALSE.
    silent=.FALSE.
-   encrypted=0
+!   grobaldata%encrypted=0
 ! this was Ting request to have ferromanetic reference state for alloys
    ferroref=.FALSE.
    nphrej=0
@@ -3971,9 +3968,9 @@
    nundefmpi=0
    if(btest(globaldata%status,GSSILENT)) then
       silent=.TRUE.
-!      write(*,*)'3E reading database silent'
+!      write(*,*)'3E in readtdb reading database silent'
    endif
-   write(*,*)'3E reading a TDB file'
+!   write(*,*)'3E in readtdb reading a TDB file: ',globaldata%encrypted
    if(ocv()) write(*,*)'3E reading a TDB file'
    if(.not.(index(filename,'.tdb').gt.0 &
        .or. index(filename,'.TDB').gt.0)) then
@@ -3989,8 +3986,40 @@
 ! dodis is nonzero only when reading the disordered part of phases.
    disparttc=0
    dodis=0
+!====================================================
+#ifdef encrypopt
+! compiled for reading encrypted files
+!   write(*,*)'3E compiled for encrypted file: ',globaldata%encrypted
+! globaldata%encrypted nonzero if used given READ ENCRYPTED 
+   if(globaldata%encrypted.ne.0) then
+! the value of globaldata%encrypted is set in pmon6
+      write(*,*)'3E trying to read an encrypted database',trim(filename)
+!      stop
+!----------------------------------------------------------------
+! decrypt the file and provide the decrypted file line by line 
+!
+!    call decrypting software from thalesgroup <<<<<<<<<<<<<<<<<<< line 3987
+!
+!----------------------------------------------------------------
+! As the file is rewinded several times it may be clumsy?
+      write(*,*)'3E should read encrypted database: ',trim(filename)
+      open(21,file=filename,access='sequential',form='formatted',&
+           err=1010,iostat=gx%bmperr,status='old')
+!
+! the decrypted line provided as unit 21
+   else
+! allow reading non-encrypted files
+      if(.not.silent) write(*,*)'3E reading database file: ',trim(filename)
+      open(21,file=filename,access='sequential',form='formatted',&
+           err=1010,iostat=gx%bmperr,status='old')
+   endif
+#else
+! ======================================================
+   if(.not.silent) write(*,*)'3E reading database file',trim(filename)
+!
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')
+#endif
 ! read whole TDB file to extract TYPE_DEFS with DIS_PART so disordered parts
 ! are not entered
 !   call any_disordered_part(21,ndisph,disph)
@@ -4024,18 +4053,19 @@
    read(21,110,end=2000)line
 110 format(a)
    nl=nl+1
-   if(nl.eq.1) then
-      if(line(1:10).eq.'ENCRYPTED ') then
+! REDUNDANT CODE when attempting to separate TDB files in 2 parts
+!   if(nl.eq.1) then
+!      if(line(1:10).eq.'ENCRYPTED ') then
 ! encrypted files consists of a "structure" part with elements, phases etc
 ! which are not encrypted and a file name with the encrypted FUNCTION and
 ! PARAMETER keywords.  After reading the structure part call readencrypt
 ! onlyfun is set TRUE and that triggers read the encrypted part
-         encrypted=encrypted+1
-         encryptline=line
-         if(encrypted.eq.1) write(*,*)'3E this database has an encrypted part'
-         goto 100
-      endif
-   endif
+!         encrypted=encrypted+1
+!         encryptline=line
+!         if(encrypted.eq.1) write(*,*)'3E this database has an encrypted part'
+!         goto 100
+!      endif
+!   endif
    if(len_trim(line).gt.80) then
       if(.not.silent) write(*,121)nl
 121   format(' *** Warning: line ',i5,' has characters beyond position 80,'/&
@@ -5142,6 +5172,7 @@
       endif
 !      write(*,*)'3E Entering function 2: ',funname,trim(longline)
       lrot=0
+!      write(*,*)'3E globaldata%encrypted 1: ',globaldata%encrypted
 !      call store_tpfun(funname,longline,lrot,.TRUE.)
       call store_tpfun(funname,longline,lrot,rewindx)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
@@ -5578,7 +5609,7 @@
          longline(jss:jss)=' '
          goto 820
       endif
-! check if function is entered as undefined, exact match of name required
+! file is not encrypted
       call find_tpfun_by_name_exact(name1,nr,notent)
       if(gx%bmperr.eq.0) then
          if(notent) then
@@ -5587,6 +5618,7 @@
 !            write(*,*)'3E Entering function 3: ',name1,len_trim(longline)
 !            lrot=0
 !            call store_tpfun(name1,longline,lrot,.TRUE.)
+! we are using the version which can read encrypted files
             call store_tpfun(name1,longline,lrot,rewindx)
             if(gx%bmperr.ne.0) then
 ! one may have error here
@@ -5606,7 +5638,7 @@
             endif
          endif
       else
-! igore the function as it is not referenced.  Reset error code
+! ignore the function as it is not referenced.  Reset error code
          gx%bmperr=0
       endif
    else
@@ -5726,21 +5758,22 @@
 2002 format('Found end-of-file, rewind to find functions',i5)
       nl=0
       goto 100
-   elseif(encrypted.gt.0) then
+!   elseif(encrypted.gt.0) then
+! REDUNDANT CODE when testing using 2 files for encrypted TDB files
 ! on encrypted TDB files the FUNCTION and PARAMETER keywords are
 ! in a separate file.  When onlyfun is TRUE then we swich to this file
-      close(21)
-      write(*,*)'3E closing TDB file to read encrypted part'
-      call readencrypt(encryptline,nr)
+!      close(21)
+!      write(*,*)'3E closing TDB file to read encrypted part'
+!      call readencrypt(encryptline,nr)
 ! nr is missing functions ...
-      if(gx%bmperr.eq.0) then
-         if(nr.gt.0) then
-            write(*,*)'3E read encrypted part, missing functions: ',nr
-         endif
-      else
-         write(*,*)'3E error reading encrypted part',gx%bmperr
-      endif
-      return
+!      if(gx%bmperr.eq.0) then
+!         if(nr.gt.0) then
+!            write(*,*)'3E read encrypted part, missing functions: ',nr
+!         endif
+!      else
+!         write(*,*)'3E error reading encrypted part',gx%bmperr
+!      endif
+!      return
    elseif(nofunent.gt.0) then
 ! rewind if there were functions entered last time
       rewind(21)
@@ -6891,7 +6924,6 @@
       endif
 !      write(*,*)'3E Entering function 2: ',funname,len_trim(longline)
 !      lrot=0
-!      call store_tpfun(funname,longline,lrot,.TRUE.)
       call store_tpfun(funname,longline,lrot,rewindx)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
 17 format('readpdb 17: ',4i3,5x,10i3)
@@ -7333,70 +7365,70 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\addtotable subroutine checkdb
-!\begin{verbatim}
- subroutine checkdb(filename,ext,nel,selel)
+!-\addtotable subroutine checkdb
+!-\begin{verbatim}
+! subroutine checkdb(filename,ext,nel,selel)
 ! checking a TDB/PDB file exists and return the elements
-   implicit none
-   integer nel
-   character filename*(*),ext*4,selel(*)*2
-!\end{verbatim} %+
-   character line*256,ext2*4
-   integer ipp,nl,kk
+!   implicit none
+!   integer nel
+!   character filename*(*),ext*4,selel(*)*2
+!-\end{verbatim} %+
+!   character line*256,ext2*4
+!   integer ipp,nl,kk
 !
-   ext2=ext
-   call capson(ext2)
-   if(.not.(index(filename,ext).gt.0 &
-       .or. index(filename,ext2).gt.0)) then
+!   ext2=ext
+!   call capson(ext2)
+!   if(.not.(index(filename,ext).gt.0 &
+!       .or. index(filename,ext2).gt.0)) then
 ! no extention provided
-      filename(len_trim(filename)+1:)=ext2
-   endif
-   open(21,file=filename,access='sequential',form='formatted',&
-        err=1010,iostat=gx%bmperr,status='old')
+!      filename(len_trim(filename)+1:)=ext2
+!   endif
+!   open(21,file=filename,access='sequential',form='formatted',&
+!        err=1010,iostat=gx%bmperr,status='old')
 ! if first line of file is "$OCVERSION ..." the text is displayed once
-   read(21,110)line
-   if(line(1:11).eq.'$OCVERSION ') then
-      write(kou,117)trim(line(12:))
-117   format(/'TDB file id: ',a/)
-   endif
-   rewind(21)
+!   read(21,110)line
+!   if(line(1:11).eq.'$OCVERSION ') then
+!      write(kou,117)trim(line(12:))
+!117   format(/'TDB file id: ',a/)
+!   endif
+!   rewind(21)
 ! just check for ELEMENT keywords
 ! return here to look for a new keyword, end-of-file OK here
-   nl=0
-   nel=0
-100 continue
-   read(21,110,end=2000)line
-110 format(a)
-   nl=nl+1
+!   nl=0
+!   nel=0
+!100 continue
+!   read(21,110,end=2000)line
+!110 format(a)
+!   nl=nl+1
 ! One should remove TAB characters !! ??
-   call replacetab(line,ipp)
-   ipp=1
-   if(eolch(line,ipp)) goto 100
-   if(line(ipp:ipp).eq.'$') goto 100
+!   call replacetab(line,ipp)
+!   ipp=1
+!   if(eolch(line,ipp)) goto 100
+!   if(line(ipp:ipp).eq.'$') goto 100
 ! look for ELEMENT keyword, ipp=1
-   ipp=istdbkeyword(line,kk)
-   if(ipp.ne.1) goto 100
+!   ipp=istdbkeyword(line,kk)
+!   if(ipp.ne.1) goto 100
 !
 ! ignore /- and VA
-   if(eolch(line,kk)) goto 100
-   if(line(kk:kk+1).eq.'/-' .or. line(kk:kk+1).eq.'VA') goto 100
-   nel=nel+1
-   selel(nel)=line(kk:kk+1)
+!   if(eolch(line,kk)) goto 100
+!   if(line(kk:kk+1).eq.'/-' .or. line(kk:kk+1).eq.'VA') goto 100
+!   nel=nel+1
+!   selel(nel)=line(kk:kk+1)
 !      write(*,111)nl,line(1:20)
 !111   format('Read line ',i5,': ',a)
-   goto 100
+!   goto 100
 !---------
-1000 continue
-   return
+!1000 continue
+!   return
 ! error
-1010 continue
-   goto 1000
+!1010 continue
+!   goto 1000
 ! end of file
-2000 continue
-   close(21)
-   goto 1000
-   return
- end subroutine checkdb
+!2000 continue
+!   close(21)
+!   goto 1000
+!   return
+! end subroutine checkdb
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -7420,6 +7452,13 @@
 ! no extention provided
       filename(len_trim(filename)+1:)=ext2
    endif
+   nel=0
+#ifdef entrypopt
+   write(*,*)'PM: no listing of elements in encrypted databases'
+   nel=-1
+   goto 1000
+#endif
+! there is a need to extract elements also from encrypted files
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')
 ! if first line of file is "$OCVERSION ..." the text is displayed once
@@ -7432,7 +7471,6 @@
 ! just check for ELEMENT and DATABASE_INFO keywords
 ! return here to look for a new keyword, end-of-file OK here
    nl=0
-   nel=0
 100 continue
    read(21,110,end=2000)line
 110 format(a)
@@ -9253,4 +9291,19 @@
  end subroutine lower_case_species_name
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine notallowlisting
+!\begin{verbatim}
+ logical function notallowlisting(privil)
+! check if user is allowed to list data
+   double precision privil
+!\end{verbatim}
+   logical ok
+! false means listing allowed
+   ok=.FALSE.
+   notallowlisting=ok
+   return
+ end function notallowlisting
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
