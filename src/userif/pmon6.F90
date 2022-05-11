@@ -4192,6 +4192,10 @@ contains
 !    character (len=16), dimension(nlform) :: llform=&
 !        ['SCREEN          ','TDB             ','MACRO           ',&
 !         'LATEX           ','PDB             ','                ']
+          if(globaldata%encrypted.ne.0) then
+             write(kou,*)'Illegal for encrypted databases'
+             goto 100
+          endif
           kom3=submenu('Output format for data?',cline,last,llform,nlform,1,&
                '?TOPHLP')
           if(kom3.eq.2) then
@@ -5560,6 +5564,10 @@ contains
 !-----------------------------------------------------------
        case(1) ! save TDB, same as list data TDB
 ! format 1 is TDB, see list data ...
+          if(globaldata%encrypted.ne.0) then
+             write(kou,*)'Illegal for encrypted databases'
+             goto 100
+          endif
           call gparfilex('File name: ',cline,last,1,filename,text,-1,&
                '?Save TDB')
           kl=max(index(filename,'.dat '),index(filename,'.TDB '))
@@ -5582,6 +5590,10 @@ contains
           endif
 !-----------------------------------------------------------
        case(2) ! SOLGAS
+          if(globaldata%encrypted.ne.0) then
+             write(kou,*)'Illegal for encrypted databases'
+             goto 100
+          endif
           text=' '
 ! Give a warning that this must not be run on a LINUX computer
           write(*,'(/a/)')' WARNING: Do not run on LINUX/MAC'//&
@@ -5693,6 +5705,10 @@ contains
 !-----------------------------------------------------------
        case(6) ! PDB
           write(kou,*)'PDB output not yet implemented'
+          if(globaldata%encrypted.ne.0) then
+             write(kou,*)'Illegal for encrypted databases'
+             goto 100
+          endif
           continue
        end SELECT save
 !=================================================================

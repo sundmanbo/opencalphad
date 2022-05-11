@@ -4002,20 +4002,20 @@
 !
 !----------------------------------------------------------------
 ! As the file is rewinded several times it may be clumsy?
-      write(*,*)'3E should read encrypted database: ',trim(filename)
+      write(*,*)'3E reading encrypted database: ',trim(filename)
       open(21,file=filename,access='sequential',form='formatted',&
            err=1010,iostat=gx%bmperr,status='old')
 !
 ! the decrypted line provided as unit 21
    else
 ! allow reading non-encrypted files
-      if(.not.silent) write(*,*)'3E reading database file: ',trim(filename)
+      if(.not.silent) write(*,*)'3E nonencrypted database: ',trim(filename)
       open(21,file=filename,access='sequential',form='formatted',&
            err=1010,iostat=gx%bmperr,status='old')
    endif
 #else
 ! ======================================================
-   if(.not.silent) write(*,*)'3E reading database file',trim(filename)
+   if(.not.silent) write(*,*)'3E reading database file: ',trim(filename)
 !
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')

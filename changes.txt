@@ -20,6 +20,17 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.05.11 OC version 6.050: The implementation of the MQMQA model can
+now handle some of the excess parameters.  As this model is different
+from anyone previous implemented in OC and its documentation is
+involved and fairly cryptic there has been some difficulties to
+understand some "hidden" model parameters in the way the Gibbs energy
+is calculated.  A second problem is that most systems used with this
+model are quasi-binary or quasi-ternary or higher quasi system where
+the amount of one of the components is is given by the ratio of the
+amount of the other components.  This will require some modificatons
+of the numerics.
+
 2022.04.19 OC version 6.049: The declaration of gx%bmperr has been
 moved to METLIB4 in a first step to unify error codes.  Some strange
 problems compiling with OpenMP for parallel had to be fixed.  Some

@@ -85,6 +85,13 @@ title map 16 Fig 1
 
 
 @$ The lines with the same phase fix has the same color
+@&
+
+l ax
+
+@$ Plot with chemical potential of C
+
+@&
 
 plot
 ac(c)

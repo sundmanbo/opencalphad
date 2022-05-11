@@ -105,7 +105,7 @@
         ellista(elno)%h298_h0,ellista(elno)%s298,ellista(elno)%status
 100 format(1x,f7.3,1x,f7.2,1x,f7.3,1x,z8)
    ipos=len_trim(text)
-!   write(*,*)'x:',text(1:79)
+!   write(*,*)'3C x:',text(1:79)
 1000 continue
    return
  END subroutine list_element_data
@@ -122,7 +122,7 @@
    character dummy*48
    integer jpos
    if(spno.lt.1 .or. spno.gt.noofsp) then
-!       write(*,*)'in list_species_data'
+!       write(*,*)'3C in list_species_data'
       gx%bmperr=4051
       goto 1000
    endif
@@ -163,7 +163,7 @@
    character dummy*24
    integer jpos
    if(loksp.lt.1 .or. loksp.gt.noofsp) then
-!       write(*,*)'in list_species_data'
+!       write(*,*)'3C in list_species_data'
       gx%bmperr=4051
       goto 1000
    endif
@@ -580,7 +580,7 @@
 !         '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
    jl=0
    trailer=' '
-   write(*,*)'In list_all_phases',noofph
+!   write(*,*)'3C In list_all_phases',noofph
 !   allocate(dormant(noofph))
 !   dormant=0
    ndorm=0
@@ -594,7 +594,7 @@
       csloop: do ics=1,phlista(lokph)%noofcs
          lokcs=phlista(lokph)%linktocs(ics)
          csrec=>ceq%phase_varres(lokcs)
-!         write(*,*)'lpd: 69: ',jk,ics,lokph,lokcs
+!         write(*,*)'3C lpd: 69: ',jk,ics,lokph,lokcs
          if(ndorm.ge.0) then
             if(csrec%phstate.eq.PHDORM) then
                ndorm=ndorm+1
@@ -616,7 +616,7 @@
          endif
          phname=phlista(lokph)%name
          jl=jl+1
-!         write(*,70)'lpd: 70:',phname,phlista(lokph)%noofcs
+!         write(*,70)'3C lpd: 70:',phname,phlista(lokph)%noofcs
 !70       format(a,a24,5i6)
          if(phlista(lokph)%noofcs.gt.1) then
             chs=char(ichar('0')+ics)
@@ -793,7 +793,7 @@
       call get_component_name(ie,name,ceq)
       kl=len_trim(name)
       svtext='N('//name(1:kl)//') '
-!      write(*,*)'state variable :',svtext
+!      write(*,*)'3C state variable :',svtext
       call get_state_var_value(svtext,x1,encoded,ceq)
       if(gx%bmperr.ne.0) goto 1000
 !
@@ -806,7 +806,7 @@
       if(gx%bmperr.ne.0) goto 1000
 ! This should be read from component record .... ???? YES
       svtext='MU('//name(1:kl)//') '
-!      write(*,*)'state variable :',svtext
+!      write(*,*)'3C state variable :',svtext
       call get_state_var_value(svtext,x3,encoded,ceq)
       if(gx%bmperr.ne.0) then
          write(*,*)'3C Error line 659: ',trim(svtext),gx%bmperr
@@ -852,7 +852,7 @@
    integer, dimension(:), allocatable :: phtupx
    integer, dimension(:), allocatable :: isort
    double precision xxx
-!   write(*,*)'In list_phases_with_positive_dgm'
+!   write(*,*)'3C In list_phases_with_positive_dgm'
    once=0
    do iph=1,noofph
       lokph=phases(iph)
@@ -860,7 +860,7 @@
          lokcs=phlista(lokph)%linktocs(ics)
          if(ceq%phase_varres(lokcs)%phstate.lt.PHDORM) cycle csloop
 !         if(abs(ceq%phase_varres(lokcs)%netcharge).gt.1.0d-6) then
-!            write(*,*)'ignoring phase with net charge: ',iph,ics
+!            write(*,*)'3C ignoring phase with net charge: ',iph,ics
 !            cycle csloop
 !         endif
          if(ceq%phase_varres(lokcs)%dgm/&
@@ -1106,7 +1106,7 @@
    do jl=1,nz
       consts(jl)=splista(ceq%complist(jl)%splink)%symbol
    enddo
-!    write(*,187)'lpr: ',consts
+!    write(*,187)'3C lpr: ',consts
 !187 format(a,20(1x,a2))
    if(kode.eq.0) then
       call format_phase_composition(mode,nz,consts,xmol,lut)
@@ -1357,8 +1357,8 @@
          names(2)=consts(isort(n1+nrow2))
 203      format(a,i3,2x,10i3)
          if(n1+2*nrow2.le.nv) then
-!            write(*,203)'Row1 ',n1,nrow2,n3r,nempty,isort(n1),isort(n1+nrow2),&
-!                 isort(n1+n3r)
+!            write(*,203)'3C Row1 ',n1,nrow2,n3r,nempty,isort(n1),&
+!            isort(n1+nrow2),isort(n1+n3r)
             names(3)=consts(isort(n1+n3r))
             write(lut,210)names(1),vals(n1),names(2),vals(n1+nrow2),&
                  names(3),vals(n1+n3r)
@@ -1378,7 +1378,7 @@
             names(2)=consts(isort(n1+nrow2))
             write(lut,210)names(1),vals(n1),names(2),vals(n1+nrow2)
          else
-!            write(*,203)'Row4 ',n1
+!            write(*,203)'3C Row4 ',n1
             write(lut,210)names(1),vals(n1)
          endif
          nvrest=0

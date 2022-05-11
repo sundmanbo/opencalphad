@@ -2075,6 +2075,10 @@
    TYPE(gtp_interaction), pointer :: intrec
    TYPE(gtp_pystack), pointer :: pystack
    TYPE(gtp_phase_add), pointer :: addrec
+! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
+   integer ij,jd,jq,qq1,qq2,ass
+   double precision ksi,sumx
+   double precision dksi(3),d2ksi(3)
 !------------------------------------- 
 ! allocate arrays
 !   write(*,*)'3X in calc_mqmqa'
@@ -2245,13 +2249,15 @@
          enddo snnloop
       endif pair
    enddo qloop
+! if this goto then excess is ignored and result correct
 !   goto 800
 !---------------------------------------------------------------------
-!--------------------- code below needed for excess parameters
+!----- code below needed for excess parameters ONLY, all SNN FNN done above
 ! NOTE many of them may be missing
    mqmqj=0
    endmemrec=>phlista(lokph)%ordered
    endmemloop2: do while(associated(endmemrec))
+      if(mqmqj.gt.0) endmemrec=>endmemrec%nextem
       mqmqj=mqmqj+1
       kend=mqmqa_data%contyp(5,mqmqj)
 !      write(*,311)associated(endmemrec),mqmqj,mqmqa_data%nconst,kend
@@ -2259,65 +2265,119 @@
       if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop2
       intrec=>endmemrec%intpointer
 ! interaction parameters are NOT linked from SNN endmembers!!
+! They are stored in alphabetical order of the constituents
 !      write(*,*)'3X Check for interaction parameters 1',associated(endmemrec),&
 !           associated(intrec),mqmqj,kend
+! if we cycle here the results are the same as without excess parameters
+!      cycle endmemloop2
       if(.not.associated(intrec)) cycle endmemloop2
 ! this is an endmember parameter with possible excess parameters
-      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
+!      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
 ! just excess parameters, we must calculate product of fractions
-      dpyq=zero
-! the fraction variable is found from the endmember record
-      id=endmemrec%fraclinks(1,1)
-      pyq=phres%yfr(id)
-      if(pyq.lt.bmpymin) pyq=bmpymin
-      if(pyq.gt.one) pyq=one
-! the endmember parameter already calculated
-      dpyq(id)=one
 ! BRANCH for intrec%highlink and intrec%nexlink
 !      write(*,'(a,i2,F10.6,6(1pe12.4))')'3X SNN df/dy: ',id,pyq,&
 !           (dpyq(itp),itp=1,gz%nofc)
+!-------------------------------------
+! extract fractions from the endmember and check if AB/X or A/XY or A/X 
+      id=endmemrec%fraclinks(1,1)
+! jump back here for next interaction record
+600   continue
+      jd=intrec%fraclink(1)
+! We must keep track of which endmember is separate!!!
+      if(mqmqa_data%contyp(5,id).eq.0) then
+! Interactions are only between clusters AB/X and endmembers A/X or B/X
+! id is a cluster, jd is endmember
+         jq=mqmqa_data%contyp(6,id)
+         if(jq.eq.jd) jq=mqmqa_data%contyp(7,id)
+         qq1=jq
+         qq2=jd
+         ass=id
+      elseif(mqmqa_data%contyp(5,jd).eq.0) then
+! jd is the cluster, id is endmember
+         jq=mqmqa_data%contyp(6,jd)
+         if(jq.eq.id) jq=mqmqa_data%contyp(7,jd)
+         qq1=id
+         qq2=jq
+         ass=jd
+      else
+         write(*,*)'3X interaction between two endmembers illegal'
+         gx%bmperr=4399; goto 1000
+      endif
+!      write(*,430)'3X interaction: ',id,jd,jq,qq1,qq2,ass,&
+!           phres%yfr(id),phres%yfr(jd),phres%yfr(jq)
+430   format(a,3i3,1x,3i3,3x,3(1pe12.4))
+!------------------------------------- extract parameter value
       proprec=>intrec%propointer
       typty=proprec%proptype
       if(typty.ne.1) stop 'illegal typty in mqmqa model'
       ipy=1
+! If RK then we must loop here -------------- not yet done
+      if(proprec%degree.gt.0) write(*,*)'3X degree: ',proprec%degree
       lokfun=proprec%degreelink(0)
       call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
       if(gx%bmperr.ne.0) goto 1000
-      write(*,'(a,i4,6(1Pe12.4))')'3X excess vals1:',lokfun,vals
+!      write(*,'(a,2i4,6(1Pe12.4))')'3X excess1:',lokfun,mqmqj,vals(1),vals(2)
       if(ipy.eq.1) then
+!         vals=0.5d0*vals/rtg
+! Nath has implemented this half in the converter
          vals=vals/rtg
       endif
+! skip excess 1
+!      cycle endmemloop2
+!----------------------- multiply with fractions
+! the parameter should be multiplied with cluster fractions and
+! the separate endmember qq1 fraction normalized 
+      sumx=phres%yfr(id)+phres%yfr(jd)+phres%yfr(jq)
+      ksi=phres%yfr(qq1)/sumx
+! these 3 assignments assume qq1 is none of id, jd or jq
+      dksi(id)=-ksi/sumx
+      dksi(jd)=-ksi/sumx
+      dksi(jq)=-ksi/sumx
+! this will overwrite on of the 3 above ...
+      dksi(qq1)=(one-ksi)/sumx
+! this is the fraction product
+      pyq=phres%yfr(ass)*ksi
+!      write(*,650)ass,sumx,phres%yfr(ass),ksi,pyq
+650   format('3X fraction product: ',i3,5(1pe12.4))
+! most of the derivatives of pyq is zero
+      dpyq=zero
+      dpyq(id)=phres%yfr(ass)*dksi(id)
+      dpyq(jd)=phres%yfr(ass)*dksi(jd)
+      dpyq(jq)=phres%yfr(ass)*dksi(jq)
+      dpyq(ass)=ksi+dksi(ass)
+!      write(*,'(a,2(1pe14.6))')'3X excess G:',pyq,pyq*vals(1)
+! skip excess 2
+!      cycle endmemloop2
+!
 ! ---------------------------------
-! unfinished below
+! add to G and first derivatives of G, ipy is property, ipy=1 is G
 ! ---------------------------------
-      cycle endmemloop2
-! multiply with fractions and derivatives of fractions                     
-! gz%nofc is total number of independent fractions
-         do s1=1,gz%nofc
-            do itp=1,3
-               phres%dgval(itp,s1,ipy)=phres%dgval(itp,s1,ipy)+&
-                    dpyq(s1)*vals(itp)
-            enddo
+      do s1=1,gz%nofc
+         do itp=1,3
+            phres%dgval(itp,s1,ipy)=phres%dgval(itp,s1,ipy)+&
+                 dpyq(s1)*vals(itp)
          enddo
-! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
-! finally add to integral properties
-         do itp=1,6
-            phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
-         enddo
-         proprec=>proprec%nextpr
-!         write(*,200)'3X SNN G, dG/dq: ',phres%gval(1,1),&
-!              (phres%dgval(1,s1,1),s1=1,gz%nofc)
-!      enddo mq2
-! check for excess parameters ....
-!      intrec=>endmemrec%intpointer
-!      write(*,*)'3X Check for interaction parameters 2',associated(endmemrec),&
-!           associated(intrec),mqmqj
-!      do while(associated(intrec))
-! calculate the excess parameter!!!
-!         write(*,*)'3X there is an interaction parameter!!'
-!      enddo
-! next endmember ....
-      endmemrec=>endmemrec%nextem
+      enddo
+      do itp=1,6
+         phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
+      enddo
+!------------- next property for same interaction
+      proprec=>proprec%nextpr
+      if(associated(proprec)) then
+! more than one property ... not implemented
+         write(*,*)'3X MQMQA parameter with several propertyes!',mqmqj
+      endif
+      if(associated(intrec%highlink)) then
+! next higher ... not allowed
+         write(*,*)'3X ternary MQMQA parameters not implemented',mqmqj
+      endif
+      intrec=>intrec%nextlink
+      if(associated(intrec)) then
+         write(*,*)'3X more binary interaction for this endmember',mqmqj
+         goto 600
+      endif
+!      write(*,*)'3X done excess for endmember',mqmqj
+! next endmember .... is set at the beginning
    enddo endmemloop2
 !----------------------------------------------------- end SNN loop
 800 continue
