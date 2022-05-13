@@ -21,9 +21,19 @@ MODULE ocsmp
 !------------------------------
 !
   use liboceqplus
+! this to implement sleep
+  use, intrinsic:: iso_c_binding, only: c_int
 !
   implicit none
   character*8, parameter :: smpversion='SMP-2.30'
+!
+! this interface added to sleep after GNUPLOT command
+  interface
+     subroutine usleep(us) bind (C)
+       import c_int
+       integer(c_int), value :: us
+     end subroutine usleep
+  end interface
 !
 ! note the type map_fixph declared in matsmin.F90 (in liboceq)
 !
@@ -67,6 +77,7 @@ MODULE ocsmp
 ! Bit in the MAP_NODE record
   integer, parameter :: MAPINVARIANT=0,STEPINVARIANT=1
 !\end{verbatim}
+!
 !
 !\begin{verbatim}
   TYPE map_line

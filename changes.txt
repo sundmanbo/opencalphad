@@ -4,11 +4,11 @@ earlier.  This log started 2016-03-03.
 For general information please read the intro-OC6.pdf and the
 OC6-macros.pdf.
 
-There is now a precompiled installation of OC on Windows on the
-OpenCalphad web page.  It includes an introduction, on-line help and
-examples with macro files and some small databases.  For graphics the
-free GNUPLOT software must be installed separately from Sourceforge or
-a similar website.
+There is now a (quite old) precompiled installation of OC on Windows
+on the OpenCalphad web page.  It includes an introduction, on-line
+help and examples with macro files and some small databases.  For
+graphics the free GNUPLOT software must be installed separately from
+Sourceforge or a similar website.
 
 On Linux, MacOS and other OS the installation requires some general
 knowledge about compiling and linking of software.  There is an
@@ -20,24 +20,30 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
-2022.05.11 OC version 6.050: The implementation of the MQMQA model can
-now handle some of the excess parameters.  As this model is different
-from anyone previous implemented in OC and its documentation is
-involved and fairly cryptic there has been some difficulties to
-understand some "hidden" model parameters in the way the Gibbs energy
-is calculated.  A second problem is that most systems used with this
-model are quasi-binary or quasi-ternary or higher quasi system where
-the amount of one of the components is is given by the ratio of the
-amount of the other components.  This will require some modificatons
-of the numerics.
+2022.05.13 OC version 6.051: Friday 13th version with a minor bugfix
+in MQMQA model.  I have added a sleep function after submitting a plot
+to GNUPLT from OC for my own testing of the graphics as sometimes a
+plot was overwritten by the next plot.  Normal plotting should not be
+affected.
+
+2022.05.11 OC version 6.050: The OC implementation of the MQMQA model
+can now handle some of the excess parameters.  As this model is
+different from anyone previously implemented in OC and its
+documentation is involved and fairly cryptic there has been some
+difficulties to understand some "hidden" model parameters in the way
+the Gibbs energy is calculated.  A second problem is that most systems
+used with this model are quasi-binary or -ternary system where the
+amount of one of the components is is given by the ratio of the amount
+of the other components.  This works also in OC but will proably
+require some modificatons to improve the convergence.
 
 2022.04.19 OC version 6.049: The declaration of gx%bmperr has been
 moved to METLIB4 in a first step to unify error codes.  Some strange
 problems compiling with OpenMP for parallel had to be fixed.  Some
-more general routines has been moved from gtp3 to metlib, for example
-compare_abbrev.  The TDB reader in gtp3.F90 has been prepared to
-handle reading encrypted databases but such options are outside the
-scope of the free version of OC.
+more general routines has been moved from gtp3 to metlib4.F90.  The
+TDB reader in gtp3.F90 has been prepared to handle reading encrypted
+databases but such options are outside the scope of the free version
+of OC.
 
 2022.04.07 OC version 6.048: A number of minor bugfixes and other things.
 

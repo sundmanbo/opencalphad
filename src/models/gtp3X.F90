@@ -2076,8 +2076,8 @@
    TYPE(gtp_pystack), pointer :: pystack
    TYPE(gtp_phase_add), pointer :: addrec
 ! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
-   integer ij,jd,jq,qq1,qq2,ass
-   double precision ksi,sumx
+   integer ij,jd,jq,qq1,qq2,ass,mpow
+   double precision ksi,sumx,dsumx
    double precision dksi(3),d2ksi(3)
 !------------------------------------- 
 ! allocate arrays
@@ -2278,28 +2278,38 @@
 !      write(*,'(a,i2,F10.6,6(1pe12.4))')'3X SNN df/dy: ',id,pyq,&
 !           (dpyq(itp),itp=1,gz%nofc)
 !-------------------------------------
+! content of %contyp and %pinq
+!      do jd=1,mqmqa_data%nconst
+!         write(*,599)jd,(mqmqa_data%contyp(id,jd),id=1,14)
+!599      format('3X contyp: ',i2,1x,4i2,1x,i3,1x,4i2,1x,i2,4i3)
+!      enddo
+!      write(*,*)'3X pinq: ',mqmqa_data%pinq
 ! extract fractions from the endmember and check if AB/X or A/XY or A/X 
       id=endmemrec%fraclinks(1,1)
-! jump back here for next interaction record
+! jump back here for next interaction record (if any)
 600   continue
+! Note it is arbitrary if the cluster is endmembetor interaction
       jd=intrec%fraclink(1)
 ! We must keep track of which endmember is separate!!!
       if(mqmqa_data%contyp(5,id).eq.0) then
-! Interactions are only between clusters AB/X and endmembers A/X or B/X
-! id is a cluster, jd is endmember
-         jq=mqmqa_data%contyp(6,id)
-         if(jq.eq.jd) jq=mqmqa_data%contyp(7,id)
-         qq1=jq
-         qq2=jd
+! id is a cluster, jd is separate fraction, jq is additional salt OK
          ass=id
+! %contyp(6,..9) are index of FNN, pairs, FNN pairs index in cintyp in PINQ
+         jq=mqmqa_data%pinq(mqmqa_data%contyp(6,ass))
+         if(jq.eq.jd) jq=mqmqa_data%pinq(mqmqa_data%contyp(7,ass))
+         qq1=jd
+         qq2=jq
+!         write(*,'(a,6i3)')'3X ass, sep, sum 1:',ass,qq1,qq2
       elseif(mqmqa_data%contyp(5,jd).eq.0) then
-! jd is the cluster, id is endmember
-         jq=mqmqa_data%contyp(6,jd)
-         if(jq.eq.id) jq=mqmqa_data%contyp(7,jd)
+! jd is the cluster, id is interaction endmember WRONG
+         ass=jd
+         jq=mqmqa_data%pinq(mqmqa_data%contyp(6,ass))
+         if(jq.eq.id) jq=mqmqa_data%pinq(mqmqa_data%contyp(7,ass))
          qq1=id
          qq2=jq
-         ass=jd
+!         write(*,'(a,6i3)')'3X ass, sep, sum 2:',ass,qq1,qq2
       else
+! Interactions are only between clusters AB/X and endmembers A/X or B/X
          write(*,*)'3X interaction between two endmembers illegal'
          gx%bmperr=4399; goto 1000
       endif
@@ -2311,14 +2321,23 @@
       typty=proprec%proptype
       if(typty.ne.1) stop 'illegal typty in mqmqa model'
       ipy=1
-! If RK then we must loop here -------------- not yet done
+! several powers  we must loop here -------------- not yet done
       if(proprec%degree.gt.0) write(*,*)'3X degree: ',proprec%degree
-      lokfun=proprec%degreelink(0)
+      mpow=0
+700   continue
+! first power is in link 0
+      lokfun=proprec%degreelink(mpow)
+      mpow=mpow+1
+      if(mpow.gt.9) then
+         write(*,*)'3X too high interaction power'
+         gx%bmperr=4399; goto 1000
+      endif
+! some powers may not have a parameter, max 9.  If no function loop
+      if(lokfun.le.0) goto 700
       call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
       if(gx%bmperr.ne.0) goto 1000
-!      write(*,'(a,2i4,6(1Pe12.4))')'3X excess1:',lokfun,mqmqj,vals(1),vals(2)
+!      write(*,'(a,3i4,6(1Pe12.4))')'3X excess1:',lokfun,mqmqj,mpow,vals(1)
       if(ipy.eq.1) then
-!         vals=0.5d0*vals/rtg
 ! Nath has implemented this half in the converter
          vals=vals/rtg
       endif
@@ -2327,30 +2346,36 @@
 !----------------------- multiply with fractions
 ! the parameter should be multiplied with cluster fractions and
 ! the separate endmember qq1 fraction normalized 
-      sumx=phres%yfr(id)+phres%yfr(jd)+phres%yfr(jq)
+      sumx=phres%yfr(qq1)+phres%yfr(qq2)+phres%yfr(ass)
       ksi=phres%yfr(qq1)/sumx
-! these 3 assignments assume qq1 is none of id, jd or jq
-      dksi(id)=-ksi/sumx
-      dksi(jd)=-ksi/sumx
-      dksi(jq)=-ksi/sumx
-! this will overwrite on of the 3 above ...
-      dksi(qq1)=(one-ksi)/sumx
-! this is the fraction product
-      pyq=phres%yfr(ass)*ksi
-!      write(*,650)ass,sumx,phres%yfr(ass),ksi,pyq
-650   format('3X fraction product: ',i3,5(1pe12.4))
+! here the fraction product is calculated
+!      write(*,650)ass,qq1,qq2,mpow,ksi,phres%yfr(ass),pyq,vals(1)*rtg
+650   format('3X excess: ',4i3,6(1pe12.4))
+      if(mpow.eq.1) then
+         pyq=phres%yfr(ass)*ksi
 ! most of the derivatives of pyq is zero
-      dpyq=zero
-      dpyq(id)=phres%yfr(ass)*dksi(id)
-      dpyq(jd)=phres%yfr(ass)*dksi(jd)
-      dpyq(jq)=phres%yfr(ass)*dksi(jq)
-      dpyq(ass)=ksi+dksi(ass)
+         dpyq=zero
+         dsumx=-sumx**(-2)
+! only those involving id, jd and jq are nonzero.
+! the species qq1, qq2 and ass has one more term, qq2 is only in the sumx
+         dpyq(qq1)=pyq*dsumx+phres%yfr(ass)/sumx
+         dpyq(qq2)=pyq*dsumx
+         dpyq(ass)=pyq*dsumx+ksi
+      else
+         pyq=phres%yfr(ass)*(ksi**mpow)
+         dpyq=zero
+         dsumx=-mpow*sumx**(-mpow-1)
+         dpyq(qq1)=pyq*dsumx+mpow*phres%yfr(ass)*ksi**(mpow-1)
+         dpyq(qq2)=pyq*dsumx
+         dpyq(ass)=pyq*dsumx+ksi*mpow
+      endif
 !      write(*,'(a,2(1pe14.6))')'3X excess G:',pyq,pyq*vals(1)
 ! skip excess 2
 !      cycle endmemloop2
 !
 ! ---------------------------------
 ! add to G and first derivatives of G, ipy is property, ipy=1 is G
+! 2nd derivatives ignored
 ! ---------------------------------
       do s1=1,gz%nofc
          do itp=1,3
@@ -2361,18 +2386,23 @@
       do itp=1,6
          phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
       enddo
-!------------- next property for same interaction
+! maybe several fraction powers of this property
+!      write(*,*)'3X several powers? ',mpow,proprec%degree
+      if(mpow.lt.proprec%degree) goto 700
+!------------- next property for same interaction,
+! each property can have different number of powers
       proprec=>proprec%nextpr
       if(associated(proprec)) then
 ! more than one property ... not implemented
          write(*,*)'3X MQMQA parameter with several propertyes!',mqmqj
       endif
       if(associated(intrec%highlink)) then
-! next higher ... not allowed
+! a higher interaction ... not allowed
          write(*,*)'3X ternary MQMQA parameters not implemented',mqmqj
       endif
       intrec=>intrec%nextlink
       if(associated(intrec)) then
+! There can be more than one interaction linked from an endmember
          write(*,*)'3X more binary interaction for this endmember',mqmqj
          goto 600
       endif

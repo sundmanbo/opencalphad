@@ -1401,9 +1401,9 @@
 !  ksi1(AB) = ksi_AB/C= x_AA/(x_AA+x_AB+x_BB) and
 !  ksi2(AB) = ksi_BA/C= x_BB/(x_AA+x_AB+x_BB); these are ksi
 ! and derivatives wrt the constituents (2nd deriv are symmetric)
-     double precision, allocatable :: ksi1(:),ksi2(:)
-     double precision, allocatable :: dksi1(:,:),dksi2(:,:)
-     double precision, allocatable :: d2ksi1(:,:),d2ksi2(:,:)
+!     double precision, allocatable :: ksi1(:),ksi2(:)
+!     double precision, allocatable :: dksi1(:,:),dksi2(:,:)
+!     double precision, allocatable :: d2ksi1(:,:),d2ksi2(:,:)
 ! no need for indexing ksi1 and ksi2 ...???
 !     integer, allocatable :: ksiix(:)
 ! any more?
