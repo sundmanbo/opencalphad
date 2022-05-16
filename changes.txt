@@ -20,6 +20,9 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.05.16 OC version 6.052: Just some more bugfixes.  MQMQA tested
+with three cations, some problems with reciprocal system.
+
 2022.05.13 OC version 6.051: Friday 13th version with a minor bugfix
 in MQMQA model.  I have added a sleep function after submitting a plot
 to GNUPLT from OC for my own testing of the graphics as sometimes a

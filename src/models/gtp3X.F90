@@ -290,8 +290,9 @@
 ! MQMQA separate calculation of G as well as entropy!!!
 ! NO no 2state model, einstein, magnetism etc.
    if(mqmqa) then
-!      write(*,*)'3X Separate routine for MQMQA'
+!      write(*,*)'3X Separate routine for nonconfig MQMQA'
       call calc_mqmqa(lokph,phres,mqf,ceq)
+!      write(*,*)'3X back from nonconfig MQMQA'
       goto 1000
    endif
 !-------------------------------------------------------------------
@@ -2194,6 +2195,7 @@
       enddo mq1
       endmemrec=>endmemrec%nextem
    enddo endmemloop1
+!   write(*,*)'3X finished endmemloop1'
 !--------------------------------------------------- end first endmember loop
 ! second loop over all quads, ignore endmember records
 ! but add reference state parameters to SNN energies
@@ -2249,6 +2251,7 @@
          enddo snnloop
       endif pair
    enddo qloop
+!   write(*,*)'3X finished qloop'
 ! if this goto then excess is ignored and result correct
 !   goto 800
 !---------------------------------------------------------------------
@@ -2259,10 +2262,13 @@
    endmemloop2: do while(associated(endmemrec))
       if(mqmqj.gt.0) endmemrec=>endmemrec%nextem
       mqmqj=mqmqj+1
+!      write(*,*)'3X endmemloop2:',mqmqj,mqmqa_data%nconst,associated(endmemrec)
+      if(mqmqj.gt.mqmqa_data%nconst .or. .not.associated(endmemrec)) then
+         exit endmemloop2
+      endif
       kend=mqmqa_data%contyp(5,mqmqj)
 !      write(*,311)associated(endmemrec),mqmqj,mqmqa_data%nconst,kend
 311   format('3X second loop for endmember records: ',l2,3i5)
-      if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop2
       intrec=>endmemrec%intpointer
 ! interaction parameters are NOT linked from SNN endmembers!!
 ! They are stored in alphabetical order of the constituents
@@ -2272,7 +2278,7 @@
 !      cycle endmemloop2
       if(.not.associated(intrec)) cycle endmemloop2
 ! this is an endmember parameter with possible excess parameters
-!      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
+      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
 ! just excess parameters, we must calculate product of fractions
 ! BRANCH for intrec%highlink and intrec%nexlink
 !      write(*,'(a,i2,F10.6,6(1pe12.4))')'3X SNN df/dy: ',id,pyq,&
@@ -2322,7 +2328,7 @@
       if(typty.ne.1) stop 'illegal typty in mqmqa model'
       ipy=1
 ! several powers  we must loop here -------------- not yet done
-      if(proprec%degree.gt.0) write(*,*)'3X degree: ',proprec%degree
+!      if(proprec%degree.gt.0) write(*,*)'3X degree: ',proprec%degree
       mpow=0
 700   continue
 ! first power is in link 0
@@ -4534,7 +4540,9 @@
 ! fq is max number of quads
 ! fz max number of constituents on a sublattice
 ! f1 for other allocated arrays
-   integer, parameter :: fq=50, fz=20, f1=50
+   integer, parameter :: fq=99, fz=20, f1=50
+! max allower error in sum ceqf1=1 and ceqf2=1
+   double precision, parameter :: ceqferr=1.0D-7
 ! number of pairs and sublattice fractions
    integer noofpair,ncons1,ncons2
 ! not needed ....
@@ -4858,7 +4866,7 @@
             if(sq2(2).eq.sq2(1)) sq2(2)=mqmqa_data%contyp(12,pqq(2))
             alone1=one; alone2=one
             nomix=4
-            write(*,*)'3X reciprocal cluster',mqmqa_data%contyp(2,s1)
+!            write(*,*)'3X reciprocal cluster',mqmqa_data%contyp(2,s1)
          endif
 !         write(*,313)'3X pq mm: ',s1,pq,pqq,sq1,sq2,fq1,fq2
 313      format(a,i3,2x,4i2,2x,4i2,4x,2i2,2x,2i2,4x,2i2,2x,2i2)
@@ -5138,9 +5146,11 @@
       dummy1=dummy1+ceqf1(s1)
 !      write(*,81)'3X ceqf:',1,ceqf1(s1),(dceqf1(s1,s2),s2=1,ncon)
    enddo
-   if(abs(dummy1-one).gt.1.0D-12) then
-      write(*,*)'3X Sum of charge equivalent fractions not 1 on subl 1',dummy1
-      gx%bmperr=4399; goto 1000
+   if(abs(dummy1-one).gt.ceqferr) then
+      write(*,*)'3X Sum of charge equivalent fractions on subl 1 not 1:',dummy1
+      write(*,'(a,7(F10.7))')'3X ceqf1: ',(ceqf1(s2),s2=1,nspin(1))
+! assume this will be the fixed when converged ....
+!      gx%bmperr=4399; goto 1000
    endif
    dummy1=zero
    do s1=1,nspin(2)
@@ -5148,9 +5158,11 @@
       dummy1=dummy1+ceqf2(s1)
 !      write(*,81)'3X ceqf:',2,ceqf2(s1),(dceqf2(s1,s2),s2=1,ncon)
    enddo
-   if(abs(dummy1-one).gt.1.0D-12) then
-      write(*,*)'3X Sum of charge equivalent fractions not 1 on subl 2',dummy1
-      gx%bmperr=4399; goto 1000
+   if(abs(dummy1-one).gt.ceqferr) then
+      write(*,*)'3X Sum of charge equivalent fractions on subl 2 not 1',dummy1
+      write(*,'(a,7(F10.7))')'3X ceqf2: ',(ceqf2(s2),s2=1,nspin(2))
+! assume this will be the fixed when converged ....
+!      gx%bmperr=4399; goto 1000
    endif
 81 format(a,i2,F7.4,1x,(10F7.4))
 !   write(*,*)'3X all normallized fractions calculated'
@@ -5187,7 +5199,7 @@
    if(.not.allocated(phvar%mqmqaf%yy1)) then
 ! allocate first time only!!
       mqf%nquad=ncon; mqf%npair=noofpair; mqf%ns1=nspin(1); mqf%ns2=nspin(2)
-      write(*,*)'3X allocating mqf arrays'
+!      write(*,*)'3X allocating mqf arrays',nspin,ncon,noofpair
       allocate(mqf%yy1(nspin(1)))
       allocate(mqf%yy2(nspin(2)))
       allocate(mqf%dyy1(nspin(1),ncon))
@@ -5203,6 +5215,7 @@
 !   else
 !      write(*,*)'3X copying data to mqf arrays'
    endif
+!   write(*,*)'3X mqf arrays allocated'
 !
    do s1=1,nspin(1)
       mqf%yy1(s1)=yy1(s1)
@@ -5329,10 +5342,11 @@
          dssub(q1)=dssub(q1)+phvar%yfr(s1)*dvvv(s1,q1)
       enddo
    enddo
+! OK here
 !   write(*,701)'3X dssub: ',(dssub(q1),q1=1,ncon)
 !   write(*,701)'3X SSUB:',ssub,ssub*phvar%amfu,phvar%amfu,phvar%abnorm(1),&
 !        phvar%amfu*phvar%abnorm(1)
-701 format(a,5(1pe12.4))
+701 format(a,6(1pe12.4))
 !   stop
 600 format(a,1pe12.4,2x,6(1pe10.2))
 !===============
@@ -5409,6 +5423,7 @@
 ! derivatives of send wrt quad
    enddo quadcef
 !
+! ternary error before this
 !   write(*,600)'3X SEND: ',send,(dsend(s1),s1=1,ncon)
 !========================================================================
 ! skip quad entropies
@@ -5577,6 +5592,7 @@
 !           (mqf%dpair(s1,s2),s2=1,mqf%nquad)
 !   enddo
 1000 continue
+!   write(*,*)'3X exit config_entropy_mqmqa'
    return
 ! calculates configurational entropy/R for the FactSage MQMQA model
  end subroutine config_entropy_mqmqa

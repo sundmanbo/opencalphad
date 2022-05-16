@@ -513,7 +513,7 @@ calc /out=outpara all N
 @&
 @$ Calculate without gridminimizer, note the speed
 @$ When calculated in parallel even more
-calc all N -1
+@$ calc all N -1      <<<<<<<<<<< problem ? too slow output on screen??
 
 @&
 @$ Run without parallel with output on file for comparison

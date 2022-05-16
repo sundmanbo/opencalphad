@@ -5198,7 +5198,7 @@ contains
           else
              globaldata%encrypted=0
           endif
-          write(*,*)'PM glovaldata%encrypted: ',globaldata%encrypted
+!          write(*,*)'PM glovaldata%encrypted: ',globaldata%encrypted
           if(tdbfile(1:1).ne.' ') then
 ! set previous tdbfil as default
              text=tdbfile

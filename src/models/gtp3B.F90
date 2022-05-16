@@ -478,6 +478,8 @@
                   'Enter phase constit')
              if(text(1:1).eq.' ') exit mqmqloop
 !             write(*,*)'3B mqmqa quads: ',trim(text)
+! clear any previous content in const
+             const=' '
 ! nend set to 0 at first call, then incremented for each FNN endmember found
              call mqmqa_constituents(text,const,nend,loop)
              if(gx%bmperr.ne.0) goto 1000
@@ -7011,8 +7013,9 @@
    character inline*(*),const(*)*24
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-! to enter a whole database 
-   integer, parameter :: f1=maxconst
+! to enter a whole database, max set by seqnum='01' to '99'
+!   integer, parameter :: f1=maxconst
+   integer, parameter :: f1=99
    integer ip,lenc,jp,kp,ncat,ntot,isp(4),loksp,loksparr(4),nspel,thiscon,s1
    integer jelno(9),ielno(9),nextra,ee,nel,order1,order2,lat
    logical endmember,sametwice1,sametwice2
@@ -7032,7 +7035,7 @@
       if(.not.allocated(mqmqa_data%contyp)) then
 ! these should not be already allocated but ... who knows 
 ! sometimes there can be two liquids in the TDB file ....
-         write(*,*)'3B Allocating mqmqa_data, max quadruplets: ',f1
+         write(*,*)'3B Allocating mqmqa_data, max constituents: ',f1
          allocate(mqmqa_data%contyp(14,f1))
          allocate(mqmqa_data%constoi(4,f1))
          allocate(mqmqa_data%totstoi(f1))
@@ -7407,7 +7410,10 @@
 ! all constituent names are in const(1..kend)
    do s1=1,thiscon
       if(quadname(1:kp).eq.const(s1)(1:kp)) then
-         write(*,*)'3B Same quadruplet twice: ',trim(quadname)
+         write(*,567)'3B Same quadruplet twice: "',trim(quadname)//'"',&
+              kp,s1,thiscon,'"'//trim(const(s1))//'"'
+567      format(a,a,3i3,a)
+         write(*,'(a,2i3,a)')'3B ip,inline:',ip,s1,': "'//trim(inline)//'"'
          gx%bmperr=4399; goto 1000
       endif
    enddo

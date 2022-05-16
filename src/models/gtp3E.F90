@@ -3501,6 +3501,9 @@
       deallocate(mqmqa_data%constoi)
       deallocate(mqmqa_data%totstoi)
       mqmqa_data%nconst=0
+      mqmqa_data%ncon1=0
+      mqmqa_data%ncon2=0
+      mqmqa_data%npair=0
    endif
    if(allocated(mqmqa_data%pinq)) then
       deallocate(mqmqa_data%pinq)
@@ -4566,6 +4569,8 @@
 !         write(*,'(a,a,a,2i5)')'3E mqmqa const: "',trim(longline(ip:jp)),&
 !              '"',ip,jp
          loop=0
+! clear any old content in const
+         const=' '
 ! MQMQA constituents created "on the fly" as quadrupols using existing species
 ! and additional coordination numbers n1..n4. A  / separate sublattices
 ! a , separate species in same sublattice. If any A B X Y species not entered

@@ -85,6 +85,22 @@ l r 4
 
 @$ list the results using mass fractions
 @&
+@$ The next command will make several additional equilibrium
+@$ calculation and with +/-5% variation of the contitiona
+@$ to give an estimate the uncertainties of the result
+
+l est-acc
+
+@$ First a list of phases which are close to beoome stebl
+@$ The a list of phases if the condition is changed
+@$ Then a list of the variation of chemical potentials/RT
+@$ and the max/min values of the Gibbs energy and entropy
+@$ Finall the min/max values of the amount of each phase.
+@$ A negative value means the phase may not be stable
+
+@&
+
+@$ Now we calculate how the system changes with T
 
 set axis 1 T 800 1800 10
 
@@ -97,7 +113,7 @@ step
 
 
 
-@$ The stepping gives a lot of output as it is still fragile
+@$ The step command indicates whenever there is a phase change
 @&
 @$---------------------------------------------------------
 

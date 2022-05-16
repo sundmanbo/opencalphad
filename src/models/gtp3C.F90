@@ -140,7 +140,7 @@
    write(text(ipos+50:ipos+59),100)splista(spno)%mass
    write(text(ipos+60:ipos+65),105)splista(spno)%charge
 100 format(F10.3)
-105 format(F6.1)
+105 format(F6.2)
    text(ipos+66:)=' '
 !    write(*,120)splista(spno)%status
    write(text(ipos+66:ipos+73),120)splista(spno)%status
