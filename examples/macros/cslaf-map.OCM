@@ -4,13 +4,13 @@ new Y
 
 set echo Y
 
-r t ./cslaf-refs-sro
+r t ./cslaf-excess
 
 
 
 @&
 
-set c t=1500 p=1e5 n(cs)+n(la)=1 n(la)=.7 ac(f)=1
+set c t=1600 p=1e5 n(la)=.8 n(cs)+n(la)=1 ac(f)=1
 
 c e
 
@@ -32,7 +32,7 @@ map
 
 plot x(*,la)
 t
-
+pos left
 
 
 

@@ -2063,7 +2063,7 @@
 !\end{verbatim}
 ! Most variables here are the same as in calcg_internal ...
    integer, parameter :: f1=50
-   integer mqmqj,kend,s1,s2,s3,id,nofc2,ipy,lokfun,typty,itp,zp
+   integer mqmqj,kend,s1,s2,s3,id,nofc2,ipy,lokfun,typty,itp,zp,nrealem,mqendx
    double precision vals(6),pyq,rtg,aff
    double precision, dimension(:), allocatable :: dpyq(:),d2pyq(:),d2vals(:)
    double precision, dimension(:,:), allocatable :: dvals(:,:),affarr(:)
@@ -2094,6 +2094,11 @@
    nullify(pystack)
    rtg=globaldata%rgas*ceq%tpval(1)
    mqf=>phres%mqmqaf
+!   do s1=1,mqmqa_data%nconst
+!      write(*,599)s1,(mqmqa_data%contyp(s2,s1),s2=1,14)
+!599   format('3X contyp 7: ',i2,1x,4i2,1x,i3,1x,4i2,1x,i2,4i3)
+!      enddo
+   nrealem=0
 !   refg=zero
    dummy2=zero
 ! list %pp
@@ -2121,7 +2126,12 @@
    endmemloop1: do while(associated(endmemrec))
       mqmqj=mqmqj+1
       if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop1
-      kend=mqmqa_data%contyp(5,mqmqj)
+! We do not know if mqmqj is associated with this endmember!!
+! there can be gaps in the endmember list.
+! we must take kend from the endmember record, it is sored in %antalem
+      mqendx=endmemrec%antalem
+      kend=mqmqa_data%contyp(5,mqendx)
+!      write(*,*)'3X endmemloop1A: ',mqmqj,mqendx,kend,nrealem
       if(kend.le.0) then
 ! This is an SNN parameter we calculate and add SNN energy and interactions ...
 !         write(*,*)'3X SNN endmember record found',mqmqj
@@ -2164,6 +2174,8 @@
          cycle endmemloop1
       endif
 ! This is an FNN parameter, we calculate and save the value for later use
+      nrealem=nrealem+1
+!      write(*,*)'3X endmemloop1B: ',mqmqj,kend,nrealem
       proprec=>endmemrec%propointer
       aff=one/mqmqa_data%pp(1,mqmqj)
       mq1: do while(associated(proprec))
@@ -2197,8 +2209,20 @@
    enddo endmemloop1
 !   write(*,*)'3X finished endmemloop1'
 !--------------------------------------------------- end first endmember loop
-! second loop over all quads, ignore endmember records
-! but add reference state parameters to SNN energies
+! All endmembers with a single element in each sublattice must have a parameter
+! these are counted above in nrealem
+!   write(*,'(a,3i3)')'3X number of sublattice constituents and FNN: ',&
+!        mqf%ns1,mqf%ns2,nrealem
+   if(nrealem.ne.mqf%ns1*mqf%ns2) then
+! This test is not foolproof one can enter an interaction parameter
+! which creates an empty endmember record but that seems crazy
+      write(*,216)mqf%ns1*mqf%ns2,nrealem
+216   format('Some FNN constituents (A/X) have no parameter!, should be',&
+           i3,' found only ',i3)
+      gx%bmperr=4399; goto 1000
+   endif
+! second loop over all constutents (quads), ignore endmember records
+! but add reference state parameters to all SNN and reciprocal constituents
    ipy=1
    qloop: do mqmqj=1,gz%nofc
 ! this is quad fraction, multiply with all FNN reference energies
@@ -2278,7 +2302,7 @@
 !      cycle endmemloop2
       if(.not.associated(intrec)) cycle endmemloop2
 ! this is an endmember parameter with possible excess parameters
-      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
+!      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
 ! just excess parameters, we must calculate product of fractions
 ! BRANCH for intrec%highlink and intrec%nexlink
 !      write(*,'(a,i2,F10.6,6(1pe12.4))')'3X SNN df/dy: ',id,pyq,&

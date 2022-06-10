@@ -981,7 +981,8 @@
 ! phase record might be useful in other cases.
 ! noofpermut: number of permutations (for ordered phases: (Al:Fe) and (Fe:Al)
 ! phaselink: index of phase record
-! antalem: sequenial order of creation, useful to keep track of structure ??
+! antalem: sequenial order of creation, not used for anything exept 
+!          for MQMQA it is the index in %contyp of endmember
 ! propointer: link to properties for this endmember
 ! nextem: link to next endmember
 ! intponter: root of interaction tree of parameters

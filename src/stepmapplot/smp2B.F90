@@ -163,6 +163,8 @@
        write(*,*)'SMP2B Allocation error 2: ',errall
        gx%bmperr=4370; goto 1000
     endif
+! sometimes phaseline used containing rubbish ...
+    phaseline=' '
 ! zero array fr isopleth fix phase
     phamfu=0
 !    if(maptop%number_ofaxis.gt.1) then
@@ -1540,7 +1542,7 @@
           '# Adding manually a line and keep scaling:'/&
           '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
           '# Add a red dot at 0.1,1000:'/&
-          '# set object 1 circle fc "fc0000" fs solid ps 2 noclip at 1, 100'/&
+          '# set obj 1 circle fc rgb "#FF0000" fs sol size 0.02 noclip at 1,1'/&
           '# Plotting symbols instead of line:'/&
           '# ... using 2:i with points pt 7 ps 3 '/&
           '# set multiplot'/&
@@ -1908,14 +1910,19 @@
        if(nv.eq.linesep(ksep)) then
 ! an empty line in the plot file means a MOVE to the next point.
           if(nv.lt.nrv) then
-             write(21,3819)ksep-1,trim(phaseline(ksep-1)),trim(phaseline(ksep))
-3819         format('# end of line ',i3,2x,a//'# new line ',a)
+!             write(21,3819)ksep-1,trim(phaseline(ksep-1)),trim(phaseline(ksep))
+!3819         format('# shift of line ',i3,2x,a//'# new line ',a)
+! sometimes phaseline is empty ... and not needed anyway and create stray lines
+             write(21,3819)ksep-1
+3819         format('# shift of line ',i3//)
 !             write(*,*)'SMP2B readfixcolor: ',trim(phaseline(ksep)),ksep
              if(isoplethplot) read(phaseline(ksep),'(i3)')fixphasecolor
           else
 ! try to avoid rubbish
-             write(21,3821)ksep-1,trim(phaseline(ksep-1))
-3821         format('# end of line ',i3,2x,a//)
+!             write(21,3821)ksep-1,trim(phaseline(ksep-1))
+!3821         format('# end of line ',i3,2x,a//)
+             write(21,3821)ksep-1
+3821         format('# end of line ',i3//)
           endif
 ! test of uninitiallized variable, ksep must not exceed nlinesep
           ksep=min(ksep+1,nlinesep)
@@ -2768,7 +2775,7 @@
           '# Adding manually a line and keep scaling:'/&
           '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
           '# Add a red dot at 1,100:'/&
-          '# set object 1 circle fc "fc0000" fs solid ps 2 noclip at 1, 100'/&
+          '# set obj 1 circle fc rgb "#FF0000" fs sol size 0.02 noclip at 1,1'/&
           '# Plotting symbols instead of line:'/&
           '# ... using 2:i with points pt 7 ps 3'/&
           '# set multiplot'/&

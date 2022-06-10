@@ -20,6 +20,8 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.06.10 OC version 6.053: A redundant debug message removed.
+
 2022.05.16 OC version 6.052: Just some more bugfixes.  MQMQA tested
 with three cations, some problems with reciprocal system.
 

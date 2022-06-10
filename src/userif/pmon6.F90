@@ -1594,9 +1594,9 @@ contains
 ! as TP functions call each other force recalculation and calculate all
 ! even if just a single function is requested
           call change_optcoeff(-1,zero)
-          write(*,*)'PM calc tp: ',notpf()
+!          write(*,*)'PM calc tp: ',notpf()
           do j4=1,notpf()
-             write(*,*)'PM call eval_tpfun: ',notpf()
+!             write(*,*)'PM call eval_tpfun: ',notpf()
              call eval_tpfun(j4,ceq%tpval,val,ceq%eq_tpres)
              if(gx%bmperr.gt.0) goto 990
           enddo

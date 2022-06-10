@@ -2045,10 +2045,13 @@
       goto 1000
    endif
 ! warning for reference state of the MQMQA phase   
-!   if(btest(phlista(lokph)%status1,PHMQMQA)) then
-!      write(lut,90)mqmqa
-90    format(' *** WARNING the reference state is not listed correctly ***',l2)
-!   endif
+   if(btest(phlista(lokph)%status1,PHMQMQA)) then
+      write(lut,90)
+90    format(2x,'** MQMQA endmembers such as AB/X-Q or AB/XY-Q have',&
+           ' contributions from the A/X, B/X etc.'/&
+           2x,'** parameters for their reference state',&
+           ' even if they have no parameters!')
+   endif
 !--------------------------------------------------
 ! return here to list disordered parameters
 100 continue

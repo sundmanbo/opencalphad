@@ -2389,6 +2389,7 @@
 !   write(*,93)'3B interaction 2: ',(jord(1,iq),jord(2,iq),iq=1,nint)
 !---------------------------------------------
 ! there may be permutations for ordered phases  ... implemented for fcc only
+! probably  also for BCC ...
    intperm=0
    ftyp1: if(fractyp.eq.1) then
       if(btest(phlista(lokph)%status1,PHFORD)) then
@@ -2513,8 +2514,22 @@
 ! allocate a dummy elinks to avoid segmentation fault compiling with -lefence
          allocate(elinks(1,1))
    endif
+! Special for MQMQA, we must store index in mqmqa_data%contyp for the
+! endmember !!  use %antalem, it is not used anywhere else
+!   if(btest(phlista(lokph)%status1,PHMQMQA)) then
+!      write(*,*)'3B creating endmember for MQMQA'
+!      do i1=1,mqmqa_data%nconst
+!         write(*,599)i1,(mqmqa_data%contyp(i2,i1),i2=1,14)
+!599      format('3X contyp: ',i2,1x,4i2,1x,i3,1x,4i2,1x,i2,4i3)
+!      enddo
+!      write(*,*)'3B MQMQA index: ',iord(1)
+!   endif
+! this subroutine in gtp3G.F90
    call create_endmember(lokph,newem,noperm,nsl,iord,elinks)
-!   write(*,*)'3B enter_par: created endmember ',lokph
+   if(btest(phlista(lokph)%status1,PHMQMQA)) then
+      newem%antalem=iord(1)
+!      write(*,*)'3B enter_par: created MQMQA endmember ',lokph,newem%antalem
+   endif
    if(gx%bmperr.ne.0) goto 1000
 ! insert link to new from last end member record, lastem.
    if(.not.associated(lastem)) then
