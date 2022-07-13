@@ -33,7 +33,7 @@ map
 plot x(*,la)
 t
 pos left
-
+title CsF-LaF3 phase diagram
 
 
 

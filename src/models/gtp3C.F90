@@ -2047,10 +2047,9 @@
 ! warning for reference state of the MQMQA phase   
    if(btest(phlista(lokph)%status1,PHMQMQA)) then
       write(lut,90)
-90    format(2x,'** MQMQA endmembers such as AB/X-Q or AB/XY-Q have',&
-           ' contributions from the A/X, B/X etc.'/&
-           2x,'** parameters for their reference state',&
-           ' even if they have no parameters!')
+90    format('  ** MQMQA endmembers such as AB/X-Q etc. have',&
+           ' contributions from the endmembers A/X, B/X'/&
+           '  ** for their reference state even if AB/X-Q has no parameter!')
    endif
 !--------------------------------------------------
 ! return here to list disordered parameters
@@ -4938,7 +4937,8 @@
 !    do j1=1,mexp
 !       sum=sum+errs(j1)**2
 !    enddo
-    if(done) then
+! IGNORE DONE and repeat results ...
+!    if(done) then
 ! only if there are results
        j1=mexp-nvcoeff
 !       if(j1.gt.0) then
@@ -4946,11 +4946,10 @@
 !       else
 !          write(lut,621)error2(2),mexp,nvcoeff,0,zero
 !       endif
-621    format(/'Final sum of squared errors: ',1pe16.5,&
-            ', using ',i4,' experiments and'/&
-            i3,' coefficients.  Degrees of freedom: ',i4,&
-            ', normalized error: ',1pe13.4/)
-    endif
+621    format(/'Final sum of squared errors: ',1pe16.5/&
+            'using ',i4,' experiments and ',i3,' coefficients.'/&
+            'Degrees of freedom: ',i4,', normalized error: ',1pe13.4/)
+!    endif
 1000 continue
     return
   end subroutine listoptcoeff

@@ -8467,7 +8467,9 @@ if(meqrec%noofits.eq.1) then
        do i=1,m
           sum=sum+f(i)**2
        enddo
-       if(niter.lt.0) then
+       if(niter.eq.-100) then
+          continue
+       elseif(niter.lt.0) then
 ! this marks end of optimization output of the individual errors
           write(*,15)-niter,sum
 15        format(/'Final results after ',i3,&
@@ -8709,7 +8711,7 @@ if(meqrec%noofits.eq.1) then
           endif
 ! done all experiments for this equilibrium
     enddo eqloop
-!    write(*,*)'MM experiments: ',iexp,nexp
+!    write(*,*)'MM assessment_calfun calculated experiments: ',iexp,nexp
 ! We have to restore the last value of the last coefficient
     if(allocated(calcexp)) then
 !       write(*,*)'MM restore savix: ',savix,zzz

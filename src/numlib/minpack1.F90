@@ -267,7 +267,7 @@ contains
 !         program, and should be written as follows.
 !
 !         subroutine fcn(m,n,x,fvec,iflag)
-! modified to include iterations: subroutine fcn(m,n,x,fvec,iflag,niter)
+! BOSSE modified to include iterations: subroutine fcn(m,n,x,fvec,iflag,nfevdum)
 !         integer m,n,iflag,niter
 !         double precision x(n),fvec(m)
 !         ----------
@@ -327,8 +327,8 @@ contains
     double precision eps,epsmch,h,temp
 !    double precision eps,epsmch,h,temp,zero
 !    integer, parameter :: niter=0
-! added as argumnet added to fcn and it may be incremented in fcn ...
-    integer :: niter=0
+! added as argumnet added to fcn but treated as dummy in fcn ...
+    integer :: nfevdum=-100
 ! missing external declaration
     external fcn
 !    double precision dpmpar
@@ -350,7 +350,8 @@ contains
 !17     format(a,i2,6(1pe12.4))
        x(j) = temp + h
 !       call fcn(m,n,x,wa,iflag)    <<<<<<<<<<<< original
-       call fcn(m,n,x,wa,iflag,niter)
+! NOTE dummy should be ignored when -100 in fcn (CALFUN)
+       call fcn(m,n,x,wa,iflag,nfevdum)
 !       call calfun(m,n,x,wa,iflag,niter)
        if (iflag .lt. 0) go to 30
        x(j) = temp
@@ -895,7 +896,8 @@ contains
     iflag = 0
 !    write(*,*)'minpack: lmdif call fcn 4: ',n,m,info,maxfev
     if(maxfev.gt.0) then
-       if (nprint .gt. 0) call fcn(m,n,x,fvec,iflag)
+! Bosse corrected missing nfev argument 2022.07.12
+       if (nprint .gt. 0) call fcn(m,n,x,fvec,iflag,nfev)
 !    if (nprint .gt. 0) call calfun(m,n,x,fvec,iflag,-nfev)
     else
 ! Add that calfun called once if maxfev=0 to calculate all errors
@@ -1735,6 +1737,7 @@ contains
 !     and calculate its norm.
 !
     iflag = 1
+! This is not CALFUN for assessments
     call fcn(n,x,fvec,iflag)
     nfev = 1
     if (iflag .lt. 0) go to 300
@@ -1846,6 +1849,7 @@ contains
 !
     if (nprint .le. 0) go to 190
     iflag = 0
+! This is not CALFUN for assessments
     if (mod(iter-1,nprint) .eq. 0) call fcn(n,x,fvec,iflag)
     if (iflag .lt. 0) go to 300
 190 continue
@@ -1870,6 +1874,7 @@ contains
 !           evaluate the function at x + p and calculate its norm.
 !
     iflag = 1
+! This is not CALFUN    
     call fcn(n,wa2,wa4,iflag)
     nfev = nfev + 1
     if (iflag .lt. 0) go to 300
@@ -1991,6 +1996,7 @@ contains
 !
     if (iflag .lt. 0) info = iflag
     iflag = 0
+! this is not CALFUN
     if (nprint .gt. 0) call fcn(n,x,fvec,iflag)
     return
 !
@@ -2295,6 +2301,7 @@ contains
        h = eps*dabs(temp)
        if (h .eq. zero) h = eps
        x(j) = temp + h
+! This is not CALFUN for assessments
        call fcn(n,x,wa1,iflag)
        if (iflag .lt. 0) go to 30
        x(j) = temp
@@ -2315,6 +2322,7 @@ contains
           if (h .eq. zero) h = eps
           x(j) = wa2(j) + h
        enddo
+! This is not CALFUN for assessments
        call fcn(n,x,wa1,iflag)
        if (iflag .lt. 0) go to 100
        do j = k, n, msum

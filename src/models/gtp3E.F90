@@ -516,6 +516,9 @@
 !   write(*,*)'3E save unformatted:',rsize,globaldata%encrypted
    if(globaldata%encrypted.ne.0) then
       iws(rsize+1)=18
+   else
+! not encrypted
+      iws(rsize+1)=0
    endif
 !----------------------------------------------------------------------
    write(lut)id,savefile,comment,noofel,noofsp,noofph,nooftuples,rsize+5

@@ -20,6 +20,12 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.07.13 OC version 6.054: Summer vacation, some more fixes of the
+MQMQA model, new macro map19.OCM added for the MQMQA model in the
+examples/macro directory.  The converter of DAT files to TDB files
+developed by Nathalie Dupin has been tested and works although some
+DAT file seems to contain a lot of redundant phases.
+
 2022.06.10 OC version 6.053: A redundant debug message removed.
 
 2022.05.16 OC version 6.052: Just some more bugfixes.  MQMQA tested

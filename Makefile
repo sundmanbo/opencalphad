@@ -81,7 +81,7 @@ clean:
 # you must uncomment the appropriate line after the header getkey.o:
 # Default is Linux
 getkey.o:
-	echo "Do not forget to uncomment tne correct line below for your OS"
+	echo "Do not forget to uncomment the correct line below for your OS"
 	# compile utilities/GETKEY for command line editing
 	# uncomment the line for the kind of Linux system you have
 	# Mac >>

@@ -7030,10 +7030,11 @@
 !\end{verbatim}
 ! to enter a whole database, max set by seqnum='01' to '99'
 !   integer, parameter :: f1=maxconst
-   integer, parameter :: f1=99
+!   integer, parameter :: f1=200
+   integer, parameter :: maxquads=200
    integer ip,lenc,jp,kp,ncat,ntot,isp(4),loksp,loksparr(4),nspel,thiscon,s1
-   integer jelno(9),ielno(9),nextra,ee,nel,order1,order2,lat
-   logical endmember,sametwice1,sametwice2
+   integer jelno(9),ielno(9),nextra,ee,nel,order1,order2,lat,nquad
+   logical endmember,sametwice1,sametwice2,nomqmqava
    character*24 cation1,species(4),quaderr
    character quadname*64,ch1*1,elnames(9)*2,seqnum*2
    double precision val,qstoi(20),smass,qsp,extra(5),stoi(20),double(4)
@@ -7050,13 +7051,13 @@
       if(.not.allocated(mqmqa_data%contyp)) then
 ! these should not be already allocated but ... who knows 
 ! sometimes there can be two liquids in the TDB file ....
-         write(*,*)'3B Allocating mqmqa_data, max constituents: ',f1
-         allocate(mqmqa_data%contyp(14,f1))
-         allocate(mqmqa_data%constoi(4,f1))
-         allocate(mqmqa_data%totstoi(f1))
+         write(*,*)'3B Allocating mqmqa_data, max constituents: ',maxquads
+         allocate(mqmqa_data%contyp(14,maxquads))
+         allocate(mqmqa_data%constoi(4,maxquads))
+         allocate(mqmqa_data%totstoi(maxquads))
 ! how much each pair is part of a quadruplet, needed for pair fractions
          if(allocated(mqmqa_data%pp)) deallocate(mqmqa_data%pp)
-         allocate(mqmqa_data%pp(4,f1))
+         allocate(mqmqa_data%pp(4,maxquads))
       else
          write(*,*)'3B **** ERROR: two MQMQA phases in this database!'
          gx%bmperr=4399; goto 1000
@@ -7071,6 +7072,8 @@
    ip=0
    call capson(inline)
    mqmqa_data%totstoi=zero
+! this set TRUE means VA not allowed in MQMQA phase
+   nomqmqava=.TRUE.
 100 continue
    if(eolch(inline,ip)) goto 900
 ! set TRUE below if two species represent the same element, such as Fe2Q, Fe3Q
@@ -7275,14 +7278,18 @@
       do ee=1,nspel
          ielno(ee)=splista(loksp)%ellinks(ee)
          if(ielno(ee).eq.0) then
+! TEMPORARY SKIP MQMQA species with vacancies
+            write(*,*)'3B Warning quad with vacancies ingnored: ',trim(quadname)
+            mqmqa_data%nconst=mqmqa_data%nconst-1
+            goto 100
 ! TEMPORARY TREATMENT OF VA ALONE IN A SUBLATTICE
 ! ielno(ee)=0 indicate Va, try setting its stoichiometry to zero !!!
 !           write(*,'(a,4i3)')'3B Vacancy removed from totstoi:',kp,ee,ielno(ee)
             vazero=vazero-splista(loksp)%stoichiometry(ee)
             stoi(ee)=zero
 ! must be tested
-            write(*,*)'3B Warning species mixing with vacancies ',&
-                 'in same sublattice may not work'
+            write(*,*)'3B Warning quad with vacancies ',&
+                 'in a sublattice may not work: ',trim(splista(loksp)%symbol)
 ! maybe here use mqmqa_data%quadsp to indicate vacancy??
 ! NOTE species indices changes as we add new species
 ! This does not work if there are real species on same sublattice as Va
@@ -7432,6 +7439,12 @@
          gx%bmperr=4399; goto 1000
       endif
    enddo
+! check we have not too many quads
+   nquad=nquad+1
+   if(nquad.gt.maxquads) then
+      write(*,*)'3B Error, too many quadruplets, max: ',maxquads
+      goto 1000
+   endif
 ! add a suffix _Q !!
 !   write(*,*)'3B test seqnum 2: ',seqnum
    call incnum(seqnum)
@@ -7446,6 +7459,8 @@
            gx%bmperr,(mqmqa_data%contyp(kp,thiscon),kp=6,9)
       write(*,'(a,i3,4(F10.6))')trim(quadname),nspel,(qstoi(kp),kp=1,4)
       goto 1000
+   else
+      write(*,*)'3B found MQMQA quad: ',trim(quadname)
    endif
 !   write(*,*)'3B returning the quadrupole name'
    const(thiscon)=quadname
@@ -7492,7 +7507,7 @@
          buperr=0; goto 100
       endif
    endif
-   write(*,*)'3B trying next one'
+!   write(*,*)'3B trying next one'
    goto 100
 !------------------------------------------
 ! jump here when EOL or : detected

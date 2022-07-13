@@ -1,0 +1,176 @@
+@$
+@$ Calculating the NaCl-MgCl phase diagram and activity curves using MQMQA
+
+new Y
+
+set echo Y
+
+r t ./mgnacl
+
+
+@&
+
+l d
+
+
+
+@&
+
+set stat ph liq-na liq-mg=s
+
+l sh a
+
+@$ These phases are the pure liquid clorerids, used only for activity curves
+@&
+
+set c t=2000 p=1e5 n(mg)=.5 n(na)+n(mg)=1 ac(cl)=1
+
+c n
+
+
+@&
+
+l , 2
+
+@&
+
+
+set ax 1 n(mg) 0 1 .01
+
+set ax 2 t 300 2000 10
+
+@&
+
+map
+
+
+@&
+
+plot
+x(*,mg)
+T_C
+scale y n 300 850
+title map 19 Fig 1
+
+
+@$ The scaling on horisontal axis in in moles Mg in the phases.
+@$ MgCl2 has 1/3, MgNaCl3 has 1/5=0.2, MgNa2Cl4 has 1/7=0.143
+
+@&
+
+@$ ==============================
+@$ Now calculate activities in liquid SALT at 1073 K
+
+@$ The condition for Cl is that is has constant activity
+@$ because the salt is stable only in a quasi-binary section NaCl-MgCl2
+@$ The amount of Cl cannot vary outside this region.
+
+@$ If there are other phases (gas for example) 
+@$ which can exist outside the NaCl-MgCl2 quasibinary
+@$ one can use a condition of the amount of Cl
+@$ The activity condition can cause numerical problems
+@&
+
+set c t=1073 
+
+@&
+
+set stat ph *=sus
+
+set stat ph liqref_mgcl2 liqref_nacl=d
+
+set stat ph salt=e 1
+
+@$ We must set the LIQREF phases as dormant to have DGM of NaCl and MgCl2.
+@$ The DGM is the driving force for these compounds as liquid
+@$ and related to the chemical potential of these compounds.
+
+@&
+
+c e
+
+l , 2
+
+@$ There should not be any probem so far
+@&
+
+@$ OC cannot plot the activities of MgCl2 and NaCl directly
+@$ as they are not components.  We must also take care of the reference state.
+@$ The Gibbs energies of pure NaCl and MgCl2 liquids are calculated
+@$ in GM(liqref-NaCl) and GM(liqref-MgCl) for one mole of atoms
+
+ent sym refmgcl2=3*gm(liqref-mgcl2);
+
+@$ MU(MG) is the chemical potential of 1 mole Mg (as mu(cl)=0 or ac(cl)=1)
+@$ Subtracting the reference state gives the chemical potential of MgCl2
+
+enter sym mumgcl2=mu(mg)-refmgcl2;
+
+@$ The activity is the exponential of the chemical potential divided by RT
+enter sym acmgcl2=exp((mu(mg)-refmgcl2)/RT);
+
+@$ The same for NaCl (with 2 moles of atoms) as for MgCl2
+
+ent sym refnacl=2*gm(liqref-nacl);
+
+enter sym munacl=mu(na)-refnacl;
+
+enter sym acnacl=exp((mu(na)-refnacl)/RT);
+
+@&
+
+@$ We must remove the second axis to calculate with STEP
+set ax 2 none
+
+l ax
+
+@&
+
+step
+
+
+@$ and there should be no problmens so far
+@&
+
+plot
+
+y(salt,*)
+title map 19 Fig 2
+
+
+@$ This plot show the fraction of constituents (quadrupoles)
+@&
+
+
+plot
+
+acnacl
+out ./acnacl
+Y
+title map 19 Fig 3
+
+
+@$ This plot is the activity of NaCl with liquid at same T as reference state
+@&
+
+plot
+
+acmgcl2
+title map 19 Fig 4
+
+
+@$ This plot is the activity of MgCl2 with liquid at same T as reference state
+@&
+
+plot
+
+acmgcl2
+app ./acnacl
+title map 19 Fig 5
+
+
+@$ Both activity plots together fit the Fig. 8 in the paper by Pelton 2001
+
+set inter
+
+
