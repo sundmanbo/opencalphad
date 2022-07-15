@@ -828,10 +828,13 @@
          goto 1000
       endif
       chs=string(jp:jp)
-      if(chs.eq.'-') then
+!      if(chs.eq.'-') then
+! to allow (+2) etc
+      if(chs.eq.'-' .or. chs.eq.'+') then
 !...mark ( and save sign, update ip (incremented below)
          lp=1
-         isig=-1
+!         isig=-1
+         if(chs.eq.'-') isig=-1
          ip=jp
       endif
    elseif(ch1.eq.')') then
@@ -2165,7 +2168,10 @@
       endif
       nc=mc
       call ct1xfn(text,ip,nc,coeff,koder,fromtdb)
-      if(gx%bmperr.ne.0) goto 1000
+      if(gx%bmperr.ne.0) then
+!         write(*,*)'3E error ocurred for: ',trim(symbol)
+         goto 1000
+      endif
 ! big memory leak ... still there ...
 !      call ct1mexpr(nc,coeff,koder,ltpexpr)
 !      links(nrange)=ltpexpr

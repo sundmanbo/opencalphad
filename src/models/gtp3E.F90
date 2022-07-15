@@ -3939,12 +3939,13 @@
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
 !   character*24 disph(20)
    integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz,dismag
-   integer enteredpar,loop,emodel
+   integer enteredpar,loop,emodel,manylonglines
    type(gtp_phase_add), pointer :: addrec
    logical warning,only_typedefs
 ! this is used for reading encrypted FUNCTION and PARAMETER part of a TDB file
 !   integer encrypted   ---- replaced by globaldata%encrypted
-   character encryptline*128
+!   character encryptline*128
+   character encryptline*256
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
 ! to prevent any output
@@ -3970,6 +3971,7 @@
    totalpar=0
    notusedpar=0
    enteredpar=0
+   manylonglines=0
 ! this counts number of undefined/unused model-parameter-identifiers
    nundefmpi=0
    if(btest(globaldata%status,GSSILENT)) then
@@ -4072,10 +4074,19 @@
 !         goto 100
 !      endif
 !   endif
-   if(len_trim(line).gt.80) then
-      if(.not.silent) write(*,121)nl
-121   format(' *** Warning: line ',i5,' has characters beyond position 80,'/&
-           'some information may be lost')
+!   if(len_trim(line).gt.80) then
+! lines longer than 200 characters give warning ... can mess up a lot
+   if(len_trim(line).gt.120) then
+      manylonglines=manylonglines+1
+      if(.not.silent) then
+!         if(manylonglines.lt.5) then
+            write(*,121)nl
+121         format(' *** Warning: line ',i5,' has characters beyond position',&
+                 ' 120, some information may be lost')
+!         elseif(manylonglines.eq.5) then
+!            write(*,*)' Ignoring subsequent longline warnings'
+!         endif
+      endif
    endif
 ! One should remove TAB characters !! ?? YES !!
 !   if(line(1:1).eq.'$') goto 100
@@ -4270,6 +4281,7 @@
       endif
 !-----------------------------------------------------------------------
    case(5) ! function
+! see code at label 800 for functions
 !   elseif(line(2:10).eq.'FUNCTION ') then
 !123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
 ! FUNCTION GHSERCR    2.98150E+02  -8856.94+157.48*T-26.908*T*LN(T)
@@ -4315,6 +4327,8 @@
               'Error, a PHASE keyword must be followed by its CONSTIT'
          gx%bmperr=4308; goto 1000
       endif
+! problem finding phase when line before is too long, i.e. missing the "!"
+!      write(*,*)'3E found PHASE ',trim(longline),' line: ',nl
 ! number of TYP_DEFS for this phase
       TDthisphase=0
       ip=nextc
@@ -4542,9 +4556,13 @@
    case(4) !    CONSTITUENT LIQUID:L :CR,FE,MO :  !
 ! the phase must have been defined
       if(nophase) then
-         if(thisphaserejected) goto 100
-         if(.not.silent) write(kou,327)trim(longline)
-327      format('A CONSTITUENT keyword not directly preceeded by PHASE!'/a)
+         if(thisphaserejected) then
+            write(*,*)'3E previous phase rejected '
+            goto 100
+         endif
+         if(.not.silent) write(kou,327)nl,trim(longline)
+327      format('3E A CONSTITUENT keyword not directly preceeded by PHASE!',&
+              ' line ',i7/a)
          gx%bmperr=4308; goto 1000
       endif
       nophase=.true.
@@ -5188,8 +5206,8 @@
 !         write(*,404)'readtdb entpar: ',refx,fractyp,nint,ideg
 404   format(a,a,i3,2x,10i3)
       if(gx%bmperr.ne.0) then
-         if(.not.silent) write(kou,*)'Error set: ',gx%bmperr,lrot,' ',&
-              funname(1:len_trim(funname)),' around line: ',nl
+         if(.not.silent) write(kou,406)gx%bmperr,lrot,trim(funname),nl
+406      format(/'Fatal error: ',2i7,': ',a,' around line: ',i7)
          goto 1000
       else
 !         if(dodis.eq.1) write(*,*)'We are here 2'
@@ -5589,7 +5607,7 @@
 ! look for next KEYWORD
    goto 100
 !--------------------------------------------------------
-!----- reading functions at the end from a TDB file, we read just functions
+!----- reading FUNCTIONS at the end from a TDB file, we read just functions
 800 continue
    if(eolch(line,nextc)) then
       if(.not.silent) write(kou,*) &
@@ -5668,6 +5686,8 @@
 1000 continue
 !   write(*,1111)totalpar,totalpar-notusedpar
 !   write(*,1111)totalpar,enteredpar,notusedpar
+   if(manylonglines.gt.0) &
+        write(*,*)'3E Number of lines exceeding 80 characters: ',manylonglines
    write(*,1111)totalpar,enteredpar
 1111 format(/'Out of ',i5,' model parameters ',i5,' have been entered'/)
    if(warning) then
@@ -6397,7 +6417,8 @@
 ! the phase must have been defined
       if(nophase) then
          if(.not.silent) write(kou,*) &
-              'A CONSTITUENT keyword not directly preceeded by PHASE!'
+              '3E A CONSTITUENT keyword not directly preceeded by PHASE,',&
+              ' line: ',nl
          gx%bmperr=4308; goto 1000
       endif
       nophase=.true.

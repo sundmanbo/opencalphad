@@ -4,7 +4,7 @@ earlier.  This log started 2016-03-03.
 For general information please read the intro-OC6.pdf and the
 OC6-macros.pdf.
 
-There is now a (quite old) precompiled installation of OC on Windows
+There is now a (very old) precompiled installation of OC on Windows
 on the OpenCalphad web page.  It includes an introduction, on-line
 help and examples with macro files and some small databases.  For
 graphics the free GNUPLOT software must be installed separately from
@@ -19,6 +19,10 @@ envirionment and we who provide this software for free do not have the
 time to answer such questions.
 
 In the list below the most recent changes come first.
+
+2022.07.15 OC version 6.055: Modified reading TDB files to accept
+longer input lines (120 characters) and to handle some odd terms in
+functions prevously not accepted.
 
 2022.07.13 OC version 6.054: Summer vacation, some more fixes of the
 MQMQA model, new macro map19.OCM added for the MQMQA model in the
