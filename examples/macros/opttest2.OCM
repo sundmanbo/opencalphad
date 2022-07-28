@@ -22,9 +22,20 @@ new Y
 @$
 @$ opttest2.OCM
 @$ Assessment example for the Cu-Mg system in steps
-@$ ================================================================
 @$ There are memory leaks during STEP/MAP
-@$ You may run of of allocatable memory if you run all tests
+@$ ================================================================
+@$
+@$ IMPORTANT:
+@$ Before running this macro use the command:
+@$ SET ADVANCED WORSPACE
+@$ to set the working directory to the directory with the optttest2.OCM
+@$
+@$ This is required because the macro create oc_manyi.plt and  *.OCU files
+@$ which are used in later submacros
+@$
+@$ There are some error messages calculating some equilibria but
+@$ the final result is still reasonable
+@$
 @$ ================================================================
 @&
 

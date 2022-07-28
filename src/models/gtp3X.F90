@@ -2,7 +2,7 @@
 ! gtp3X included in gtp3.F90
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!>     15. Calculate things
+!>     15. Section: calculate G and other things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine calcg
@@ -2049,605 +2049,7 @@
    return
  end subroutine calcg_internal
 
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
- !\addtotable subroutine calc_mqmqa
-!\begin{verbatim}
- subroutine calc_mqmqa(lokph,phres,mqf,ceq)
-! Called from calcg_internal, calculates G for the mqmqa phase
-! separate subroutine for the entropy which calculates all data in phres%mqf
-   integer lokph
-   type(gtp_phase_varres), pointer :: phres
-   type(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_mqmqa_var), pointer :: mqf
-!\end{verbatim}
-! Most variables here are the same as in calcg_internal ...
-   integer, parameter :: f1=50
-   integer mqmqj,kend,s1,s2,s3,id,nofc2,ipy,lokfun,typty,itp,zp,nrealem,mqendx
-   double precision vals(6),pyq,rtg,aff
-   double precision, dimension(:), allocatable :: dpyq(:),d2pyq(:),d2vals(:)
-   double precision, dimension(:,:), allocatable :: dvals(:,:),affarr(:)
-! for saving FNN reference energies
-   double precision refg(f1,f1)
-   double precision dummy1,dummy2
-   TYPE(gtp_parcalc) :: gz
-   TYPE(gtp_property), pointer :: proprec
-   TYPE(gtp_endmember), pointer :: endmemrec
-   TYPE(gtp_interaction), pointer :: intrec
-   TYPE(gtp_pystack), pointer :: pystack
-   TYPE(gtp_phase_add), pointer :: addrec
-! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
-   integer ij,jd,jq,qq1,qq2,ass,mpow
-   double precision ksi,sumx,dsumx
-   double precision dksi(3),d2ksi(3)
-!------------------------------------- 
-! allocate arrays
-!   write(*,*)'3X in calc_mqmqa'
-   gz%nofc=phlista(lokph)%tnooffr
-   nofc2=gz%nofc*(gz%nofc+1)/2
-   allocate(dpyq(gz%nofc))
-   allocate(d2pyq(nofc2))
-   allocate(dvals(3,gz%nofc))
-   allocate(d2vals(nofc2))
-   allocate(affarr(mqf%npair))
-   affarr=zero
-   nullify(pystack)
-   rtg=globaldata%rgas*ceq%tpval(1)
-   mqf=>phres%mqmqaf
-!   do s1=1,mqmqa_data%nconst
-!      write(*,599)s1,(mqmqa_data%contyp(s2,s1),s2=1,14)
-!599   format('3X contyp 7: ',i2,1x,4i2,1x,i3,1x,4i2,1x,i2,4i3)
-!      enddo
-   nrealem=0
-!   refg=zero
-   dummy2=zero
-! list %pp
-! %pp( quad , FNN index )
-!   do mqmqj=1,mqmqa_data%nconst
-!      write(*,17)'3X %pp: ',mqmqj,(mqmqa_data%pp(s1,mqmqj),s1=1,4)
-!   enddo
-17 format(a,i3,4(1pe12.4))
-!--------------------------------------
-! first loop over ALL endmembers
-   mqmqj=0
-   endmemrec=>phlista(lokph)%ordered
-! This should be number of atoms for scaling G
-!   dummy1=phres%abnorm(1)/rtg       this was OK before ...
-   dummy1=one/rtg
-! %amfu * %abnorm(1) is number of moles in the liquid
-! in the test case we have 6 atoms in the liquid phase
-!   dummy1=6.0D0/rtg
-!   dummy1=one/(phres%abnorm(1)*rtg)
-!   write(*,'(a,3(1pe14.6))')'3X mqmqa scaling: ',dummy1,&
-!        phres%amfu,phres%abnorm(1)
-! This first loop: all endmember parameters
-! this can give SRO contribution and excess from SNN parameters
-! or it makes it possible to calculate the G for the FNN parameters
-   endmemloop1: do while(associated(endmemrec))
-      mqmqj=mqmqj+1
-      if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop1
-! We do not know if mqmqj is associated with this endmember!!
-! there can be gaps in the endmember list.
-! we must take kend from the endmember record, it is sored in %antalem
-      mqendx=endmemrec%antalem
-      kend=mqmqa_data%contyp(5,mqendx)
-!      write(*,*)'3X endmemloop1A: ',mqmqj,mqendx,kend,nrealem
-      if(kend.le.0) then
-! This is an SNN parameter we calculate and add SNN energy and interactions ...
-!         write(*,*)'3X SNN endmember record found',mqmqj
-         proprec=>endmemrec%propointer
-         mqsnn: do while(associated(proprec))
-! This loop is not really necessay, in mqmqa the only property is G at present
-            typty=proprec%proptype
-            if(typty.ne.1) stop '3X illegal typty in mqmqa model'
-            ipy=1
-            lokfun=proprec%degreelink(0)
-            call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
-            if(gx%bmperr.ne.0) goto 1000
-!            write(*,'(a,6(1Pe12.4))')'3X vals1:',vals
-            if(ipy.eq.1) then
-               vals=vals*dummy1
-! This is an SNN ordering parameter, reference state addel in second loop
-            endif
-            pyq=phres%yfr(mqmqj)
-! Should I use any factor??
-!         aff=mqmqa_data%pp(1,mqmqj)
-            aff=one
-! NOTE the reference state contribution to this SNN added in next loop
-! for all quads!!
-            do itp=1,3
-               phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+vals(itp)
-            enddo
-! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
-! ipy is property, ipy=1 means G, ipy=2 means Curie T etc.
-! %gval(1,1) is total G, %gval(2,1) is total dG/dT  etc.
-            do itp=1,6
-               phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
-            enddo
-!            write(*,210)'3X SRO G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,&
-!                 phres%gval(1,1),(phres%dgval(1,s1,1),s1=1,gz%nofc)
-            proprec=>proprec%nextpr
-         enddo mqsnn
-!600      continue
-!         write(*,*)'3X any excess parameters will be handled in 3rd loop'
-         endmemrec=>endmemrec%nextem
-         cycle endmemloop1
-      endif
-! This is an FNN parameter, we calculate and save the value for later use
-      nrealem=nrealem+1
-!      write(*,*)'3X endmemloop1B: ',mqmqj,kend,nrealem
-      proprec=>endmemrec%propointer
-      aff=one/mqmqa_data%pp(1,mqmqj)
-      mq1: do while(associated(proprec))
-         typty=proprec%proptype
-         if(typty.ne.1) stop 'illegal typty in mqmqa model'
-         ipy=1
-         lokfun=proprec%degreelink(0)
-         call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
-         if(gx%bmperr.ne.0) goto 1000
-!         write(*,'(a,i3,F7.4,3(1Pe10.2))')'3X refg:',mqmqj,aff,vals(1),vals(2)
-! we should divide this by the aff of this pair and we will multiply this
-! FNN same aff but SNN fractions linking to this pair uase another aff
-         if(ipy.eq.1) then
-            vals=vals*dummy1*aff
-! save values of reference state for use with SNN parameters ??
-! kend is FNN (pair) index 
-            do s1=1,6
-               refg(kend,s1)=vals(s1)
-            enddo
-         endif
-! next property record (should not be any ...)
-         proprec=>proprec%nextpr
-         if(associated(proprec)) then
-            write(*,*)'3X Warning: ignoring second mqmqa property recotd!'
-         endif
-!         write(*,200)'3X FNN G, dG/dqi: ',phres%gval(1,1),&
-!              (phres%dgval(1,s1,1),s1=1,gz%nofc)
-200      format(a,1pe12.4,2x,6(1pe12.4))
-      enddo mq1
-      endmemrec=>endmemrec%nextem
-   enddo endmemloop1
-!   write(*,*)'3X finished endmemloop1'
-!--------------------------------------------------- end first endmember loop
-! All endmembers with a single element in each sublattice must have a parameter
-! these are counted above in nrealem
-!   write(*,'(a,3i3)')'3X number of sublattice constituents and FNN: ',&
-!        mqf%ns1,mqf%ns2,nrealem
-   if(nrealem.ne.mqf%ns1*mqf%ns2) then
-! This test is not foolproof one can enter an interaction parameter
-! which creates an empty endmember record but that seems crazy
-      write(*,216)mqf%ns1*mqf%ns2,nrealem
-216   format('Some FNN constituents (A/X) have no parameter!, should be',&
-           i3,' found only ',i3)
-      gx%bmperr=4399; goto 1000
-   endif
-! second loop over all constutents (quads), ignore endmember records
-! but add reference state parameters to all SNN and reciprocal constituents
-   ipy=1
-   qloop: do mqmqj=1,gz%nofc
-! this is quad fraction, multiply with all FNN reference energies
-      pyq=phres%yfr(mqmqj)
-      zp=mqmqa_data%contyp(5,mqmqj)
-      pair: if(zp.gt.0) then
-! this is an FNN  pair, reference energy in refg(zp,1..6), only one y derivative
-! %pp(1..4,mqmqj) is stoichiometric factor for the pair
-         aff=mqmqa_data%pp(1,mqmqj)
-         do itp=1,3
-            phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+&
-                 aff*refg(zp,itp)
-         enddo
-! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
-         do itp=1,6
-            phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
-         enddo
-!         write(*,205)'3X FNN: qix, FNN, aff, pyq, fun, DG: ',mqmqj,zp,aff,&
-!              pyq,refg(zp,1),pyq*aff*refg(zp,1)
-205      format(a,2i3,F8.5,2x,3(1pe12.4))
-!         write(*,210)'3X FNN G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,phres%gval(1,1),&
-!              (phres%dgval(1,s1,1),s1=1,gz%nofc)
-210      format(a,2i3,2F8.5,1pe12.4,2x,6(1pe10.2))
-      else
-! this is an SNN with two or more pairs
-! For each SNN pair add the contribution to the reference state
-!         write(*,'(a,i3,4F10.7)')'3X pp: ',mqmqj,&
-!              (mqmqa_data%pp(s1,mqmqj),s1=1,4)
-         snnloop: do s1=6,9
-! zp is index to an FNN record, there can be 2 or 4 FNN records
-            zp=mqmqa_data%contyp(s1,mqmqj)
-            if(zp.eq.0) exit snnloop
-! %pp(1..4,mqmqj) is stoichiometric factor for the pair
-            aff=mqmqa_data%pp(s1-5,mqmqj)
-!          write(*,212)zp,mqmqj,ipy,phres%dgval(1,mqmqj,ipy),aff,aff*refg(zp,1)
-212         format('3X adding reference state to SNN parameter:',3i3,3(1pe12.4))
-            do itp=1,3
-               phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+&
-                    aff*refg(zp,itp)
-            enddo
-! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
-!            write(*,213)zp,mqmqj,ipy,phres%gval(1,ipy),pyq,aff,aff*refg(zp,1)
-213         format('3X adding reference state to SNN parameter:',3i3,4(1pe12.4))
-            do itp=1,6
-               phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
-            enddo
-!            write(*,205)'3X SNN: qix, FNN, aff, pyq, fun, DG: ',mqmqj,zp,aff,&
-!                 pyq,refg(zp,1),pyq*aff*refg(zp,1)
-!                 (phres%dgval(1,s2,1),s2=1,gz%nofc)
-         enddo snnloop
-      endif pair
-   enddo qloop
-!   write(*,*)'3X finished qloop'
-! if this goto then excess is ignored and result correct
-!   goto 800
-!---------------------------------------------------------------------
-!----- code below needed for excess parameters ONLY, all SNN FNN done above
-! NOTE many of them may be missing
-   mqmqj=0
-   endmemrec=>phlista(lokph)%ordered
-   endmemloop2: do while(associated(endmemrec))
-      if(mqmqj.gt.0) endmemrec=>endmemrec%nextem
-      mqmqj=mqmqj+1
-!      write(*,*)'3X endmemloop2:',mqmqj,mqmqa_data%nconst,associated(endmemrec)
-      if(mqmqj.gt.mqmqa_data%nconst .or. .not.associated(endmemrec)) then
-         exit endmemloop2
-      endif
-      kend=mqmqa_data%contyp(5,mqmqj)
-!      write(*,311)associated(endmemrec),mqmqj,mqmqa_data%nconst,kend
-311   format('3X second loop for endmember records: ',l2,3i5)
-      intrec=>endmemrec%intpointer
-! interaction parameters are NOT linked from SNN endmembers!!
-! They are stored in alphabetical order of the constituents
-!      write(*,*)'3X Check for interaction parameters 1',associated(endmemrec),&
-!           associated(intrec),mqmqj,kend
-! if we cycle here the results are the same as without excess parameters
-!      cycle endmemloop2
-      if(.not.associated(intrec)) cycle endmemloop2
-! this is an endmember parameter with possible excess parameters
-!      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
-! just excess parameters, we must calculate product of fractions
-! BRANCH for intrec%highlink and intrec%nexlink
-!      write(*,'(a,i2,F10.6,6(1pe12.4))')'3X SNN df/dy: ',id,pyq,&
-!           (dpyq(itp),itp=1,gz%nofc)
-!-------------------------------------
-! content of %contyp and %pinq
-!      do jd=1,mqmqa_data%nconst
-!         write(*,599)jd,(mqmqa_data%contyp(id,jd),id=1,14)
-!599      format('3X contyp: ',i2,1x,4i2,1x,i3,1x,4i2,1x,i2,4i3)
-!      enddo
-!      write(*,*)'3X pinq: ',mqmqa_data%pinq
-! extract fractions from the endmember and check if AB/X or A/XY or A/X 
-      id=endmemrec%fraclinks(1,1)
-! jump back here for next interaction record (if any)
-600   continue
-! Note it is arbitrary if the cluster is endmembetor interaction
-      jd=intrec%fraclink(1)
-! We must keep track of which endmember is separate!!!
-      if(mqmqa_data%contyp(5,id).eq.0) then
-! id is a cluster, jd is separate fraction, jq is additional salt OK
-         ass=id
-! %contyp(6,..9) are index of FNN, pairs, FNN pairs index in cintyp in PINQ
-         jq=mqmqa_data%pinq(mqmqa_data%contyp(6,ass))
-         if(jq.eq.jd) jq=mqmqa_data%pinq(mqmqa_data%contyp(7,ass))
-         qq1=jd
-         qq2=jq
-!         write(*,'(a,6i3)')'3X ass, sep, sum 1:',ass,qq1,qq2
-      elseif(mqmqa_data%contyp(5,jd).eq.0) then
-! jd is the cluster, id is interaction endmember WRONG
-         ass=jd
-         jq=mqmqa_data%pinq(mqmqa_data%contyp(6,ass))
-         if(jq.eq.id) jq=mqmqa_data%pinq(mqmqa_data%contyp(7,ass))
-         qq1=id
-         qq2=jq
-!         write(*,'(a,6i3)')'3X ass, sep, sum 2:',ass,qq1,qq2
-      else
-! Interactions are only between clusters AB/X and endmembers A/X or B/X
-         write(*,*)'3X interaction between two endmembers illegal'
-         gx%bmperr=4399; goto 1000
-      endif
-!      write(*,430)'3X interaction: ',id,jd,jq,qq1,qq2,ass,&
-!           phres%yfr(id),phres%yfr(jd),phres%yfr(jq)
-430   format(a,3i3,1x,3i3,3x,3(1pe12.4))
-!------------------------------------- extract parameter value
-      proprec=>intrec%propointer
-      typty=proprec%proptype
-      if(typty.ne.1) stop 'illegal typty in mqmqa model'
-      ipy=1
-! several powers  we must loop here -------------- not yet done
-!      if(proprec%degree.gt.0) write(*,*)'3X degree: ',proprec%degree
-      mpow=0
-700   continue
-! first power is in link 0
-      lokfun=proprec%degreelink(mpow)
-      mpow=mpow+1
-      if(mpow.gt.9) then
-         write(*,*)'3X too high interaction power'
-         gx%bmperr=4399; goto 1000
-      endif
-! some powers may not have a parameter, max 9.  If no function loop
-      if(lokfun.le.0) goto 700
-      call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
-      if(gx%bmperr.ne.0) goto 1000
-!      write(*,'(a,3i4,6(1Pe12.4))')'3X excess1:',lokfun,mqmqj,mpow,vals(1)
-      if(ipy.eq.1) then
-! Nath has implemented this half in the converter
-         vals=vals/rtg
-      endif
-! skip excess 1
-!      cycle endmemloop2
-!----------------------- multiply with fractions
-! the parameter should be multiplied with cluster fractions and
-! the separate endmember qq1 fraction normalized 
-      sumx=phres%yfr(qq1)+phres%yfr(qq2)+phres%yfr(ass)
-      ksi=phres%yfr(qq1)/sumx
-! here the fraction product is calculated
-!      write(*,650)ass,qq1,qq2,mpow,ksi,phres%yfr(ass),pyq,vals(1)*rtg
-650   format('3X excess: ',4i3,6(1pe12.4))
-      if(mpow.eq.1) then
-         pyq=phres%yfr(ass)*ksi
-! most of the derivatives of pyq is zero
-         dpyq=zero
-         dsumx=-sumx**(-2)
-! only those involving id, jd and jq are nonzero.
-! the species qq1, qq2 and ass has one more term, qq2 is only in the sumx
-         dpyq(qq1)=pyq*dsumx+phres%yfr(ass)/sumx
-         dpyq(qq2)=pyq*dsumx
-         dpyq(ass)=pyq*dsumx+ksi
-      else
-         pyq=phres%yfr(ass)*(ksi**mpow)
-         dpyq=zero
-         dsumx=-mpow*sumx**(-mpow-1)
-         dpyq(qq1)=pyq*dsumx+mpow*phres%yfr(ass)*ksi**(mpow-1)
-         dpyq(qq2)=pyq*dsumx
-         dpyq(ass)=pyq*dsumx+ksi*mpow
-      endif
-!      write(*,'(a,2(1pe14.6))')'3X excess G:',pyq,pyq*vals(1)
-! skip excess 2
-!      cycle endmemloop2
-!
-! ---------------------------------
-! add to G and first derivatives of G, ipy is property, ipy=1 is G
-! 2nd derivatives ignored
-! ---------------------------------
-      do s1=1,gz%nofc
-         do itp=1,3
-            phres%dgval(itp,s1,ipy)=phres%dgval(itp,s1,ipy)+&
-                 dpyq(s1)*vals(itp)
-         enddo
-      enddo
-      do itp=1,6
-         phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
-      enddo
-! maybe several fraction powers of this property
-!      write(*,*)'3X several powers? ',mpow,proprec%degree
-      if(mpow.lt.proprec%degree) goto 700
-!------------- next property for same interaction,
-! each property can have different number of powers
-      proprec=>proprec%nextpr
-      if(associated(proprec)) then
-! more than one property ... not implemented
-         write(*,*)'3X MQMQA parameter with several propertyes!',mqmqj
-      endif
-      if(associated(intrec%highlink)) then
-! a higher interaction ... not allowed
-         write(*,*)'3X ternary MQMQA parameters not implemented',mqmqj
-      endif
-      intrec=>intrec%nextlink
-      if(associated(intrec)) then
-! There can be more than one interaction linked from an endmember
-         write(*,*)'3X more binary interaction for this endmember',mqmqj
-         goto 600
-      endif
-!      write(*,*)'3X done excess for endmember',mqmqj
-! next endmember .... is set at the beginning
-   enddo endmemloop2
-!----------------------------------------------------- end SNN loop
-800 continue
-!   write(*,990)'3X exit calc_mqmqa G:',phres%gval(1,1),&
-!        (phres%dgval(1,s1,1),s1=1,gz%nofc)
-990 format(a,5(1pe14.6))
-1000 return
- end subroutine calc_mqmqa
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
- !\addtotable subroutine setendmemarr
-!\begin{verbatim}
- subroutine setendmemarr(lokph,ceq)
-! stores the pointers to all ordered and disordered endmemners in arrays
-! intended to allow parallel calculation of parameters
-! UNUSED ??
-   implicit none
-   integer lokph
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   integer ll,nz,noemr
-   TYPE(gtp_endmember), pointer :: emrec
-   TYPE(gtp_fraction_set), pointer :: disfraset
-   if(allocated(phlista(lokph)%oendmemarr)) then
-      deallocate(phlista(lokph)%oendmemarr)
-! allways allocate place for maximum endmembers (product of constituents)
-      nz=1
-      do ll=1,phlista(lokph)%noofsubl
-         nz=nz*phlista(lokph)%nooffr(ll)
-      enddo
-      allocate(phlista(lokph)%oendmemarr(nz))
-      noemr=0
-      emrec=>phlista(lokph)%ordered
-      do while(associated(emrec))
-         noemr=noemr+1
-         phlista(lokph)%oendmemarr(noemr)%p1=>emrec
-         emrec=>emrec%nextem
-      enddo
-      phlista(lokph)%noemr=noemr
-   endif
-! same for disordered endmembers (if any)
-! Data for this is stored in phase_varres record, same index as phlista !!!
-   if(allocated(phlista(lokph)%dendmemarr)) then
-      deallocate(phlista(lokph)%dendmemarr)
-! allways allocate place for maximum endmembers (product of constituents)
-      disfraset=>ceq%phase_varres(lokph)%disfra
-      nz=1
-      do ll=1,disfraset%ndd
-         nz=nz*disfraset%nooffr(ll)
-      enddo
-      allocate(phlista(lokph)%dendmemarr(nz))
-      noemr=0
-      emrec=>phlista(lokph)%disordered
-      do while(associated(emrec))
-         noemr=noemr+1
-         phlista(lokph)%dendmemarr(noemr)%P1=>emrec
-         emrec=>emrec%nextem
-      enddo
-      phlista(lokph)%ndemr=noemr
-   endif
-1000 continue
-   return
- end subroutine setendmemarr
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine tabder
-!\begin{verbatim}
- subroutine tabder(iph,ics,times,ceq)
-! tabulate derivatives of phase iph with current constitution and T and P
-   implicit none
-   integer iph,ics,times
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   character name*24
-   double precision kappa,napfu,t,p,rtg,g,v,s,h,u,f,cp,alpha,cpu1,cpu2
-   integer tnk,lokph,nsl,lokres,lokcs,ll,ll2,kk1,kk2,kk3,kk4,loksp
-!
-! For time measurements
-!   lokph=len(name)
-   lokph=phases(iph)
-   nsl=phlista(lokph)%noofsubl
-! calculate G and derivatives, lokres returns index of phase_varres
-   call cpu_time(cpu1)
-   do loksp=1,times
-      call calcg(iph,ics,2,lokres,ceq)
-      if(gx%bmperr.ne.0) then
-         goto 1000
-      endif
-   enddo
-   call cpu_time(cpu2)
-! number of moles of atoms per formula unit
-   napfu=ceq%phase_varres(lokres)%abnorm(1)
-   T=ceq%tpval(1)
-   P=ceq%tpval(2)
-   rtg=globaldata%rgas*T
-   lokcs=lokres
-! returned values: G, G.T=-S, G.P=V, G.T.T=-Cp/T G.T.P=V*alpha, G.P.P=-V*kappa
-! all divided by RT and per mole formula unit of phase
-! G=H-TS, F=U-TS, H=U+PV, S=-G.T, V=G.P
-! H=G+TS=G-T*G.T, U=H-PV=(G-T*G.T)-P*G.P, CP=-T*G.T.T
-! alpha= 1/V*V.T = G.T.P/V, kappa = -1/V*V.P = -G.P.P/V
-   G=rtg*ceq%phase_varres(lokcs)%gval(1,1)
-!    write(*,5)'3X tabder 2: ',rtg,G
-   S=-rtg*ceq%phase_varres(lokcs)%gval(2,1)
-   V=rtg*ceq%phase_varres(lokcs)%gval(3,1)
-   H=G+T*S
-   U=H-P*V
-   F=U-T*S
-   CP=-T*rtg*ceq%phase_varres(lokcs)%gval(4,1)
-   if(V.ne.zero) then
-      alpha=rtg*ceq%phase_varres(lokcs)%gval(5,1)/V
-      kappa=rtg*ceq%phase_varres(lokcs)%gval(6,1)/V
-   else
-      alpha=zero
-      kappa=zero
-   endif
-   write(kou,100)napfu,rtg,T,P,G,G/rtg
-100 format(/'Per mole FORMULA UNIT of the phase, ',1pe12.4,' atoms/F.U., RT=',&
-         1pe15.7/&
-         'at T= ',0pF8.2,' K and P= ',1PE13.6,' Pa',8x,'SI units',9x,'/RT'/ &
-         'Gibbs energy J/FU  ',28('.'),1Pe16.8,e16.7)
-   write(kou,102)F,F/rtg,H,H/rtg,U,U/rtg,S,S/rtg,V,V/rtg,&
-        CP,CP/rtg,alpha,alpha/rtg,kappa,kappa/rtg
-102 format('Helmholtz energy J/FU  ',24('.'),1PE16.8,e16.7 &
-        /'Enthalpy J/FU  ',32('.'),1PE16.8,e16.7 &
-        /'Internal energy J/FU  ',25('.'),1PE16.8,e16.7 &
-        /'Entropy J/FU/K  ',31('.'),1PE16.8,e16.7 &
-        /'Volume m3/FU ',34('.'),1PE16.8,e16.7 &
-        /'Heat capacity J/FU/K  ',25('.'),1PE16.8,e16.7 &
-        /'Thermal expansion 1/K ',25('.'),1PE16.8,e16.7 &
-        /'Bulk modulus m2/N ',29('.'),1PE16.8,e16.7)
-   tnk=phlista(lokph)%tnooffr
-   ll=1
-   kk1=0
-   kk2=phlista(lokph)%nooffr(ll)
-   dy1loop: do while(kk1.le.tnk)
-      kk1=kk1+1
-      if(kk1.gt.kk2) then
-!          write(*,11)'3X tabder 2: ',kk1,kk2,ll,tnk,nsl
-!11 format(a,10i3)
-         ll=ll+1
-         if(ll.gt.nsl) exit
-         kk2=kk2+phlista(lokph)%nooffr(ll)
-      endif
-      if(phlista(lokph)%nooffr(ll).eq.1) then
-!          write(*,*)'3X tabder 1: ',kk1,kk2,ll,tnk
-         ll=ll+1
-         if(ll.gt.nsl) exit
-         kk2=kk2+phlista(lokph)%nooffr(ll)
-         cycle
-      endif
-      loksp=phlista(lokph)%constitlist(kk1)
-      name=splista(loksp)%symbol
-      write(kou,110)name(1:len_trim(name)),ll
-110 format('First partial derivative with respect to ',a,&
-        ' in sublattice ',i2,' of')
-      write(kou,120)rtg*ceq%phase_varres(lokcs)%dgval(1,kk1,1),&
-           ceq%phase_varres(lokcs)%dgval(1,kk1,1),&
-           rtg*(ceq%phase_varres(lokcs)%dgval(1,kk1,1)-&
-           T*ceq%phase_varres(lokcs)%dgval(2,kk1,1)),&
-           ceq%phase_varres(lokcs)%dgval(1,kk1,1)-&
-           T*ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
-           rtg*ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
-           ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
-           rtg*ceq%phase_varres(lokcs)%dgval(3,kk1,1),&
-           ceq%phase_varres(lokcs)%dgval(3,kk1,1)
-120    format(5x,'G ',40('.'),1PE16.8,e16.7, &
-           /5x,'H ',40('.'),1PE16.8,e16.7, &
-           /5x,'G.T ',38('.'),1PE16.8,e16.7, &
-           /5x,'G.P ',38('.'),1PE16.8,e16.7)
-      kk3=kk1
-      kk4=kk2
-      ll2=ll
-      write(kou,150)
-150 format(5x,'Second partial derivative of Gibbs energy with respect to also')
-      dy2loop: do while(kk3.le.tnk)
-         if(phlista(lokph)%nooffr(ll2).gt.1) then
-!            write(kou,160)name(1:len_trim(name)),ll2, &
-            write(kou,160)name,ll2, &
-                 rtg*ceq%phase_varres(lokcs)%d2gval(ixsym(kk1,kk3),1),&
-                 ceq%phase_varres(lokcs)%d2gval(ixsym(kk1,kk3),1)
-160          format(10x,a,'   in ',i2,5('.'),1PE16.8,e16.7)
-         endif
-         kk3=kk3+1
-         if(kk3.le.tnk) then
-            loksp=phlista(lokph)%constitlist(kk3)
-            name=splista(loksp)%symbol
-         endif
-         if(kk3.gt.kk4) then
-            ll2=ll2+1
-            if(ll2.gt.nsl) exit
-            kk4=kk4+phlista(lokph)%nooffr(ll2)
-         endif
-      enddo dy2loop
-!       write(*,*)'3X tabder 7A: ',kk1,kk2
-   enddo dy1loop
-900 continue
-   if(times.gt.1) then
-      write(*,11)times,cpu2-cpu1,1.0D6*(cpu2-cpu1)/dble(times)
-11    format('CPU times for ',i6,' calculations: ',1pe15.7,' s, ',1pe15.7,' ms')
-   endif
-!    write(*,*)'3X tabder 7B: ',kk2
-!    write(*,*)'3X tabder: ',rtg,rtg*phase_varres(lokcs)%gval(1,1)
-1000 continue
-   return
- end subroutine tabder
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
 !\addtotable subroutine cgint
 !\begin{verbatim}
@@ -3131,242 +2533,6 @@
 1000 continue
    return
  end subroutine cgint
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable subroutine calc_toop
-! called from subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
-!\begin{verbatim}
- subroutine calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
-! Handle a binary interaction that is in a Toop or Kohler model
-! toop is the link to the kohler-Toop record
-! We come here only if the parameter is composition dependent using RK series
-   implicit none
-   integer moded,lokph
-   TYPE(gtp_property), pointer :: lokpty
-   TYPE(gtp_parcalc) :: gz
-   double precision vals(6),dvals(3,gz%nofc)
-   double precision d2vals(gz%nofc*(gz%nofc+1)/2)
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_tooprec), pointer :: toopx
-!\end{verbatim}
-! we need to save this pointer from toopx
-   TYPE(gtp_phase_varres), pointer :: phres
-! fraction values to be used in RK series
-   double precision x12,x21,sigma,dxrk
-   integer, allocatable, dimension(:) :: dsigma, dx12, dx21
-! ternary fraction index
-   integer jj(3),j1,j2,j3,link,count,toopconst,limit,jdeg,lfun,nyfr
-! for the RK calculation with Toop/Kohler fractions!
-   double precision valtp(6)
-   double precision dx,dx0,dx1,dx2,dxi,dxj,fff,rtg
-! The first part here is to modify the fractions to be used in the RK series
-! the gz record has information which elements involved
-! gz%iq(1) and gz%iq(2) are index of the binary constituents
-! We must also handle first and second derivatives wrt all fractions.
-! we come here from a binary interaction recird but we may have to follow
-! links to several other toopx records with other third elements.
-! Use the phres passed on via toopx%phres if there are more toopx records
-   phres=>toopx%phres
-!
-   write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
-10 format('3X in calc_toop with binary; degree:',2i3,'; ',i2,2x,20('<'))
-! note vals, dvals and d2vals hare zero here
-   rtg=gz%rgast
-   if(lokpty%degree.eq.0) then
-! quick exit if no composition dependence
-      lfun=lokpty%degreelink(0)
-      call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
-      if(gx%bmperr.ne.0) goto 1000
-      if(lokpty%proptype.eq.1) then
-         valtp=valtp/rtg
-      endif
-! this is multiplied with y_i y_j (and derivatives) at the return
-      vals=vals+valtp
-      goto 1000
-   endif
-! We have to calculate the reduced fractions
-   nyfr=size(phres%yfr)
-   allocate(dsigma(nyfr))
-   allocate(dx12(nyfr))
-   allocate(dx21(nyfr))
-! max number of binaries ...
-   limit=nyfr*(nyfr-1)
-! initially dsigma is set to 1, i.e. derivatives with respect to all
-! constituents.  Those subtracted will be set to zero
-   dsigma=one; dx12=0; dx21=0
-   sigma=one
-   x12=phres%yfr(gz%iq(1))
-   x21=phres%yfr(gz%iq(2))
-   dx12(gz%iq(1))=1
-   dx21(gz%iq(2))=1
-! This is the RK Muggianu fraction difference
-   dxrk=x12-x21
-   count=0
-!-----------------------------------------------------------------
-! See gtp documentation, Appendix A for the algorithm used here
-!-----------------------------------------------------------------
-   method: do while(associated(toopx))
-! we may have several Toop/Kohler ternary methods for this binary
-      count=count+1
-      if(count.gt.limit) then
-! something wrong in the data structure, eternal loop!
-         write(*,*)'3X data structure error 1 in calc_toop',count
-         gx%bmperr=4399; goto 1000
-      endif
-! in the toopx record there are indices of the fractions needed   
-!     integer toop,const1,const2,const3,extra,uniqid
-! Note const1 < const2 < const3; toop is 1, 2 or 3
-      jj(1)=toopx%const1
-      jj(2)=toopx%const2
-      jj(3)=toopx%const3
-      toopconst=0
-      if(toopx%toop.gt.0) toopconst=jj(toopx%toop)
-      write(*,30)count,toopconst,jj,toopx%uniqid
-30    format('3X Ternary method record:',i2,', T/K: ',i1,5x,3i3,', ID: ',i2)
-! we have to figure out which constituent is neither gx%iq(1) or iq(2)
-! and we have find the idex for thr next toopx record (if any).
-! The toopx record is linked from all 3 binaries and there can be links from
-! this record that must be followed.  The constituents are in increasing order 
-! Could this be simplified using select case ??
-      ett: if(jj(1).eq.gz%iq(1)) then
-         tva: if(jj(2).eq.gz%iq(2)) then
-!---------------------------------------------------------------
-! we are dealing with the binary: 1-2, any link to next is next12
-!            link=1
-            toopx=>toopx%next12
-            if(toopconst.eq.0) then
-! the binary 1-2 is a Kohler extrapolation ftom 3
-! There is no derivative in dsigma with respect to this constituent
-               sigma=sigma-phres%yfr(jj(3))
-               dsigma(jj(3))=0
-            elseif(toopconst.eq.jj(1)) then
-! constituent 1 is a Toop element in 1-2-3
-               x21=x21+phres%yfr(jj(3))
-               dx21(jj(3))=1
-            elseif(toopconst.eq.jj(2)) then
-! constituent 2 is a Toop element in 1-2-3
-               x12=x12+phres%yfr(jj(3))
-               dx12(jj(3))=1
-            endif
-! if toopconst.eq.jj(3) do nothing
-         elseif(jj(3).eq.gz%iq(2)) then
-!---------------------------------------------------------------
-! we are dealing with the binary: 1-3, any link to next is next13
-!            link=2
-            toopx=>toopx%next13
-            if(toopconst.eq.0) then
-! the binary 1-3 is a Kohler extrapolation ftom 2
-! There is no derivative in dsigma with respect to this constituent
-               sigma=sigma-phres%yfr(jj(2))
-               dsigma(jj(2))=0
-            elseif(toopconst.eq.jj(1)) then
-! constituent 1 is a Toop element in 1-2-3
-               x21=x21+phres%yfr(jj(2))
-               dx21(jj(2))=1
-            elseif(toopconst.eq.jj(3)) then
-! constituent 2 is a Toop element in 1-2-3
-               x12=x12+phres%yfr(jj(2))
-               dx12(jj(2))=1
-            endif
-! if toopconst.eq.jj(2) do nothing
-         else
-! something is wrong in the data structure
-            write(*,*)'3X data structure error 2 in calc_toop'
-            gx%bmperr=4399; exit method
-         endif tva
-      elseif(jj(2).eq.gz%iq(1)) then
-!---------------------------------------------------------------
-! we are dealing with the binary: 2-3, any link is next23
-!         link=3
-         toopx=>toopx%next23
-         if(toopconst.eq.0) then
-! the binary 2-3 is a Kohler extrapolation ftom 1
-! There is no derivative in dsigma with respect to this constituent
-            sigma=sigma-phres%yfr(jj(1))
-            dsigma(jj(1))=0
-         elseif(toopconst.eq.jj(2)) then
-! constituent 2 is a Toop element in 1-2-3
-            x21=x21+phres%yfr(jj(1))
-            dx21(jj(1))=1
-         elseif(toopconst.eq.jj(3)) then
-! constituent 3 is a Toop element in 1-2-3
-            x12=x12+phres%yfr(jj(1))
-            dx12(jj(1))=1
-         endif
-! if toopconst.eq.jj(1) do nothing
-      else
-! something wrong in the data structure
-         write(*,*)'3X data structure error 3 in calc_toop'
-         gx%bmperr=4399; exit method
-      endif ett
-!-----------------------------------------------------
-! if toopx associated here extract information from that ternary method
-! if toopx not associated exit here
-   enddo method
-! when we come here when we calculated x12, x21 and sigma
-   write(*,50)'3X done:   ',x12,x21,sigma,(x12-x21)/sigma,dxrk
-50 format(a,9F8.4)
-51 format(a,9i8)
-   write(*,50)'3X yfr:    ',phres%yfr
-   write(*,51)'3X dsigma: ',dsigma
-   write(*,51)'3X dx12:   ',dx12
-   write(*,51)'3X dx21:   ',dx21
-! Now we use (x12-x21)/sigma in the RK series ...   
-! derivatives of fractions in dx12, dx21 and dsigma
-   dx0=(x12-x21)/sigma
-   rtg=globaldata%rgas*ceq%tpval(1)
-   dx=one
-   dx1=zero
-   dx2=zero
-   RK: do jdeg=0,lokpty%degree
-      lfun=lokpty%degreelink(jdeg)
-      call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
-      if(gx%bmperr.ne.0) goto 1000
-      if(lokpty%proptype.eq.1) then
-         valtp=valtp/rtg
-      endif
-! the integral property values
-      vals=vals+dx*valtp
-      write(*,71)'3X toop: ',jdeg,gz%iq(1),gz%iq(2),nyfr,vals(1),dx,valtp(1)
-71    format(a,4i2,6(1pe12.4))
-      dercal1:if(moded.gt.0) then
-         if(jdeg.gt.0) then
-            ktloop1: do j1=1,nyfr
-! derivatives with respect to all constituents!!
-! dxij, dxji and dsigma non-zero for the relevant constituents!
-! This must be exact!!!
-               fff=(dx12(j1)-dx21(j1)-dx0*dsigma(j1)/sigma)
-               write(*,8)'3X fff1:',j1,dx12(j1),dx12(j1),dsigma(j1),dx0,dx1,dx2
-8              format(a,4i3,3(1pe12.4))
-               dvals(1,j1)=dvals(1,j1)+fff*dx1*valtp(1)
-               dvals(2,j1)=dvals(2,j1)+fff*dx1*valtp(2)
-               dvals(3,j1)=dvals(3,j1)+fff*dx1*valtp(3)
-               dercal2: if(moded.gt.1) then
-                  ktloop2: do j2=j1,nyfr
-! 2nd derivatives wrt j1 and j2 using dx12(), dx21() and dsigma()
-! This need only to be approximate ...
-                     fff=dsigma(j1)*(-dx12(j2)+dx21(j2)+dx0*dsigma(j2))/sigma**2
-                     write(*,8)'3X fff2:',j1,j2,0,0,fff
-                     d2vals(ixsym(j1,j2))=d2vals(ixsym(j1,j2))+fff*dx2*valtp(1)
-                  enddo ktloop2
-               endif dercal2
-            enddo ktloop1
-         endif
-      endif dercal1
-      dx2=(jdeg+1)*dx1
-      dx1=(jdeg+1)*dx0
-      dx=dx*dx0
-      write(*,'(a,i2,4(1pe12.4))')'3X dx etc:',jdeg,dx0,dx,dx1,dx2
-   enddo RK
-!      
-1000 continue
-   write(*,1001)vals,(dvals(1,j1),j1=1,nyfr),d2vals
-1001 format('3X KT: ',6(1pe11.3)/7x,6(1pe11.3)/7x,6(1pe11.3))
-! Normally only derivatives wrt gz%iq(1) and gz%gq(2) but with Kohler/Toop
-! there can be derivatives wrt any constituent in the same sublattice
-   return
- end subroutine calc_toop
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -6807,4 +5973,838 @@
 1000 continue
  end subroutine calc_eec_gibbsenergy
 
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_mqmqa
+!\begin{verbatim}
+ subroutine calc_mqmqa(lokph,phres,mqf,ceq)
+! Called from calcg_internal, calculates G for the mqmqa phase
+! separate subroutine for the entropy which calculates all data in phres%mqf
+   integer lokph
+   type(gtp_phase_varres), pointer :: phres
+   type(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_mqmqa_var), pointer :: mqf
+!\end{verbatim}
+! Most variables here are the same as in calcg_internal ...
+   integer, parameter :: f1=50
+   integer mqmqj,kend,s1,s2,s3,id,nofc2,ipy,lokfun,typty,itp,zp,nrealem,mqendx
+   double precision vals(6),pyq,rtg,aff
+   double precision, dimension(:), allocatable :: dpyq(:),d2pyq(:),d2vals(:)
+   double precision, dimension(:,:), allocatable :: dvals(:,:),affarr(:)
+! for saving FNN reference energies
+   double precision refg(f1,f1)
+   double precision dummy1,dummy2
+   TYPE(gtp_parcalc) :: gz
+   TYPE(gtp_property), pointer :: proprec
+   TYPE(gtp_endmember), pointer :: endmemrec
+   TYPE(gtp_interaction), pointer :: intrec
+   TYPE(gtp_pystack), pointer :: pystack
+   TYPE(gtp_phase_add), pointer :: addrec
+! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
+   integer ij,jd,jq,qq1,qq2,ass,mpow
+   double precision ksi,sumx,dsumx
+   double precision dksi(3),d2ksi(3)
+!------------------------------------- 
+! allocate arrays
+!   write(*,*)'3X in calc_mqmqa'
+   gz%nofc=phlista(lokph)%tnooffr
+   nofc2=gz%nofc*(gz%nofc+1)/2
+   allocate(dpyq(gz%nofc))
+   allocate(d2pyq(nofc2))
+   allocate(dvals(3,gz%nofc))
+   allocate(d2vals(nofc2))
+   allocate(affarr(mqf%npair))
+   affarr=zero
+   nullify(pystack)
+   rtg=globaldata%rgas*ceq%tpval(1)
+   mqf=>phres%mqmqaf
+!   do s1=1,mqmqa_data%nconst
+!      write(*,599)s1,(mqmqa_data%contyp(s2,s1),s2=1,14)
+!599   format('3X contyp 7: ',i2,1x,4i2,1x,i3,1x,4i2,1x,i2,4i3)
+!      enddo
+   nrealem=0
+!   refg=zero
+   dummy2=zero
+! list %pp
+! %pp( quad , FNN index )
+!   do mqmqj=1,mqmqa_data%nconst
+!      write(*,17)'3X %pp: ',mqmqj,(mqmqa_data%pp(s1,mqmqj),s1=1,4)
+!   enddo
+17 format(a,i3,4(1pe12.4))
+!--------------------------------------
+! first loop over ALL endmembers
+   mqmqj=0
+   endmemrec=>phlista(lokph)%ordered
+! This should be number of atoms for scaling G
+!   dummy1=phres%abnorm(1)/rtg       this was OK before ...
+   dummy1=one/rtg
+! %amfu * %abnorm(1) is number of moles in the liquid
+! in the test case we have 6 atoms in the liquid phase
+!   dummy1=6.0D0/rtg
+!   dummy1=one/(phres%abnorm(1)*rtg)
+!   write(*,'(a,3(1pe14.6))')'3X mqmqa scaling: ',dummy1,&
+!        phres%amfu,phres%abnorm(1)
+! This first loop: all endmember parameters
+! this can give SRO contribution and excess from SNN parameters
+! or it makes it possible to calculate the G for the FNN parameters
+   endmemloop1: do while(associated(endmemrec))
+      mqmqj=mqmqj+1
+      if(mqmqj.gt.mqmqa_data%nconst) exit endmemloop1
+! We do not know if mqmqj is associated with this endmember!!
+! there can be gaps in the endmember list.
+! we must take kend from the endmember record, it is sored in %antalem
+      mqendx=endmemrec%antalem
+      kend=mqmqa_data%contyp(5,mqendx)
+!      write(*,*)'3X endmemloop1A: ',mqmqj,mqendx,kend,nrealem
+      if(kend.le.0) then
+! This is an SNN parameter we calculate and add SNN energy and interactions ...
+!         write(*,*)'3X SNN endmember record found',mqmqj
+         proprec=>endmemrec%propointer
+         mqsnn: do while(associated(proprec))
+! This loop is not really necessay, in mqmqa the only property is G at present
+            typty=proprec%proptype
+            if(typty.ne.1) stop '3X illegal typty in mqmqa model'
+            ipy=1
+            lokfun=proprec%degreelink(0)
+            call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
+            if(gx%bmperr.ne.0) goto 1000
+!            write(*,'(a,6(1Pe12.4))')'3X vals1:',vals
+            if(ipy.eq.1) then
+               vals=vals*dummy1
+! This is an SNN ordering parameter, reference state addel in second loop
+            endif
+            pyq=phres%yfr(mqmqj)
+! Should I use any factor??
+!         aff=mqmqa_data%pp(1,mqmqj)
+            aff=one
+! NOTE the reference state contribution to this SNN added in next loop
+! for all quads!!
+            do itp=1,3
+               phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+vals(itp)
+            enddo
+! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
+! ipy is property, ipy=1 means G, ipy=2 means Curie T etc.
+! %gval(1,1) is total G, %gval(2,1) is total dG/dT  etc.
+            do itp=1,6
+               phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
+            enddo
+!            write(*,210)'3X SRO G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,&
+!                 phres%gval(1,1),(phres%dgval(1,s1,1),s1=1,gz%nofc)
+            proprec=>proprec%nextpr
+         enddo mqsnn
+!600      continue
+!         write(*,*)'3X any excess parameters will be handled in 3rd loop'
+         endmemrec=>endmemrec%nextem
+         cycle endmemloop1
+      endif
+! This is an FNN parameter, we calculate and save the value for later use
+      nrealem=nrealem+1
+!      write(*,*)'3X endmemloop1B: ',mqmqj,kend,nrealem
+      proprec=>endmemrec%propointer
+      aff=one/mqmqa_data%pp(1,mqmqj)
+      mq1: do while(associated(proprec))
+         typty=proprec%proptype
+         if(typty.ne.1) stop 'illegal typty in mqmqa model'
+         ipy=1
+         lokfun=proprec%degreelink(0)
+         call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
+         if(gx%bmperr.ne.0) goto 1000
+!         write(*,'(a,i3,F7.4,3(1Pe10.2))')'3X refg:',mqmqj,aff,vals(1),vals(2)
+! we should divide this by the aff of this pair and we will multiply this
+! FNN same aff but SNN fractions linking to this pair uase another aff
+         if(ipy.eq.1) then
+            vals=vals*dummy1*aff
+! save values of reference state for use with SNN parameters ??
+! kend is FNN (pair) index 
+            do s1=1,6
+               refg(kend,s1)=vals(s1)
+            enddo
+         endif
+! next property record (should not be any ...)
+         proprec=>proprec%nextpr
+         if(associated(proprec)) then
+            write(*,*)'3X Warning: ignoring second mqmqa property recotd!'
+         endif
+!         write(*,200)'3X FNN G, dG/dqi: ',phres%gval(1,1),&
+!              (phres%dgval(1,s1,1),s1=1,gz%nofc)
+200      format(a,1pe12.4,2x,6(1pe12.4))
+      enddo mq1
+      endmemrec=>endmemrec%nextem
+   enddo endmemloop1
+!   write(*,*)'3X finished endmemloop1'
+!--------------------------------------------------- end first endmember loop
+! All endmembers with a single element in each sublattice must have a parameter
+! these are counted above in nrealem
+!   write(*,'(a,3i3)')'3X number of sublattice constituents and FNN: ',&
+!        mqf%ns1,mqf%ns2,nrealem
+   if(nrealem.ne.mqf%ns1*mqf%ns2) then
+! This test is not foolproof one can enter an interaction parameter
+! which creates an empty endmember record but that seems crazy
+      write(*,216)mqf%ns1*mqf%ns2,nrealem
+216   format('Some FNN constituents (A/X) have no parameter!, should be',&
+           i3,' found only ',i3)
+      gx%bmperr=4399; goto 1000
+   endif
+! second loop over all constutents (quads), ignore endmember records
+! but add reference state parameters to all SNN and reciprocal constituents
+   ipy=1
+   qloop: do mqmqj=1,gz%nofc
+! this is quad fraction, multiply with all FNN reference energies
+      pyq=phres%yfr(mqmqj)
+      zp=mqmqa_data%contyp(5,mqmqj)
+      pair: if(zp.gt.0) then
+! this is an FNN  pair, reference energy in refg(zp,1..6), only one y derivative
+! %pp(1..4,mqmqj) is stoichiometric factor for the pair
+         aff=mqmqa_data%pp(1,mqmqj)
+         do itp=1,3
+            phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+&
+                 aff*refg(zp,itp)
+         enddo
+! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
+         do itp=1,6
+            phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
+         enddo
+!         write(*,205)'3X FNN: qix, FNN, aff, pyq, fun, DG: ',mqmqj,zp,aff,&
+!              pyq,refg(zp,1),pyq*aff*refg(zp,1)
+205      format(a,2i3,F8.5,2x,3(1pe12.4))
+!         write(*,210)'3X FNN G, dG/dqi: ',mqmqj,mqmqj,pyq,aff,phres%gval(1,1),&
+!              (phres%dgval(1,s1,1),s1=1,gz%nofc)
+210      format(a,2i3,2F8.5,1pe12.4,2x,6(1pe10.2))
+      else
+! this is an SNN with two or more pairs
+! For each SNN pair add the contribution to the reference state
+!         write(*,'(a,i3,4F10.7)')'3X pp: ',mqmqj,&
+!              (mqmqa_data%pp(s1,mqmqj),s1=1,4)
+         snnloop: do s1=6,9
+! zp is index to an FNN record, there can be 2 or 4 FNN records
+            zp=mqmqa_data%contyp(s1,mqmqj)
+            if(zp.eq.0) exit snnloop
+! %pp(1..4,mqmqj) is stoichiometric factor for the pair
+            aff=mqmqa_data%pp(s1-5,mqmqj)
+!          write(*,212)zp,mqmqj,ipy,phres%dgval(1,mqmqj,ipy),aff,aff*refg(zp,1)
+212         format('3X adding reference state to SNN parameter:',3i3,3(1pe12.4))
+            do itp=1,3
+               phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+&
+                    aff*refg(zp,itp)
+            enddo
+! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
+!            write(*,213)zp,mqmqj,ipy,phres%gval(1,ipy),pyq,aff,aff*refg(zp,1)
+213         format('3X adding reference state to SNN parameter:',3i3,4(1pe12.4))
+            do itp=1,6
+               phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
+            enddo
+!            write(*,205)'3X SNN: qix, FNN, aff, pyq, fun, DG: ',mqmqj,zp,aff,&
+!                 pyq,refg(zp,1),pyq*aff*refg(zp,1)
+!                 (phres%dgval(1,s2,1),s2=1,gz%nofc)
+         enddo snnloop
+      endif pair
+   enddo qloop
+!   write(*,*)'3X finished qloop'
+! if this goto then excess is ignored and result correct
+!   goto 800
+!---------------------------------------------------------------------
+!----- code below needed for excess parameters ONLY, all SNN FNN done above
+! NOTE many of them may be missing
+   mqmqj=0
+   endmemrec=>phlista(lokph)%ordered
+   endmemloop2: do while(associated(endmemrec))
+      if(mqmqj.gt.0) endmemrec=>endmemrec%nextem
+      mqmqj=mqmqj+1
+!      write(*,*)'3X endmemloop2:',mqmqj,mqmqa_data%nconst,associated(endmemrec)
+      if(mqmqj.gt.mqmqa_data%nconst .or. .not.associated(endmemrec)) then
+         exit endmemloop2
+      endif
+      kend=mqmqa_data%contyp(5,mqmqj)
+!      write(*,311)associated(endmemrec),mqmqj,mqmqa_data%nconst,kend
+311   format('3X second loop for endmember records: ',l2,3i5)
+      intrec=>endmemrec%intpointer
+! interaction parameters are NOT linked from SNN endmembers!!
+! They are stored in alphabetical order of the constituents
+!      write(*,*)'3X Check for interaction parameters 1',associated(endmemrec),&
+!           associated(intrec),mqmqj,kend
+! if we cycle here the results are the same as without excess parameters
+!      cycle endmemloop2
+      if(.not.associated(intrec)) cycle endmemloop2
+! this is an endmember parameter with possible excess parameters
+!      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
+! just excess parameters, we must calculate product of fractions
+! BRANCH for intrec%highlink and intrec%nexlink
+!      write(*,'(a,i2,F10.6,6(1pe12.4))')'3X SNN df/dy: ',id,pyq,&
+!           (dpyq(itp),itp=1,gz%nofc)
+!-------------------------------------
+! content of %contyp and %pinq
+!      do jd=1,mqmqa_data%nconst
+!         write(*,599)jd,(mqmqa_data%contyp(id,jd),id=1,14)
+!599      format('3X contyp: ',i2,1x,4i2,1x,i3,1x,4i2,1x,i2,4i3)
+!      enddo
+!      write(*,*)'3X pinq: ',mqmqa_data%pinq
+! extract fractions from the endmember and check if AB/X or A/XY or A/X 
+      id=endmemrec%fraclinks(1,1)
+! jump back here for next interaction record (if any)
+600   continue
+! Note it is arbitrary if the cluster is endmembetor interaction
+      jd=intrec%fraclink(1)
+! We must keep track of which endmember is separate!!!
+      if(mqmqa_data%contyp(5,id).eq.0) then
+! id is a cluster, jd is separate fraction, jq is additional salt OK
+         ass=id
+! %contyp(6,..9) are index of FNN, pairs, FNN pairs index in cintyp in PINQ
+         jq=mqmqa_data%pinq(mqmqa_data%contyp(6,ass))
+         if(jq.eq.jd) jq=mqmqa_data%pinq(mqmqa_data%contyp(7,ass))
+         qq1=jd
+         qq2=jq
+!         write(*,'(a,6i3)')'3X ass, sep, sum 1:',ass,qq1,qq2
+      elseif(mqmqa_data%contyp(5,jd).eq.0) then
+! jd is the cluster, id is interaction endmember WRONG
+         ass=jd
+         jq=mqmqa_data%pinq(mqmqa_data%contyp(6,ass))
+         if(jq.eq.id) jq=mqmqa_data%pinq(mqmqa_data%contyp(7,ass))
+         qq1=id
+         qq2=jq
+!         write(*,'(a,6i3)')'3X ass, sep, sum 2:',ass,qq1,qq2
+      else
+! Interactions are only between clusters AB/X and endmembers A/X or B/X
+         write(*,*)'3X interaction between two endmembers illegal'
+         gx%bmperr=4399; goto 1000
+      endif
+!      write(*,430)'3X interaction: ',id,jd,jq,qq1,qq2,ass,&
+!           phres%yfr(id),phres%yfr(jd),phres%yfr(jq)
+430   format(a,3i3,1x,3i3,3x,3(1pe12.4))
+!------------------------------------- extract parameter value
+      proprec=>intrec%propointer
+      typty=proprec%proptype
+      if(typty.ne.1) stop 'illegal typty in mqmqa model'
+      ipy=1
+! several powers  we must loop here -------------- not yet done
+!      if(proprec%degree.gt.0) write(*,*)'3X degree: ',proprec%degree
+      mpow=0
+700   continue
+! first power is in link 0
+      lokfun=proprec%degreelink(mpow)
+      mpow=mpow+1
+      if(mpow.gt.9) then
+         write(*,*)'3X too high interaction power'
+         gx%bmperr=4399; goto 1000
+      endif
+! some powers may not have a parameter, max 9.  If no function loop
+      if(lokfun.le.0) goto 700
+      call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
+      if(gx%bmperr.ne.0) goto 1000
+!      write(*,'(a,3i4,6(1Pe12.4))')'3X excess1:',lokfun,mqmqj,mpow,vals(1)
+      if(ipy.eq.1) then
+! Nath has implemented this half in the converter
+         vals=vals/rtg
+      endif
+! skip excess 1
+!      cycle endmemloop2
+!----------------------- multiply with fractions
+! the parameter should be multiplied with cluster fractions and
+! the separate endmember qq1 fraction normalized 
+      sumx=phres%yfr(qq1)+phres%yfr(qq2)+phres%yfr(ass)
+      ksi=phres%yfr(qq1)/sumx
+! here the fraction product is calculated
+!      write(*,650)ass,qq1,qq2,mpow,ksi,phres%yfr(ass),pyq,vals(1)*rtg
+650   format('3X excess: ',4i3,6(1pe12.4))
+      if(mpow.eq.1) then
+         pyq=phres%yfr(ass)*ksi
+! most of the derivatives of pyq is zero
+         dpyq=zero
+         dsumx=-sumx**(-2)
+! only those involving id, jd and jq are nonzero.
+! the species qq1, qq2 and ass has one more term, qq2 is only in the sumx
+         dpyq(qq1)=pyq*dsumx+phres%yfr(ass)/sumx
+         dpyq(qq2)=pyq*dsumx
+         dpyq(ass)=pyq*dsumx+ksi
+      else
+         pyq=phres%yfr(ass)*(ksi**mpow)
+         dpyq=zero
+         dsumx=-mpow*sumx**(-mpow-1)
+         dpyq(qq1)=pyq*dsumx+mpow*phres%yfr(ass)*ksi**(mpow-1)
+         dpyq(qq2)=pyq*dsumx
+         dpyq(ass)=pyq*dsumx+ksi*mpow
+      endif
+!      write(*,'(a,2(1pe14.6))')'3X excess G:',pyq,pyq*vals(1)
+! skip excess 2
+!      cycle endmemloop2
+!
+! ---------------------------------
+! add to G and first derivatives of G, ipy is property, ipy=1 is G
+! 2nd derivatives ignored
+! ---------------------------------
+      do s1=1,gz%nofc
+         do itp=1,3
+            phres%dgval(itp,s1,ipy)=phres%dgval(itp,s1,ipy)+&
+                 dpyq(s1)*vals(itp)
+         enddo
+      enddo
+      do itp=1,6
+         phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
+      enddo
+! maybe several fraction powers of this property
+!      write(*,*)'3X several powers? ',mpow,proprec%degree
+      if(mpow.lt.proprec%degree) goto 700
+!------------- next property for same interaction,
+! each property can have different number of powers
+      proprec=>proprec%nextpr
+      if(associated(proprec)) then
+! more than one property ... not implemented
+         write(*,*)'3X MQMQA parameter with several propertyes!',mqmqj
+      endif
+      if(associated(intrec%highlink)) then
+! a higher interaction ... not allowed
+         write(*,*)'3X ternary MQMQA parameters not implemented',mqmqj
+      endif
+      intrec=>intrec%nextlink
+      if(associated(intrec)) then
+! There can be more than one interaction linked from an endmember
+         write(*,*)'3X more binary interaction for this endmember',mqmqj
+         goto 600
+      endif
+!      write(*,*)'3X done excess for endmember',mqmqj
+! next endmember .... is set at the beginning
+   enddo endmemloop2
+!----------------------------------------------------- end SNN loop
+800 continue
+!   write(*,990)'3X exit calc_mqmqa G:',phres%gval(1,1),&
+!        (phres%dgval(1,s1,1),s1=1,gz%nofc)
+990 format(a,5(1pe14.6))
+1000 return
+ end subroutine calc_mqmqa
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine setendmemarr
+!\begin{verbatim}
+ subroutine setendmemarr(lokph,ceq)
+! stores the pointers to all ordered and disordered endmemners in arrays
+! intended to allow parallel calculation of parameters
+! UNUSED ??
+   implicit none
+   integer lokph
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer ll,nz,noemr
+   TYPE(gtp_endmember), pointer :: emrec
+   TYPE(gtp_fraction_set), pointer :: disfraset
+   if(allocated(phlista(lokph)%oendmemarr)) then
+      deallocate(phlista(lokph)%oendmemarr)
+! allways allocate place for maximum endmembers (product of constituents)
+      nz=1
+      do ll=1,phlista(lokph)%noofsubl
+         nz=nz*phlista(lokph)%nooffr(ll)
+      enddo
+      allocate(phlista(lokph)%oendmemarr(nz))
+      noemr=0
+      emrec=>phlista(lokph)%ordered
+      do while(associated(emrec))
+         noemr=noemr+1
+         phlista(lokph)%oendmemarr(noemr)%p1=>emrec
+         emrec=>emrec%nextem
+      enddo
+      phlista(lokph)%noemr=noemr
+   endif
+! same for disordered endmembers (if any)
+! Data for this is stored in phase_varres record, same index as phlista !!!
+   if(allocated(phlista(lokph)%dendmemarr)) then
+      deallocate(phlista(lokph)%dendmemarr)
+! allways allocate place for maximum endmembers (product of constituents)
+      disfraset=>ceq%phase_varres(lokph)%disfra
+      nz=1
+      do ll=1,disfraset%ndd
+         nz=nz*disfraset%nooffr(ll)
+      enddo
+      allocate(phlista(lokph)%dendmemarr(nz))
+      noemr=0
+      emrec=>phlista(lokph)%disordered
+      do while(associated(emrec))
+         noemr=noemr+1
+         phlista(lokph)%dendmemarr(noemr)%P1=>emrec
+         emrec=>emrec%nextem
+      enddo
+      phlista(lokph)%ndemr=noemr
+   endif
+1000 continue
+   return
+ end subroutine setendmemarr
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine tabder
+!\begin{verbatim}
+ subroutine tabder(iph,ics,times,ceq)
+! tabulate derivatives of phase iph with current constitution and T and P
+   implicit none
+   integer iph,ics,times
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   character name*24
+   double precision kappa,napfu,t,p,rtg,g,v,s,h,u,f,cp,alpha,cpu1,cpu2
+   integer tnk,lokph,nsl,lokres,lokcs,ll,ll2,kk1,kk2,kk3,kk4,loksp
+!
+! For time measurements
+!   lokph=len(name)
+   lokph=phases(iph)
+   nsl=phlista(lokph)%noofsubl
+! calculate G and derivatives, lokres returns index of phase_varres
+   call cpu_time(cpu1)
+   do loksp=1,times
+      call calcg(iph,ics,2,lokres,ceq)
+      if(gx%bmperr.ne.0) then
+         goto 1000
+      endif
+   enddo
+   call cpu_time(cpu2)
+! number of moles of atoms per formula unit
+   napfu=ceq%phase_varres(lokres)%abnorm(1)
+   T=ceq%tpval(1)
+   P=ceq%tpval(2)
+   rtg=globaldata%rgas*T
+   lokcs=lokres
+! returned values: G, G.T=-S, G.P=V, G.T.T=-Cp/T G.T.P=V*alpha, G.P.P=-V*kappa
+! all divided by RT and per mole formula unit of phase
+! G=H-TS, F=U-TS, H=U+PV, S=-G.T, V=G.P
+! H=G+TS=G-T*G.T, U=H-PV=(G-T*G.T)-P*G.P, CP=-T*G.T.T
+! alpha= 1/V*V.T = G.T.P/V, kappa = -1/V*V.P = -G.P.P/V
+   G=rtg*ceq%phase_varres(lokcs)%gval(1,1)
+!    write(*,5)'3X tabder 2: ',rtg,G
+   S=-rtg*ceq%phase_varres(lokcs)%gval(2,1)
+   V=rtg*ceq%phase_varres(lokcs)%gval(3,1)
+   H=G+T*S
+   U=H-P*V
+   F=U-T*S
+   CP=-T*rtg*ceq%phase_varres(lokcs)%gval(4,1)
+   if(V.ne.zero) then
+      alpha=rtg*ceq%phase_varres(lokcs)%gval(5,1)/V
+      kappa=rtg*ceq%phase_varres(lokcs)%gval(6,1)/V
+   else
+      alpha=zero
+      kappa=zero
+   endif
+   write(kou,100)napfu,rtg,T,P,G,G/rtg
+100 format(/'Per mole FORMULA UNIT of the phase, ',1pe12.4,' atoms/F.U., RT=',&
+         1pe15.7/&
+         'at T= ',0pF8.2,' K and P= ',1PE13.6,' Pa',8x,'SI units',9x,'/RT'/ &
+         'Gibbs energy J/FU  ',28('.'),1Pe16.8,e16.7)
+   write(kou,102)F,F/rtg,H,H/rtg,U,U/rtg,S,S/rtg,V,V/rtg,&
+        CP,CP/rtg,alpha,alpha/rtg,kappa,kappa/rtg
+102 format('Helmholtz energy J/FU  ',24('.'),1PE16.8,e16.7 &
+        /'Enthalpy J/FU  ',32('.'),1PE16.8,e16.7 &
+        /'Internal energy J/FU  ',25('.'),1PE16.8,e16.7 &
+        /'Entropy J/FU/K  ',31('.'),1PE16.8,e16.7 &
+        /'Volume m3/FU ',34('.'),1PE16.8,e16.7 &
+        /'Heat capacity J/FU/K  ',25('.'),1PE16.8,e16.7 &
+        /'Thermal expansion 1/K ',25('.'),1PE16.8,e16.7 &
+        /'Bulk modulus m2/N ',29('.'),1PE16.8,e16.7)
+   tnk=phlista(lokph)%tnooffr
+   ll=1
+   kk1=0
+   kk2=phlista(lokph)%nooffr(ll)
+   dy1loop: do while(kk1.le.tnk)
+      kk1=kk1+1
+      if(kk1.gt.kk2) then
+!          write(*,11)'3X tabder 2: ',kk1,kk2,ll,tnk,nsl
+!11 format(a,10i3)
+         ll=ll+1
+         if(ll.gt.nsl) exit
+         kk2=kk2+phlista(lokph)%nooffr(ll)
+      endif
+      if(phlista(lokph)%nooffr(ll).eq.1) then
+!          write(*,*)'3X tabder 1: ',kk1,kk2,ll,tnk
+         ll=ll+1
+         if(ll.gt.nsl) exit
+         kk2=kk2+phlista(lokph)%nooffr(ll)
+         cycle
+      endif
+      loksp=phlista(lokph)%constitlist(kk1)
+      name=splista(loksp)%symbol
+      write(kou,110)name(1:len_trim(name)),ll
+110 format('First partial derivative with respect to ',a,&
+        ' in sublattice ',i2,' of')
+      write(kou,120)rtg*ceq%phase_varres(lokcs)%dgval(1,kk1,1),&
+           ceq%phase_varres(lokcs)%dgval(1,kk1,1),&
+           rtg*(ceq%phase_varres(lokcs)%dgval(1,kk1,1)-&
+           T*ceq%phase_varres(lokcs)%dgval(2,kk1,1)),&
+           ceq%phase_varres(lokcs)%dgval(1,kk1,1)-&
+           T*ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
+           rtg*ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
+           ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
+           rtg*ceq%phase_varres(lokcs)%dgval(3,kk1,1),&
+           ceq%phase_varres(lokcs)%dgval(3,kk1,1)
+120    format(5x,'G ',40('.'),1PE16.8,e16.7, &
+           /5x,'H ',40('.'),1PE16.8,e16.7, &
+           /5x,'G.T ',38('.'),1PE16.8,e16.7, &
+           /5x,'G.P ',38('.'),1PE16.8,e16.7)
+      kk3=kk1
+      kk4=kk2
+      ll2=ll
+      write(kou,150)
+150 format(5x,'Second partial derivative of Gibbs energy with respect to also')
+      dy2loop: do while(kk3.le.tnk)
+         if(phlista(lokph)%nooffr(ll2).gt.1) then
+!            write(kou,160)name(1:len_trim(name)),ll2, &
+            write(kou,160)name,ll2, &
+                 rtg*ceq%phase_varres(lokcs)%d2gval(ixsym(kk1,kk3),1),&
+                 ceq%phase_varres(lokcs)%d2gval(ixsym(kk1,kk3),1)
+160          format(10x,a,'   in ',i2,5('.'),1PE16.8,e16.7)
+         endif
+         kk3=kk3+1
+         if(kk3.le.tnk) then
+            loksp=phlista(lokph)%constitlist(kk3)
+            name=splista(loksp)%symbol
+         endif
+         if(kk3.gt.kk4) then
+            ll2=ll2+1
+            if(ll2.gt.nsl) exit
+            kk4=kk4+phlista(lokph)%nooffr(ll2)
+         endif
+      enddo dy2loop
+!       write(*,*)'3X tabder 7A: ',kk1,kk2
+   enddo dy1loop
+900 continue
+   if(times.gt.1) then
+      write(*,11)times,cpu2-cpu1,1.0D6*(cpu2-cpu1)/dble(times)
+11    format('CPU times for ',i6,' calculations: ',1pe15.7,' s, ',1pe15.7,' ms')
+   endif
+!    write(*,*)'3X tabder 7B: ',kk2
+!    write(*,*)'3X tabder: ',rtg,rtg*phase_varres(lokcs)%gval(1,1)
+1000 continue
+   return
+ end subroutine tabder
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine calc_toop
+! called from subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
+!\begin{verbatim}
+ subroutine calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
+! Handle a binary interaction that is in a Toop or Kohler model
+! toop is the link to the kohler-Toop record
+! We come here only if the parameter is composition dependent using RK series
+   implicit none
+   integer moded,lokph
+   TYPE(gtp_property), pointer :: lokpty
+   TYPE(gtp_parcalc) :: gz
+   double precision vals(6),dvals(3,gz%nofc)
+   double precision d2vals(gz%nofc*(gz%nofc+1)/2)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_tooprec), pointer :: toopx
+!\end{verbatim}
+! we need to save this pointer from toopx
+   TYPE(gtp_phase_varres), pointer :: phres
+! fraction values to be used in RK series
+   double precision x12,x21,sigma,dxrk
+   integer, allocatable, dimension(:) :: dsigma, dx12, dx21
+! ternary fraction index
+   integer jj(3),j1,j2,j3,link,count,toopconst,limit,jdeg,lfun,nyfr
+! for the RK calculation with Toop/Kohler fractions!
+   double precision valtp(6)
+   double precision dx,dx0,dx1,dx2,dxi,dxj,fff,rtg
+! The first part here is to modify the fractions to be used in the RK series
+! the gz record has information which elements involved
+! gz%iq(1) and gz%iq(2) are index of the binary constituents
+! We must also handle first and second derivatives wrt all fractions.
+! we come here from a binary interaction recird but we may have to follow
+! links to several other toopx records with other third elements.
+! Use the phres passed on via toopx%phres if there are more toopx records
+   phres=>toopx%phres
+!
+   write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
+10 format('3X in calc_toop with binary; degree:',2i3,'; ',i2,2x,20('<'))
+! note vals, dvals and d2vals hare zero here
+   rtg=gz%rgast
+   if(lokpty%degree.eq.0) then
+! quick exit if no composition dependence
+      lfun=lokpty%degreelink(0)
+      call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
+      if(gx%bmperr.ne.0) goto 1000
+      if(lokpty%proptype.eq.1) then
+         valtp=valtp/rtg
+      endif
+! this is multiplied with y_i y_j (and derivatives) at the return
+      vals=vals+valtp
+      goto 1000
+   endif
+! We have to calculate the reduced fractions
+   nyfr=size(phres%yfr)
+   allocate(dsigma(nyfr))
+   allocate(dx12(nyfr))
+   allocate(dx21(nyfr))
+! max number of binaries ...
+   limit=nyfr*(nyfr-1)
+! initially dsigma is set to 1, i.e. derivatives with respect to all
+! constituents.  Those subtracted will be set to zero
+   dsigma=one; dx12=0; dx21=0
+   sigma=one
+   x12=phres%yfr(gz%iq(1))
+   x21=phres%yfr(gz%iq(2))
+   dx12(gz%iq(1))=1
+   dx21(gz%iq(2))=1
+! This is the RK Muggianu fraction difference
+   dxrk=x12-x21
+   count=0
+!-----------------------------------------------------------------
+! See gtp documentation, Appendix A for the algorithm used here
+!-----------------------------------------------------------------
+   method: do while(associated(toopx))
+! we may have several Toop/Kohler ternary methods for this binary
+      count=count+1
+      if(count.gt.limit) then
+! something wrong in the data structure, eternal loop!
+         write(*,*)'3X data structure error 1 in calc_toop',count
+         gx%bmperr=4399; goto 1000
+      endif
+! in the toopx record there are indices of the fractions needed   
+!     integer toop,const1,const2,const3,extra,uniqid
+! Note const1 < const2 < const3; toop is 1, 2 or 3
+      jj(1)=toopx%const1
+      jj(2)=toopx%const2
+      jj(3)=toopx%const3
+      toopconst=0
+      if(toopx%toop.gt.0) toopconst=jj(toopx%toop)
+      write(*,30)count,toopconst,jj,toopx%uniqid
+30    format('3X Ternary method record:',i2,', T/K: ',i1,5x,3i3,', ID: ',i2)
+! we have to figure out which constituent is neither gx%iq(1) or iq(2)
+! and we have find the idex for thr next toopx record (if any).
+! The toopx record is linked from all 3 binaries and there can be links from
+! this record that must be followed.  The constituents are in increasing order 
+! Could this be simplified using select case ??
+      ett: if(jj(1).eq.gz%iq(1)) then
+         tva: if(jj(2).eq.gz%iq(2)) then
+!---------------------------------------------------------------
+! we are dealing with the binary: 1-2, any link to next is next12
+!            link=1
+            toopx=>toopx%next12
+            if(toopconst.eq.0) then
+! the binary 1-2 is a Kohler extrapolation ftom 3
+! There is no derivative in dsigma with respect to this constituent
+               sigma=sigma-phres%yfr(jj(3))
+               dsigma(jj(3))=0
+            elseif(toopconst.eq.jj(1)) then
+! constituent 1 is a Toop element in 1-2-3
+               x21=x21+phres%yfr(jj(3))
+               dx21(jj(3))=1
+            elseif(toopconst.eq.jj(2)) then
+! constituent 2 is a Toop element in 1-2-3
+               x12=x12+phres%yfr(jj(3))
+               dx12(jj(3))=1
+            endif
+! if toopconst.eq.jj(3) do nothing
+         elseif(jj(3).eq.gz%iq(2)) then
+!---------------------------------------------------------------
+! we are dealing with the binary: 1-3, any link to next is next13
+!            link=2
+            toopx=>toopx%next13
+            if(toopconst.eq.0) then
+! the binary 1-3 is a Kohler extrapolation ftom 2
+! There is no derivative in dsigma with respect to this constituent
+               sigma=sigma-phres%yfr(jj(2))
+               dsigma(jj(2))=0
+            elseif(toopconst.eq.jj(1)) then
+! constituent 1 is a Toop element in 1-2-3
+               x21=x21+phres%yfr(jj(2))
+               dx21(jj(2))=1
+            elseif(toopconst.eq.jj(3)) then
+! constituent 2 is a Toop element in 1-2-3
+               x12=x12+phres%yfr(jj(2))
+               dx12(jj(2))=1
+            endif
+! if toopconst.eq.jj(2) do nothing
+         else
+! something is wrong in the data structure
+            write(*,*)'3X data structure error 2 in calc_toop'
+            gx%bmperr=4399; exit method
+         endif tva
+      elseif(jj(2).eq.gz%iq(1)) then
+!---------------------------------------------------------------
+! we are dealing with the binary: 2-3, any link is next23
+!         link=3
+         toopx=>toopx%next23
+         if(toopconst.eq.0) then
+! the binary 2-3 is a Kohler extrapolation ftom 1
+! There is no derivative in dsigma with respect to this constituent
+            sigma=sigma-phres%yfr(jj(1))
+            dsigma(jj(1))=0
+         elseif(toopconst.eq.jj(2)) then
+! constituent 2 is a Toop element in 1-2-3
+            x21=x21+phres%yfr(jj(1))
+            dx21(jj(1))=1
+         elseif(toopconst.eq.jj(3)) then
+! constituent 3 is a Toop element in 1-2-3
+            x12=x12+phres%yfr(jj(1))
+            dx12(jj(1))=1
+         endif
+! if toopconst.eq.jj(1) do nothing
+      else
+! something wrong in the data structure
+         write(*,*)'3X data structure error 3 in calc_toop'
+         gx%bmperr=4399; exit method
+      endif ett
+!-----------------------------------------------------
+! if toopx associated here extract information from that ternary method
+! if toopx not associated exit here
+   enddo method
+! when we come here when we calculated x12, x21 and sigma
+   write(*,50)'3X done:   ',x12,x21,sigma,(x12-x21)/sigma,dxrk
+50 format(a,9F8.4)
+51 format(a,9i8)
+   write(*,50)'3X yfr:    ',phres%yfr
+   write(*,51)'3X dsigma: ',dsigma
+   write(*,51)'3X dx12:   ',dx12
+   write(*,51)'3X dx21:   ',dx21
+! Now we use (x12-x21)/sigma in the RK series ...   
+! derivatives of fractions in dx12, dx21 and dsigma
+   dx0=(x12-x21)/sigma
+   rtg=globaldata%rgas*ceq%tpval(1)
+   dx=one
+   dx1=zero
+   dx2=zero
+   RK: do jdeg=0,lokpty%degree
+      lfun=lokpty%degreelink(jdeg)
+      call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
+      if(gx%bmperr.ne.0) goto 1000
+      if(lokpty%proptype.eq.1) then
+         valtp=valtp/rtg
+      endif
+! the integral property values
+      vals=vals+dx*valtp
+      write(*,71)'3X toop: ',jdeg,gz%iq(1),gz%iq(2),nyfr,vals(1),dx,valtp(1)
+71    format(a,4i2,6(1pe12.4))
+      dercal1:if(moded.gt.0) then
+         if(jdeg.gt.0) then
+            ktloop1: do j1=1,nyfr
+! derivatives with respect to all constituents!!
+! dxij, dxji and dsigma non-zero for the relevant constituents!
+! This must be exact!!!
+               fff=(dx12(j1)-dx21(j1)-dx0*dsigma(j1)/sigma)
+               write(*,8)'3X fff1:',j1,dx12(j1),dx12(j1),dsigma(j1),dx0,dx1,dx2
+8              format(a,4i3,3(1pe12.4))
+               dvals(1,j1)=dvals(1,j1)+fff*dx1*valtp(1)
+               dvals(2,j1)=dvals(2,j1)+fff*dx1*valtp(2)
+               dvals(3,j1)=dvals(3,j1)+fff*dx1*valtp(3)
+               dercal2: if(moded.gt.1) then
+                  ktloop2: do j2=j1,nyfr
+! 2nd derivatives wrt j1 and j2 using dx12(), dx21() and dsigma()
+! This need only to be approximate ...
+                     fff=dsigma(j1)*(-dx12(j2)+dx21(j2)+dx0*dsigma(j2))/sigma**2
+                     write(*,8)'3X fff2:',j1,j2,0,0,fff
+                     d2vals(ixsym(j1,j2))=d2vals(ixsym(j1,j2))+fff*dx2*valtp(1)
+                  enddo ktloop2
+               endif dercal2
+            enddo ktloop1
+         endif
+      endif dercal1
+      dx2=(jdeg+1)*dx1
+      dx1=(jdeg+1)*dx0
+      dx=dx*dx0
+      write(*,'(a,i2,4(1pe12.4))')'3X dx etc:',jdeg,dx0,dx,dx1,dx2
+   enddo RK
+!      
+1000 continue
+   write(*,1001)vals,(dvals(1,j1),j1=1,nyfr),d2vals
+1001 format('3X KT: ',6(1pe11.3)/7x,6(1pe11.3)/7x,6(1pe11.3))
+! Normally only derivatives wrt gz%iq(1) and gz%gq(2) but with Kohler/Toop
+! there can be derivatives wrt any constituent in the same sublattice
+   return
+ end subroutine calc_toop
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!

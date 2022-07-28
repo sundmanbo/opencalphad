@@ -2,7 +2,9 @@
 ! gtp3Z included in gtp3.F90
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!>        18. Section: TP functions 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!
 !***************************************************************
 ! library with TP functions used by general thermodynamic package
 !
@@ -3172,7 +3174,7 @@
 !114            format(a,i5,2x,a,i5,2x,a)
 ! set T power to -8; this will be converted to 0.5 when writing !!!
                cfun1%tpows(i2,i1b)=-8
-               write(*,*)'3Z sqrt coeff: ',cfun1%coefs(i2,i1b)
+!               write(*,*)'3Z sqrt coeff: ',cfun1%coefs(i2,i1b)
                isqrt=.true.
                skipnext=.true.
             elseif(funref.ne.-2) then
@@ -3589,7 +3591,7 @@
 ! skipping this loop
    if(krange.ne.nrange) then
       write(*,*)'3Z *** Check function: ',tpfuns(lfun)%symbol,nrange,krange
-      call tpwrite('w3',0,1,ctp3)
+!      call tpwrite('w3',0,1,ctp3)
    endif
 ! We need to know which range in ctp1 we should store ctp3 .... krange!!
 ! to handle problems with G(LIQ,U+4:O-2) parameter

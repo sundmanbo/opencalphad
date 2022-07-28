@@ -51,8 +51,8 @@ enter opt_coef
 @$ enter the phases and parameters
 @$----------------------------------------------------------------
 
-enter element CU Cupper FCC_A1      6.3546E+01  5.0041E+03  3.3150E+01 2
-enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
+enter element CU Cupper FCC_A1      6.3546E+01  5.0041E+03  3.3150E+01
+enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01
  
 @$ OC requires that functions are in calling order here
  ent tp GHSERCU fun 298.15 -7770.458+130.485235*T-24.112392*T*LN(T)

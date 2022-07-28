@@ -6,7 +6,7 @@
 ! accessable externally
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!>     1. Initialization
+!>     1. Section: initialization and reinitiate
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !CCI
 !\addtotable subroutine initialize_default_global_parameters
@@ -564,8 +564,381 @@ end subroutine initialize_default_global_parameters
    return
  end subroutine assessmenthead
 
+!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!
+
+!\addtotable subroutine new_gtp
+!\begin{verbatim}
+ subroutine new_gtp
+!
+! DELETES ALL DATA so a new TDB file can be read
+!
+! this is needed before reading a new unformatted file (or same file again)
+! we must go through all records and delete and deallocate each
+! separately.  Very similar to gtpread
+   implicit none 
+!\end{verbatim}
+   integer isp,j,nel,intv(10),k
+   double precision dblv(10)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   type(gtp_phase_varres), pointer :: phdyn
+!   TYPE(gtp_fraction_set) :: fslink
+!   write(*,*)'3E Testing segmentation error in new_gtp'
+   if(ocv()) write(*,*)'3E Removing current data'
+!---------- elementlist, no need to delete, just deallocate below
+!>>>>> 2:
+!---------- specieslist, we have to deallocate ?? maybe not ??
+!>>>>> 3:
+   if(btest(globaldata%status,GSNODATA)) then
+      if(ocv()) write(*,*)'3E No thermodynamic data to delete'
+      goto 600
+   endif
+   if(gtp_species_version.ne.2) then
+      write(*,17)'3E *** ERROR species',1,gtp_species_version
+17    format(a,' record version error: ',2i4)
+      gx%bmperr=4300; goto 1000
+   endif
+   ceq=>firsteq
+!   write(*,*)'3E No segmentation error A'
+   do isp=1,noofsp
+      nel=splista(isp)%noofel
+      deallocate(splista(isp)%ellinks)
+      deallocate(splista(isp)%stoichiometry)
+      if(allocated(splista(isp)%spextra)) deallocate(splista(isp)%spextra)
+   enddo
+!---------- phases, many records, here we travese all endmembers etc
+!>>>>> 4
+!   write(*,*)'3E No segmentation error B'
+!   if(gtp_phase_version.ne.1) then
+!      write(*,17)'3E **** ERROR phase',1,gtp_phase_version
+!      gx%bmperr=4302; goto 1000
+!   endif
+!   if(gtp_endmember_version.ne.1) then
+!      write(*,17)'3E **** ERROR endmember',1,gtp_endmember_version
+!      gx%bmperr=4302; goto 1000
+!   endif
+!   if(gtp_interaction_version.ne.1) then
+!      write(*,17)'3E **** ERROR interaction',1,gtp_interaction_version
+!      gx%bmperr=4302; goto 1000
+!   endif
+!   if(gtp_property_version.ne.1) then
+!      write(*,17)'3E **** ERROR property',1,gtp_property_version
+!      gx%bmperr=4302; goto 1000
+!   endif
+   do j=0,noofph
+      call delphase(j)
+      if(gx%bmperr.ne.0) goto 1000
+   enddo
+!   write(*,*)'3E No segmentation error C1'
+!----------- jump here if no thermodynamic data
+600 continue
+!---------- equilibrium records
+!>>>>> 50: equilibrium records
+!   call delete_equil(ceq)
+!   do j=1,noofeq
+! this loop was added in an attempt to get rid of an error occuring with
+! 64 bit version, the TP functions was not cleared correctly
+   do j=1,eqfree-1
+      ceq=>eqlista(j)
+      deallocate(ceq%svfunres)
+!      write(*,*)'3E No segmentation error C2',j
+      deallocate(ceq%eq_tpres)
+!      write(*,*)'3E No segmentation error C3',j
+      deallocate(ceq%complist)
+!      write(*,*)'3E No segmentation error C4',j
+      deallocate(ceq%compstoi)
+!      write(*,*)'3E No segmentation error C5',j
+      deallocate(ceq%invcompstoi)
+!      write(*,*)'3E No segmentation error C6',j
+! remove valgrind memory leak for conditions
+      call delete_all_conditions(0,ceq)
+! clean upp phase_varres records
+      do k=1,size(ceq%phase_varres)
+         phdyn=>ceq%phase_varres(k)
+         if(allocated(phdyn%gval)) then
+            deallocate(phdyn%gval)
+            deallocate(phdyn%dgval)
+            deallocate(phdyn%d2gval)
+!            write(*,*)'3E No segmentation error C7',j,k
+         endif
+! deallocate mqmqa arrays
+         if(allocated(phdyn%mqmqaf%yy1)) then
+            write(*,*)'3E deallocating phase_varres%mqmqaf arrays'
+! these arrays allocated in gtp3X.F90
+            deallocate(phdyn%mqmqaf%yy1)
+            deallocate(phdyn%mqmqaf%dyy1)
+            deallocate(phdyn%mqmqaf%d2yy1)
+            deallocate(phdyn%mqmqaf%yy2)
+            deallocate(phdyn%mqmqaf%dyy2)
+            deallocate(phdyn%mqmqaf%d2yy2)
+            deallocate(phdyn%mqmqaf%ceqf1)
+            deallocate(phdyn%mqmqaf%dceqf1)
+            deallocate(phdyn%mqmqaf%ceqf2)
+            deallocate(phdyn%mqmqaf%dceqf2)
+            deallocate(phdyn%mqmqaf%pair)
+            deallocate(phdyn%mqmqaf%dpair)
+            phdyn%mqmqaf%nquad=0
+         endif
+! set phstate and phlink to zero to avoid segmentation fault when plotting
+! after several MAP or STEP commands with different composition sets
+         phdyn%phstate=0
+         phdyn%phlink=0
+      enddo
+!      write(*,*)'3E No segmentation error C8',j
+!      deallocate(ceq%phase_varres)
+   enddo
+!   write(*,*)'3E No segmentation error D1'
+! I am not sure if this really releases all memory, how to check .... ???
+!   call deallocate_gtp(intvar,dblvar)
+   deallocate(eqlista)
+!   write(*,*)'3E No segmentation error D2'
+!------- deallocate elements, species and phases, will be allocated in init_gtp
+   deallocate(ellista)
+   deallocate(elements)
+!   do k=1,noofsp
+!      deallocate(splista(k)%ellinks)
+!   enddo
+   deallocate(splista)
+   deallocate(species)
+   deallocate(phlista)
+   deallocate(phases)
+   deallocate(phasetuple)
+!   write(*,*)'3E No segmentation error E'
+!------ tpfunction expressions and other lists
+!>>>>> 20: delete tpfuns
+!   write(*,*)'3E Delete TP funs, just deallocate??',freetpfun
+!   call delete_all_tpfuns
+! I do not think this deletes anything ... tpfuns is an array of pointers ...
+   call tpfun_deallocate
+   if(gx%bmperr.ne.0) then
+      write(*,*)'3E **** ERROR deleting TP functions'
+   endif
+!   write(*,*)'3E Back from deleting all TP funs, this is fun!!'
+!------ tpfunction expressions and other lists
+!>>>>> 30: delete state variable functions
+   deallocate(svflista)
+!   write(*,*)'3E No segmentation error F'
+!   call delete_svfuns
+!---------- delete bibliographic references
+!>>>>> 40: references
+   deallocate(bibrefs)
+!   call delete_biblio
+!------ parameter property records
+   deallocate(propid)
+!------ other things such as mqmq_data arrays
+   if(allocated(mqmqa_data%contyp)) then
+      deallocate(mqmqa_data%contyp)
+      deallocate(mqmqa_data%constoi)
+      deallocate(mqmqa_data%totstoi)
+      mqmqa_data%nconst=0
+      mqmqa_data%ncon1=0
+      mqmqa_data%ncon2=0
+      mqmqa_data%npair=0
+   endif
+   if(allocated(mqmqa_data%pinq)) then
+      deallocate(mqmqa_data%pinq)
+   endif
+! these are allocated here and there, if error reading database some may not be
+   if(allocated(mqmqa_data%qfnnsnn)) then
+      deallocate(mqmqa_data%qfnnsnn)
+      deallocate(mqmqa_data%pp)
+   endif
+!   write(*,*)'3E No segmentation error G'
+!------ map results are deleted separately
+!   call delete_mapresults(maptop)
+!    deallocate( .... any more ???
+!---------------------------
+! now initiate all lists and a little more
+   if(ocv()) write(*,*)'3E All data structures will be reinitiated'
+! intv(1) negative means reinititate with same values as before
+!   intv(1)=-1
+!   write(*,*)'3E No segmentation error H', moved to pmon
+!   call init_gtp(intv,dblv)
+! after return firsteq must be initiated ... maybe it should be done here ??
+!
+! Problem when adding EEC, initialization does not work, why?
+! Maybe these need initiating?
+   globaldata%sysreal=zero
+   globaldata%sysparam=0
+!   write(*,*)'3E globaldata%encrypted: ',globaldata%encrypted
+! initiate Toop/Kohler record counter
+   uniqid=0
+!
+1000 continue
+   return
+ end subroutine new_gtp
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!>     2. Number of things
+
+!\addtotable subroutine deallocate_gtp
+!\begin{verbatim}
+ subroutine deallocate_gtp(intvar,dblvar)
+! deallocate the data structure
+   implicit none
+   integer allocatestatus
+   integer intvar(*)
+   double precision dblvar(*)
+!\end{verbatim}
+!   integer jl
+   write(*,*)'3A in deallocate_gtp'
+   deallocate(ellista, STAT = allocateStatus)
+   if (allocateStatus /= 0) then
+     write(kou,*) 'Error during deallocation of ellista'
+     goto 1000
+   else
+     write(kou,*) 'Deallocation of data ',  allocateStatus
+   endif
+!   flush(6)
+   deallocate(elements)
+! deallocate records for species
+   deallocate(splista)
+   deallocate(species)
+! deallocate records for phases
+   deallocate(phlista)
+   deallocate(phases)
+   deallocate(phasetuple)
+   deallocate(bibrefs)
+   deallocate(propid)
+   deallocate(eqlista)
+   deallocate(svflista)
+   write(*,*)'3A Deallocate TP funs'
+   call tpfun_deallocate
+!CCI added this
+   deallocate(firstash)
+1000 continue
+   return
+ END subroutine deallocate_gtp
+
+!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!
+
+!\addtotable subroutine delphase
+!\begin{verbatim}
+ subroutine delphase(lokph)
+! save data for phase at location lokph (except data in the equilibrium record)
+! For phases with disordered set of parameters we must access the number of
+! sublattices via firsteq
+   implicit none
+   integer lokph
+!\end{verbatim}
+   integer level,nsl,noendm
+   type(gtp_endmember), pointer :: emrec,nextem
+   type(gtp_interaction), pointer :: intrec,nextint
+   type(gtp_property), pointer :: proprec,nextprop
+! to keep track of interaction records
+   type saveint
+      type(gtp_interaction), pointer :: p1
+   end type saveint
+   type(saveint), dimension(:), pointer :: stack
+   type(gtp_phase_add), pointer :: addlink,nextadd
+!   write(*,*)'3E In delphase',lokph
+   allocate(stack(5))
+   nsl=phlista(lokph)%noofsubl
+!>>>>> 6:
+   deallocate(phlista(lokph)%nooffr)
+   deallocate(phlista(lokph)%constitlist)
+   emrec=>phlista(lokph)%ordered
+   noendm=0
+!>>>>> 6: sublattice info
+! we come back here if there are disordered parameters
+200 continue
+! there can be phases without any parameters ...
+   emlista: do while(associated(emrec))
+      proprec=>emrec%propointer
+      intrec=>emrec%intpointer
+      nextem=>emrec%nextem
+!>>>>> 7: after saving links deallocate endmember record with all its content
+!      write(*,*)'3E deallocate endmember record'
+      deallocate(emrec)
+! nextem do not need to be declared as target??
+      emrec=>nextem
+      emproplista: do while(associated(proprec))
+         nextprop=>proprec%nextpr
+!>>>>> 8: endmember property records
+! functions and references deallocated separately
+!         write(*,*)'3E deallocate endmember property record'
+         deallocate(proprec)
+         proprec=>nextprop
+      enddo emproplista
+! interaction tree
+      level=0
+300   continue
+      intlista: do while(associated(intrec))
+!>>>>> 9: interaction record
+         level=level+1
+         if(level.gt.5) then
+            gx%bmperr=4164; goto 1000
+         endif
+!         write(*,*)'3E Pushing ',level
+         stack(level)%p1=>intrec%nextlink
+         nextint=>intrec%highlink
+         proprec=>intrec%propointer
+!         write(*,*)'3E deallocate interaction record'
+         deallocate(intrec)
+         intproplista: do while(associated(proprec))
+            nextprop=>proprec%nextpr
+!>>>>> 10: interaction properties
+!            write(*,*)'3E deallocate interaction property record'
+            deallocate(proprec)
+            proprec=>nextprop
+         enddo intproplista
+         intrec=>nextint
+      enddo intlista
+! pop the link to next interaction if any
+      pop: if(level.gt.0) then
+!         write(*,*)'3E popping interaction record',level
+         intrec=>stack(level)%p1
+         nullify(stack(level)%p1)
+         level=level-1
+         goto 300
+      endif pop
+!---- next endmember
+      emrec=>nextem
+   enddo emlista
+! no more endmembers, check if the disordered (if any) has been written
+   if(noendm.eq.0) then
+! we do not have to care about that nsl is different ....
+!>>>>> 11: disordered endmembers
+!      write(*,*)'3E disordered endmembers'
+      emrec=>phlista(lokph)%disordered
+      noendm=1
+      goto 200
+   endif
+!   write(*,*)'3E finished parameter records'
+!------ additions list
+500 continue
+   addlink=>phlista(lokph)%additions
+   addition: do while(associated(addlink))
+!>>>>> 12: additions
+      nextadd=>addlink%nextadd
+      if(addlink%type.eq.1) then
+!>>>>> 12A: delete magnetic addition ...
+         deallocate(addlink%explink)
+         deallocate(addlink)
+      elseif(addlink%type.eq.7) then
+!>>>>> 12A: delete volume addition ...
+         deallocate(addlink)
+      else
+         write(*,*)'3E Cannot delete unknown addition type ',addlink%type
+      endif
+      addlink=>nextadd
+   enddo addition
+!   write(*,*)'3E phase location: ',lokph,size(phlista(lokph)%nooffr),&
+!        size(phlista(lokph)%constitlist)
+!   if(lokph.ne.0) then
+! problem with phases, cannot deallocate these arrays, why??
+!      deallocate(phlista(lokph)%nooffr)
+!      deallocate(phlista(lokph)%constitlist)
+!   endif
+   phlista(lokph)%noofcs=0
+   phlista(lokph)%nooffs=0
+!   write(*,*)'all done'
+1000 continue
+! remove valgrind leak
+   deallocate(stack)
+   return
+ end subroutine delphase
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!>     2. Section: number of things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable integer function noel
@@ -676,16 +1049,16 @@ end subroutine initialize_default_global_parameters
  end function nooftup
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!
 !\addtotable integer function noofphasetuples
 !\begin{verbatim} %-
- integer function noofphasetuples_old()
+! integer function noofphasetuples_old()
 ! number of phase tuples REDUNDANT !!
 !\end{verbatim}
-   noofphasetuples_old=nooftuples
-   return
- end function noofphasetuples_old
-
+!   noofphasetuples_old=nooftuples
+!   return
+! end function noofphasetuples_old
+!
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable integer function nosvf
@@ -746,7 +1119,7 @@ end subroutine initialize_default_global_parameters
  end function nonsusphcs
  
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-!>     3. Find things
+!>     3. Section: find things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine find_element_by_name
@@ -1323,138 +1696,6 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine findeq
-!\begin{verbatim}
- subroutine findeq(name,ieq)
-! finds the equilibrium with name "name" and returns its index
-! ieq should be the current equilibrium
-   implicit none
-   character name*(*)
-   integer ieq
-!\end{verbatim} %+
-   character name2*64
-   integer jeq
-   name2=name
-   call capson(name2)
-! Accept abbreviations of PREVIOUS and FIRST (DEFAULT is the same as the first)
-   jeq=0
-   if(compare_abbrev(name2,'PREVIOUS ')) then
-      jeq=max(1,ieq-1); goto 200
-   elseif(compare_abbrev(name2,'FIRST ')) then
-      jeq=1; goto 200
-   elseif(compare_abbrev(name2,'DEFAULT ')) then
-      jeq=1; goto 200
-!   elseif(compare_abbrev(name2,'LAST ')) then
-!      jeq=1; goto 200
-   endif
-100 jeq=jeq+1
-!    write(*,*)'findeq 2: ',jeq,name2
-   if(jeq.ge.eqfree) then
-      gx%bmperr=4124
-      goto 1000
-   endif
-!    write(*,*)'findeq 3: ',jeq,eqlista(jeq)%eqname
-   if(.not.compare_abbrev(name2,eqlista(jeq)%eqname)) goto 100
-!    if(eqlista(jeq)%eqname.ne.name2) goto 100
-200 continue
-   ieq=jeq
-1000 continue
- end subroutine findeq
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable subroutine selecteq
-!\begin{verbatim} %-
- subroutine selecteq(ieq,ceq)
-! checks if equilibrium ieq exists and if so set it as current
-   implicit none
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   integer ieq
-!\end{verbatim}
-   if(ieq.lt.0 .or. ieq.ge.eqfree) then
-      gx%bmperr=4124
-      goto 1000
-   endif
-   ceq=>eqlista(ieq)
-1000 continue
- end subroutine selecteq
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-!>     4. Get things
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine get_phase_record
-!\begin{verbatim}
- subroutine get_phase_record(iph,lokph)
-! given phase index iph this returns the phase location lokph
-   implicit none
-   integer iph,lokph
-!\end{verbatim} %+
-   if(iph.lt.1 .or. iph.gt.noofph) then
-!      write(*,*)'gpr: ',iph,noofph
-      gx%bmperr=4050
-   else
-      lokph=phases(iph)
-   endif
-   return
- end subroutine get_phase_record
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine get_phase_variance
-!\begin{verbatim} %-
- subroutine get_phase_variance(iph,nv)
-! returns the number of independent variable fractions in phase iph
-   implicit none
-   integer iph,nv
-!\end{verbatim} %+
-   integer lokph
-   call get_phase_record(iph,lokph)
-   nv=phlista(lokph)%tnooffr-phlista(lokph)%noofsubl
-   return
- end subroutine get_phase_variance
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine get_constituent_location
-!\begin{verbatim} %-
- subroutine get_constituent_location(lokph,cno,loksp)
-! returns the location of the species record of a constituent
-! requred for ionic liquids as phlista is private
-   implicit none
-   integer lokph,loksp,cno
-!\end{verbatim} %+
-   loksp=phlista(lokph)%constitlist(cno)
-   return
- end subroutine get_constituent_location
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine get_phase_compset
-!\begin{verbatim} %-
- subroutine get_phase_compset(iph,ics,lokph,lokcs)
-! Given iph and ics the phase and composition set locations are returned
-! Checks that ics and ics are not outside bounds.
-   implicit none
-   integer iph,ics,lokph,lokcs
-!\end{verbatim} %+
-   if(iph.le.0 .or. iph.gt.noofph) then
-      gx%bmperr=4050; goto 1000
-   endif
-   lokph=phases(iph)
-! find composition set
-   if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
-      gx%bmperr=4072; goto 1000
-   elseif(ics.eq.0) then
-      ics=1
-   endif
-   lokcs=phlista(lokph)%linktocs(ics)
-1000 continue
-   return
- end subroutine get_phase_compset
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\addtotable subroutine find_constituent
 !\begin{verbatim}
  subroutine find_constituent(iph,spname,mass,icon)
@@ -1526,6 +1767,175 @@ end function find_phasetuple_by_indices
 1000 continue
    return
  end subroutine find_constituent
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine findconst
+!\begin{verbatim}
+ subroutine findconst(lokph,ll,spix,constix)
+! locates the constituent index of species with index spix in sublattice ll
+! and returns it in constix.  For wildcards spix is -99; return -99
+! THERE MAY ALREADY BE A SIMULAR SUBROUTINE ... CHECK
+   implicit none
+   integer lokph,ll,spix,constix
+!\end{verbatim}
+   integer nc,l2,loksp
+   if(spix.eq.-99) then
+      constix=-99
+      goto 1000
+   endif
+   nc=1
+   do l2=1,ll-1
+! The number of constituents in each sublattice can vary, add together
+      nc=nc+phlista(lokph)%nooffr(l2)
+   enddo
+   constix=0
+   do l2=nc,nc+phlista(lokph)%nooffr(ll)-1
+      loksp=phlista(lokph)%constitlist(l2)
+      if(splista(loksp)%alphaindex.eq.spix) then
+         constix=l2; exit
+      endif
+   enddo
+   if(constix.eq.0) then
+!      write(*,90)spix,nc
+90    format('3B No such constituent with index ',i5,' in sublattice',i3)
+      gx%bmperr=4066; goto 1000
+   endif
+1000 continue
+   return
+ end subroutine findconst
+ 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine findeq
+!\begin{verbatim}
+ subroutine findeq(name,ieq)
+! finds the equilibrium with name "name" and returns its index
+! ieq should be the current equilibrium
+   implicit none
+   character name*(*)
+   integer ieq
+!\end{verbatim} %+
+   character name2*64
+   integer jeq
+   name2=name
+   call capson(name2)
+! Accept abbreviations of PREVIOUS and FIRST (DEFAULT is the same as the first)
+   jeq=0
+   if(compare_abbrev(name2,'PREVIOUS ')) then
+      jeq=max(1,ieq-1); goto 200
+   elseif(compare_abbrev(name2,'FIRST ')) then
+      jeq=1; goto 200
+   elseif(compare_abbrev(name2,'DEFAULT ')) then
+      jeq=1; goto 200
+!   elseif(compare_abbrev(name2,'LAST ')) then
+!      jeq=1; goto 200
+   endif
+100 jeq=jeq+1
+!    write(*,*)'findeq 2: ',jeq,name2
+   if(jeq.ge.eqfree) then
+      gx%bmperr=4124
+      goto 1000
+   endif
+!    write(*,*)'findeq 3: ',jeq,eqlista(jeq)%eqname
+   if(.not.compare_abbrev(name2,eqlista(jeq)%eqname)) goto 100
+!    if(eqlista(jeq)%eqname.ne.name2) goto 100
+200 continue
+   ieq=jeq
+1000 continue
+ end subroutine findeq
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine selecteq
+!\begin{verbatim} %-
+ subroutine selecteq(ieq,ceq)
+! checks if equilibrium ieq exists and if so set it as current
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer ieq
+!\end{verbatim}
+   if(ieq.lt.0 .or. ieq.ge.eqfree) then
+      gx%bmperr=4124
+      goto 1000
+   endif
+   ceq=>eqlista(ieq)
+1000 continue
+ end subroutine selecteq
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+!>     4. Section: get things
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine get_phase_record
+!\begin{verbatim}
+ subroutine get_phase_record(iph,lokph)
+! given phase index iph this returns the phase location lokph
+   implicit none
+   integer iph,lokph
+!\end{verbatim} %+
+   if(iph.lt.1 .or. iph.gt.noofph) then
+!      write(*,*)'gpr: ',iph,noofph
+      gx%bmperr=4050
+   else
+      lokph=phases(iph)
+   endif
+   return
+ end subroutine get_phase_record
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine get_phase_variance
+!\begin{verbatim} %-
+ subroutine get_phase_variance(iph,nv)
+! returns the number of independent variable fractions in phase iph
+   implicit none
+   integer iph,nv
+!\end{verbatim} %+
+   integer lokph
+   call get_phase_record(iph,lokph)
+   nv=phlista(lokph)%tnooffr-phlista(lokph)%noofsubl
+   return
+ end subroutine get_phase_variance
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine get_constituent_location
+!\begin{verbatim} %-
+ subroutine get_constituent_location(lokph,cno,loksp)
+! returns the location of the species record of a constituent
+! requred for ionic liquids as phlista is private
+   implicit none
+   integer lokph,loksp,cno
+!\end{verbatim} %+
+   loksp=phlista(lokph)%constitlist(cno)
+   return
+ end subroutine get_constituent_location
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine get_phase_compset
+!\begin{verbatim} %-
+ subroutine get_phase_compset(iph,ics,lokph,lokcs)
+! Given iph and ics the phase and composition set locations are returned
+! Checks that ics and ics are not outside bounds.
+   implicit none
+   integer iph,ics,lokph,lokcs
+!\end{verbatim} %+
+   if(iph.le.0 .or. iph.gt.noofph) then
+      gx%bmperr=4050; goto 1000
+   endif
+   lokph=phases(iph)
+! find composition set
+   if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
+      gx%bmperr=4072; goto 1000
+   elseif(ics.eq.0) then
+      ics=1
+   endif
+   lokcs=phlista(lokph)%linktocs(ics)
+1000 continue
+   return
+ end subroutine get_phase_compset
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2026,6 +2436,32 @@ end function find_phasetuple_by_indices
 1000 continue
    return
  end subroutine get_phasetup_record
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable integer function gettupix
+!\begin{verbatim}
+ integer function gettupix(iph,ics)
+! convert phase and compset index to tuple index
+   implicit none
+   integer iph,ics
+!\end{verbatim}
+   integer ii,tupix
+   ii=ics
+! default tupix is phase index
+   tupix=iph
+   loop: do while(ii.gt.1)
+      tupix=phasetuple(tupix)%nextcs
+      if(tupix.le.0) then
+         gx%bmperr=4072; exit loop
+      endif
+      ii=ii-1
+   enddo loop
+   write(*,'(a,3i5)')'3X gettupix: ',iph,ics,tupix
+! gettupix never assigned a value. Is it used?/BoS
+   gettupix=tupix
+   return
+ end function gettupix
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2978,176 +3414,6 @@ end function find_phasetuple_by_indices
    deallocate(matrix)
    return
  end subroutine amend_components
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable integer function gettupix
-!\begin{verbatim}
- integer function gettupix(iph,ics)
-! convert phase and compset index to tuple index
-   implicit none
-   integer iph,ics
-!\end{verbatim}
-   integer ii,tupix
-   ii=ics
-! default tupix is phase index
-   tupix=iph
-   loop: do while(ii.gt.1)
-      tupix=phasetuple(tupix)%nextcs
-      if(tupix.le.0) then
-         gx%bmperr=4072; exit loop
-      endif
-      ii=ii-1
-   enddo loop
-   write(*,'(a,3i5)')'3X gettupix: ',iph,ics,tupix
-! gettupix never assigned a value. Is it used?/BoS
-   gettupix=tupix
-   return
- end function gettupix
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine suspend_somephases
-!\begin{verbatim}
-  subroutine suspend_somephases(mode,invph,dim1,dim2,ceq)
-! This was added to handle calculating restricted equilibria during mapping
-! to suspend (mode=1) or restore (mode=0) phases not involved
-! in an invariant equilibrium.
-! invph is array with phases that are involved, it has dimension (dim1,*)
-! the current status is saved and restored 
-    implicit none
-    integer mode,dim1,dim2,invph(dim1,*)
-    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    integer, save, allocatable, dimension(:) :: phtupixstatus
-    integer, save :: ntup
-    integer ii,jj,kk,lokcs,lokph
-    character phname*24
-    ii=nooftup()
-    kk=0
-    if(mode.eq.1) then
-! after saving current status suspend all phases not included in invph
-!       write(*,*)'3A suspending some phases',ii
-       ntup=ii
-       if(allocated(phtupixstatus)) then
-          write(*,*)'3A calls to suspend_somephases cannot be nested'
-          gx%bmperr=4399; goto 1000
-       else
-          allocate(phtupixstatus(ntup))
-       endif
-       loop1: do ii=1,ntup
-          lokcs=phasetuple(ii)%lokvares
-          phtupixstatus(ii)=ceq%phase_varres(lokcs)%phstate
-          do jj=1,dim2
-!             write(*,*)'3A suspend? ',jj,lokcs,&
-!                  phlista(invph(1,jj))%linktocs(invph(2,jj)),phtupixstatus(ii)
-! invph(1,jj) is index in phases (phase and alphabetcal order)
-! lokph is the order the phase were entered into phlista (arbitrary)
-             lokph=phases(invph(1,jj))
-             if(lokcs.eq.phlista(lokph)%linktocs(invph(2,jj))) then
-!                write(*,'(a,6i5)')'3A not suspending',jj,invph(1,jj),&
-!                     invph(2,jj),phlista(lokph)%linktocs(invph(2,jj))
-                cycle loop1
-             endif
-          enddo
-! this phase should be suspended
-          kk=kk+1
-          ceq%phase_varres(lokcs)%phstate=PHSUS
-       enddo loop1
-!       write(*,'(a,i3,a,i3)')'3A suspededed ',kk,' phases out of ',ntup
-    elseif(mode.eq.0) then
-! restore status of all phases except those in invph
-!       write(*,*)'3A restoring some phases',ii
-       if(ii.ne.ntup) then
-          write(*,*)'3A number of phases and compsets changed!',ntup,ii
-          stop
-       endif
-       do ii=1,ntup
-          ceq%phase_varres(phasetuple(ii)%lokvares)%phstate=phtupixstatus(ii)
-       enddo
-!       write(*,'(a,i3,a)')'3A restored phase status for ',ntup,' phases'
-       deallocate(phtupixstatus)
-    else
-       write(*,*)'3A mode must be 0 or 1'
-       gx%bmperr=4399
-    endif
-1000 continue
-    return
-  end subroutine suspend_somephases
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine delete_unstable_compsets
-!\begin{verbatim}
-  subroutine delete_unstable_compsets(lokph,ceq)
-! This was added to explictly delete unstable composition sets with AUTO set
-! Compsets will be shifted down if a stable compset is after an unstable
-! See subroutine TOTO_AFTER in gtp3Y.F90
-!
-    implicit none
-    integer lokph
-    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    integer ii,iph,lokcs
-    write(*,*)'3A delete unstable compsets for phase: ',&
-         trim(phlista(lokph)%name),phlista(lokph)%noofcs
-! the first composition sets cannot be deleted even if unstable
-    do ii=phlista(lokph)%noofcs,2,-1
-       lokcs=phlista(lokph)%linktocs(ii)
-       write(*,100)ii,btest(ceq%phase_varres(lokcs)%status2,CSAUTO),&
-            btest(ceq%phase_varres(lokcs)%status2,CSTEMPAR)
-100    format('3A compset: ',i2,' bits: ',2l2)
-    enddo
-!    call remove_composition_set(iph,.FALSE.)
-    write(*,*)'Not implemented yet'
-1000 continue
-    return
-  end subroutine delete_unstable_compsets
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine copyfracs(fromeq,ceq)
-!\begin{verbatim}
-  subroutine copyfracs(fromeq,ceq)
-! Copy phase amounts and constitution from equilibrim fromceq to ceq
-! Useful to set start constitutions for miscibility gaps during assessments
-!
-    implicit none
-    integer fromeq
-    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    integer toph,fromph
-    type(gtp_equilibrium_data), pointer :: fromceq
-    type(gtp_phase_varres), pointer :: fromvar,tovar
-    fromceq=>eqlista(fromeq)
-    if(.not.allocated(fromceq%phase_varres)) then
-! if phase_varres not allocated this equilibrium has no data
-       write(*,*)'No such equilibrium'
-       goto 1000
-    endif
-! each equilbrium have the same phases and same number of compstes !!!
-! thus the phase_varres correspond!
-! copy only to those nonsuspended in ceq which exist in fromceq
-!    write(*,*)'gtp3A allocated: ',size(ceq%phase_varres)
-! phase_varres(1) is for the unused REFERENCE_STATE
-    allnonsus: do toph=2,size(ceq%phase_varres)
-! there are more phase_varres allocated than used, but yfr no allocated
-       tovar=>ceq%phase_varres(toph)
-       if(.not.allocated(tovar%yfr)) exit allnonsus
-       if(tovar%phstate.le.PHSUS) cycle allnonsus
-!       write(*,*)'3A copy phasetuple ',tovar%phtupx
-! copy phase amounts and fractions from the same phase_varres record 
-       fromvar=>fromceq%phase_varres(toph)
-       tovar%abnorm=fromvar%abnorm
-       tovar%yfr=fromvar%yfr
-! these are calculated values but copy anyway
-       tovar%sites=fromvar%sites
-       tovar%amfu=fromvar%amfu
-       tovar%dgm=fromvar%dgm
-    enddo allnonsus
-1000 continue
-    return
-  end subroutine copyfracs
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

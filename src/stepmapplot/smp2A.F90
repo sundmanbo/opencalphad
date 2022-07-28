@@ -6100,6 +6100,8 @@
        enddo ex1
 !       write(*,'(a,20i3)')'SMP solution ',zz,jphase,0,phin,par
 !       write(*,'(a,20i3)')'SMP solution ',zz,phin,par
+! we must have found 2 phases ... bug using map15
+       if(zz.ne.2) goto 100
 ! check if solution equal to phin
        if((par(1).eq.phin(1) .or. par(1).eq.phin(2)) .and. &
             (par(2).eq.phin(1) .or. par(2).eq.phin(2))) then

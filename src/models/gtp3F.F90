@@ -2,7 +2,7 @@
 ! GTP3F included in gtp3.F90
 !
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-!>     10. State variable manipulations
+!>     10. Section: state variable manipulations
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine get_stable_state_var_value

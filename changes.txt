@@ -20,13 +20,20 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.07.28 OC version 6.056: The code for the models have been
+reorganized to prepare for its documentation.  Some minor bugs fixed
+and some commands have been modified.
+
 2022.07.15 OC version 6.055: Modified reading TDB files to accept
 longer input lines (120 characters) and to handle some odd terms in
-functions prevously not accepted.
+functions, such as T**(+2) rather than just T**2, which was prevously
+not accepted.
 
 2022.07.13 OC version 6.054: Summer vacation, some more fixes of the
-MQMQA model, new macro map19.OCM added for the MQMQA model in the
-examples/macro directory.  The converter of DAT files to TDB files
+MQMQA model, a new macro map19.OCM for NaCl-MgCl2, added for the MQMQA
+model in the examples/macro directory.  A bug using the assessment
+module which caused crashes on Linux but was undetected on Windows has
+been fixed.  The converter of ChemSage DAT files to TDB files
 developed by Nathalie Dupin has been tested and works although some
 DAT file seems to contain a lot of redundant phases.
 
@@ -52,13 +59,13 @@ amount of one of the components is is given by the ratio of the amount
 of the other components.  This works also in OC but will proably
 require some modificatons to improve the convergence.
 
-2022.04.19 OC version 6.049: The declaration of gx%bmperr has been
-moved to METLIB4 in a first step to unify error codes.  Some strange
-problems compiling with OpenMP for parallel had to be fixed.  Some
-more general routines has been moved from gtp3 to metlib4.F90.  The
-TDB reader in gtp3.F90 has been prepared to handle reading encrypted
-databases but such options are outside the scope of the free version
-of OC.
+2022.04.19 OC version 6.049: The declaration of error code gx%bmperr
+has been moved to METLIB4 in a first step to unify error codes.  Some
+strange problems compiling with OpenMP for parallel had to be fixed.
+Some more general routines has been moved from gtp3*.F90 to
+metlib4.F90.  The TDB reader in gtp3E.F90 has been prepared to handle
+reading encrypted databases but such options are outside the scope of
+the free version of OC.
 
 2022.04.07 OC version 6.048: A number of minor bugfixes and other things.
 
@@ -73,7 +80,7 @@ applications, please report problems!
 all the changes made.
 
 2022.03.30 OC version 6.045: In order to prepare OC to read encrypted
-databases some restructuring of the data structures and subroutines
+databases some modifications of the data structures and subroutines
 has been made.  There should be no change for using unencrypted
 databases.  Please report any problems!
 
@@ -106,7 +113,7 @@ work better.
 
 2021.12.15 OC version 6.042: Working with Nathalie Dupin to make it
 possible for OC to read MQMQA databases using a TDB format.  The
-converter from DAT format written by Nathalie.  Update with some
+converter from DAT format is written by Nathalie.  Update with some
 bugfixes.
 
 2021.12.12 OC version 6.041: Restored using the fraction of the
@@ -131,22 +138,22 @@ yet.  It is still just the basic MQM but include the possibility to
 have several constituents on both sublattices.
 
 2021.11.26 OC version 6.037: Even more bugfixes in the MQMQA routines.
-Collaborating with Nathalie Dupin to convert FactSage DAT files to TDB
+Collaborating with Nathalie Dupin to convert ChemSage DAT files to TDB
 files.
 
 2021.11.15 OC version 6.036: More bugfixes in the MQMQA routines.
 
 2021.11.07 OC version 6.035: A version of the SGTE unary database
-adapted for OC is available on exaples/macro. Some problems with 
-converting a TDB file to a SOLGAS DAT file has been fixed but there
+adapted for OC is available on exaples/macro. Some problems with
+converting a TDB file to a ChemSage DAT file has been fixed but there
 may still be problems.
 
 2021.11.01 OC version 6.034: Finally the MQMQA model works for some
 simple examples such as SRO in a system A-B-AB.  Further testing and
 calculations on real systems are needed but as OC cannot read DAT
 files we have to wait for some files to be converted a TDB format
-extended with some bond parameters.  Thanks to the people developing
-Thermochimica for all the help.
+extended with some bond parameters.  Thanks to Max Poschmann and the
+people developing Thermochimica for all the help.
 
 2021.10.13 OC version 6.033: Some progress with MQMQA to be saved
 before I make a mess of it again.
@@ -255,7 +262,7 @@ cause some non-zero or even negative entropies for alloys.
 I also changed the "model-parameter-id" VS to be VD because the "S" in
 VS can be misunderstood as the SER reference state suffix.  The
 restoring of conditions after STEP and MAP has also been removed as it
-caused problems.  I will check it it can be restored later.
+caused problems.  I will check if it can be restored later.
 
 2021.04.15 OC version 6.028: In the Makefile for Linux I have changed
 to use X11 plot driver in GNUPLOT by default.  For MacOS the qt plot
@@ -316,7 +323,7 @@ plotfile that already contained an appended file.  There is a new
 macro "step-epz" which calculates a stable isopleth for the Fe-Mn-Si-C
 system and then overlays that with a paraequilibrium section for
 bcc/fcc and overlays that with a tzero line between bcc/fcc.  It may
-be useful to understand transformations in low alloyes steel.  I am
+be useful to understand transformations in low alloyed steels.  I am
 grateful to Bengt Hallstedt who provided a new free steel database,
 "iron4cd.TDB" intended for cast irons.
 

@@ -2,7 +2,7 @@
 ! gtp3G included in gtp3.F90
 !
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-!>     11. Status for things
+!>     11. Section: status for things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine change_element_status
@@ -726,7 +726,7 @@
  end subroutine mark_stable_phase
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!>     12. Unfinished things
+!>     12. Section: unfinished things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine set_unit
@@ -742,30 +742,6 @@
 1000 continue
    return
  end subroutine set_unit
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine save_results
-!\begin{verbatim}
- subroutine save_results(lut,iph,ics,long)
-! write calculated results for a phase for later use in POST
-   implicit none
-   integer lut,iph,ics,long
-!\end{verbatim}
-   write(*,*)'Not implemented yet'
-   gx%bmperr=4078
-! header with abbreviations
-!    call list_abbrev(lut)
-! first conditions ...
-!    call list_conditions(lut)
-! Global values of G, N, V etc
-!    call list_global_results(lut)
-! Element data
-!    call list_components_results(lut)
-! Phases and composition sets
-!   call dump_phase_results(lut)
-1000 return
- end subroutine save_results
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -894,7 +870,7 @@
  end subroutine elements2components1
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\!
-!>     13. Internal stuff
+!>     13. Section: internal stuff
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
  
 !\addtotable subroutine termterm
@@ -1850,6 +1826,51 @@
    return
 ! nydis
  end subroutine add_fraction_set  ! no ceq
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine copyfracs(fromeq,ceq)
+!\begin{verbatim}
+  subroutine copyfracs(fromeq,ceq)
+! Copy phase amounts and constitution from equilibrim fromceq to ceq
+! Useful to set start constitutions for miscibility gaps during assessments
+!
+    implicit none
+    integer fromeq
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer toph,fromph
+    type(gtp_equilibrium_data), pointer :: fromceq
+    type(gtp_phase_varres), pointer :: fromvar,tovar
+    fromceq=>eqlista(fromeq)
+    if(.not.allocated(fromceq%phase_varres)) then
+! if phase_varres not allocated this equilibrium has no data
+       write(*,*)'No such equilibrium'
+       goto 1000
+    endif
+! each equilbrium have the same phases and same number of compstes !!!
+! thus the phase_varres correspond!
+! copy only to those nonsuspended in ceq which exist in fromceq
+!    write(*,*)'gtp3A allocated: ',size(ceq%phase_varres)
+! phase_varres(1) is for the unused REFERENCE_STATE
+    allnonsus: do toph=2,size(ceq%phase_varres)
+! there are more phase_varres allocated than used, but yfr no allocated
+       tovar=>ceq%phase_varres(toph)
+       if(.not.allocated(tovar%yfr)) exit allnonsus
+       if(tovar%phstate.le.PHSUS) cycle allnonsus
+!       write(*,*)'3A copy phasetuple ',tovar%phtupx
+! copy phase amounts and fractions from the same phase_varres record 
+       fromvar=>fromceq%phase_varres(toph)
+       tovar%abnorm=fromvar%abnorm
+       tovar%yfr=fromvar%yfr
+! these are calculated values but copy anyway
+       tovar%sites=fromvar%sites
+       tovar%amfu=fromvar%amfu
+       tovar%dgm=fromvar%dgm
+    enddo allnonsus
+1000 continue
+    return
+  end subroutine copyfracs
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

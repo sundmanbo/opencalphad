@@ -26,7 +26,7 @@ Y
 plot
 x(mg)
 HM
-append ./hliq
+append ./oc_many5
 axis-label y
 Mixing enthalpy (J.mol-1)
 scale y n -15000 0

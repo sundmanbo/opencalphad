@@ -150,7 +150,7 @@ contains
 ! plot unit for experimental data used in enter many_equilibria
     integer :: plotdataunit(9)=0,plotunit0=0
 ! temporary integer variables in loops etc
-    integer i1,i2,j4,j5,j2,iax,threads,modelx
+    integer i1,i2,j4,j5,j2,iax,threads,modelx,jquad
 ! more temporary integers
     integer jp,kl,svss,language,last,leak,j3,tzcond
 ! and more temporary integers
@@ -193,6 +193,8 @@ contains
 ! array with constituents in sublattices when entering a phase
 ! only used for interactive entering the mqmqa_constituent
     character, dimension(25) :: const*24
+! mqmqa quadbonds
+    double precision quadbonds(4)
 ! for macro and logfile and repeating questions
     logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
     logical listzero,maptopbug
@@ -2418,7 +2420,9 @@ contains
 !          'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
 !          'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR']
           name1='Advanced command'
-          kom3=submenu(name1,cline,last,cadv,ncadv,4,'?TOPHLP')
+!          kom3=submenu(name1,cline,last,cadv,ncadv,4,'?TOPHLP')
+! changed default to working_directory
+          kom3=submenu(name1,cline,last,cadv,ncadv,9,'?TOPHLP')
           advanced: select case(kom3)
 !.................................................................
           CASE DEFAULT
@@ -5071,10 +5075,12 @@ contains
 !------------------------------
 ! list QUADRUPLETS
        case(22)
+          jquad=0
           qlista: do i1=1,nosp()
              call get_species_location(i1,loksp,name1)
              if(gx%bmperr.ne.0) goto 990
              if(index(name1,'-Q').le.0) cycle qlista
+             jquad=jquad+1
              call get_species_component_data(loksp,i2,iphl,stoik,xxx,xxy,ceq)
              if(gx%bmperr.ne.0) goto 990
              do j4=1,i2
@@ -5082,9 +5088,19 @@ contains
                 call get_element_data(iphl(j4),ellist(j4),name2,&
                      dummy,mass,h298,s298)
              enddo
-             write(kou,1680)i1,loksp,name1,xxx,&
+             write(kou,1680)i1,loksp,name1,&
                   (ellist(j4),stoik(j4),j4=1,i2)
-1680         format(i3,i4,1x,a,1x,F6.2,2x,10(a2,F8.6,1x))
+1680         format(i3,i4,1x,a,1x,4(a2,F8.6,1x))
+! assuming quads are arranged in alphabetical order ...
+             call mqmqa_quadbonds(jquad,quadbonds)
+             if(i2.eq.2) then
+                write(kou,1681)(quadbonds(j4),j4=1,3)
+             else
+                write(kou,1681)(quadbonds(j4),j4=1,i2)
+             endif
+1681         format(26x,'bonds: ',4(F10.6,1x))
+!    max length         8+25+4*11=33+44=77
+! include listing of mqmqa_data%constoi(1..4,index)
           enddo qlista
 !------------------------------
 ! LIST ESTIMATE_ACCURACY.  Additional calculations are made
@@ -5594,6 +5610,13 @@ contains
              write(kou,*)'Illegal for encrypted databases'
              goto 100
           endif
+! warning for bugs
+          write(*,131)
+131       format(/'WARNING: this TDB to DAT converter has bugs, if you have',&
+               ' problems'/'buy a commercial converter.',&
+               ' Press RETURN to continue, Q to quit')
+          read(*,'(a)')ch1
+          if(ch1.eq.'Q' .or. ch1.eq.'q') goto 100
           text=' '
 ! Give a warning that this must not be run on a LINUX computer
           write(*,'(/a/)')' WARNING: Do not run on LINUX/MAC'//&

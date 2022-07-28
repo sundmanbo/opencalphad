@@ -2,10 +2,10 @@
 ! gtp3B included in gtp3.F90
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!>     6. Enter data
+!>     6. Section: enter data
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine enter_element
+!\addtotable subroutine store_element
 !\begin{verbatim}
  subroutine store_element(symb,name,refstate,mass,h298,s298)
 ! Creates an element record after checks.
@@ -1811,6 +1811,31 @@
 1000 continue
  end subroutine suspend_composition_set
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine suspend_unstable_sets
+!\begin{verbatim}
+ subroutine suspend_unstable_sets(mode,ceq)
+! suspend extra composition sets that are not stable
+   implicit none
+   integer mode
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer lokph,ics,lokcs
+!   loop for all phases
+   phases: do lokph=1,noofph
+      if(phlista(lokph)%noofcs.eq.1) cycle phases
+      sets: do ics=2,phlista(lokph)%noofcs
+! never change first composition set, even if not stable
+         lokcs=phlista(lokph)%linktocs(ics)
+         if(ceq%phase_varres(lokcs)%phstate.gt.0) cycle sets
+         ceq%phase_varres(lokcs)%phstate=PHSUS
+      enddo sets
+   enddo phases
+1000 continue
+   return
+ end subroutine suspend_unstable_sets
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine remove_composition_set
@@ -2095,6 +2120,105 @@
 1000 continue
    return
  end subroutine remove_composition_set
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine suspend_somephases
+!\begin{verbatim}
+  subroutine suspend_somephases(mode,invph,dim1,dim2,ceq)
+! This was added to handle calculating restricted equilibria during mapping
+! to suspend (mode=1) or restore (mode=0) phases not involved
+! in an invariant equilibrium.
+! invph is array with phases that are involved, it has dimension (dim1,*)
+! the current status is saved and restored 
+    implicit none
+    integer mode,dim1,dim2,invph(dim1,*)
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer, save, allocatable, dimension(:) :: phtupixstatus
+    integer, save :: ntup
+    integer ii,jj,kk,lokcs,lokph
+    character phname*24
+    ii=nooftup()
+    kk=0
+    if(mode.eq.1) then
+! after saving current status suspend all phases not included in invph
+!       write(*,*)'3A suspending some phases',ii
+       ntup=ii
+       if(allocated(phtupixstatus)) then
+          write(*,*)'3A calls to suspend_somephases cannot be nested'
+          gx%bmperr=4399; goto 1000
+       else
+          allocate(phtupixstatus(ntup))
+       endif
+       loop1: do ii=1,ntup
+          lokcs=phasetuple(ii)%lokvares
+          phtupixstatus(ii)=ceq%phase_varres(lokcs)%phstate
+          do jj=1,dim2
+!             write(*,*)'3A suspend? ',jj,lokcs,&
+!                  phlista(invph(1,jj))%linktocs(invph(2,jj)),phtupixstatus(ii)
+! invph(1,jj) is index in phases (phase and alphabetcal order)
+! lokph is the order the phase were entered into phlista (arbitrary)
+             lokph=phases(invph(1,jj))
+             if(lokcs.eq.phlista(lokph)%linktocs(invph(2,jj))) then
+!                write(*,'(a,6i5)')'3A not suspending',jj,invph(1,jj),&
+!                     invph(2,jj),phlista(lokph)%linktocs(invph(2,jj))
+                cycle loop1
+             endif
+          enddo
+! this phase should be suspended
+          kk=kk+1
+          ceq%phase_varres(lokcs)%phstate=PHSUS
+       enddo loop1
+!       write(*,'(a,i3,a,i3)')'3A suspededed ',kk,' phases out of ',ntup
+    elseif(mode.eq.0) then
+! restore status of all phases except those in invph
+!       write(*,*)'3A restoring some phases',ii
+       if(ii.ne.ntup) then
+          write(*,*)'3A number of phases and compsets changed!',ntup,ii
+          stop
+       endif
+       do ii=1,ntup
+          ceq%phase_varres(phasetuple(ii)%lokvares)%phstate=phtupixstatus(ii)
+       enddo
+!       write(*,'(a,i3,a)')'3A restored phase status for ',ntup,' phases'
+       deallocate(phtupixstatus)
+    else
+       write(*,*)'3A mode must be 0 or 1'
+       gx%bmperr=4399
+    endif
+1000 continue
+    return
+  end subroutine suspend_somephases
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine delete_unstable_compsets
+!\begin{verbatim}
+  subroutine delete_unstable_compsets(lokph,ceq)
+! This was added to explictly delete unstable composition sets with AUTO set
+! Compsets will be shifted down if a stable compset is after an unstable
+! See subroutine TOTO_AFTER in gtp3Y.F90
+!
+    implicit none
+    integer lokph
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer ii,iph,lokcs
+    write(*,*)'3A delete unstable compsets for phase: ',&
+         trim(phlista(lokph)%name),phlista(lokph)%noofcs
+! the first composition sets cannot be deleted even if unstable
+    do ii=phlista(lokph)%noofcs,2,-1
+       lokcs=phlista(lokph)%linktocs(ii)
+       write(*,100)ii,btest(ceq%phase_varres(lokcs)%status2,CSAUTO),&
+            btest(ceq%phase_varres(lokcs)%status2,CSTEMPAR)
+100    format('3A compset: ',i2,' bits: ',2l2)
+    enddo
+!    call remove_composition_set(iph,.FALSE.)
+    write(*,*)'Not implemented yet'
+1000 continue
+    return
+  end subroutine delete_unstable_compsets
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -5557,43 +5681,6 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine findconst
-!\begin{verbatim}
- subroutine findconst(lokph,ll,spix,constix)
-! locates the constituent index of species with index spix in sublattice ll
-! and returns it in constix.  For wildcards spix is -99; return -99
-! THERE MAY ALREADY BE A SIMULAR SUBROUTINE ... CHECK
-   implicit none
-   integer lokph,ll,spix,constix
-!\end{verbatim}
-   integer nc,l2,loksp
-   if(spix.eq.-99) then
-      constix=-99
-      goto 1000
-   endif
-   nc=1
-   do l2=1,ll-1
-! The number of constituents in each sublattice can vary, add together
-      nc=nc+phlista(lokph)%nooffr(l2)
-   enddo
-   constix=0
-   do l2=nc,nc+phlista(lokph)%nooffr(ll)-1
-      loksp=phlista(lokph)%constitlist(l2)
-      if(splista(loksp)%alphaindex.eq.spix) then
-         constix=l2; exit
-      endif
-   enddo
-   if(constix.eq.0) then
-!      write(*,90)spix,nc
-90    format('3B No such constituent with index ',i5,' in sublattice',i3)
-      gx%bmperr=4066; goto 1000
-   endif
-1000 continue
-   return
- end subroutine findconst
- 
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\addtotable subroutine tdbrefs
 !\begin{verbatim}
  subroutine tdbrefs(refid,line,mode,iref)
@@ -7071,6 +7158,8 @@
    endif
    ip=0
    call capson(inline)
+! number of quads
+   nquad=0
    mqmqa_data%totstoi=zero
 ! this set TRUE means VA not allowed in MQMQA phase
    nomqmqava=.TRUE.
@@ -7203,7 +7292,7 @@
       write(*,*)'3B error mqmqa_data%constoi not allocated'
       gx%bmperr=4399; goto 1000
    endif
-! There is always 2 stoichiometries ....
+! There are always 2 stoichiometries ....
    call getrel(inline,ip,mqmqa_data%constoi(1,thiscon))
    call getrel(inline,ip,mqmqa_data%constoi(2,thiscon))
    if(buperr.ne.0) then
@@ -7442,7 +7531,8 @@
 ! check we have not too many quads
    nquad=nquad+1
    if(nquad.gt.maxquads) then
-      write(*,*)'3B Error, too many quadruplets, max: ',maxquads
+      write(*,*)'3B Error, too many quadruplets, max: ',nquad,maxquads
+      gx%bmperr=4399
       goto 1000
    endif
 ! add a suffix _Q !!
@@ -7617,7 +7707,13 @@
       enddo
       mqmqa_data%totstoi(s1)=ctotstoi(s3)
 ! also set correct name in const
-      const(s1)=splista(-mqmqa_data%contyp(10,s1))%symbol
+      if(-mqmqa_data%contyp(10,s1).le.0) then
+         write(*,*)'3B negative index to mqmqa symbol:',s1,&
+              -mqmqa_data%contyp(10,s1)
+         stop
+      else
+         const(s1)=splista(-mqmqa_data%contyp(10,s1))%symbol
+      endif
    enddo
 ! We must correct the order of pairs, they must be from 1 and up !!!
 ! Later we will change 6..9 in SNN quads to pair indices
@@ -7633,7 +7729,6 @@
 ! NOTE here -%contyp(10,s1) is the order the species were created
 !      write(*,7)'3B orig: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
 !           (mqmqa_data%constoi(s2,s1),s2=1,4),trim(const(s1))
-!           trim(splista(-mqmqa_data%contyp(10,s1))%symbol)
 !   enddo
    goto 300
 !------------------------------------------------- dead code below ----
@@ -7957,6 +8052,33 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine mqmqa_quadbonds
+!\begin{verbatim}
+ subroutine mqmqa_quadbonds(index,values)
+! This routine will add missing quads using the pairs 
+   implicit none
+   integer index
+   double precision values(*)
+!\end{verbatim}
+   integer i
+!           (mqmqa_data%constoi(s2,s1),s2=1,4),trim(const(s1))
+   do i=1,4
+      values(i)=mqmqa_data%constoi(i,index)
+   enddo
+   if(values(3).eq.zero) then
+! this is an A/X quadruplet, return FNNSNN factor
+      i=mqmqa_data%contyp(5,index)
+      if(i.le.0) then
+         write(*,*)'3B error, no FNNSNN factor for quadruplet: ',index,i
+      else
+         values(3)=mqmqa_data%qfnnsnn(i)
+      endif
+   endif
+   return
+ end subroutine mqmqa_quadbonds
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !\addtotable subroutine mqmqa_addquads
 !\begin{verbatim}
  subroutine mqmqa_addquads
@@ -7969,6 +8091,261 @@
 1000 continue
    return
  end subroutine mqmqa_addquads
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine set_uniquac_species
+!\begin{verbatim}
+ subroutine set_uniquac_species(loksp)
+! set the status bit and allocates spexttra array
+   implicit none
+   integer loksp
+!\end{verbatim}
+! this is illegal for species that are elements ...
+   if(btest(splista(loksp)%status,SPEL) .or. &
+        btest(splista(loksp)%status,SPVA)) then
+      gx%bmperr=4298
+   else
+      splista(loksp)%status=ibset(splista(loksp)%status,SPUQC)
+      if(.not.allocated(splista(loksp)%spextra)) then
+         allocate(splista(loksp)%spextra(2))
+         splista(loksp)%spextra=one
+      endif
+   endif
+1000 continue
+   return
+ end subroutine set_uniquac_species
+ 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine enter_species_property
+!\begin{verbatim}
+ subroutine enter_species_property(loksp,nspx,value)
+! enter an extra species property for species loksp
+   implicit none
+   integer loksp,nspx
+   double precision value
+!\end{verbatim} %+
+! this is illegal for species that are elements ...
+   if(btest(splista(loksp)%status,SPEL) .or. &
+        btest(splista(loksp)%status,SPVA)) then
+!      write(*,*)'Illegal to set this for element species'
+      gx%bmperr=4298
+   elseif(.not.allocated(splista(loksp)%spextra)) then
+      write(*,*)'3D this species has no allocated extra data'
+      gx%bmperr=4399; goto 1000
+   elseif(nspx.gt.size(splista(loksp)%spextra)) then
+      write(*,*)'3D species has not sufficient extra data allocated ',nspx
+      gx%bmperr=4399; goto 1000
+   else
+      splista(loksp)%spextra(nspx)=value
+   endif
+1000 continue
+   return
+ end subroutine enter_species_property
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine enter_material
+!\begin{verbatim}
+ subroutine enter_material(cline,last,nv,xknown,ceq)
+! enter a material from a database
+! called from user i/f
+   implicit none
+   integer last,nv
+   character cline*(*)
+   double precision xknown(*)
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer nel,j1,j2,j3
+   character material*72,database*72,selel(20)*2,ext*4,alloy(20)*2
+   character majorel*2,ftype*1,bline*128,elnam*2
+   double precision xalloy(20),rest,xxx,xxy
+   logical byte
+! these are saved for use in a subsequent call
+   save selel,majorel,ftype,xalloy
+!
+   if(.not.btest(globaldata%status,GSNOPHASE)) then
+! Ask for new alloy composition:
+      if(ftype.eq.'Y') then
+         rest=1.0D2
+         bline='Mass % of '
+      else
+         rest=one
+         bline='Mole fraction of '
+      endif
+      j2=len_trim(bline)+2
+      do j1=1,noofel
+         if(ellista(j1)%symbol.eq.majorel) cycle
+         bline(j2:)=ellista(j1)%symbol
+         xxy=xalloy(j1)
+60       continue
+         call gparrdx(bline,cline,last,xxx,xxy,'?Enter Material')
+         if(buperr.ne.0 .or. xxx.le.zero) then
+            write(*,*)'Illegal value for composition'
+            goto 60
+         endif
+         xalloy(j1)=xxx
+         rest=rest-xxx
+      enddo
+   else
+      ext='.TDB'
+      call gparcx('Database: ',cline,last,1,database,' ','?Enter matrial')
+! this extracts all element symbols from database
+      call checkdb2(database,ext,nel,selel)
+      if(gx%bmperr.ne.0) goto 1000
+      write(kou,70)(selel(nv),nv=1,nel)
+70    format('Elements: ',15(a2,', '))
+! ask for major component
+      call gparcx('Major element or material: ',cline,last,1,majorel,' ',&
+           '?Enter material')
+      call capson(majorel)
+      do nv=1,nel
+         if(majorel.eq.selel(nv)) goto 100
+      enddo
+      write(*,*)'No such element in the database'
+      gx%bmperr=4399
+      goto 1000
+100   continue
+      call gparcdx('Input in mass percent? ',cline,last,1,ftype,'Y',&
+           '?Enter material')
+      if(ftype.eq.'Y') then
+         rest=1.0D2
+         write(*,102)'mass percent'
+      else
+         rest=one
+         write(*,102)'mole fractions'
+      endif
+102   format('Input expected in ',a/)
+110   continue
+      call gparcx('First alloying element:',cline,last,1,alloy(1),' ',&
+           '?Enter matrial')
+      nv=0
+      call capson(alloy(1))
+      do j1=1,nel
+         if(alloy(1).eq.selel(j1)) goto 200
+      enddo
+      write(*,*)'No such element in database'
+      goto 110
+!-----
+200   continue
+      do j1=1,nv
+         if(alloy(nv+1).eq.alloy(j1)) then
+            write(*,*)'Alloying element already entered'
+            goto 250
+         endif
+      enddo
+      nv=nv+1
+220   continue
+      if(ftype.eq.'Y') then
+         call gparrdx('Mass percent: ',cline,last,xalloy(nv),one,&
+              '?Enter material')
+         if(buperr.ne.0) then
+            write(*,*)'Give a numeric value'; buperr=0
+            goto 220
+         endif
+      else
+         call gparrdx('Mole fraction: ',cline,last,xalloy(nv),1.0D-2,&
+              '?Enter material')
+         if(buperr.ne.0) then
+            write(*,*)'Give a numeric value'; buperr=0
+            goto 220
+         endif
+      endif
+      if(xalloy(nv).le.zero) then
+         write(*,*)'Composition must be positive!'
+         goto 220
+      endif
+      rest=rest-xalloy(nv)
+      if(rest.le.zero) then
+         write(*,240)'zero!!'
+240      format('Your major component composition is less than ')
+         gx%bmperr=4399; goto 1000
+      elseif(rest.le.5.0D-1) then
+         write(*,240)'half the system!!'
+      endif
+250 continue
+      if(nv.eq.1) then
+         call gparcx('Second alloying element:',cline,last,1,alloy(2),' ',&
+              '?Enter material')
+         if(alloy(2).eq.'  ') goto 500
+      elseif(nv.eq.2) then
+         call gparcx('Third alloying element:',cline,last,1,alloy(3),' ',&
+              '?Enter material')
+         if(alloy(3).eq.'  ') goto 500
+      else
+         call gparcx('Next alloying element:',cline,last,1,&
+              alloy(nv+1),' ','?Enter material')
+         if(alloy(nv+1).eq.'  ') goto 500
+      endif
+      call capson(alloy(nv+1))
+      do j1=1,nel
+         if(alloy(nv+1).eq.selel(j1)) goto 200
+      enddo
+      write(*,*)'No such element in database'
+      goto 250
+!----------------------
+! read the database including the major element
+500   continue
+!      write(*,505)'Comp: ',nv,(alloy(j1),xalloy(j1),j1=1,nv)
+505   format(a,i2,2x,8(a2,F8.4,', '))
+      nv=nv+1
+      alloy(nv)=majorel
+      xalloy(nv)=rest
+!      write(*,505)'3D m1: ',nv,(alloy(j1),xalloy(j1),j1=1,nv)
+      call readtdb(database,nv,alloy)
+      if(gx%bmperr.ne.0) goto 1000
+! order the amounts in xalloy in alphabetical order
+      byte=.true.
+      order: do while(byte)
+         byte=.false.
+         do j1=1,nv
+            do j2=j1+1,nv
+               if(alloy(j1).gt.alloy(j2)) then
+                  byte=.true.
+                  elnam=alloy(j1)
+                  alloy(j1)=alloy(j2)
+                  alloy(j2)=elnam
+                  xxx=xalloy(j1)
+                  xalloy(j1)=xalloy(j2)
+                  xalloy(j2)=xxx
+!                  write(*,505)'3D m1: ',nv,(alloy(j3),xalloy(j3),j3=1,nv)
+                  cycle order
+               endif
+            enddo
+         enddo
+      enddo order
+! these are saved until another enter material command
+      do j1=1,nv
+         xknown(j1)=xalloy(j1)
+      enddo
+!      write(*,505)'3D m2: ',nv,(alloy(j1),xknown(j1),j1=1,nv)
+510   format('3D em: ',10(a2,F6.3,1x))
+   endif
+!----------------------------------
+! set conditions for composition (replace major by N=1)
+   bline=' '
+   j2=len_trim(bline)+2
+   do j1=1,nv
+      if(alloy(j1).eq.majorel) cycle
+      if(ftype.eq.'Y') then
+         bline(j2:)='W%('//trim(alloy(j1))//')='
+      else
+         bline(j2:)='X('//trim(alloy(j1))//')='
+      endif
+      j2=len_trim(bline)+1
+      call wrinum(bline,j2,10,0,xalloy(j1))
+      j2=j2+2
+   enddo
+   bline(j2:)=' N=1 '
+   j2=len_trim(bline)+2
+   write(*,*)'3D em: ',trim(bline)
+! set_condition will increment j1
+   j1=1
+   call set_condition(bline,j1,ceq)
+1000 continue
+   return
+ end subroutine enter_material
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

@@ -1,7 +1,7 @@
 ! gtp3H included in gtp3.F90
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
-!>     14. Additions and diffusion
+!>     14. Additions and model properties
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 ! Additions have a unique number, given sequentially as implemented 
 ! These are all defined in gtp3.F90
@@ -3836,7 +3836,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine list_addition_values
-!\begin{verbatim} %-
+!\begin{verbatim}
  subroutine list_addition_values(unit,phres)
 ! lists calculated values for this addition
 ! Used for the command CALCULATE PHASE to inform about additions
@@ -3865,7 +3865,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine add_ternary_extrapol_method
-!\begin{verbatim} %-
+!\begin{verbatim}
  subroutine add_ternary_extrapol_method(kou,lokph,typ,toophead,species)
 ! add a Toop or Kohler extrapolation method for a ternary subsystem to a phase
 ! interactive or from database

@@ -2,7 +2,7 @@
 ! gtp3Y included in gtp3.F90
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!>      16. Grid minimizer
+!>      16. Section: grid minimizer
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine global_gridmin
@@ -5857,7 +5857,7 @@
  end function fixedcomposition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-!>      17. Miscellaneous
+!>      17. Section: miscellaneous
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable integer function phvarlok
@@ -6012,16 +6012,16 @@
   end function get_mpi_index
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!
 !\addtotable integer function getmqindex
 !\begin{verbatim}
-  integer function getmqindex()
+!  integer function getmqindex()
 ! This is necessary because mqindex is private, replaced by getmpiindex ...
 !\end{verbatim}
-    getmqindex=mqindex
-    return
-  end function getmqindex
-
+!    getmqindex=mqindex
+!    return
+!  end function getmqindex
+!
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\addtotable logical function allowenter
