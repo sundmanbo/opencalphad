@@ -3226,7 +3226,7 @@ if(meqrec%noofits.eq.1) then
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable setup_comp2cons
+!\addtotable subroutine setup_comp2cons
 !\begin{verbatim}
   subroutine setup_comp2cons(meqrec,phr,nz1,smat,tval,xknown,converged,ceq)
 ! calculate internal equilibrium in a phase for given overall composition
@@ -6706,11 +6706,202 @@ if(meqrec%noofits.eq.1) then
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine two_stoich_same_comp
+!\begin{verbatim}
+  recursive subroutine two_stoich_same_comp(irem,iadd,mapx,meqrec,inmap,ceq)
+! we have found two  phases stable with same composition
+! ONLY USED WHEN MAPPING with tie-lines in plane
+! ceq is equilibrium record
+    implicit none
+    integer irem,iadd,inmap,mapx
+    type(meq_setup) :: meqrec
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+!    type(map_node), pointer :: mapnode,newnode,oldnext
+!    type(map_line), pointer :: nodexit
+    type(gtp_equilibrium_data), pointer :: newceq
+    integer nrel,nel,iph,ics,jj,seqx,phfix,lokph,lokcs,phstable,phfixtupix
+    type(gtp_condition), pointer :: pcond,lastcond
+! needed for solving a nonlinear equation
+    integer, parameter :: lwa=100
+    type(gtp_state_variable), target :: axstv1
+    type(gtp_state_variable), pointer :: axstv
+    integer nv,info,ip
+    double precision newphfra,fvec(5),tol,wa(lwa),value,xv(5),tinit
+    character phases*48
+!    logical isotherm
+    integer idum,jdum,savefix(2),saveent
+!    
+!    write(*,*)'In two_stoich_same_comp'
+!    write(*,*)'MM found two stable stochiometric phases with same composition'
+! THIS SHOULD NOT BE USED FOR ISOPLETHS ??
+!    if(meqrec%nrel.ne.2) then
+! How to check if I should use this routine? Only 2 components?
+! If we have an activity condition one could have 3 components ....
+!       write(*,*)'MM This routine should  be used only when tie-lines in plane'
+!       gx%bmperr=4399; goto 1000
+!    endif
+!    call get_state_var_value('X(O) ',value,phases,ceq)
+!    write(*,806)meqrec%fixph(1,1),meqrec%fixph(2,1),mapx,iadd,value
+806 format('MM why fix phase/set: ',i3,i2,' entered: ',i3,', new fix: ',i3,&
+         1pe12.4)
+    phases=' '
+    call get_phasetup_name(meqrec%phr(iadd)%curd%phtupx,phases)
+    ip=len_trim(phases)
+    phases(ip+2:)='and'
+    call get_phasetup_name(meqrec%phr(irem)%curd%phtupx,phases(ip+6:))
+    if(gx%bmperr.ne.0) goto 1000
+    write(*,'(a)')'MM two compounds stable at same composition: '//trim(phases)
+! new T calculated in this routine should be close to current value
+    tinit=ceq%tpval(1)
+!    write(*,22)'MM in two_stoich_same_comp: ',irem,iadd,ceq%tpval(1)
+!22  format(/20('-')/a,2i5,F8.2)
+!    call list_conditions(kou,ceq)
+! We cannot calculate an equilibrium with two phases with exactly the same
+! composition.  But we can calculate the T where the two stoichiometric
+! phases have the same Gibbs energy using the calc_tzero routine!
+! Assuming the conditions are not too involved ... but we are dealing with a
+! system with tie-lines in the plane, binary or ternary.
+! use the vaiables tzph1 and tzph2 (in matsmin) to specify the phases involved
+! DOES NOT WORK IN PARALLEL!!
+    tzph1=irem; tzph2=iadd
+    phases=' '
+    call get_phasetup_name(tzph1,phases)
+    nv=len_trim(phases)
+    call get_phasetup_name(tzph2,phases(nv+2:))
+!
+!    write(*,27)'MM two compounds: ',tzph1,tzph2,trim(phases)
+27  format(a,2i4,2x,a)
+    nv=1
+    tol=1.0D-6
+! hybrid1 can solve a system of nonlinear equations by calling
+! subroutine tzcalc_stoich(nv,xv,fvec,iflag) is in matsmin.F90
+! the tzceq is a pointer declared in matmin and used in tzcalc_stoich
+    tzceq=>ceq
+    xv(1)=tzceq%tpval(1)
+    call hybrd1(tzcalc_stoich,nv,xv,fvec,tol,info,wa,lwa)
+    if(info.ne.1) then
+! info=0 means improper input parameters
+!     =2 Too many calls to tzcalc_stoich
+!     =3 tol is too small
+!     =4 Convergence too slow
+!       write(*,*)'HYBRD solver return error: ',info
+       if(gx%bmperr.eq.0) gx%bmperr=4371
+    endif
+    if(gx%bmperr.ne.0) goto 1000
+    if(abs(ceq%tpval(1)-tinit).gt.2.0D1) then
+       write(*,654)ceq%tpval(1),tinit
+654    format('MM Error, too large change in T: ',2F10.2)
+       gx%bmperr=4399; goto 1000
+    endif
+! To have correct chemical potentials we must call meq_sameset again
+! But with T fix and phase iadd set dormant
+! Now set current value of T as condition
+!    call list_conditions(kou,ceq)
+! loop all conditions until we find T and set it active.
+! Maybe remove some other condition??
+    lastcond=>ceq%lastcondition
+    pcond=>lastcond
+    nv=0
+    jdum=0
+    condloop1: do while(.TRUE.)
+! loop for all conditions
+       nv=nv+1
+!       write(*,*)'State variable: ',nv,pcond%statev,pcond%prescribed
+       if(pcond%statev.eq.1) then
+! This is T, the axis condition, set as active with calculated value of T
+          pcond%prescribed=xv(1)
+          if(pcond%active.ne.0) then
+             write(*,*)'Error, the condition on T not inactivated!'
+             gx%bmperr=4399; goto 1000
+          endif
+          pcond%active=0
+          jdum=nv
+       else
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Error extraction axis state variable value',gx%bmperr
+             goto 1000
+          endif
+       endif
+       pcond=>pcond%next
+       if(associated(pcond,lastcond)) exit condloop1
+    enddo condloop1
+    if(jdum.eq.0) then
+       write(*,*)'Error, no condition on T!'
+       gx%bmperr=4399; goto 1000
+    endif
+! extract which phase is fixed (only one)
+    savefix(1)=meqrec%fixph(1,1)
+    savefix(2)=meqrec%fixph(1,2)
+! and which is entered
+    jdum=0
+    do jj=1,meqrec%nphase
+       if(meqrec%phr(jj)%stable.eq.1) then
+          if(meqrec%phr(jj)%iph.eq.savefix(1) .and. &
+               meqrec%phr(jj)%ics.eq.savefix(2)) then
+!             write(*,*)'MM Fix phase: ',meqrec%fixph(1,1),meqrec%fixph(1,2)
+             cycle
+          endif
+          if(jdum.eq.0) then
+!             write(*,*)'MM Entered phase',jdum,jj
+             jdum=jj
+!          elseif(jj.ne.irem) then
+!             write(*,*)'MM More than one entered phase',jdum,jj
+          endif
+       endif
+    enddo
+! we must keep saveent to return the entered phase when generating exits!
+    saveent=jdum
+!    write(*,*)'MM old fix phase/set and entered: ',meqrec%fixph(1,1),&
+!         meqrec%fixph(2,1),saveent
+!meq_sameset and ignore any change of the set of stable phases
+! We must call meq_sameset again to have correct chemical potential at this T
+!    write(*,*)'MU(*) before meq_sameset: ',ceq%cmuval(1),ceq%cmuval(2)
+! Now we have calculated T when both stoichiometric phases are stable
+! and set this T as condition. 
+! set the phase iadd as suspend to avoid it will try to be stable
+    meqrec%phr(iadd)%phasestatus=PHSUS
+    meqrec%noofits=0
+!    call list_conditions(kou,ceq)
+! Strange here we have one degree of freedom! how can we calculate?  No check!!
+! But we must have a condition on the amount
+! mapx set to zero inside this routine.  Make sure no error code set!!
+    if(gx%bmperr.ne.0) gx%bmperr=0
+!    write(*,*)'MM calling meq_sameset from two_stoich_same_comp'
+!   write(*,*)'This is a recursive call as we call two_stoich from meq_sameset!'
+    call meq_sameset(idum,jdum,mapx,meqrec,meqrec%phr,inmap,ceq)
+!    write(*,*)'MU(*) after  meq_sameset: ',ceq%cmuval(1),ceq%cmuval(2)
+    if(gx%bmperr.ne.0) then
+!       write(*,*)'MM Error calling meq_sameset from two_stoich',gx%bmperr
+       goto 1000
+    endif
+! return the entered phase in mapx (maybe not needed?)
+!    call get_state_var_value('X(O) ',value,phases,ceq)
+    mapx=saveent
+!    write(*,807)meqrec%fixph(1,1),meqrec%fixph(2,1),mapx,iadd,value
+807 format('MM old fix phase/set: ',i3,i2,' entered: ',i3,', new fix: ',i3,&
+         1pe12.4)
+! restore status of new phase found at nodepoint as entered
+    meqrec%phr(iadd)%phasestatus=PHENTERED
+!    write(*,*)'Conditions for the invariant:'
+!    call list_conditions(kou,ceq)
+!    write(*,*)'Exiting two_stoich_same_comp'
+! we must set this error code to return to mapping routines
+! This means two stoichiometric phases stable an node point
+    gx%bmperr=4364
+1000 continue
+! Make sure status of new phase found at nodepoint as set as entered
+    meqrec%phr(iadd)%phasestatus=PHENTERED
+    return
+  end subroutine two_stoich_same_comp
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine calc_dgdyterms1
 !\begin{verbatim}
   subroutine calc_dgdyterms1(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
        curmux,noofits)
-! THIS SUBROUTINE IS NO LONGER USED!!  Cannot be used in parallel
+! THIS SUBROUTINE IS NO LONGER USED!?  Cannot be used in parallel
 ! any change must also be made in subroutine calc_dyterms2 and calc_dgdytermsh
 ! calculate the terms in the deltay expression for amounts of component ia
 !
@@ -6906,7 +7097,7 @@ if(meqrec%noofits.eq.1) then
     return
   end subroutine calc_dgdyterms1
 
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
 !\addtotable subroutine calc_dgdyterms1X
 !\begin{verbatim}
@@ -8453,6 +8644,8 @@ if(meqrec%noofits.eq.1) then
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calfun
+!\begin{verbatim}
   subroutine calfun(m,n,x,f,info,niter)
 ! This is called by the LMDIF1 routines and calls an OC subroutine
 ! as I had problems using EXTERNAL
@@ -8460,7 +8653,9 @@ if(meqrec%noofits.eq.1) then
 ! N is number of variables
 ! NOTE order of X and F switched in CALFUN and ASSESSMENT_CALFUN !!!
     integer m,n,info,i,niter
-    double precision f(m),x(n),sum
+    double precision f(m),x(n)
+!\end{veratim}
+    double precision sum
 !    write(*,*)'MM enter calfun',info,niter,m,n
     if(info.eq.0) then
        sum=zero
@@ -8721,6 +8916,108 @@ if(meqrec%noofits.eq.1) then
 !    write(*,*)'Exit assessment_calfun'
     return
   end subroutine assessment_calfun
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine listoptshort
+!\begin{verbatim}
+  subroutine listoptshort(lut,mexp,nvcoeff,errs)
+! short listing of optimizing variables and result
+    integer lut,mexp,nvcoeff
+    double precision, allocatable, dimension(:) :: errs
+!    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    type(gtp_equilibrium_data), pointer :: neweq
+    integer i1,i2,j1,j2,j3,neq
+    character name1*24,line*80
+    double precision xxx,sum
+    type(gtp_condition), pointer :: experiment
+!
+! list all experiments, only possible if there are experiments
+!    write(*,*)'MM looking for segfault error in listoptshort'
+    if(mexp.eq.0) then
+       write(lut,666)
+666    format(/'No experiments so no results'/)
+       goto 1000
+    endif
+! list experiments, mexp is number of EXPERIMENTS, not equilibria!!
+    write(lut,620)size(firstash%eqlista),mexp
+620 format(/'List of ',i5,' equilibria with ',i5,&
+         ' experimental data values'/&
+!        '  No Equil name      Weight Experiment $ calculated',18x,&
+         '  No Equil name      Weight Property=experiment $ calculated',13x,&
+         'Error')
+    j3=0
+!    write(*,*)'MM segfault1:',size(firstash%eqlista)
+    allequil: do i1=1,size(firstash%eqlista)
+! skip equilibria with zero weight
+!       write(*,*)'MM segfault error 1'
+       neweq=>firstash%eqlista(i1)%p1
+       if(neweq%weight.eq.zero) cycle allequil
+       name1=neweq%eqname(1:12)
+! LOOP for all experiments for this equilibrium (maybe none??)
+       if(.not.associated(neweq%lastexperiment)) cycle allequil
+!       write(*,*)'MM segfault error 2'
+       experiment=>neweq%lastexperiment%next
+       if(.not.associated(experiment)) cycle allequil
+!700    continue
+       i2=neweq%lastexperiment%seqz
+!          write(*,*)'number of experiments: ',i2
+       neq=neweq%eqno
+!       write(*,*)'MM segfault error 3',i2
+       do j2=1,i2
+! j1 is position in line to write experiment
+          j1=1
+          line=' '
+! this subroutine returns experiment and calculated value: "H=1000:200 $ 5000"
+          call meq_get_one_experiment(j1,line,j2,neweq)
+          j3=j3+1
+! segmentation fault with errs after PLOT with APPEND but errs is allocated???
+!          write(*,*)'MM segfault error 4A',j2,neq,lut,j3
+!          write(*,*)'MM segfault error 4B: ',line(1:44)
+!          write(*,*)'MM segfault error 4C',neweq%weight, size(errs)
+!          write(*,*)'MM segfault error 4D',j2,errs(j3)
+!          write(*,*)'MM segfault error 4E'
+          if(neq.gt.0) then
+             write(lut,622)neq,name1(1:15),neweq%weight,line(1:44),errs(j3)
+622          format(i4,1x,a,2x,F5.2,1x,a,1x,F6.2)
+             neq=0
+          else
+             write(lut,623)line(1:44),errs(j3)
+623          format(28x,a,1x,F6.2)
+          endif
+! list the equilibrium name just for the first (or only) experiment
+       enddo
+!       write(*,*)'MM segfault error 5'
+       experiment=>experiment%next
+!590       if(.not.associated(experiment,neweq%lastexperiment)) then
+!             experiment=>experiment%next
+!             goto 700
+       if(j2.lt.i2 .and. .not.associated(experiment)) then
+          write(*,*)'Missing experiment in equilibrium ',neweq%eqno
+          cycle allequil
+       endif
+!       write(*,*)'MM segfault error 6'
+    enddo allequil
+! list sum of squares
+    sum=zero
+    do j1=1,mexp
+       sum=sum+errs(j1)**2
+    enddo
+! same as PARROT
+    j1=mexp-nvcoeff
+    if(j1.gt.0) then
+       write(lut,621)sum,mexp,nvcoeff,j1,sum/j1
+    else
+       write(lut,621)sum,mexp,nvcoeff,0,zero
+    endif
+621 format(/'Final sum of squared errors: ',1pe16.5,&
+         ' using ',i4,' experiments and'/&
+         i3,' coefficient(s).  Degrees of freedom: ',i4,&
+         ', normalized error: ',1pe13.4/)
+1000 continue
+    return
+  end subroutine listoptshort  !700
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -10040,25 +10337,7 @@ if(meqrec%noofits.eq.1) then
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!-\addtotable subroutine set_eec_check
-!-\begin{verbatim}
-!  subroutine set_eec_check(tval)
-! This set values for EEC check, called from user i/f or application software
-! ceq is a datastructure with all relevant thermodynamic data
-!    implicit none
-!    double precision tval
-!-\end{verbatim} %+
-!    if(tval.gt.1.0D1) then
-!       globaldata%sysreal(1)=tval
-!    else
-!       globaldata%sysreal(1)=zero
-!    endif
-!    return
-!  end subroutine set_eec_check
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine check_eec
+!\addtotable subroutine check_eec_old
 !\begin{verbatim}
   subroutine check_eec_old(pmisol,pmiliq,meqrec,ceq)
 ! This checks EEC after calculating all phases if the solid phase has S > S^liq
@@ -10851,108 +11130,6 @@ if(meqrec%noofits.eq.1) then
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine listoptshort
-!\begin{verbatim}
-  subroutine listoptshort(lut,mexp,nvcoeff,errs)
-! short listing of optimizing variables and result
-    integer lut,mexp,nvcoeff
-    double precision, allocatable, dimension(:) :: errs
-!    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    type(gtp_equilibrium_data), pointer :: neweq
-    integer i1,i2,j1,j2,j3,neq
-    character name1*24,line*80
-    double precision xxx,sum
-    type(gtp_condition), pointer :: experiment
-!
-! list all experiments, only possible if there are experiments
-!    write(*,*)'MM looking for segfault error in listoptshort'
-    if(mexp.eq.0) then
-       write(lut,666)
-666    format(/'No experiments so no results'/)
-       goto 1000
-    endif
-! list experiments, mexp is number of EXPERIMENTS, not equilibria!!
-    write(lut,620)size(firstash%eqlista),mexp
-620 format(/'List of ',i5,' equilibria with ',i5,&
-         ' experimental data values'/&
-!        '  No Equil name      Weight Experiment $ calculated',18x,&
-         '  No Equil name      Weight Property=experiment $ calculated',13x,&
-         'Error')
-    j3=0
-!    write(*,*)'MM segfault1:',size(firstash%eqlista)
-    allequil: do i1=1,size(firstash%eqlista)
-! skip equilibria with zero weight
-!       write(*,*)'MM segfault error 1'
-       neweq=>firstash%eqlista(i1)%p1
-       if(neweq%weight.eq.zero) cycle allequil
-       name1=neweq%eqname(1:12)
-! LOOP for all experiments for this equilibrium (maybe none??)
-       if(.not.associated(neweq%lastexperiment)) cycle allequil
-!       write(*,*)'MM segfault error 2'
-       experiment=>neweq%lastexperiment%next
-       if(.not.associated(experiment)) cycle allequil
-!700    continue
-       i2=neweq%lastexperiment%seqz
-!          write(*,*)'number of experiments: ',i2
-       neq=neweq%eqno
-!       write(*,*)'MM segfault error 3',i2
-       do j2=1,i2
-! j1 is position in line to write experiment
-          j1=1
-          line=' '
-! this subroutine returns experiment and calculated value: "H=1000:200 $ 5000"
-          call meq_get_one_experiment(j1,line,j2,neweq)
-          j3=j3+1
-! segmentation fault with errs after PLOT with APPEND but errs is allocated???
-!          write(*,*)'MM segfault error 4A',j2,neq,lut,j3
-!          write(*,*)'MM segfault error 4B: ',line(1:44)
-!          write(*,*)'MM segfault error 4C',neweq%weight, size(errs)
-!          write(*,*)'MM segfault error 4D',j2,errs(j3)
-!          write(*,*)'MM segfault error 4E'
-          if(neq.gt.0) then
-             write(lut,622)neq,name1(1:15),neweq%weight,line(1:44),errs(j3)
-622          format(i4,1x,a,2x,F5.2,1x,a,1x,F6.2)
-             neq=0
-          else
-             write(lut,623)line(1:44),errs(j3)
-623          format(28x,a,1x,F6.2)
-          endif
-! list the equilibrium name just for the first (or only) experiment
-       enddo
-!       write(*,*)'MM segfault error 5'
-       experiment=>experiment%next
-!590       if(.not.associated(experiment,neweq%lastexperiment)) then
-!             experiment=>experiment%next
-!             goto 700
-       if(j2.lt.i2 .and. .not.associated(experiment)) then
-          write(*,*)'Missing experiment in equilibrium ',neweq%eqno
-          cycle allequil
-       endif
-!       write(*,*)'MM segfault error 6'
-    enddo allequil
-! list sum of squares
-    sum=zero
-    do j1=1,mexp
-       sum=sum+errs(j1)**2
-    enddo
-! same as PARROT
-    j1=mexp-nvcoeff
-    if(j1.gt.0) then
-       write(lut,621)sum,mexp,nvcoeff,j1,sum/j1
-    else
-       write(lut,621)sum,mexp,nvcoeff,0,zero
-    endif
-621 format(/'Final sum of squared errors: ',1pe16.5,&
-         ' using ',i4,' experiments and'/&
-         i3,' coefficient(s).  Degrees of freedom: ',i4,&
-         ', normalized error: ',1pe13.4/)
-1000 continue
-    return
-  end subroutine listoptshort  !700
-
-!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
 !\addtotable subroutine calctrans
 !\begin{verbatim}
   subroutine calctrans(cline,last,ceq)
@@ -10960,7 +11137,7 @@ if(meqrec%noofits.eq.1) then
     character cline*(*)
     integer last
     type(gtp_equilibrium_data), pointer :: ceq
-!\end
+!\end{verbatim}
     character name1*30
     integer j1,iph,ics
     double precision xxx
@@ -11022,233 +11199,6 @@ if(meqrec%noofits.eq.1) then
 1000 continue
     return
   end subroutine calctrans
-
-!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable subroutine list_stable_phases
-!\begin{verbatim}
-  subroutine list_stable_phases(text,its,iadd,irem,meqrec,ceq)
-! debug listing of stable phases
-! meqrec contains all necessary data ...
-    character*(*) text
-    integer its,iadd,irem
-    type(meq_setup) :: meqrec
-    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    integer ii,ij,ik
-    double precision gsum,xmol(50),wmass(50),totmol,totmass
-! NOTE: phases in stphl should always be in increasing order!!
-    call calc_molmass(xmol,wmass,totmol,totmass,ceq)
-    if(gx%bmperr.ne.0) stop 'Error when calling list_stable_phases'
-    gsum=zero
-    do ii=1,meqrec%nrel
-       gsum=gsum+xmol(ii)*ceq%complist(ii)%chempot(1)
-    enddo
-    write(*,100)text,its,iadd,irem,meqrec%nstph,gsum,totmol,&
-         (meqrec%stphl(ii),ii=1,meqrec%nstph)
-    do ii=2,meqrec%nstph
-       if(meqrec%stphl(ii-1).gt.meqrec%stphl(ii)) then
-          stop 'phases in wrong order!!'
-       endif
-    enddo
-100 format(a,i3,2i4,i3,2(1pe12.4),20i4)
-!    do ii=1,meqrec%nstph,5
-!       iph1=meqrec%stphl(ii=1,meqrec%nstph)
-!       write(*,200)meqrec%phr(
-!    enddo
-    return
-  end subroutine list_stable_phases
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine two_stoich_same_comp
-!\begin{verbatim}
-  recursive subroutine two_stoich_same_comp(irem,iadd,mapx,meqrec,inmap,ceq)
-! we have found two  phases stable with same composition
-! ONLY USED WHEN MAPPING with tie-lines in plane
-! ceq is equilibrium record
-    implicit none
-    integer irem,iadd,inmap,mapx
-    type(meq_setup) :: meqrec
-    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-!    type(map_node), pointer :: mapnode,newnode,oldnext
-!    type(map_line), pointer :: nodexit
-    type(gtp_equilibrium_data), pointer :: newceq
-    integer nrel,nel,iph,ics,jj,seqx,phfix,lokph,lokcs,phstable,phfixtupix
-    type(gtp_condition), pointer :: pcond,lastcond
-! needed for solving a nonlinear equation
-    integer, parameter :: lwa=100
-    type(gtp_state_variable), target :: axstv1
-    type(gtp_state_variable), pointer :: axstv
-    integer nv,info,ip
-    double precision newphfra,fvec(5),tol,wa(lwa),value,xv(5),tinit
-    character phases*48
-!    logical isotherm
-    integer idum,jdum,savefix(2),saveent
-!    
-!    write(*,*)'In two_stoich_same_comp'
-!    write(*,*)'MM found two stable stochiometric phases with same composition'
-! THIS SHOULD NOT BE USED FOR ISOPLETHS ??
-!    if(meqrec%nrel.ne.2) then
-! How to check if I should use this routine? Only 2 components?
-! If we have an activity condition one could have 3 components ....
-!       write(*,*)'MM This routine should  be used only when tie-lines in plane'
-!       gx%bmperr=4399; goto 1000
-!    endif
-!    call get_state_var_value('X(O) ',value,phases,ceq)
-!    write(*,806)meqrec%fixph(1,1),meqrec%fixph(2,1),mapx,iadd,value
-806 format('MM why fix phase/set: ',i3,i2,' entered: ',i3,', new fix: ',i3,&
-         1pe12.4)
-    phases=' '
-    call get_phasetup_name(meqrec%phr(iadd)%curd%phtupx,phases)
-    ip=len_trim(phases)
-    phases(ip+2:)='and'
-    call get_phasetup_name(meqrec%phr(irem)%curd%phtupx,phases(ip+6:))
-    if(gx%bmperr.ne.0) goto 1000
-    write(*,'(a)')'MM two compounds stable at same composition: '//trim(phases)
-! new T calculated in this routine should be close to current value
-    tinit=ceq%tpval(1)
-!    write(*,22)'MM in two_stoich_same_comp: ',irem,iadd,ceq%tpval(1)
-!22  format(/20('-')/a,2i5,F8.2)
-!    call list_conditions(kou,ceq)
-! We cannot calculate an equilibrium with two phases with exactly the same
-! composition.  But we can calculate the T where the two stoichiometric
-! phases have the same Gibbs energy using the calc_tzero routine!
-! Assuming the conditions are not too involved ... but we are dealing with a
-! system with tie-lines in the plane, binary or ternary.
-! use the vaiables tzph1 and tzph2 (in matsmin) to specify the phases involved
-! DOES NOT WORK IN PARALLEL!!
-    tzph1=irem; tzph2=iadd
-    phases=' '
-    call get_phasetup_name(tzph1,phases)
-    nv=len_trim(phases)
-    call get_phasetup_name(tzph2,phases(nv+2:))
-!
-!    write(*,27)'MM two compounds: ',tzph1,tzph2,trim(phases)
-27  format(a,2i4,2x,a)
-    nv=1
-    tol=1.0D-6
-! hybrid1 can solve a system of nonlinear equations by calling
-! subroutine tzcalc_stoich(nv,xv,fvec,iflag) is in matsmin.F90
-! the tzceq is a pointer declared in matmin and used in tzcalc_stoich
-    tzceq=>ceq
-    xv(1)=tzceq%tpval(1)
-    call hybrd1(tzcalc_stoich,nv,xv,fvec,tol,info,wa,lwa)
-    if(info.ne.1) then
-! info=0 means improper input parameters
-!     =2 Too many calls to tzcalc_stoich
-!     =3 tol is too small
-!     =4 Convergence too slow
-!       write(*,*)'HYBRD solver return error: ',info
-       if(gx%bmperr.eq.0) gx%bmperr=4371
-    endif
-    if(gx%bmperr.ne.0) goto 1000
-    if(abs(ceq%tpval(1)-tinit).gt.2.0D1) then
-       write(*,654)ceq%tpval(1),tinit
-654    format('MM Error, too large change in T: ',2F10.2)
-       gx%bmperr=4399; goto 1000
-    endif
-! To have correct chemical potentials we must call meq_sameset again
-! But with T fix and phase iadd set dormant
-! Now set current value of T as condition
-!    call list_conditions(kou,ceq)
-! loop all conditions until we find T and set it active.
-! Maybe remove some other condition??
-    lastcond=>ceq%lastcondition
-    pcond=>lastcond
-    nv=0
-    jdum=0
-    condloop1: do while(.TRUE.)
-! loop for all conditions
-       nv=nv+1
-!       write(*,*)'State variable: ',nv,pcond%statev,pcond%prescribed
-       if(pcond%statev.eq.1) then
-! This is T, the axis condition, set as active with calculated value of T
-          pcond%prescribed=xv(1)
-          if(pcond%active.ne.0) then
-             write(*,*)'Error, the condition on T not inactivated!'
-             gx%bmperr=4399; goto 1000
-          endif
-          pcond%active=0
-          jdum=nv
-       else
-          if(gx%bmperr.ne.0) then
-             write(*,*)'Error extraction axis state variable value',gx%bmperr
-             goto 1000
-          endif
-       endif
-       pcond=>pcond%next
-       if(associated(pcond,lastcond)) exit condloop1
-    enddo condloop1
-    if(jdum.eq.0) then
-       write(*,*)'Error, no condition on T!'
-       gx%bmperr=4399; goto 1000
-    endif
-! extract which phase is fixed (only one)
-    savefix(1)=meqrec%fixph(1,1)
-    savefix(2)=meqrec%fixph(1,2)
-! and which is entered
-    jdum=0
-    do jj=1,meqrec%nphase
-       if(meqrec%phr(jj)%stable.eq.1) then
-          if(meqrec%phr(jj)%iph.eq.savefix(1) .and. &
-               meqrec%phr(jj)%ics.eq.savefix(2)) then
-!             write(*,*)'MM Fix phase: ',meqrec%fixph(1,1),meqrec%fixph(1,2)
-             cycle
-          endif
-          if(jdum.eq.0) then
-!             write(*,*)'MM Entered phase',jdum,jj
-             jdum=jj
-!          elseif(jj.ne.irem) then
-!             write(*,*)'MM More than one entered phase',jdum,jj
-          endif
-       endif
-    enddo
-! we must keep saveent to return the entered phase when generating exits!
-    saveent=jdum
-!    write(*,*)'MM old fix phase/set and entered: ',meqrec%fixph(1,1),&
-!         meqrec%fixph(2,1),saveent
-!meq_sameset and ignore any change of the set of stable phases
-! We must call meq_sameset again to have correct chemical potential at this T
-!    write(*,*)'MU(*) before meq_sameset: ',ceq%cmuval(1),ceq%cmuval(2)
-! Now we have calculated T when both stoichiometric phases are stable
-! and set this T as condition. 
-! set the phase iadd as suspend to avoid it will try to be stable
-    meqrec%phr(iadd)%phasestatus=PHSUS
-    meqrec%noofits=0
-!    call list_conditions(kou,ceq)
-! Strange here we have one degree of freedom! how can we calculate?  No check!!
-! But we must have a condition on the amount
-! mapx set to zero inside this routine.  Make sure no error code set!!
-    if(gx%bmperr.ne.0) gx%bmperr=0
-!    write(*,*)'MM calling meq_sameset from two_stoich_same_comp'
-!   write(*,*)'This is a recursive call as we call two_stoich from meq_sameset!'
-    call meq_sameset(idum,jdum,mapx,meqrec,meqrec%phr,inmap,ceq)
-!    write(*,*)'MU(*) after  meq_sameset: ',ceq%cmuval(1),ceq%cmuval(2)
-    if(gx%bmperr.ne.0) then
-!       write(*,*)'MM Error calling meq_sameset from two_stoich',gx%bmperr
-       goto 1000
-    endif
-! return the entered phase in mapx (maybe not needed?)
-!    call get_state_var_value('X(O) ',value,phases,ceq)
-    mapx=saveent
-!    write(*,807)meqrec%fixph(1,1),meqrec%fixph(2,1),mapx,iadd,value
-807 format('MM old fix phase/set: ',i3,i2,' entered: ',i3,', new fix: ',i3,&
-         1pe12.4)
-! restore status of new phase found at nodepoint as entered
-    meqrec%phr(iadd)%phasestatus=PHENTERED
-!    write(*,*)'Conditions for the invariant:'
-!    call list_conditions(kou,ceq)
-!    write(*,*)'Exiting two_stoich_same_comp'
-! we must set this error code to return to mapping routines
-! This means two stoichiometric phases stable an node point
-    gx%bmperr=4364
-1000 continue
-! Make sure status of new phase found at nodepoint as set as entered
-    meqrec%phr(iadd)%phasestatus=PHENTERED
-    return
-  end subroutine two_stoich_same_comp
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -11591,6 +11541,42 @@ if(meqrec%noofits.eq.1) then
     return
   end subroutine calc_conf_interval
     
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine list_stable_phases
+!\begin{verbatim}
+  subroutine list_stable_phases(text,its,iadd,irem,meqrec,ceq)
+! debug listing of stable phases
+! meqrec contains all necessary data ...
+    character*(*) text
+    integer its,iadd,irem
+    type(meq_setup) :: meqrec
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer ii,ij,ik
+    double precision gsum,xmol(50),wmass(50),totmol,totmass
+! NOTE: phases in stphl should always be in increasing order!!
+    call calc_molmass(xmol,wmass,totmol,totmass,ceq)
+    if(gx%bmperr.ne.0) stop 'Error when calling list_stable_phases'
+    gsum=zero
+    do ii=1,meqrec%nrel
+       gsum=gsum+xmol(ii)*ceq%complist(ii)%chempot(1)
+    enddo
+    write(*,100)text,its,iadd,irem,meqrec%nstph,gsum,totmol,&
+         (meqrec%stphl(ii),ii=1,meqrec%nstph)
+    do ii=2,meqrec%nstph
+       if(meqrec%stphl(ii-1).gt.meqrec%stphl(ii)) then
+          stop 'phases in wrong order!!'
+       endif
+    enddo
+100 format(a,i3,2i4,i3,2(1pe12.4),20i4)
+!    do ii=1,meqrec%nstph,5
+!       iph1=meqrec%stphl(ii=1,meqrec%nstph)
+!       write(*,200)meqrec%phr(
+!    enddo
+    return
+  end subroutine list_stable_phases
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 end MODULE liboceqplus

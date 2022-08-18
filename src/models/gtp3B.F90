@@ -2143,10 +2143,10 @@
     kk=0
     if(mode.eq.1) then
 ! after saving current status suspend all phases not included in invph
-!       write(*,*)'3A suspending some phases',ii
+!       write(*,*)'3B suspending some phases',ii
        ntup=ii
        if(allocated(phtupixstatus)) then
-          write(*,*)'3A calls to suspend_somephases cannot be nested'
+          write(*,*)'3B calls to suspend_somephases cannot be nested'
           gx%bmperr=4399; goto 1000
        else
           allocate(phtupixstatus(ntup))
@@ -2155,13 +2155,13 @@
           lokcs=phasetuple(ii)%lokvares
           phtupixstatus(ii)=ceq%phase_varres(lokcs)%phstate
           do jj=1,dim2
-!             write(*,*)'3A suspend? ',jj,lokcs,&
+!             write(*,*)'3B suspend? ',jj,lokcs,&
 !                  phlista(invph(1,jj))%linktocs(invph(2,jj)),phtupixstatus(ii)
 ! invph(1,jj) is index in phases (phase and alphabetcal order)
 ! lokph is the order the phase were entered into phlista (arbitrary)
              lokph=phases(invph(1,jj))
              if(lokcs.eq.phlista(lokph)%linktocs(invph(2,jj))) then
-!                write(*,'(a,6i5)')'3A not suspending',jj,invph(1,jj),&
+!                write(*,'(a,6i5)')'3B not suspending',jj,invph(1,jj),&
 !                     invph(2,jj),phlista(lokph)%linktocs(invph(2,jj))
                 cycle loop1
              endif
@@ -2170,21 +2170,21 @@
           kk=kk+1
           ceq%phase_varres(lokcs)%phstate=PHSUS
        enddo loop1
-!       write(*,'(a,i3,a,i3)')'3A suspededed ',kk,' phases out of ',ntup
+!       write(*,'(a,i3,a,i3)')'3B suspededed ',kk,' phases out of ',ntup
     elseif(mode.eq.0) then
 ! restore status of all phases except those in invph
-!       write(*,*)'3A restoring some phases',ii
+!       write(*,*)'3B restoring some phases',ii
        if(ii.ne.ntup) then
-          write(*,*)'3A number of phases and compsets changed!',ntup,ii
+          write(*,*)'3B number of phases and compsets changed!',ntup,ii
           stop
        endif
        do ii=1,ntup
           ceq%phase_varres(phasetuple(ii)%lokvares)%phstate=phtupixstatus(ii)
        enddo
-!       write(*,'(a,i3,a)')'3A restored phase status for ',ntup,' phases'
+!       write(*,'(a,i3,a)')'3B restored phase status for ',ntup,' phases'
        deallocate(phtupixstatus)
     else
-       write(*,*)'3A mode must be 0 or 1'
+       write(*,*)'3B mode must be 0 or 1'
        gx%bmperr=4399
     endif
 1000 continue
@@ -2205,7 +2205,7 @@
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     integer ii,iph,lokcs
-    write(*,*)'3A delete unstable compsets for phase: ',&
+    write(*,*)'3B delete unstable compsets for phase: ',&
          trim(phlista(lokph)%name),phlista(lokph)%noofcs
 ! the first composition sets cannot be deleted even if unstable
     do ii=phlista(lokph)%noofcs,2,-1
@@ -2357,7 +2357,7 @@
    lokcs=phlista(lokph)%linktocs(1)
    disfra=firsteq%phase_varres(lokcs)%disfra
 ! number of sublattices in the disordered set
-!   write(*,*)'3C disorered ',nsl,disfra%ndd
+!   write(*,*)'3B disorered ',nsl,disfra%ndd
    if(nsl.ne.disfra%ndd) then
       gx%bmperr=4069; goto 1000
    endif
@@ -4645,6 +4645,75 @@
    return
  end subroutine fccpe1111
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable logical function check_minimal_ford
+!\begin{verbatim}
+ logical function check_minimal_ford(lokph)
+! some tests if the fcc/bcc permutation model can be applied to this phase
+! The function returns FALSE if the user may set the FORD or BORD bit of lokph
+   implicit none
+   integer lokph
+!\end{verbatim}
+   integer nsl,nc,jl,ll,j2,loksp,lokcs
+   logical notallowed
+   integer, dimension(:), allocatable :: const
+   double precision ss
+   notallowed=.true.
+   nsl=phlista(lokph)%noofsubl
+   if(btest(phlista(lokph)%status1,PHHASP)) then
+! The PHASP bit is set if a parameter has been entered (never cleared)
+      write(kou,*)'Permutation must be set before parameters are entered'
+      goto 1000
+   endif
+   if(nsl.lt.4) then
+      write(kou,*)'Phase with permutation must have 4 or more sublattices'
+      goto 1000
+   else
+! ordering assumed in first 4 sublattices, that is not really necessary
+!      ss=phlista(lokph)%sites(1)
+      lokcs=phlista(lokph)%linktocs(1)
+      ss=firsteq%phase_varres(lokcs)%sites(1)
+      nc=phlista(lokph)%nooffr(1)
+      allocate(const(nc))
+      do jl=1,nc
+         loksp=phlista(lokph)%constitlist(jl)
+         const(jl)=splista(loksp)%alphaindex
+      enddo
+      jl=nc
+      do ll=2,4
+!         if(abs(phlista(lokph)%sites(ll)-ss).gt.1.0D-12) then
+         if(abs(firsteq%phase_varres(lokcs)%sites(ll)-ss).gt.1.0D-12) then
+            write(kou,12)
+12          format(' Permutation requires the same number of',&
+                 ' sites in first 4 sublattices')
+            goto 1000
+         endif
+         if(phlista(lokph)%nooffr(ll).ne.nc) then
+            write(kou,13)
+13          format(' Permutation requires that the number of constituents',&
+                 ' are equal'/' in all 4 sublattices for ordering')
+            goto 1000
+         endif
+! one must also check the constituents are identical
+         do j2=1,nc
+            loksp=phlista(lokph)%constitlist(jl+j2)
+            if(splista(loksp)%alphaindex.ne.const(j2)) then
+               write(kou,14)
+14             format(' Permutation requires that the constituents in the',&
+                    ' 4 sublattices for'/' ordering are identical')
+               goto 1000
+            endif
+         enddo
+         jl=jl+nc
+      enddo
+   endif
+   notallowed=.false.
+1000 continue
+   check_minimal_ford=notallowed
+   return
+ end function check_minimal_ford
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine bccpermuts
@@ -6528,577 +6597,6 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\addtotable subroutine delete_all_conditions
-!\begin{verbatim}
- subroutine delete_all_conditions(mode,ceq)
-! deletes the (circular) list of conditions in an equilibrium
-! it also deletes any experiments
-! if mode=1 the whole equilibrium is removed, do not change phase status
-! because the phase_varres records have been deallocated !!!
-! I am not sure it releases any memory though ...
-   implicit none
-   integer mode
-   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   type(gtp_condition), pointer :: last,current,next
-   integer iph,ics,lokcs
-!
-!   write(*,*)'3B deleting conditions and experiments',trim(ceq%eqname)
-   last=>ceq%lastcondition
-   do while(associated(last))
-      next=>last%next
-      do while(.not.associated(next,last))
-         current=>next
-         next=>current%next
-! if mode=0 then the equilibrium is not deleted, just the conditions
-         if(mode.eq.0 .and. current%active.eq.0) then
-! if condition is active and that a phase is fix change the phase status!!
-! A fix phase has a negative statevariable-id
-            iph=-current%statvar(1)%statevarid
-!            write(*,*)'3B Active condition: ',iph
-            if(iph.gt.0) then
-!               write(*,*)'3B rest status for phase: ',iph
-               ics=current%statvar(1)%compset
-110            continue
-               if(phasetuple(iph)%compset.ne.ics) then
-                  iph=phasetuple(iph)%nextcs
-                  if(iph.gt.0) goto 110
-! this composition set does not exist
-                  gx%bmperr=4399; goto 1000
-               else
-                  lokcs=phasetuple(iph)%lokvares
-! set the phase status to entered and unknown
-!                  write(*,*)'3B remove phase condition: ',iph,ics,lokcs
-                  ceq%phase_varres(lokcs)%phstate=0
-               endif
-            endif
-!         else
-!            write(*,*)'3B inactive condition: ',current%statvar(1)%statevarid
-         endif
-         deallocate(current)
-      enddo
-!      write(*,*)'3B last condition'
-      if(mode.eq.0 .and. last%active.eq.0) then
-! if condition is active and that a phase is fix change the phase status!!
-! A fix phase has a negative statevariable-id
-         iph=-last%statvar(1)%statevarid
-!         write(*,*)'3B Active condition: ',iph
-         if(iph.gt.0) then
-!            write(*,*)'3B restore status for phase: ',iph
-            ics=last%statvar(1)%compset
-120         continue
-            if(phasetuple(iph)%compset.ne.ics) then
-               iph=phasetuple(iph)%nextcs
-               if(iph.gt.0) goto 120
-! this composition set does not exist
-               gx%bmperr=4399; goto 1000
-            else
-               lokcs=phasetuple(iph)%lokvares
-! set the phase status to entered and stable (not fix)
-!               write(*,*)'3B change phase status: ',iph,ics,lokcs
-               ceq%phase_varres(lokcs)%phstate=phentstab
-!               write(*,*)'3B new phase status: ',&
-!                    ceq%phase_varres(lokcs)%phstate
-            endif
-         endif
-      endif
-!      write(*,*)'3B deallocate last condition'
-      deallocate(last)
-!      write(*,*)'3B last condition deallocated'
-   enddo
-   nullify(ceq%lastcondition)
-!------------------------------
-! same for experiments (no fix phases)
-   last=>ceq%lastexperiment
-   do while(associated(last))
-      next=>last%next
-      do while(.not.associated(next,last))
-         current=>next
-         next=>current%next
-         deallocate(current)
-      enddo
-      deallocate(last)
-   enddo
-   nullify(ceq%lastexperiment)
-! same for experiments ...
-1000 continue
-! mark conditions and current result may not be compatible
-   ceq%status=ibset(ceq%status,EQINCON)
-   return
- end subroutine delete_all_conditions
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable subroutine delete_equilibria
-!\begin{verbatim}
- subroutine delete_equilibria(name,ceq)
-! deletes equilibria (needed when repeated step/map)
-! name can be an abbreviation line "_MAP*"
-! deallocates all data.  Minimal checks ... one cannot delete "ceq"
-   implicit none
-   character name*(*)
-   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   type(gtp_equilibrium_data), pointer :: curceq
-   type(gtp_condition), pointer :: lastcond,pcond,qcond
-   integer cureq,ieq,ik,novarres,ipv,ndel
-!
-   cureq=ceq%eqno
-!   write(*,*)'In delete_equilibria ',cureq,trim(name)
-   ik=index(name,'*')-1
-   if(ik.lt.0) ik=min(24,len(name))
-   novarres=highcs
-   ndel=0
-!   write(*,*)'3B delete equilibria: ',eqfree-1,highcs,csfree
-   eqloop: do ieq=eqfree-1,2,-1
-! we cannot have "holes" in the free list??  NO! Delete from the end...
-      if(ieq.eq.cureq) exit eqloop
-      if(eqlista(ieq)%eqname(1:ik).ne.name(1:ik)) exit eqloop
-!      write(*,*)'3B Deleting equil: ',trim(eqlista(ieq)%eqname),ieq
-      eqlista(ieq)%eqname=' '
-      deallocate(eqlista(ieq)%complist)
-      deallocate(eqlista(ieq)%compstoi)
-      deallocate(eqlista(ieq)%invcompstoi)
-      deallocate(eqlista(ieq)%cmuval)
-!
-! the next line should be removed when highcs implemented
-!      novarres=csfree-1
-!      write(*,*)'3B deallocationg phase_varres'
-      do ipv=1,novarres
-! it can happen a phase_varres record is not allocated when previous errors
-! 
-         if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%yfr)) cycle
-         deallocate(eqlista(ieq)%phase_varres(ipv)%yfr)
-! with map 17 error here because not allocated, skip if not allocated
-         if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%constat)) cycle
-         deallocate(eqlista(ieq)%phase_varres(ipv)%constat)
-! skip also if this is not allocated
-         if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%mmyfr)) cycle
-! If all prevous allocated I hope these will not cause errors ....
-         deallocate(eqlista(ieq)%phase_varres(ipv)%mmyfr)
-         eqlista(ieq)%phase_varres(ipv)%status2=&
-              ibclr(eqlista(ieq)%phase_varres(ipv)%status2,CSDEFCON)
-         deallocate(eqlista(ieq)%phase_varres(ipv)%sites)
-         deallocate(eqlista(ieq)%phase_varres(ipv)%listprop)
-         deallocate(eqlista(ieq)%phase_varres(ipv)%gval)
-         deallocate(eqlista(ieq)%phase_varres(ipv)%dgval)
-         deallocate(eqlista(ieq)%phase_varres(ipv)%d2gval)
-! do not deallocate explicitly disfra as it is another phase_varres record ...
-      enddo
-      deallocate(eqlista(ieq)%phase_varres)
-      deallocate(eqlista(ieq)%eq_tpres)
-!      write(*,*)'3B Deallocating svfunres for equilibrium:',trim(name)
-      deallocate(eqlista(ieq)%svfunres)
-! this deletes the conditions and experiments (if any)
-      curceq=>eqlista(ieq)
-      call delete_all_conditions(1,curceq)
-      if(gx%bmperr.ne.0) then
-         write(kou,800)gx%bmperr,ieq
-800      format(' *** Error ',i6,' deleting equilibrium ',i5)
-         gx%bmperr=0
-      endif
-      ndel=ndel+1
-      eqfree=eqfree-1
-   enddo eqloop
-! we have deleted all equilibria until ieq+1
-   if(ocv()) write(*,900)ieq+1,eqfree
-   if(ndel.gt.0) write(*,900)ndel,eqfree-1
-900 format('3B Deleted ',i3,' equilibria.  First free ',i3)
-   eqfree=ieq+1
-1000 continue
-   return
- end subroutine delete_equilibria
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable subroutine copy_equilibrium
-!\begin{verbatim}
- subroutine copy_equilibrium(neweq,name,ceq)
-! creates a new equilibrium which is a copy of ceq.  
-   implicit none
-   character name*(*)
-   type(gtp_equilibrium_data), pointer ::neweq,ceq
-!\end{verbatim} %+
-   integer number
-   call copy_equilibrium2(neweq,number,name,ceq)
-1000 continue
-   return
- end subroutine copy_equilibrium
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable subroutine copy_equilibrium2
-!\begin{verbatim} %-
- subroutine copy_equilibrium2(neweq,number,name,ceq)
-! creates a new equilibrium which is a copy of ceq. THIS IS STILL USED !! ??
-! Allocates arrayes for conditions,
-! components, phase data and results etc. from equilibrium ceq
-! returns a pointer to the new equilibrium record
-! THIS CAN PROBABLY BE SIMPLIFIED, especially phase_varres array can be
-! copied as a whole, not each record structure separately ... ???
-   implicit none
-   character name*(*)
-   integer number
-   type(gtp_equilibrium_data), pointer ::neweq,ceq
-!\end{verbatim}
-   type(gtp_condition), pointer :: oldcond,lastcond
-   type(gtp_condition), pointer :: newcond1,newcond2
-   type(gtp_condition), pointer :: bugcond
-   character name2*64
-   integer ieq,ipv,jz,iz,jl,jk,novarres,oldeq
-   logical okname
-!
-!   write(*,*)'In copy_equilibrium2',trim(name),eqfree
-   nullify(neweq)
-   if(.not.allowenter(3)) then
-!      write(*,*)'3B Not allowed to copy or enter equilibria'
-      gx%bmperr=4153; goto 1000
-   endif
-!   write(*,*)'3B allow enter OK'
-! not allowed to enter equilibria if there are no phases
-!   if(btest(globaldata%status,GSNOPHASE)) then
-!      write(*,*)'3B Meaningless to copy equilibria with no phase data'
-!      gx%bmperr=7777; goto 1000
-!   endif
-! equilibrium names starting with _ are automatically created by mapping
-! and in some other cases.
-   if(name(1:1).eq.'_') then
-      name2=name(2:)
-      jk=1
-   elseif(name(1:1).eq.' ') then
-      write(*,*)'A name must start with a letter'
-      gx%bmperr=4284; goto 1000
-   else
-      name2=name
-      jk=0
-   endif
-   call capson(name2)
-!   write(*,*)'3B Entering copy equilibria: ',name2,jk
-! program crashed with this construction
-!   if(.not.proper_symbol_name(name2,0)) then
-   okname=proper_symbol_name(name2,0)
-   if(.not.okname) then
-! the name must start with a letter A-Z and contain letters, numbers and _
-      gx%bmperr=4122
-      goto 1000
-   endif
-!   write(*,*)'3B name check ok: ',jk
-! remove initial "_" used for automatically created equilibria
-   if(jk.eq.1) then
-! changing this cause a lot of trouble ... but I do not understand
-      name2='_'//name2
-!      name2=name2(2:)
-   endif
-! check if name already used
-!   write(*,*)'3B check if name unique: ',name2
-   call findeq(name2,ieq)
-   if(gx%bmperr.eq.0) then
-      gx%bmperr=4123
-      goto 1000
-   else
-! reset error code
-      gx%bmperr=0
-   endif
-!   write(*,*)'3B check if name unique: ',eqfree
-   if(eqfree.le.maxeq) then
-      ieq=eqfree
-      eqfree=eqfree+1
-   else
-!      write(*,*)'Too many equilibrium required, increase dimension',eqfree
-      gx%bmperr=4283; goto 1000
-   endif
-   number=ieq
-   if(ieq.eq.1) then
-!      write(*,*)'Cannot copy to default equilibria'
-      gx%bmperr=4285; goto 1000
-   endif
-!   write(*,*)'3B copy eq',eqfree,maxeq,ieq
-! allocate data arrayes in equilibrium record
-   eqlista(ieq)%nexteq=0
-   eqlista(ieq)%eqname=name2
-   eqlista(ieq)%eqno=ieq
-! do not copy comment but set it to blanks
-   eqlista(ieq)%comment=' '
-! component list and matrix, if second or higher equilibrium copy content
-!   write(*,*)'3B: copyeq 1A: ',maxel,noofel
-   allocate(eqlista(ieq)%complist(noofel))
-   allocate(eqlista(ieq)%compstoi(noofel,noofel))
-   allocate(eqlista(ieq)%invcompstoi(noofel,noofel))
-   allocate(eqlista(ieq)%cmuval(noofel))
-!   write(*,*)'3B: copyeq 1B: ',noofel
-! careful here because FIRSTEQ has other dimensions than the other
-   do jl=1,noofel
-      eqlista(ieq)%complist(jl)=ceq%complist(jl)
-      eqlista(ieq)%cmuval(jl)=ceq%cmuval(jl)
-      do jk=1,noofel
-         eqlista(ieq)%compstoi(jk,jl)=ceq%compstoi(jk,jl)
-         eqlista(ieq)%invcompstoi(jk,jl)=ceq%invcompstoi(jk,jl)
-      enddo
-   enddo
-   oldeq=ceq%eqno
-! what about the weight?
-   eqlista(ieq)%weight=ceq%weight
-!   write(*,*)'3B copyeq 1: ',ceq%weight,eqlista(ieq)%weight
-   do jl=1,noofel
-      eqlista(ieq)%complist(jl)%splink=eqlista(oldeq)%complist(jl)%splink
-      eqlista(ieq)%complist(jl)%phlink=firsteq%complist(jl)%phlink
-      eqlista(ieq)%complist(jl)%status=firsteq%complist(jl)%status
-      if(firsteq%complist(jl)%phlink.gt.0) then
-! only if there is a defined reference state
-         eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
-         eqlista(ieq)%complist(jl)%tpref=firsteq%complist(jl)%tpref
-         eqlista(ieq)%complist(jl)%chempot=zero
-         do jk=1,noofel
-            eqlista(ieq)%compstoi(jl,jk)=firsteq%compstoi(jl,jk)
-            eqlista(ieq)%invcompstoi(jl,jk)=firsteq%invcompstoi(jl,jk)
-         enddo
-         if(.not.allocated(eqlista(ieq)%complist(jl)%endmember)) then
-            iz=size(firsteq%complist(jl)%endmember)
-            allocate(eqlista(ieq)%complist(jl)%endmember(iz))
-            eqlista(ieq)%complist(jl)%endmember=firsteq%complist(jl)%endmember
-         endif
-      else
-         eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
-      endif
-   enddo
-! these records keep calculated values of G and derivatives for each phase
-! For phase lokph the index to phase_varres is in phlista(lokph)%cslink
-! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
-! for ieq>1 allocate the current number of phase_varres records plus 10
-! for extra composition sets added later
-! 170524: It seems that phase_varres for disordered fraction sets are not
-!          included in novarres in novarres or highcs!!
-! BEWARE: allocation: calculating with one phase with 8 composition sets
-! and disordered fractions sets !!!
-   if(oldeq.eq.1) then
-! the first equilibria has many phase_varres record as we do not what system
-! we will have.  If we copy that we create as many varres as in the enter_equil
-      iz=2*noofph+2*noofel+10
-   else
-! When we copy other equilibria we copy the same number as in the origin
-      iz=size(ceq%phase_varres)
-   endif
-   allocate(eqlista(ieq)%phase_varres(iz))
-!   write(*,*)'3B copy_equil allocates: ',oldeq,ieq,iz,highcs,csfree
-! now copy the current content of ceq%phase_varres to this equilibrium
-! note, the SELECT_ELEMENT_REFERENCE phase has phase number 0
-! and phase_varres index 1, the number of phase_varres records is not the
-! same as number of phases ....
-!
-! strange error here running STEP on bigfcc4: crash with message:
-! Index "3" of dimension 1 of array "eqlista" above upper bound of 2
-!   write(*,*)'3B 3737:',novarres,ieq,oldeq,size(eqlista(oldeq)%phase_varres)
-! Ahhhh, there are 2 phase_varres records for each phase because of 
-! disordered fraction set, one for the ordered with 33 y-fractions, one for
-! the disordered with 8 y-fractions.  
-! A simple dimensioning problem: 1 phase, 8 compsets, disordered fracset
-! requires 17 phase_varres.  Before the "max" above I had dimensioned for 2
-! BEWARE: I am not sure novarres is correct ...
-!   copypv: do ipv=1,min(novarres+3,size(ceq%phase_varres))
-!   copypv: do ipv=1,novarres
-! THIS CREATED ALL TROUBLE ... I did not copy all varres records used!!
-   copypv: do ipv=1,iz
-      eqlista(ieq)%phase_varres(ipv)=eqlista(oldeq)%phase_varres(ipv)
-! in matsmin nprop seemed suddenly to be zero in copied equilibria ....
-!      write(*,*)'3B copyeq 2: ',ieq,ipv,eqlista(ieq)%phase_varres(ipv)%nprop
-! Bug 170524 ... disordered phase_varres had no 
-!      write(*,833)'3B copyeq: ',oldeq,ipv,novarres,&
-!           eqlista(oldeq)%phase_varres(ipv)%disfra%varreslink,&
-!           eqlista(ieq)%phase_varres(ipv)%disfra%varreslink
-833 format(a,2i3,i5,2i3,10i5)
-   enddo copypv
-900 continue
-!   write(*,*)'3B To copy conditions:'
-! copy conditions (and experiments) !!!
-   lastcond=>eqlista(oldeq)%lastcondition
-   if(associated(lastcond)) then
-      jz=1
-      call copy_condition(eqlista(ieq)%lastcondition,lastcond)
-!      write(*,770)'3B cc1: ',jz,lastcond%prescribed,&
-!           eqlista(ieq)%lastcondition%prescribed
-      newcond1=>eqlista(ieq)%lastcondition
-      bugcond=>newcond1
-      oldcond=>lastcond%next
-      do while(.not.associated(oldcond,lastcond))
-         jz=jz+1
-         newcond2=>newcond1
-         call copy_condition(newcond1%next,oldcond)
-         newcond1=>newcond1%next
-!         write(*,770)'3B cc2: ',jz,oldcond%prescribed,newcond1%prescribed
-770      format(a,i2,6(1pe12.4))
-         newcond1%previous=>newcond2
-         oldcond=>oldcond%next
-      enddo
-      newcond1%next=>bugcond
-!      write(*,*)'3B Copied all condition',jz
-   else
-      nullify(eqlista(ieq)%lastcondition)
-   endif
-! copy experiments) ... later
-!
-   nullify(eqlista(ieq)%lastexperiment)
-!
-! copy TPfuns and symbols and current values
-!   write(*,*)'3B Copy tpval arrays'
-   eqlista(ieq)%tpval=ceq%tpval
-   allocate(eqlista(ieq)%eq_tpres(maxtpf))
-!   write(*,*)'3B allocated tpres arrays'
-   eqlista(ieq)%eq_tpres=ceq%eq_tpres
-   allocate(eqlista(ieq)%svfunres(maxsvfun))
-!   write(*,*)'3B allocated svfunres arrays'
-   eqlista(ieq)%svfunres=ceq%svfunres
-! copy convergence criteria
-   eqlista(ieq)%xconv=ceq%xconv
-   eqlista(ieq)%gdconv(1)=ceq%gdconv(1)
-   eqlista(ieq)%gdconv(2)=ceq%gdconv(2)
-! woops ... this is still used
-!   stop 'old copy_equilibrium ... we should never be here'
-   eqlista(ieq)%maxiter=ceq%maxiter
-!   write(*,*)'3B finished copy equilibrium',ieq
-   eqlista(ieq)%eqno=ieq
-   neweq=>eqlista(ieq)
-! status word is initiated to zero, no need to copy?? Maybe EQMIXED?
-!   write(*,*)'3B copy_eq: ',neweq%status,ceq%status
-!   write(*,*)'3B Assigned pointer to new equilibrium',neweq%eqno
-1000 continue
-!   write(*,*)'3B exit copy_equilibrium'
-   return
- end subroutine copy_equilibrium2 !csfree
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable subroutine copy_condition
-!\begin{verbatim}
- subroutine copy_condition(newrec,oldrec)
-! Creates a copy of the condition record "oldrec" and returns a link
-! to the copy in newrec.  The links to "next/previous" are nullified
-   implicit none
-   type(gtp_condition), pointer :: oldrec
-   type(gtp_condition), pointer :: newrec
-!\end{verbatim}
-!   write(*,*)' *** In copy_condition:         ',oldrec%prescribed
-   allocate(newrec)
-!   write(*,*)' *** Allocated'
-   newrec=oldrec
-!   write(*,*)' *** Copied old condition to new',newrec%prescribed
-1000 continue
-   return
- end subroutine copy_condition
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable logical function check_minimal_ford
-!\begin{verbatim}
- logical function check_minimal_ford(lokph)
-! some tests if the fcc/bcc permutation model can be applied to this phase
-! The function returns FALSE if the user may set the FORD or BORD bit of lokph
-   implicit none
-   integer lokph
-!\end{verbatim}
-   integer nsl,nc,jl,ll,j2,loksp,lokcs
-   logical notallowed
-   integer, dimension(:), allocatable :: const
-   double precision ss
-   notallowed=.true.
-   nsl=phlista(lokph)%noofsubl
-   if(btest(phlista(lokph)%status1,PHHASP)) then
-! The PHASP bit is set if a parameter has been entered (never cleared)
-      write(kou,*)'Permutation must be set before parameters are entered'
-      goto 1000
-   endif
-   if(nsl.lt.4) then
-      write(kou,*)'Phase with permutation must have 4 or more sublattices'
-      goto 1000
-   else
-! ordering assumed in first 4 sublattices, that is not really necessary
-!      ss=phlista(lokph)%sites(1)
-      lokcs=phlista(lokph)%linktocs(1)
-      ss=firsteq%phase_varres(lokcs)%sites(1)
-      nc=phlista(lokph)%nooffr(1)
-      allocate(const(nc))
-      do jl=1,nc
-         loksp=phlista(lokph)%constitlist(jl)
-         const(jl)=splista(loksp)%alphaindex
-      enddo
-      jl=nc
-      do ll=2,4
-!         if(abs(phlista(lokph)%sites(ll)-ss).gt.1.0D-12) then
-         if(abs(firsteq%phase_varres(lokcs)%sites(ll)-ss).gt.1.0D-12) then
-            write(kou,12)
-12          format(' Permutation requires the same number of',&
-                 ' sites in first 4 sublattices')
-            goto 1000
-         endif
-         if(phlista(lokph)%nooffr(ll).ne.nc) then
-            write(kou,13)
-13          format(' Permutation requires that the number of constituents',&
-                 ' are equal'/' in all 4 sublattices for ordering')
-            goto 1000
-         endif
-! one must also check the constituents are identical
-         do j2=1,nc
-            loksp=phlista(lokph)%constitlist(jl+j2)
-            if(splista(loksp)%alphaindex.ne.const(j2)) then
-               write(kou,14)
-14             format(' Permutation requires that the constituents in the',&
-                    ' 4 sublattices for'/' ordering are identical')
-               goto 1000
-            endif
-         enddo
-         jl=jl+nc
-      enddo
-   endif
-   notallowed=.false.
-1000 continue
-   check_minimal_ford=notallowed
-   return
- end function check_minimal_ford
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable integer function newhighcs
-!\begin{verbatim}
- integer function newhighcs(reserved)
-! updates highcs and arranges csfree to be in sequential order
-! highcs is the higest used varres record before the last reservation
-! or release of a record.  release is TRUE if a record has been released 
-! csfree is the beginning of the free list of varres records.
-   implicit none
-   logical reserved
-!\end{verbatim}
-   integer high,lok,free,prev
-! Do not be smart, go through the whole array
-! in all used varres record the %nextfree is zero
-   high=0
-   free=0
-   do lok=1,size(firsteq%phase_varres)
-      if(firsteq%phase_varres(lok)%nextfree.eq.0) then
-         high=lok
-      elseif(free.eq.0) then
-! we have the first record belonging to the free list
-         free=lok
-         prev=lok
-      else
-         firsteq%phase_varres(prev)%nextfree=lok
-         prev=lok
-      endif
-   enddo
-! verification ??
-   prev=2*noofph+2
-!   write(*,*)'3B high and free: ',high,free,reserved,highcs,csfree
-!   write(*,110)(firsteq%phase_varres(lok)%nextfree,lok=free,prev)
-110 format(12(i6))   
-!   write(*,120)free,csfree,high,&
-!        (firsteq%phase_varres(lok)%nextfree,lok=free,high)
-120 format('3B cs: ',3i5,(14i4))
-   newhighcs=high
-   csfree=free
-!   write(*,*)'3B in newhighcs: ',csfree,highcs
-1000 continue
- end function newhighcs
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
 !\addtotable subroutine mqmqa_constituents
 !\begin{verbatim}
  subroutine mqmqa_constituents(inline,const,nend,loop)
@@ -7918,7 +7416,7 @@
          do s3=1,3+mqmqa_data%contyp(krux+1,s1)
 ! specis is in 5+krux+s3
             gg=mqmqa_data%contyp(5+krux+s3,s1)
-!            write(*,'(a,6i3,2x,4i3,2x,2i3)')'3X SNN and pair: ',s1,s2,s3,krux,&
+!            write(*,'(a,6i3,2x,4i3,2x,2i3)')'3B SNN and pair: ',s1,s2,s3,krux,&
 !                 3-mqmqa_data%contyp(krux+1,s1),&
 !                 5+krux+s3,(mqmqa_data%contyp(s4,s1),s4=6,9),ee,gg
             fpair: do s4=1,mqmqa_data%npair
@@ -8027,7 +7525,7 @@
    pp: do s1=1,mqmqa_data%nconst
       if(mqmqa_data%contyp(5,s1).gt.0) cycle pp
 ! an SNN quadruplet
-!      write(*,'(a,i3,4i2,i3,1x,4i3,1x,i3,1x,4i3)')'3X %contyp: ',s1,&
+!      write(*,'(a,i3,4i2,i3,1x,4i3,1x,i3,1x,4i3)')'3B %contyp: ',s1,&
 !           (mqmqa_data%contyp(s3,s1),s3=1,14)
       do s2=1,4
 ! s3 is index of a pair in the SNN
@@ -8094,6 +7592,34 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine enter_species_property
+!\begin{verbatim}
+ subroutine enter_species_property(loksp,nspx,value)
+! enter an extra species property for species loksp
+   implicit none
+   integer loksp,nspx
+   double precision value
+!\end{verbatim} %+
+! this is illegal for species that are elements ...
+   if(btest(splista(loksp)%status,SPEL) .or. &
+        btest(splista(loksp)%status,SPVA)) then
+!      write(*,*)'Illegal to set this for element species'
+      gx%bmperr=4298
+   elseif(.not.allocated(splista(loksp)%spextra)) then
+      write(*,*)'3B this species has no allocated extra data'
+      gx%bmperr=4399; goto 1000
+   elseif(nspx.gt.size(splista(loksp)%spextra)) then
+      write(*,*)'3B species has not sufficient extra data allocated ',nspx
+      gx%bmperr=4399; goto 1000
+   else
+      splista(loksp)%spextra(nspx)=value
+   endif
+1000 continue
+   return
+ end subroutine enter_species_property
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !\addtotable subroutine set_uniquac_species
 !\begin{verbatim}
  subroutine set_uniquac_species(loksp)
@@ -8116,34 +7642,6 @@
    return
  end subroutine set_uniquac_species
  
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\addtotable subroutine enter_species_property
-!\begin{verbatim}
- subroutine enter_species_property(loksp,nspx,value)
-! enter an extra species property for species loksp
-   implicit none
-   integer loksp,nspx
-   double precision value
-!\end{verbatim} %+
-! this is illegal for species that are elements ...
-   if(btest(splista(loksp)%status,SPEL) .or. &
-        btest(splista(loksp)%status,SPVA)) then
-!      write(*,*)'Illegal to set this for element species'
-      gx%bmperr=4298
-   elseif(.not.allocated(splista(loksp)%spextra)) then
-      write(*,*)'3D this species has no allocated extra data'
-      gx%bmperr=4399; goto 1000
-   elseif(nspx.gt.size(splista(loksp)%spextra)) then
-      write(*,*)'3D species has not sufficient extra data allocated ',nspx
-      gx%bmperr=4399; goto 1000
-   else
-      splista(loksp)%spextra(nspx)=value
-   endif
-1000 continue
-   return
- end subroutine enter_species_property
-
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\addtotable subroutine enter_material
@@ -8292,7 +7790,7 @@
       nv=nv+1
       alloy(nv)=majorel
       xalloy(nv)=rest
-!      write(*,505)'3D m1: ',nv,(alloy(j1),xalloy(j1),j1=1,nv)
+!      write(*,505)'3B m1: ',nv,(alloy(j1),xalloy(j1),j1=1,nv)
       call readtdb(database,nv,alloy)
       if(gx%bmperr.ne.0) goto 1000
 ! order the amounts in xalloy in alphabetical order
@@ -8309,7 +7807,7 @@
                   xxx=xalloy(j1)
                   xalloy(j1)=xalloy(j2)
                   xalloy(j2)=xxx
-!                  write(*,505)'3D m1: ',nv,(alloy(j3),xalloy(j3),j3=1,nv)
+!                  write(*,505)'3B m1: ',nv,(alloy(j3),xalloy(j3),j3=1,nv)
                   cycle order
                endif
             enddo
@@ -8319,8 +7817,8 @@
       do j1=1,nv
          xknown(j1)=xalloy(j1)
       enddo
-!      write(*,505)'3D m2: ',nv,(alloy(j1),xknown(j1),j1=1,nv)
-510   format('3D em: ',10(a2,F6.3,1x))
+!      write(*,505)'3B m2: ',nv,(alloy(j1),xknown(j1),j1=1,nv)
+510   format('3B em: ',10(a2,F6.3,1x))
    endif
 !----------------------------------
 ! set conditions for composition (replace major by N=1)
@@ -8339,13 +7837,515 @@
    enddo
    bline(j2:)=' N=1 '
    j2=len_trim(bline)+2
-   write(*,*)'3D em: ',trim(bline)
+   write(*,*)'3B em: ',trim(bline)
 ! set_condition will increment j1
    j1=1
    call set_condition(bline,j1,ceq)
 1000 continue
    return
  end subroutine enter_material
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine delete_all_conditions
+!\begin{verbatim}
+ subroutine delete_all_conditions(mode,ceq)
+! deletes the (circular) list of conditions in an equilibrium
+! it also deletes any experiments
+! if mode=1 the whole equilibrium is removed, do not change phase status
+! because the phase_varres records have been deallocated !!!
+! I am not sure it releases any memory though ...
+   implicit none
+   integer mode
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   type(gtp_condition), pointer :: last,current,next
+   integer iph,ics,lokcs
+!
+!   write(*,*)'3B deleting conditions and experiments',trim(ceq%eqname)
+   last=>ceq%lastcondition
+   do while(associated(last))
+      next=>last%next
+      do while(.not.associated(next,last))
+         current=>next
+         next=>current%next
+! if mode=0 then the equilibrium is not deleted, just the conditions
+         if(mode.eq.0 .and. current%active.eq.0) then
+! if condition is active and that a phase is fix change the phase status!!
+! A fix phase has a negative statevariable-id
+            iph=-current%statvar(1)%statevarid
+!            write(*,*)'3B Active condition: ',iph
+            if(iph.gt.0) then
+!               write(*,*)'3B rest status for phase: ',iph
+               ics=current%statvar(1)%compset
+110            continue
+               if(phasetuple(iph)%compset.ne.ics) then
+                  iph=phasetuple(iph)%nextcs
+                  if(iph.gt.0) goto 110
+! this composition set does not exist
+                  gx%bmperr=4399; goto 1000
+               else
+                  lokcs=phasetuple(iph)%lokvares
+! set the phase status to entered and unknown
+!                  write(*,*)'3B remove phase condition: ',iph,ics,lokcs
+                  ceq%phase_varres(lokcs)%phstate=0
+               endif
+            endif
+!         else
+!            write(*,*)'3B inactive condition: ',current%statvar(1)%statevarid
+         endif
+         deallocate(current)
+      enddo
+!      write(*,*)'3B last condition'
+      if(mode.eq.0 .and. last%active.eq.0) then
+! if condition is active and that a phase is fix change the phase status!!
+! A fix phase has a negative statevariable-id
+         iph=-last%statvar(1)%statevarid
+!         write(*,*)'3B Active condition: ',iph
+         if(iph.gt.0) then
+!            write(*,*)'3B restore status for phase: ',iph
+            ics=last%statvar(1)%compset
+120         continue
+            if(phasetuple(iph)%compset.ne.ics) then
+               iph=phasetuple(iph)%nextcs
+               if(iph.gt.0) goto 120
+! this composition set does not exist
+               gx%bmperr=4399; goto 1000
+            else
+               lokcs=phasetuple(iph)%lokvares
+! set the phase status to entered and stable (not fix)
+!               write(*,*)'3B change phase status: ',iph,ics,lokcs
+               ceq%phase_varres(lokcs)%phstate=phentstab
+!               write(*,*)'3B new phase status: ',&
+!                    ceq%phase_varres(lokcs)%phstate
+            endif
+         endif
+      endif
+!      write(*,*)'3B deallocate last condition'
+      deallocate(last)
+!      write(*,*)'3B last condition deallocated'
+   enddo
+   nullify(ceq%lastcondition)
+!------------------------------
+! same for experiments (no fix phases)
+   last=>ceq%lastexperiment
+   do while(associated(last))
+      next=>last%next
+      do while(.not.associated(next,last))
+         current=>next
+         next=>current%next
+         deallocate(current)
+      enddo
+      deallocate(last)
+   enddo
+   nullify(ceq%lastexperiment)
+! same for experiments ...
+1000 continue
+! mark conditions and current result may not be compatible
+   ceq%status=ibset(ceq%status,EQINCON)
+   return
+ end subroutine delete_all_conditions
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine delete_equilibria
+!\begin{verbatim}
+ subroutine delete_equilibria(name,ceq)
+! deletes equilibria (needed when repeated step/map)
+! name can be an abbreviation line "_MAP*"
+! deallocates all data.  Minimal checks ... one cannot delete "ceq"
+   implicit none
+   character name*(*)
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   type(gtp_equilibrium_data), pointer :: curceq
+   type(gtp_condition), pointer :: lastcond,pcond,qcond
+   integer cureq,ieq,ik,novarres,ipv,ndel
+!
+   cureq=ceq%eqno
+!   write(*,*)'In delete_equilibria ',cureq,trim(name)
+   ik=index(name,'*')-1
+   if(ik.lt.0) ik=min(24,len(name))
+   novarres=highcs
+   ndel=0
+!   write(*,*)'3B delete equilibria: ',eqfree-1,highcs,csfree
+   eqloop: do ieq=eqfree-1,2,-1
+! we cannot have "holes" in the free list??  NO! Delete from the end...
+      if(ieq.eq.cureq) exit eqloop
+      if(eqlista(ieq)%eqname(1:ik).ne.name(1:ik)) exit eqloop
+!      write(*,*)'3B Deleting equil: ',trim(eqlista(ieq)%eqname),ieq
+      eqlista(ieq)%eqname=' '
+      deallocate(eqlista(ieq)%complist)
+      deallocate(eqlista(ieq)%compstoi)
+      deallocate(eqlista(ieq)%invcompstoi)
+      deallocate(eqlista(ieq)%cmuval)
+!
+! the next line should be removed when highcs implemented
+!      novarres=csfree-1
+!      write(*,*)'3B deallocationg phase_varres'
+      do ipv=1,novarres
+! it can happen a phase_varres record is not allocated when previous errors
+! 
+         if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%yfr)) cycle
+         deallocate(eqlista(ieq)%phase_varres(ipv)%yfr)
+! with map 17 error here because not allocated, skip if not allocated
+         if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%constat)) cycle
+         deallocate(eqlista(ieq)%phase_varres(ipv)%constat)
+! skip also if this is not allocated
+         if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%mmyfr)) cycle
+! If all prevous allocated I hope these will not cause errors ....
+         deallocate(eqlista(ieq)%phase_varres(ipv)%mmyfr)
+         eqlista(ieq)%phase_varres(ipv)%status2=&
+              ibclr(eqlista(ieq)%phase_varres(ipv)%status2,CSDEFCON)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%sites)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%listprop)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%gval)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%dgval)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%d2gval)
+! do not deallocate explicitly disfra as it is another phase_varres record ...
+      enddo
+      deallocate(eqlista(ieq)%phase_varres)
+      deallocate(eqlista(ieq)%eq_tpres)
+!      write(*,*)'3B Deallocating svfunres for equilibrium:',trim(name)
+      deallocate(eqlista(ieq)%svfunres)
+! this deletes the conditions and experiments (if any)
+      curceq=>eqlista(ieq)
+      call delete_all_conditions(1,curceq)
+      if(gx%bmperr.ne.0) then
+         write(kou,800)gx%bmperr,ieq
+800      format(' *** Error ',i6,' deleting equilibrium ',i5)
+         gx%bmperr=0
+      endif
+      ndel=ndel+1
+      eqfree=eqfree-1
+   enddo eqloop
+! we have deleted all equilibria until ieq+1
+   if(ocv()) write(*,900)ieq+1,eqfree
+   if(ndel.gt.0) write(*,900)ndel,eqfree-1
+900 format('3B Deleted ',i3,' equilibria.  First free ',i3)
+   eqfree=ieq+1
+1000 continue
+   return
+ end subroutine delete_equilibria
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine copy_equilibrium
+!\begin{verbatim}
+ subroutine copy_equilibrium(neweq,name,ceq)
+! creates a new equilibrium which is a copy of ceq.  
+   implicit none
+   character name*(*)
+   type(gtp_equilibrium_data), pointer ::neweq,ceq
+!\end{verbatim} %+
+   integer number
+   call copy_equilibrium2(neweq,number,name,ceq)
+1000 continue
+   return
+ end subroutine copy_equilibrium
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine copy_equilibrium2
+!\begin{verbatim} %-
+ subroutine copy_equilibrium2(neweq,number,name,ceq)
+! creates a new equilibrium which is a copy of ceq. THIS IS STILL USED !! ??
+! Allocates arrayes for conditions,
+! components, phase data and results etc. from equilibrium ceq
+! returns a pointer to the new equilibrium record
+! THIS CAN PROBABLY BE SIMPLIFIED, especially phase_varres array can be
+! copied as a whole, not each record structure separately ... ???
+   implicit none
+   character name*(*)
+   integer number
+   type(gtp_equilibrium_data), pointer ::neweq,ceq
+!\end{verbatim}
+   type(gtp_condition), pointer :: oldcond,lastcond
+   type(gtp_condition), pointer :: newcond1,newcond2
+   type(gtp_condition), pointer :: bugcond
+   character name2*64
+   integer ieq,ipv,jz,iz,jl,jk,novarres,oldeq
+   logical okname
+!
+!   write(*,*)'In copy_equilibrium2',trim(name),eqfree
+   nullify(neweq)
+   if(.not.allowenter(3)) then
+!      write(*,*)'3B Not allowed to copy or enter equilibria'
+      gx%bmperr=4153; goto 1000
+   endif
+!   write(*,*)'3B allow enter OK'
+! not allowed to enter equilibria if there are no phases
+!   if(btest(globaldata%status,GSNOPHASE)) then
+!      write(*,*)'3B Meaningless to copy equilibria with no phase data'
+!      gx%bmperr=7777; goto 1000
+!   endif
+! equilibrium names starting with _ are automatically created by mapping
+! and in some other cases.
+   if(name(1:1).eq.'_') then
+      name2=name(2:)
+      jk=1
+   elseif(name(1:1).eq.' ') then
+      write(*,*)'A name must start with a letter'
+      gx%bmperr=4284; goto 1000
+   else
+      name2=name
+      jk=0
+   endif
+   call capson(name2)
+!   write(*,*)'3B Entering copy equilibria: ',name2,jk
+! program crashed with this construction
+!   if(.not.proper_symbol_name(name2,0)) then
+   okname=proper_symbol_name(name2,0)
+   if(.not.okname) then
+! the name must start with a letter A-Z and contain letters, numbers and _
+      gx%bmperr=4122
+      goto 1000
+   endif
+!   write(*,*)'3B name check ok: ',jk
+! remove initial "_" used for automatically created equilibria
+   if(jk.eq.1) then
+! changing this cause a lot of trouble ... but I do not understand
+      name2='_'//name2
+!      name2=name2(2:)
+   endif
+! check if name already used
+!   write(*,*)'3B check if name unique: ',name2
+   call findeq(name2,ieq)
+   if(gx%bmperr.eq.0) then
+      gx%bmperr=4123
+      goto 1000
+   else
+! reset error code
+      gx%bmperr=0
+   endif
+!   write(*,*)'3B check if name unique: ',eqfree
+   if(eqfree.le.maxeq) then
+      ieq=eqfree
+      eqfree=eqfree+1
+   else
+!      write(*,*)'Too many equilibrium required, increase dimension',eqfree
+      gx%bmperr=4283; goto 1000
+   endif
+   number=ieq
+   if(ieq.eq.1) then
+!      write(*,*)'Cannot copy to default equilibria'
+      gx%bmperr=4285; goto 1000
+   endif
+!   write(*,*)'3B copy eq',eqfree,maxeq,ieq
+! allocate data arrayes in equilibrium record
+   eqlista(ieq)%nexteq=0
+   eqlista(ieq)%eqname=name2
+   eqlista(ieq)%eqno=ieq
+! do not copy comment but set it to blanks
+   eqlista(ieq)%comment=' '
+! component list and matrix, if second or higher equilibrium copy content
+!   write(*,*)'3B: copyeq 1A: ',maxel,noofel
+   allocate(eqlista(ieq)%complist(noofel))
+   allocate(eqlista(ieq)%compstoi(noofel,noofel))
+   allocate(eqlista(ieq)%invcompstoi(noofel,noofel))
+   allocate(eqlista(ieq)%cmuval(noofel))
+!   write(*,*)'3B: copyeq 1B: ',noofel
+! careful here because FIRSTEQ has other dimensions than the other
+   do jl=1,noofel
+      eqlista(ieq)%complist(jl)=ceq%complist(jl)
+      eqlista(ieq)%cmuval(jl)=ceq%cmuval(jl)
+      do jk=1,noofel
+         eqlista(ieq)%compstoi(jk,jl)=ceq%compstoi(jk,jl)
+         eqlista(ieq)%invcompstoi(jk,jl)=ceq%invcompstoi(jk,jl)
+      enddo
+   enddo
+   oldeq=ceq%eqno
+! what about the weight?
+   eqlista(ieq)%weight=ceq%weight
+!   write(*,*)'3B copyeq 1: ',ceq%weight,eqlista(ieq)%weight
+   do jl=1,noofel
+      eqlista(ieq)%complist(jl)%splink=eqlista(oldeq)%complist(jl)%splink
+      eqlista(ieq)%complist(jl)%phlink=firsteq%complist(jl)%phlink
+      eqlista(ieq)%complist(jl)%status=firsteq%complist(jl)%status
+      if(firsteq%complist(jl)%phlink.gt.0) then
+! only if there is a defined reference state
+         eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
+         eqlista(ieq)%complist(jl)%tpref=firsteq%complist(jl)%tpref
+         eqlista(ieq)%complist(jl)%chempot=zero
+         do jk=1,noofel
+            eqlista(ieq)%compstoi(jl,jk)=firsteq%compstoi(jl,jk)
+            eqlista(ieq)%invcompstoi(jl,jk)=firsteq%invcompstoi(jl,jk)
+         enddo
+         if(.not.allocated(eqlista(ieq)%complist(jl)%endmember)) then
+            iz=size(firsteq%complist(jl)%endmember)
+            allocate(eqlista(ieq)%complist(jl)%endmember(iz))
+            eqlista(ieq)%complist(jl)%endmember=firsteq%complist(jl)%endmember
+         endif
+      else
+         eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
+      endif
+   enddo
+! these records keep calculated values of G and derivatives for each phase
+! For phase lokph the index to phase_varres is in phlista(lokph)%cslink
+! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
+! for ieq>1 allocate the current number of phase_varres records plus 10
+! for extra composition sets added later
+! 170524: It seems that phase_varres for disordered fraction sets are not
+!          included in novarres in novarres or highcs!!
+! BEWARE: allocation: calculating with one phase with 8 composition sets
+! and disordered fractions sets !!!
+   if(oldeq.eq.1) then
+! the first equilibria has many phase_varres record as we do not what system
+! we will have.  If we copy that we create as many varres as in the enter_equil
+      iz=2*noofph+2*noofel+10
+   else
+! When we copy other equilibria we copy the same number as in the origin
+      iz=size(ceq%phase_varres)
+   endif
+   allocate(eqlista(ieq)%phase_varres(iz))
+!   write(*,*)'3B copy_equil allocates: ',oldeq,ieq,iz,highcs,csfree
+! now copy the current content of ceq%phase_varres to this equilibrium
+! note, the SELECT_ELEMENT_REFERENCE phase has phase number 0
+! and phase_varres index 1, the number of phase_varres records is not the
+! same as number of phases ....
+!
+! strange error here running STEP on bigfcc4: crash with message:
+! Index "3" of dimension 1 of array "eqlista" above upper bound of 2
+!   write(*,*)'3B 3737:',novarres,ieq,oldeq,size(eqlista(oldeq)%phase_varres)
+! Ahhhh, there are 2 phase_varres records for each phase because of 
+! disordered fraction set, one for the ordered with 33 y-fractions, one for
+! the disordered with 8 y-fractions.  
+! A simple dimensioning problem: 1 phase, 8 compsets, disordered fracset
+! requires 17 phase_varres.  Before the "max" above I had dimensioned for 2
+! BEWARE: I am not sure novarres is correct ...
+!   copypv: do ipv=1,min(novarres+3,size(ceq%phase_varres))
+!   copypv: do ipv=1,novarres
+! THIS CREATED ALL TROUBLE ... I did not copy all varres records used!!
+   copypv: do ipv=1,iz
+      eqlista(ieq)%phase_varres(ipv)=eqlista(oldeq)%phase_varres(ipv)
+! in matsmin nprop seemed suddenly to be zero in copied equilibria ....
+!      write(*,*)'3B copyeq 2: ',ieq,ipv,eqlista(ieq)%phase_varres(ipv)%nprop
+! Bug 170524 ... disordered phase_varres had no 
+!      write(*,833)'3B copyeq: ',oldeq,ipv,novarres,&
+!           eqlista(oldeq)%phase_varres(ipv)%disfra%varreslink,&
+!           eqlista(ieq)%phase_varres(ipv)%disfra%varreslink
+833 format(a,2i3,i5,2i3,10i5)
+   enddo copypv
+900 continue
+!   write(*,*)'3B To copy conditions:'
+! copy conditions (and experiments) !!!
+   lastcond=>eqlista(oldeq)%lastcondition
+   if(associated(lastcond)) then
+      jz=1
+      call copy_condition(eqlista(ieq)%lastcondition,lastcond)
+!      write(*,770)'3B cc1: ',jz,lastcond%prescribed,&
+!           eqlista(ieq)%lastcondition%prescribed
+      newcond1=>eqlista(ieq)%lastcondition
+      bugcond=>newcond1
+      oldcond=>lastcond%next
+      do while(.not.associated(oldcond,lastcond))
+         jz=jz+1
+         newcond2=>newcond1
+         call copy_condition(newcond1%next,oldcond)
+         newcond1=>newcond1%next
+!         write(*,770)'3B cc2: ',jz,oldcond%prescribed,newcond1%prescribed
+770      format(a,i2,6(1pe12.4))
+         newcond1%previous=>newcond2
+         oldcond=>oldcond%next
+      enddo
+      newcond1%next=>bugcond
+!      write(*,*)'3B Copied all condition',jz
+   else
+      nullify(eqlista(ieq)%lastcondition)
+   endif
+! copy experiments) ... later
+!
+   nullify(eqlista(ieq)%lastexperiment)
+!
+! copy TPfuns and symbols and current values
+!   write(*,*)'3B Copy tpval arrays'
+   eqlista(ieq)%tpval=ceq%tpval
+   allocate(eqlista(ieq)%eq_tpres(maxtpf))
+!   write(*,*)'3B allocated tpres arrays'
+   eqlista(ieq)%eq_tpres=ceq%eq_tpres
+   allocate(eqlista(ieq)%svfunres(maxsvfun))
+!   write(*,*)'3B allocated svfunres arrays'
+   eqlista(ieq)%svfunres=ceq%svfunres
+! copy convergence criteria
+   eqlista(ieq)%xconv=ceq%xconv
+   eqlista(ieq)%gdconv(1)=ceq%gdconv(1)
+   eqlista(ieq)%gdconv(2)=ceq%gdconv(2)
+! woops ... this is still used
+!   stop 'old copy_equilibrium ... we should never be here'
+   eqlista(ieq)%maxiter=ceq%maxiter
+!   write(*,*)'3B finished copy equilibrium',ieq
+   eqlista(ieq)%eqno=ieq
+   neweq=>eqlista(ieq)
+! status word is initiated to zero, no need to copy?? Maybe EQMIXED?
+!   write(*,*)'3B copy_eq: ',neweq%status,ceq%status
+!   write(*,*)'3B Assigned pointer to new equilibrium',neweq%eqno
+1000 continue
+!   write(*,*)'3B exit copy_equilibrium'
+   return
+ end subroutine copy_equilibrium2 !csfree
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine copy_condition
+!\begin{verbatim}
+ subroutine copy_condition(newrec,oldrec)
+! Creates a copy of the condition record "oldrec" and returns a link
+! to the copy in newrec.  The links to "next/previous" are nullified
+   implicit none
+   type(gtp_condition), pointer :: oldrec
+   type(gtp_condition), pointer :: newrec
+!\end{verbatim}
+!   write(*,*)' *** In copy_condition:         ',oldrec%prescribed
+   allocate(newrec)
+!   write(*,*)' *** Allocated'
+   newrec=oldrec
+!   write(*,*)' *** Copied old condition to new',newrec%prescribed
+1000 continue
+   return
+ end subroutine copy_condition
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable integer function newhighcs
+!\begin{verbatim}
+ integer function newhighcs(reserved)
+! updates highcs and arranges csfree to be in sequential order
+! highcs is the higest used varres record before the last reservation
+! or release of a record.  release is TRUE if a record has been released 
+! csfree is the beginning of the free list of varres records.
+   implicit none
+   logical reserved
+!\end{verbatim}
+   integer high,lok,free,prev
+! Do not be smart, go through the whole array
+! in all used varres record the %nextfree is zero
+   high=0
+   free=0
+   do lok=1,size(firsteq%phase_varres)
+      if(firsteq%phase_varres(lok)%nextfree.eq.0) then
+         high=lok
+      elseif(free.eq.0) then
+! we have the first record belonging to the free list
+         free=lok
+         prev=lok
+      else
+         firsteq%phase_varres(prev)%nextfree=lok
+         prev=lok
+      endif
+   enddo
+! verification ??
+   prev=2*noofph+2
+!   write(*,*)'3B high and free: ',high,free,reserved,highcs,csfree
+!   write(*,110)(firsteq%phase_varres(lok)%nextfree,lok=free,prev)
+110 format(12(i6))   
+!   write(*,120)free,csfree,high,&
+!        (firsteq%phase_varres(lok)%nextfree,lok=free,high)
+120 format('3B cs: ',3i5,(14i4))
+   newhighcs=high
+   csfree=free
+!   write(*,*)'3B in newhighcs: ',csfree,highcs
+1000 continue
+ end function newhighcs
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

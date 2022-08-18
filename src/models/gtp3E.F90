@@ -8948,7 +8948,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\addtotable subroutine notallowlisting
+!\addtotable logical function notallowlisting
 !\begin{verbatim}
  logical function notallowlisting(privil)
 ! check if user is allowed to list data

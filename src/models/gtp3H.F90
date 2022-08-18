@@ -2284,7 +2284,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine create_twostate_model1
+!\addtotable subroutine create_newtwostate_model1
 !\begin{verbatim}
  subroutine create_newtwostate_model1(addrec)
 ! newadd is location where pointer to new addition record should be stored
@@ -3102,7 +3102,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine calc_twostate_endmember
+!\addtotable subroutine calc_twostate_model_endmember
 !\begin{verbatim}
  subroutine calc_twostate_model_endmember(proprec,g2values,ceq)
 ! This calculated G2 (GD in some papers) for a pure endmember

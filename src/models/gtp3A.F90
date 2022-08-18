@@ -8,24 +8,6 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     1. Section: initialization and reinitiate
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!CCI
-!\addtotable subroutine initialize_default_global_parameters
-subroutine initialize_default_global_parameters(firsteq)
-    type(gtp_equilibrium_data), pointer :: firsteq
-!\end{verbatim}
-    firsteq%type_change_phase_amount = default_typechangephaseamount
-    firsteq%scale_change_phase_amount= default_scalechangephaseamount
-    firsteq%gmindif= default_mingridmin
-    firsteq%precondsolver=default_precondsolver
-    firsteq%splitsolver=default_splitsolver
-    firsteq%xconv=default_xconv
-    firsteq%maxiter=default_maxiter
-    firsteq%gdconv(1)=default_gdconv1
-    firsteq%gdconv(2)=default_gdconv2
-    return
-end subroutine initialize_default_global_parameters
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine init_gtp
 !\begin{verbatim}
@@ -64,14 +46,14 @@ end subroutine initialize_default_global_parameters
    phases(0)=0
 !---------------------------
 ! create  special element /-
-   ellista(-1)%symbol='/-'
-   ellista(-1)%name='Electron'
-   ellista(-1)%ref_state='Electron_gas'
-   ellista(-1)%mass=zero
-   ellista(-1)%h298_h0=zero
-   ellista(-1)%s298=zero
-   ellista(-1)%status=0
-   ellista(-1)%alphaindex=-1
+  ellista(-1)%symbol='/-'
+  ellista(-1)%name='Electron'
+  ellista(-1)%ref_state='Electron_gas'
+  ellista(-1)%mass=zero
+  ellista(-1)%h298_h0=zero
+  ellista(-1)%s298=zero
+  ellista(-1)%status=0
+  ellista(-1)%alphaindex=-1
 ! The electron does not have any corresponing species
    ellista(-1)%splink=-1
    elements(-1)=-1
@@ -159,7 +141,8 @@ end subroutine initialize_default_global_parameters
 ! needed in other contexts, like mobilities, viscosities etc.
 ! create property id records for G
    npid=1
-   propid(npid)%symbol='G '
+!   propid(npid)%symbol='G '
+   propid(npid)%symbol=modparid(1)
    propid(npid)%note='Energy '
    propid(npid)%status=0
 ! This indicates if there are unkown or undefined MPI in a TDB file
@@ -178,7 +161,8 @@ end subroutine initialize_default_global_parameters
 !============================================================
 ! Mixed Curie/Neel Temperature, set bits that TC and BM cannot depend on T 2
    npid=npid+1
-   propid(npid)%symbol='TC '
+!   propid(npid)%symbol='TC '
+   propid(npid)%symbol=modparid(2)
    propid(npid)%note='Combined Curie/Neel T' 
    propid(npid)%status=0
 ! TC cannot depend on T but on P
@@ -186,7 +170,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Average Bohr magneton number 3
    npid=npid+1
-   propid(npid)%symbol='BMAG '
+!   propid(npid)%symbol='BMAG '
+   propid(npid)%symbol=modparid(3)
    propid(npid)%note='Average Bohr magneton numb'
    propid(npid)%status=0
 ! BM cannot depend on either T or P ??
@@ -194,7 +179,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Specific Curie temperature 4
    npid=npid+1
-   propid(npid)%symbol='CTA '
+!   propid(npid)%symbol='CTA '
+   propid(npid)%symbol=modparid(4)
    propid(npid)%note='Curie temperature'
    propid(npid)%status=0
 ! CTA cannot depend on either T or P ??
@@ -202,7 +188,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Specific Neel temperature 5
    npid=npid+1
-   propid(npid)%symbol='NTA '
+!   propid(npid)%symbol='NTA '
+   propid(npid)%symbol=modparid(5)
    propid(npid)%note='Neel temperature'
    propid(npid)%status=0
 ! NTA cannot depend on T but on P
@@ -210,7 +197,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Individual Bohr magneton number 6 SPECIAL THIS HAS CONSTITUENT INDEX
    npid=npid+1
-   propid(npid)%symbol='IBM '
+!   propid(npid)%symbol='IBM '
+   propid(npid)%symbol=modparid(6)
    propid(npid)%note='Individual Bohr magneton numb'
 !                     123456789.123456789.12345678-
    propid(npid)%status=0
@@ -220,7 +208,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Debye or Einstein temperature 7
    npid=npid+1
-   propid(npid)%symbol='LNTH '
+!   propid(npid)%symbol='LNTH '
+   propid(npid)%symbol=modparid(7)
    propid(npid)%note='LN(Debye or Einstein temp)'
    propid(npid)%status=0
 ! LNTH cannot depend on T but on P
@@ -228,7 +217,8 @@ end subroutine initialize_default_global_parameters
 !....................................... 8
 ! Molar volume at T=298.15, 1 bar
    npid=npid+1
-   propid(npid)%symbol='V0 '
+!   propid(npid)%symbol='V0 '
+   propid(npid)%symbol=modparid(8)
    propid(npid)%note='Volume at T0, P0 '
    propid(npid)%status=0
 ! Constant independent on temperature or pressure
@@ -236,7 +226,8 @@ end subroutine initialize_default_global_parameters
 !....................................... 9
 ! Thermal expansion at 1 bar
    npid=npid+1
-   propid(npid)%symbol='VA '
+!   propid(npid)%symbol='VA '
+   propid(npid)%symbol=modparid(9)
    propid(npid)%note='Thermal expansion '
    propid(npid)%status=0
 ! Not P dependent, only T dependent
@@ -244,25 +235,29 @@ end subroutine initialize_default_global_parameters
 !....................................... 10
 ! Bulk modulus as function of T and P
    npid=npid+1
-   propid(npid)%symbol='VB '
+!   propid(npid)%symbol='VB '
+   propid(npid)%symbol=modparid(10)
    propid(npid)%note='Bulk modulus '
    propid(npid)%status=0
 !....................................... 11
 ! Extra volume parameter
    npid=npid+1
-   propid(npid)%symbol='VC '
+!   propid(npid)%symbol='VC '
+   propid(npid)%symbol=modparid(11)
    propid(npid)%note='Alternative volume parameter'
    propid(npid)%status=0
 !....................................... 12
 ! Diffusion volume parameter, suffix S on V create confusion with S as SER?
    npid=npid+1
-   propid(npid)%symbol='VD '
+!   propid(npid)%symbol='VS '
+   propid(npid)%symbol=modparid(12)
    propid(npid)%note='Diffusion volume parameter '
    propid(npid)%status=0
 !.......................................
 ! Activation energy of mobility 13
    npid=npid+1
-   propid(npid)%symbol='MQ '
+!   propid(npid)%symbol='MQ '
+   propid(npid)%symbol=modparid(13)
    propid(npid)%note='Mobility activation energy'
    propid(npid)%status=0
 ! MQ is specific for a constituent
@@ -274,7 +269,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! RT*ln(Frequency factor of mobility)  14
    npid=npid+1
-   propid(npid)%symbol='MF '
+!   propid(npid)%symbol='MF '
+   propid(npid)%symbol=modparid(14)
    propid(npid)%note='RT*LN(mobility freq.fact.)'
    propid(npid)%status=0
 ! MF is specific for a constituent
@@ -284,7 +280,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Magnetic mobility factor 15
    npid=npid+1
-   propid(npid)%symbol='MG '
+!   propid(npid)%symbol='MG '
+   propid(npid)%symbol=modparid(15)
    propid(npid)%note='Magnetic mobility factor'
    propid(npid)%status=0
 ! MG is specific for a constituent
@@ -294,13 +291,15 @@ end subroutine initialize_default_global_parameters
 !....................................... 13 fd 11
 ! Liquid two-state model     16
    npid=npid+1
-   propid(npid)%symbol='G2   '
+!   propid(npid)%symbol='G2   '
+   propid(npid)%symbol=modparid(16)
    propid(npid)%note='Liquid two state parameter'
    propid(npid)%status=0
 !.......................................
 ! Smooth unit step function (or second Einstein function) 17
    npid=npid+1
-   propid(npid)%symbol='THT2 '
+!   propid(npid)%symbol='THT2 '
+   propid(npid)%symbol=modparid(17)
    propid(npid)%note='LN(Smooth step function Tcrit)'
    propid(npid)%status=0
 ! THT2 cannot depend on T but on P
@@ -308,7 +307,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Second Einstein delta CP 18
    npid=npid+1
-   propid(npid)%symbol='DCP2 '
+!   propid(npid)%symbol='DCP2 '
+   propid(npid)%symbol=modparid(18)
    propid(npid)%note='Smooth step function increm.'
    propid(npid)%status=0
 ! DXP2 cannot depend on T but on P
@@ -316,49 +316,56 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Lattice parameter in direction X 19
    npid=npid+1
-   propid(npid)%symbol='LPX '
+!   propid(npid)%symbol='LPX '
+   propid(npid)%symbol=modparid(19)
    propid(npid)%note='Lattice param X axis'
    propid(npid)%status=0
 ! lattice parameters may depend on T and P
 !.......................................
 ! Lattice parameter in direction Y 20
    npid=npid+1
-   propid(npid)%symbol='LPY '
+!   propid(npid)%symbol='LPY '
+   propid(npid)%symbol=modparid(20)
    propid(npid)%note='Lattice param Y axis'
    propid(npid)%status=0
 ! lattice parameters may depend on T and P
 !.......................................
 ! Lattice parameter in direction Z 21
    npid=npid+1
-   propid(npid)%symbol='LPZ '
+!   propid(npid)%symbol='LPZ '
+   propid(npid)%symbol=modparid(21)
    propid(npid)%note='Lattice param Z axis'
    propid(npid)%status=0
 ! lattice parameters may depend on T and P
 !.......................................
 ! This is an angle for non-cubic lattices 22
    npid=npid+1
-   propid(npid)%symbol='LPTH '
+!   propid(npid)%symbol='LPTH '
+   propid(npid)%symbol=modparid(22)
    propid(npid)%note='Lattice angle TH'
    propid(npid)%status=0
 ! Angle may depend on T and P 
 !.......................................
 ! This is an elastic "constant" 23
    npid=npid+1
-   propid(npid)%symbol='EC11 '
+!   propid(npid)%symbol='EC11 '
+   propid(npid)%symbol=modparid(23)
    propid(npid)%note='Elastic const C11'
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
 ! This is another elastic "constant" 24
    npid=npid+1
-   propid(npid)%symbol='EC12 '
+!   propid(npid)%symbol='EC12 '
+   propid(npid)%symbol=modparid(24)
    propid(npid)%note='Elastic const C12'
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
 ! This is yet another elastic "constant" 25
    npid=npid+1
-   propid(npid)%symbol='EC44 '
+!   propid(npid)%symbol='EC44 '
+   propid(npid)%symbol=modparid(25)
    propid(npid)%note='Elastic const C44'
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
@@ -368,7 +375,8 @@ end subroutine initialize_default_global_parameters
 ! UNIQUAC interaction parameter 26
 ! IF THIS IS CHANGED TO ANOTHER NUMBER CHANGES NEEDED IN GTP3B: mpiwarning
    npid=npid+1
-   propid(npid)%symbol='UQT '
+!   propid(npid)%symbol='UQT '
+   propid(npid)%symbol=modparid(26)
    propid(npid)%note='UNIQUAC residual parameter '
    propid(npid)%status=0
 ! UQT is specific for a constituent, 2600+constituent index
@@ -376,25 +384,29 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Electrical resistivity 27
    npid=npid+1
-   propid(npid)%symbol='RHO '
+!   propid(npid)%symbol='RHO '
+   propid(npid)%symbol=modparid(27)
    propid(npid)%note='Electric resistivity'
    propid(npid)%status=0
 !....................................... f.d. 18 now 28
 ! Viscosity 28
    npid=npid+1
-   propid(npid)%symbol='VISC '
+!   propid(npid)%symbol='VISC '
+   propid(npid)%symbol=modparid(28)
    propid(npid)%note='Viscosity'
    propid(npid)%status=0
 !....................................... 
 ! Thermal conductivity as function of T and P: 29
    npid=npid+1
-   propid(npid)%symbol='LAMB '
+!   propid(npid)%symbol='LAMB '
+   propid(npid)%symbol=modparid(29)
    propid(npid)%note='Thermal conductivity '
    propid(npid)%status=0
 !.......................................
 ! From MatCalc databases 30
    npid=npid+1
-   propid(npid)%symbol='HMVA '
+!   propid(npid)%symbol='HMVA '
+   propid(npid)%symbol=modparid(30)
    propid(npid)%note='Enthalpy of vacancy form. '
    propid(npid)%status=0
 ! this parameter does not depend on T ??
@@ -402,7 +414,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Schottky anomaly T 31
    npid=npid+1
-   propid(npid)%symbol='TSCH '
+!   propid(npid)%symbol='TSCH '
+   propid(npid)%symbol=modparid(31)
    propid(npid)%note='Schottky anomaly T '
    propid(npid)%status=0
 ! this parameter does not depend on T ??
@@ -410,7 +423,8 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Schottky anomaly CP/R 32
    npid=npid+1
-   propid(npid)%symbol='CSCH '
+!   propid(npid)%symbol='CSCH '
+   propid(npid)%symbol=modparid(32)
    propid(npid)%note='Schottky anomaly Cp/R. '
    propid(npid)%status=0
 ! this parameter does not depend on T ??
@@ -418,12 +432,19 @@ end subroutine initialize_default_global_parameters
 !.......................................
 ! Modified Quasichemical model coordination factor 33
    npid=npid+1
-   propid(npid)%symbol='QCZ'
-   propid(npid)%note='MQMQA cluster coord factor'
+!   propid(npid)%symbol='QCZ'
+   propid(npid)%symbol=modparid(33)
+   propid(npid)%note='MQMQA cluster coord factor (not used)'
    propid(npid)%status=0
 ! This parameter does not depend on T and P
    propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
 !.......................................
+! The array modparid is declared in gtp3_dd2.F90 with 40 items.
+! debug output
+!   do jl=1,npid
+!      write(*,33)jl,propid(jl)%symbol,trim(propid(jl)%note)
+!33    format(i3,2x,a4,2x,a)
+!   enddo
 !.......................................
 ! This IF statement should be at the last parameter identifier, maxprop=50 ?
    if(npid.gt.maxprop) then
@@ -551,7 +572,27 @@ end subroutine initialize_default_global_parameters
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine assessmenthead
+!CCI
+!\addtotable subroutine initialize_default_global_parameters
+!\begin{verbatim}
+ subroutine initialize_default_global_parameters(firsteq)
+   type(gtp_equilibrium_data), pointer :: firsteq
+!\end{verbatim}
+   firsteq%type_change_phase_amount = default_typechangephaseamount
+   firsteq%scale_change_phase_amount= default_scalechangephaseamount
+   firsteq%gmindif= default_mingridmin
+   firsteq%precondsolver=default_precondsolver
+   firsteq%splitsolver=default_splitsolver
+   firsteq%xconv=default_xconv
+   firsteq%maxiter=default_maxiter
+   firsteq%gdconv(1)=default_gdconv1
+   firsteq%gdconv(2)=default_gdconv2
+   return
+ end subroutine initialize_default_global_parameters
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+ !\addtotable subroutine assessmenthead
 !\begin{verbatim}
  subroutine assessmenthead(ash)
 ! create an assessment head record and do more (later)
@@ -1086,7 +1127,7 @@ end subroutine initialize_default_global_parameters
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\addtotable integer function nosusphcs
+!\addtotable integer function nonsusphcs
 !\begin{verbatim}
  integer function nonsusphcs(ceq)
 ! returns the total number of unhidden phases+composition sets
@@ -2533,27 +2574,29 @@ end function find_phasetuple_by_indices
 
  !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
- !\begin{verbatim}
+!\addtotable subroutine get_constituent_data
 !CCI (adding ncel)
+!\begin{verbatim}
  subroutine get_constituent_data(iph,ics,icons,yarr,charge,csname,ncel,ceq)
 !CCI
-     ! return the constitution for phase iph (ics composition set)
-     ! yarr: double, fraction of constituent
-     ! charge: integer, charge of constituent
-     ! ncel: integer, number of element in the constituant
-     ! consname: name of the constituent
-     ! ceq: pointer, to current gtp_equilibrium_data record
-     implicit none
-     integer, intent (in) :: iph,ics,icons
-     double precision, intent (inout) :: yarr
+   ! return the constitution for phase iph (ics composition set)
+   ! yarr: double, fraction of constituent
+   ! charge: integer, charge of constituent
+   ! ncel: integer, number of element in the constituant
+   ! consname: name of the constituent
+   ! ceq: pointer, to current gtp_equilibrium_data record
+   implicit none
+   integer, intent (in) :: iph,ics,icons
+   double precision, intent (inout) :: yarr
 !CCI (adding ncel)
-     integer, intent (inout) :: charge,ncel
+   integer, intent (inout) :: charge,ncel
 !CCI
-     character*(*) , intent (inout) :: csname
-
-     TYPE(gtp_equilibrium_data), pointer :: ceq
-     integer :: i, lokph,lokcs,ncs,loksp,jl
-     !
+   character*(*) , intent (inout) :: csname
+   
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer :: i, lokph,lokcs,ncs,loksp,jl
+!
      if(iph.lt.1 .or. iph.gt.noofph) then
          gx%bmperr=4050; goto 1000
      else
@@ -2564,7 +2607,7 @@ end function find_phasetuple_by_indices
      else
          ncs=max(ics,1)
      endif
-     ! extra check if using saved equilibria which may have less composition sets
+! extra check if using saved equilibria which may have less composition sets
      lokcs=phlista(lokph)%linktocs(ncs)
      if(lokcs.le.0) then
          write(*,*)'Index of composition set missing, maybe using a saved equil.'
@@ -2590,7 +2633,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
- !\addtotable subroutine get_phase_data
+!\addtotable subroutine get_phase_data
 !\begin{verbatim}
  subroutine get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
 ! return the structure of phase iph and constituntion of comp.set ics

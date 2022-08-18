@@ -360,8 +360,8 @@ contains
          'UNITS           ','LOG_FILE        ','WEIGHT          ',&
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
          'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
-         'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-         'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_VARIABLE ',&
+         'OPTCOEFF_VARIABL','OPTCOEFF_SCALED ','LMDIF_ACCURACY  ',&
+         'RANGE_EXPER_EQU ','OPTCOEFF_FIXED  ','SYSTEM_VARIABLE ',&
          'INITIAL_T_AND_P ','LINEAR_SYSTEM   ','GRID_GENERATOR  ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
@@ -2289,8 +2289,8 @@ contains
 !         'UNITS           ','LOG_FILE        ','WEIGHT          ',&
 !         'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
 !         'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
-!         'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-!         'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_VARIABLE ',&
+!         'OPTCOEFF_VARIABL','OPTCOEFF_SCALED ','LMDIF_ACCURACY  ',&
+!         'RANGE_EXPER_EQU ','OPTCOEFF_FIXED  ','SYSTEM_VARIABLE ',&
 !         'INITIAL_T_AND_P ','LINEAR_SYSTEM   ','GRID_GENERATOR  ']
     CASE(3) ! SET SUBCOMMANDS
 ! disable continue optimization
@@ -3487,7 +3487,7 @@ contains
              write(*,*)'Please use set phase ... bit '
           end select setbit
 !-------------------------
-       case(19) ! set variable_coefficient, 0 to 99
+       case(19) ! set optcoeff_variabl, 0 to 99
           if(.not.btest(firstash%status,AHCOEF)) then
              write(kou,*)'No optimizing coefficients'
              goto 100
@@ -3562,7 +3562,7 @@ contains
           endif
           write(kou,*)'Number of variable coefficients are ',nvcoeff
 !------------------------- 
-       case(20) ! set scaled_coefficient
+       case(20) ! set optcoeff_scaled
           write(*,*)'Not implemeneted yet'
 !          if(firstash%coeffstate(i1).lt.10) then
 !             nvcoeff=nvcoeff+1
@@ -3570,7 +3570,7 @@ contains
 ! zero the relative standard deviation
 !          firstash%coeffrsd=zero
 !-------------------------
-       case(21) ! set optimizing_conditions, always propose the default!
+       case(21) ! set lmdif_accuracy, always propose the default!
           optacc=1.0D-3
           call gparrdx('LMDIF accuracy: ',cline,last,xxx,optacc,&
                '?Set optimizer conditions')
@@ -3612,7 +3612,7 @@ contains
           enddo
 !          write(*,*)'Not implemeneted yet'
 !-------------------------
-       case(23) ! set fixed_coefficient
+       case(23) ! set optcoeff_fixed
 !          if(.not.allocated(firstash%eqlista)) then
 ! check not needed?
 !             write(*,*)'Error "firstash%eqlista" not allocated'
@@ -6416,7 +6416,9 @@ contains
        stepspecial=.FALSE.
 ! IMPORTANT I have changed the order between option and reinitiate!!
        kom2=submenu('Step options?',cline,last,cstepop,nstepop,1,'?TOPHLP')
-! check if adding results
+! skip here for step quit and other cases not implemented: case(3, 4 and 6)
+       if(kom2.eq.3 .or. kom2.eq.4 .or. kom2.eq.6) goto 100
+! check if there are previous results
        if(associated(maptop)) then
           write(kou,833)
 833       format('There are previous results from step or map')
@@ -6546,10 +6548,10 @@ contains
           noofstarteq=0
           stepspecial(1)=.TRUE.
 !-----------------------------------------------------------
-! STEP QUIT
+! STEP QUIT, note quitting already above
        case(3)
 !-----------------------------------------------------------
-! STEP CONDITIONAL (NOT for Scheil-Gulliver)
+! STEP CONDITIONAL (NOT for Scheil-Gulliver), note quitting already above
        case(4)
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
@@ -6609,7 +6611,7 @@ contains
                maptop%linehead(2)%number_of_equilibria
           write(kou,'(a,i5,a)')'Calculated ',jp,' points along the tzero line'
 !-----------------------------------------------------------
-! STEP no longer NPLE
+! STEP no longer NPLE, note quitting already above
        case(6)
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------

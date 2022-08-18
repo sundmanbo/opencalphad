@@ -622,9 +622,9 @@
 ! Symbol  no   index1 index2 index3 index4  
 ! T       1    -
 ! P       2    -
-! MU      3    component or phase,constituent
-! AC      4    component or phase,constituent
-! LNAC    5    component or phase,constituent
+! MU      3    component or phase,component
+! AC      4    component or phase,component
+! LNAC    5    component or phase,component
 !                                          index (in svid array)
 ! U       10   (phase#set)                    6     Internal energy (J)
 ! UM      11    "                             6     per mole components
@@ -649,7 +649,7 @@
 ! TC      -     phase#set                    -      Magnetic ordering T
 ! BMAG    -     phase#set                    -      Aver. Bohr magneton number
 ! MQ&     -     element, phase#set           -      Mobility
-! THET    -     phase#set                    -      Debye temperature
+! LNTH    -     phase#set                    -      LN(Einstein temperature)
 !
    implicit none
    integer, parameter :: noos=20
@@ -1877,44 +1877,6 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine findsublattice
-!\begin{verbatim}
- subroutine findsublattice(iph,constix,sublat)
-! find sublattice of constituent constix in phase lokph
-! is lokph index to gtp_phaserecord or gtp_phase_varres??
-! constix is constituent index
-   implicit none
-   integer iph,constix,sublat
-!\end{verbatim}
-   integer ix,lokph,nn
-   if(iph.gt.0 .and. iph.le.noofph) then
-      lokph=phases(iph)
-   else
-      gx%bmperr=4050; goto 1000
-   endif
-!   write(*,*)'3F args: ',iph,lokph,constix
-!   write(*,*)'3F phase: ',phlista(lokph)%name
-   if(constix.le.0) then
-      write(*,*)'3F no such constituent in this phase',constix
-      gx%bmperr=4399; goto 1000
-   endif
-!   nn=1
-! BUG!! found 21.03.18 after 5 years !!
-   nn=0
-   loop: do sublat=1,phlista(lokph)%noofsubl
-      nn=nn+phlista(lokph)%nooffr(sublat)
-      if(constix.le.nn) exit loop
-   enddo loop
-   if(constix.gt.nn) then
-      write(*,*)'3F no such constituent in this phase',constix
-      gx%bmperr=4399
-   endif
-1000 continue
-   return
- end subroutine findsublattice
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\addtotable subroutine encode_state_variable_record
 !\begin{verbatim}
  subroutine encode_state_variable_record(text,ip,svr,ceq)
@@ -2168,6 +2130,44 @@
 1000 continue
    return
  end subroutine encode_state_variable_record
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine findsublattice
+!\begin{verbatim}
+ subroutine findsublattice(iph,constix,sublat)
+! find sublattice of constituent constix in phase lokph
+! is lokph index to gtp_phaserecord or gtp_phase_varres??
+! constix is constituent index
+   implicit none
+   integer iph,constix,sublat
+!\end{verbatim}
+   integer ix,lokph,nn
+   if(iph.gt.0 .and. iph.le.noofph) then
+      lokph=phases(iph)
+   else
+      gx%bmperr=4050; goto 1000
+   endif
+!   write(*,*)'3F args: ',iph,lokph,constix
+!   write(*,*)'3F phase: ',phlista(lokph)%name
+   if(constix.le.0) then
+      write(*,*)'3F no such constituent in this phase',constix
+      gx%bmperr=4399; goto 1000
+   endif
+!   nn=1
+! BUG!! found 21.03.18 after 5 years !!
+   nn=0
+   loop: do sublat=1,phlista(lokph)%noofsubl
+      nn=nn+phlista(lokph)%nooffr(sublat)
+      if(constix.le.nn) exit loop
+   enddo loop
+   if(constix.gt.nn) then
+      write(*,*)'3F no such constituent in this phase',constix
+      gx%bmperr=4399
+   endif
+1000 continue
+   return
+ end subroutine findsublattice
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

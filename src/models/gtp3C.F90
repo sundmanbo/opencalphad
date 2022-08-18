@@ -2047,9 +2047,10 @@
 ! warning for reference state of the MQMQA phase   
    if(btest(phlista(lokph)%status1,PHMQMQA)) then
       write(lut,90)
-90    format('  ** MQMQA endmembers such as AB/X-Q etc. have',&
-           ' contributions from the endmembers A/X, B/X'/&
-           '  ** for their reference state even if AB/X-Q has no parameter!')
+90    format('  ** MQMQA endmembers such as AB/X-Q etc have',&
+           ' contributions from the endmembers'/&
+           '  ** A/X, B/X for their reference state even if AB/X-Q',&
+           ' has no parameter!')
    endif
 !--------------------------------------------------
 ! return here to list disordered parameters

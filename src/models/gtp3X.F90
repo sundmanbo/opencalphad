@@ -3550,7 +3550,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine config_entropy_tisr provided by Ed Kremer
+!\addtotable subroutine config_entropy_tisr
 !\begin{verbatim}
  subroutine config_entropy_tisr(moded,ncon,phvar,phrec,tval)
 !
