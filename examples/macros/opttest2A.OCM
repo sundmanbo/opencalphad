@@ -52,6 +52,7 @@ enter opt_coef
 @$----------------------------------------------------------------
 
 enter element CU Cupper FCC_A1      6.3546E+01  5.0041E+03  3.3150E+01
+
 enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01
  
 @$ OC requires that functions are in calling order here
@@ -122,7 +123,7 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01
 
    enter param G(LAVES_C15,CU:CU;0) 298.15 +45000+3*GHSERCU ;  
   6.00000E+03 N SL
-   enter param G(LAVES_C15,MG:CU;0) 298.15 +34720+2*GHSERMG +GHSERCU; 
+   enter param G(LAVES_C15,MG:CU;0) 298.15 +104160+2*GHSERMG +GHSERCU; 
   6.00000E+03   N SL
    enter param G(LAVES_C15,CU:MG;0) 298.15 +A40+A41*T+A42*T*LN(T)
   +A43*T**2+A44*T**(-1)+A45*T**3;   6.00000E+03   N MYVAL

@@ -37,7 +37,7 @@ list active
 @$---------------------------------------------------
 @&
 
-set var 30 1
+set opt_var 30 1
 
 opt 100
 
@@ -58,7 +58,7 @@ macro ./opttest2-map-diagram
 
 l ph cumg2 data
 
-set var 31 1
+set opt_var 31 1
 
 @&
 
@@ -116,7 +116,7 @@ macro ./opttest2-map-diagram
 @$ Take a break but first save !!
 @$------------------------------------------------------
 
-set fix 0-99
+set opt_fix 0-99
 
 l opt
 

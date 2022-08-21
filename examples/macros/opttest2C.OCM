@@ -39,7 +39,7 @@ l opt coef
 l ph cumg2 data
 
 @$ Optimize the coefficent in front of T*ln(T) (constant Cp)
-set var 32 -10
+set opt_var 32 -10
 
 calc all N 1
 
@@ -80,7 +80,7 @@ macro ./opttest2-plot-cpcumg2
 @&
 @$ Now add linear T dependence, set a small value
 
-set var 33 .01
+set opt_var 33 .01
 
 opt 100
 
@@ -103,8 +103,8 @@ l ph cumg2 data
 @&
 @$ Add more coefficients for T**(-1) and T**2
 
-set var 34 1000
-set var 35 0.001
+set opt_var 34 1000
+set opt_var 35 0.001
 
 opt 100
 
@@ -135,7 +135,7 @@ macro  ./opttest2-plot-cpcumg2
 @$ -----------------------------------------------
 @$ we have finished this step, set variables fix and save
 
-set fix 32-35
+set opt_fix 32-35
 
 l opt
 

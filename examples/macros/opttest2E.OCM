@@ -27,9 +27,11 @@ l ph laves_c15 data
 
 @&
 
-set var 42 1
+set opt_var 42 -10
 
-@$ Select a parameter to be optimized
+@$ Estimate a start value for the coefficient of the T*ln(T) term 
+@$ This value can be critical for the convergence in the beginning
+@$ and a bad estimate can complicate the calculations.
 @&
 
 set wei 1 CP15_F
@@ -40,13 +42,21 @@ set wei 1 CP15_F
 list active
 
 @$ And list them
+@& Remove eq 3 as we do not fit data below 298.15 K
+
+set wei 0 3
+
+
+list active
+
+
 @&
 
 calc all n 1
 
 c a n 1
 
-@$ And calculet them
+@$ And calculate them
 @$ Sometimes there are problems, several calculate all may help
 @&
 
@@ -84,7 +94,7 @@ y(laves,*)
 l ph laves data
 
 
-set fix 40 -300000
+set opt_fix 40 -300000
 
 @& Set the T-independent parameter to a large negative value
 @&
@@ -112,6 +122,10 @@ opt 0
 @$ using the global gridminimizer
 @$--------------------------------------------------------------------
 @&
+
+@$ set inter
+
+@$========================================
 @$ Use calc all with grid minimizer
 
 c a y 1
@@ -119,39 +133,10 @@ c a y 1
 
 opt 0
 
-@$ Sometimes error still here for equilibrium 3 and 4
+@$ Sometimes error still here for equilibrium 4
 @& 
-@$ Take some serious action, this depend very much on your understanding
-@$ of the model and thermodynamics
 
-sel eq 3
-
-l,,,,
-
-@$ The main reson for problems is that the constitution is wrong
-@$ But you should know what is the constitution, mainly Cu in first
-@$ and mainly Mg in second to become Cu2Mg
-@$ Use the command "calculate phase" to set this!
-@&
-
-calc ph laves
-1
-n
-1
-0
-
-
-@$ Now you have set a constitution that is correct, try to calculate
-@$ the equilibrium without the grid minimizer
-
-c n
-
-l,,,,,
-
-@$ This looks OK.  Do the same with the next equilibrium
-@&
-
-sel eq next
+sel eq 4 
 
 calc ph laves
 1
@@ -186,9 +171,9 @@ c a n 1
 @$ and A45 with T**3
 @$--------------------------------------------------------------------
 
-set var 43 .01
-set var 44 1000
-set var 45 .0001
+set opt_var 43 .01
+set opt_var 44 1000
+set opt_var 45 .0001
 
 list opt coef
 
@@ -201,7 +186,7 @@ c a n 1
 @$ Check one equilibrium that constitution is OK, Cu in first, Mg in second
 @$---------------------------------------------------------------------
 
-sel eq 3
+sel eq 4
 l , 2
 
 @$---------------------------------------------------------------------
@@ -215,12 +200,35 @@ opt 100
 l opt
 
 @&
-@$ run one more time
+@$ now include equilibrium 3 when parameters better
+
+sel eq 3
+c ph lav 1
+N
+1
+1e-12
+
+
+c n
+
+l ,,,,
+
+@$ The heat capacity negative !!! add it
+@&
+
+set wei 1
+
+
+@&
+@$ and run one more time
 
 opt 100
 
 l opt
 
+
+
+@$ set inter
 @$--------------------------------------------------------------
 @$ The sum or errors does not decrease, plot to check
 @$--------------------------------------------------------------
@@ -251,6 +259,9 @@ c sym cpm2
 @&
 
 list active
+
+
+@$ set inter
 
 @$---------------------------------------------------------
 @$ By adding this extimated Cp we can lower the Cp at high T
@@ -307,7 +318,7 @@ y(laves,*)
 @&
 @$ Clean up for next step
 
-set fix 0-99
+set opt_fix 0-99
 
 l opt
 

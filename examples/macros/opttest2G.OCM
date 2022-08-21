@@ -18,7 +18,7 @@ r u ./opttest2-cumg6
 
 set wei 0 *
 
-set fix 0-99
+set opt-fix 0-99
 
 l eq
 
@@ -29,9 +29,9 @@ l opt
 @&
 @$ Regular parameters in FCC and HCP
 
-set var 11 -10000
+set opt-var 11 -10000
 
-set var 21 10000
+set opt-var 21 10000
 
 @&
 @$ Include experiments AFC and AH2
@@ -102,7 +102,7 @@ mac ./opttest2-map-diagram
 @$---------------------------------------------------------
 @$ Clean up for next step
 
-set fix 0-99
+set opt-fix 0-99
 
 del step_map
 

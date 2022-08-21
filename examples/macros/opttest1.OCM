@@ -78,13 +78,13 @@ enter symbol dcp=1;
 @$ sometimes these are very important, sometimes one can start from zero
 
 set 
-variable 
+optcoeff_variab
 11
 10
 
-set var 12 -10
+set opt_var 12 -10
 
-set var 13 0.001
+set opt_var 13 0.001
 
 @$ list the optimizing variables
 list opt short
@@ -331,6 +331,10 @@ l opt short
 save unf ./opttest1
 Y
 
+@&
+@$ =========================
+@$ Back from coffee break
+@$ =========================
 new Y
 
 @$ ******************************************************************

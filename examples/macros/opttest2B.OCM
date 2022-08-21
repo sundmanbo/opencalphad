@@ -68,7 +68,7 @@ l ph liq data
 @$ Select the T-independent regular parameter of the liquid to be
 @$ optimized.  You must set a non-zero start value!!
 
-set var 0 1
+set opt_var 0 1
 
 list opt
 
@@ -122,7 +122,7 @@ macro ./opttest2-plot-hliq
 @$ -----------------------------------------------
 @$ Now vary also the subregular T-independent parameter
 
-set var 2 1
+set opt_var 2 1
 
 opt 100
 
@@ -148,7 +148,7 @@ macro ./opttest2-plot-hliq
 @$ Vary the T-dependent regular parameter
 @$ -----------------------------------------------
 
-set var 1 0.1
+set opt_var 1 0.1
 
 @&
 
@@ -187,7 +187,7 @@ macro ./opttest2-map-diagram
 @$ Now we can make a break but before save the current results
 @$ Fix the liquid parameters
 
-set fix 0-3
+set opt_fix 0-3
 
 @$ Remove all equilibria created by STEP/MAP
 

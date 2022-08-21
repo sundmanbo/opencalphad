@@ -2,6 +2,7 @@
 @$                      Cu2Mg (C15 Laves) heat capacity
 @$            Calculation and comparison to experiments
 @$
+@$ Modified to avoid creating composition sets 220808/BoS
 
 sel eq 1
 
@@ -13,9 +14,16 @@ set condition t=1100 p=1e5 n=1 x(mg)=.3333333
 
 l cond
 
+c ph laves 1
+N
+1
+1e-6
+
+
 @&
+
 set axis 1 t 10 2500 10
-calc eq
+c n
 l res 2
 
 
