@@ -525,6 +525,25 @@
  end subroutine change_many_phase_status
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+!
+!\addtotable subroutine get_phtup_status
+!\begin{verbatim} %-
+! subroutine get_phtup_status(phtupx,status,ceq)
+! return the status of a phase tuple. Also used when setting phase fix etc.
+! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
+! 
+!   implicit none
+!   integer phtupx,status
+!   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+! the status is in phase_varres record, THIS IS NOT PRIVATE
+! 2 fix, 1,0,-1 entered, -2 dormant, -3 suspended
+!   status=ceq%phase_varres(phasetuple(phtupx)%lokvares)%status2
+!1000 continue
+!   return
+! end subroutine get_phtup_status
+!
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\addtotable subroutine change_phtup_status
 !\begin{verbatim} %-
@@ -1019,6 +1038,101 @@
 ! arrange last added phase in alphabetical order
 ! also make alphaindex give alphabetical order
 ! phletter G and L and I have priority
+! phletter F and B meaning FCC or BCC permutations(?) ignored
+! tuple is returned as position in phase tuple
+   implicit none
+   integer tuple
+!\end{verbatim}
+   character symb1*24,ch1*1,ch2*1
+   integer iph,lokph,j,lokcs
+!
+   symb1=phlista(noofph)%name
+   ch1=phlista(noofph)%phletter
+! special care for F or B meaning with permutations ...
+   if(ch1.eq.'F' .or. ch1.eq.'B') ch1='S'
+   if(btest(phlista(noofph)%status1,PHLIQ)) ch1='L'
+! for some reason the MQMQA model does not have letter L
+   if(btest(phlista(noofph)%status1,PHMQMQA)) then
+      ch1='L'
+!      write(*,*)'3G enter phase with MQMQA model'
+   endif
+! one more phase in "phases" array
+   phases(noofph)=noofph
+!   write(6,75)'3G alphaphorder 1: ',noofph,ch1,symb1(1:6)
+75 format(A,I3,1x,A,1x,A)
+   loop1: do iph=1,noofph-1
+      lokph=phases(iph)
+      ch2=phlista(lokph)%phletter
+! special care for F or B meaning with permutations ...
+      if(ch2.eq.'F' .or. ch1.eq.'B') ch2='S'
+! we must test if MQMQA is any of the phases already sorted
+      if(btest(phlista(lokph)%status1,PHMQMQA)) then
+         ch2='L'
+!         write(*,*)'3G phletter for phases: ',ch1,ch2
+      endif
+!      write(6,76)'alphaphorder 2A: ',iph,lokph,ch1,ch2
+76 format(A,2I3,1x,A,1x,A)
+! phaseletter different, if ch1=G insert it here
+      if(ch1.eq.'G') goto 300
+      if(ch2.eq.'G') goto 200
+      liquid: if(ch1.eq.'L') then
+         if(ch2.eq.'G') goto 200
+         if(ch2.eq.'L') goto 100
+         goto 300
+      endif liquid
+      if(ch2.eq.'L') goto 200
+      solution: if(ch1.eq.'S') then
+         if(ch2.eq.'G' .or. ch2.eq.'L') goto 200
+         if(ch2.eq.'S') goto 100
+         goto 300
+      endif solution
+      if(ch2.eq.'S') goto 200
+      compound: if(ch1.eq.'C') then
+         if(ch2.eq.'C') goto 100
+         goto 200
+      endif compound
+! here phletter of lokph and the new phase are the same
+100   continue
+!     write(6,*)'alphaphorder 2B: ',symb1,phlista(lokph)%name
+      if(symb1.lt.phlista(lokph)%name) goto 300
+200    continue
+   enddo loop1
+! exit loop, add new phase last
+!   lokph=phases(noofph)
+   iph=phases(noofph)
+300 continue
+!   write(*,*)'3G new phase position: ',iph
+!  write(6,77)'alphaphorder 2C: ',iph,lokph,phlista(lokph)%name
+!77 format(A,2I3,1X,A)
+! insert phase here at iph, shift down trailing phase indices
+! also OK if new phase should be last
+   loop2: do j=noofph,iph+1,-1
+! update index of trailing phases, loop from the end not to overwrite
+      phases(j)=phases(j-1)
+      phlista(phases(j))%alphaindex=j
+   enddo loop2
+! index of new phase
+!  write(6,*)'alphaphorder 4: ',lokph,iph,noofph
+   phases(iph)=noofph
+   phlista(noofph)%alphaindex=iph
+   nooftuples=nooftuples+1
+   tuple=iph
+!   write(*,771)iph,phasetuple(iph),phlista(noofph)%name
+771 format('3G tuple: ',i5,': ',4(i8,1x),2x,a)
+! link to first compset set when phase_varres record connected
+!   write(*,777)'3G phase tuple position: ',iph,noofph,lokph,lokcs,tuple
+777 format(a,10i5)
+   return
+ END subroutine alphaphorder
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine alphaphorder_old
+!\begin{verbatim}
+ subroutine alphaphorder_old(tuple)
+! arrange last added phase in alphabetical order
+! also make alphaindex give alphabetical order
+! phletter G and L and I have priority
 ! tuple is returned as position in phase tuple
    implicit none
    integer tuple
@@ -1089,7 +1203,7 @@
 !   write(*,777)'3G phase tuple position: ',iph,noofph,lokph,lokcs,tuple
 777 format(a,10i5)
    return
- END subroutine alphaphorder
+ END subroutine alphaphorder_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

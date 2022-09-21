@@ -1534,17 +1534,20 @@
 ! add some useful things for maniplulation of graph
     write(21,8000)
 8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
-          '# This is a dashed line (on pdf/wxt):'/&
+          '# ** This is a dashed line (on pdf/wxt):'/&
           '# set style line 15 lt 0 lc rgb "#C8C800" lw 2 pt 2'//&
           '# set pointsize 0.6'/&
           '# set label "text" at 0.5, 0.5 rotate by 60 font "arial,12"'/&
           '# set xrange [0.5 : 0.7] '/&
-          '# Adding manually a line and keep scaling:'/&
+          '# ** Adding manually a line and keep scaling:'/&
           '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
-          '# Add a red dot at 0.1,1000:'/&
+          '# ** Add a red dot at 0.1,1000:'/&
           '# set obj 1 circle fc rgb "#FF0000" fs sol size 0.02 noclip at 1,1'/&
-          '# Plotting symbols instead of line:'/&
+          '# ** Modify the axis value:'/&
+          '# plot for [i=] ... using (2*column(i)/(1-2*column(i))):2 with ...'/&
+          '# ** Plotting symbols instead of line:'/&
           '# ... using 2:i with points pt 7 ps 3 '/&
+          '# ** Overlay plots: '/&
           '# set multiplot'/&
           '# set xrange [] writeback'/&
           '#  ... plot someting'/&
@@ -1603,6 +1606,7 @@
 !---------------------------------------------------------------
 ! handle appended files here ....
 !
+    write(*,*)'ocplot2B append?',trim(graphopt%appendfile)
     appfildata: if(graphopt%appendfile(1:1).eq.' ') then
        appfil=0
     else
@@ -1624,6 +1628,8 @@
                ' plot will be strange!'
           goto 1710
        endif
+! skip other comment lines
+       if(appline(1:1).eq.'#') goto 1710
 ! save lines between "set multiplot" and "unset multiplot" to a buffer
 ! appending a file which contains an already appended part
 ! copy all lines to a buffer
@@ -1932,7 +1938,7 @@
 3823 format('EOD'//)
     if(appfil.gt.0) then
 ! if there is an appendfile add set multiplot
-       write(*,*)'ocpolt2B trying to include appfile ...'
+       write(*,*)'ocplot2B trying to include appfile ...'
 ! The "writeback" is important for uniform scaling of multiplots
 ! NOTE this is also used for Scheil above
        write(21,3828)
@@ -2603,6 +2609,7 @@
 ! np should be the number of different lines to be plotted
 ! if there is just one line do not write any key.  May be overriiden later ..
     np=same
+    write(*,*)'ocplot3B append?',trim(graphopt%appendfile(1:1))
     if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
        labelkey=' off'
     else
@@ -2778,6 +2785,8 @@
           '# set obj 1 circle fc rgb "#FF0000" fs sol size 0.02 noclip at 1,1'/&
           '# Plotting symbols instead of line:'/&
           '# ... using 2:i with points pt 7 ps 3'/&
+          '# ** Modify the axis value:'/&
+          '# plot for [i=] ... using (2*column(i)/(1-2*column(i))):2 with ...'/&
           '# set multiplot'/&
           '# set xrange [] writeback'/&
           '#  ... plot someting'/&
@@ -2902,6 +2911,8 @@
              goto 280
           endif
        endif
+! skip other comment lines
+       if(appline(1:1).eq.'#') goto 200
 !------------------------------------------------------------------
 ! ignore some lines with "set" in the append file
 ! set title

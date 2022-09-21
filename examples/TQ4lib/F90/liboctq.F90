@@ -43,6 +43,7 @@
 ! tqgpcs   -  get stoichiometry of species as system components 
 ! tqgccf   -  get stoichiometry of system component as elements
 ! tqgnpc   -  get number of constituents in phase
+! tqgp     +  get all phase names and status
 ! -------------------------
 ! tqcref  -  set reference state for component
 ! tqphsts  ok set status of phase tuple
@@ -332,6 +333,40 @@ contains
     return
   end subroutine tqgnpc
 
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
+  subroutine tqgpsm(n,phases,status,amdgm,ceq)
+! get all phase names and their status and amounts or DGM
+    integer n
+    character phases(*)*24
+    integer status(*)
+    double precision amdgm(*)
+    type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
+!\end{verbatim}
+    integer i
+    character dummy*64,statevar*64
+    n=nooftup()
+! phasetuple: lokph,compset,ixphase,lokvares,nextcs
+    do i=1,n
+       call get_phasetup_name(i,phases(i))
+! the status is in phase_varres record, THIS IS NOT PRIVATE
+! phastate values: 2 fix, 1,0,-1 entered, -2 dormant, -3 suspended
+       status(i)=ceq%phase_varres(phasetuple(i)%lokvares)%phstate
+! if status 0 or less the phase is not stable, extract DGM
+       if(status(i).le.0) then
+          statevar='DGM('//trim(phases(i))//')'
+          call get_state_var_value(statevar,amdgm(i),dummy,ceq)
+       else
+! this phase is stable, extract amount
+          statevar='NPM('//trim(phases(i))//')'
+          call get_state_var_value(statevar,amdgm(i),dummy,ceq)
+       endif
+    enddo
+1000 continue
+  return
+end subroutine tqgpsm
+    
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
 !\begin{verbatim}
@@ -866,7 +901,7 @@ contains
           statevar='DG '
           ki=2
        endif
-       write(*,*)'tqgetv DGM: ',n1,ki
+!       write(*,*)'tqgetv DGM: ',n1,ki
        if(n1.gt.0) then
 ! The driving force for a specific phase
           call get_phasetup_name(n1,name)

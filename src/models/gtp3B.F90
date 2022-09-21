@@ -368,7 +368,7 @@
        model='RKM'
     elseif(name1(1:9).eq.'IONIC_LIQ') then
        phtype='L'
-       model='IONIC_LIQUID'
+       model='I2SL'
        defnsl=2
     else
 ! default ....
@@ -383,6 +383,7 @@
     call capson(model)
 ! defnsl is default number of sublattices
     if(model(1:5).eq.'I2SL ') then
+       phtype='L'
        defnsl=2
     elseif(model(1:6).eq.'MQMQA ') then
        phtype='Q'
@@ -402,7 +403,7 @@
        defnsl=1
     endif
     sites=one
-    write(*,*)'3B model: ',trim(model),'  ',phtype
+!    write(*,*)'3B model: ',trim(model),'  ',phtype
     if(model(1:6).eq.'IDEAL ' .or. model(1:4).eq.'RKM ' .or. &
          model(1:5).eq.'SROT ' .or. &
          model(1:5).eq.'TISR ' .or. model(1:6).eq.'CVMCE ' .or. &
@@ -435,7 +436,7 @@
     sloop: do ll=1,nsl
 ! 'Number of sites on sublattice xx: '
 !  123456789.123456789.123456789.123
-!       write(*,*)'3B model: "',trim(model),'"'
+!       write(*,*)'3B model5: "',trim(model),'"'
        if(model(1:4).eq.'RKM ' .or. model(1:6).eq.'IDEAL ') then
 ! ideal and RKM models have one set of sites with 1 place ...
           sites(1)=one
@@ -535,7 +536,6 @@
        jp=1
 4047   continue
        if(eolch(text,jp)) goto 4049
-!       if(model(1:13).eq.'IONIC_LIQUID ' .and. ll.eq.1 &
        if(model(1:5).eq.'I2SL ' .and. ll.eq.1 &
             .and. knr(1).eq.0) then
 ! a very special case: a single "*" is allowed on 1st sublattice for ionic liq
@@ -679,8 +679,8 @@
 !  write(6,*)' enter_phase 3: ',name,nsl,nkk,noofsp
 ! set bit for quasichemical and ionic liquid model!
    call capson(model)
-!   write(*,'(a,a,2x,a)')'3B model: ',trim(model),phtype
-   if(model(1:5).eq.'I2SL ' .or. model(1:13).eq.'IONIC_LIQUID ') then
+!   write(*,'(a,a,2x,a)')'3B model7: ',trim(model),phtype
+   if(model(1:5).eq.'I2SL ') then
       i2sl=.TRUE.
    elseif(model(1:4).eq.'QCE ') then
       QCE=.TRUE.
@@ -785,8 +785,8 @@
    endif
    phlista(nyfas)%name=name
    phlista(nyfas)%status1=0
+!   write(*,*)'3B i2sl?',i2sl
    ionliq: if(i2sl) then
-!   ionliq: if(model(1:13).eq.'IONIC_LIQUID ') then
 ! the external charge balance set above, not needed
 !      write(*,*)'3B  *** ionic liquid entered!!!'
       externalchargebalance=.FALSE.
@@ -847,7 +847,7 @@
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHGAS)
       model='ideal'
    elseif(ch1.eq.'L' .or. ch1.eq.'Q') then
-! i2sl had phtype changed to L above, Q is the MQMQA model
+! i2sl had phtype changed to L above, Q is the MQMQA model ??
       phtype(1:1)='L'
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHLIQ)
    endif
@@ -869,6 +869,9 @@
 !   if(nyfas.eq.0) then
 !      continue
 !   else
+! to force the MQMQA phase be treated as liquid in the alphabetical order ,,,
+!   write(*,*)'3B enter phase: ',trim(phlista(nyfas)%name),mqm
+   if(mqm) phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHMQMQA)
    if(nyfas.gt.0) then
       call alphaphorder(tuple)
       phlista(nyfas)%nooffs=1
@@ -961,6 +964,7 @@
 ! ------------------------------------------------------------
 ! code below moved here to avoid entring phases with net charge
    bothcharge=0
+!   write(*,*)'3B external charge balance: ',externalchargebalance
    if(externalchargebalance) then
       kkk=0
       bothcharge=-100
@@ -1033,7 +1037,7 @@
    if(bothcharge.ne.0) then
       if(kkk.eq.0) then
          write(*,531)trim(name),bothcharge,nkk
-531      format(' *** WARNING: the phase ',a,2i5,' suspended'/&
+531      format('3B *** WARNING: the phase ',a,2i5,' suspended'/&
               14x,'as it cannot be electrically neutral')
          firsteq%phase_varres(lokcs)%phstate=PHSUS
       endif

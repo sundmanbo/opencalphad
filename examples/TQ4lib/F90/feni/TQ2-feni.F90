@@ -6,7 +6,7 @@ program octq2
   implicit none
 ! maxel and maxph defined in pmod package
 !  integer, parameter :: maxel=10,maxph=20
-  integer n,n1,n2,n3,n4,nsel,ip,cnum(maxel+3),mm,m2,phstable,jp,nend,nv
+  integer n,n1,n2,n3,n4,nsel,ip,cnum(maxel+3),mm,m2,phstable,jp,nend,nv,i,zz
   character filename*60,phnames(maxph)*24
   character condition*60,line*80,statevar*60,quest*60,ch1*1
   character target*60,selel(2)*2,phcsname*36
@@ -15,6 +15,10 @@ program octq2
   type(gtp_phasetuple), pointer :: phtup
   type(gtp_equilibrium_data), pointer :: ceq
   double precision mugrad(300),mobilities(20),xknown(20),yarr(20),irt
+! for tqgp
+  character xphase(100)*24
+  integer xstat(100)
+  double precision xdgm(100)
 ! present the calculation
   write(*,5)
 5 format(/'Calculation of equilibria and mobility data in Fe-Ni system'/&
@@ -29,7 +33,7 @@ program octq2
        'PARAMETER MQ&NI(FCC_A1,FE:VA;0) 298.15 -25000*IQRT-31; 6000 N BOS !'/)
 ! set some defaults
   n=0
-  filename='TQ4lib/F90/feni/FENI '
+  filename='FENI '
 ! initiate
   call tqini(n,ceq)
   if(gx%bmperr.ne.0) goto 1000
@@ -56,6 +60,20 @@ program octq2
   write(*,20)ntup,(phnames(n)(1:len_trim(phnames(n))),n=1,ntup)
 20 format('and ',i3,' phases: ',10(a,', '))
 ! --------------------------------------
+! list parameters, the output unit, screen is zz=6
+  n=1
+  zz=6
+  call list_many_formats(' ,,,, ',n,1,zz)
+  write(*,22)
+22 format(/' no more ',/)
+! --------------------------------------
+! test tqgpsm
+!  call tqgpsm(zz,xphase,xstat,xdgm,ceq)
+!  if(gx%bmperr.ne.0) stop 'error in tqgp'
+!  do n=1,zz
+!     write(*,30)n,xphase(n),xstat(n),xdgm(n)
+!
+!  enddo
 ! set default values
   tp(1)=1.0D3
   tp(2)=1.0D5
@@ -68,14 +86,14 @@ program octq2
 105 format(/'Give conditions:')
   ip=len(line)
   temp=tp(1)
-  call gparrd('Temperature: ',line,ip,tp(1),temp,nohelp)
+  call gparrdx('Temperature: ',line,ip,tp(1),temp,'dummy')
   if(buperr.ne.0) goto 1000
   if(tp(1).lt.1.0d0) then
      write(*,*)'Temperature must be larger than 1 K'
      tp(1)=1.0D0
   endif
   temp=tp(2)
-  call gparrd('Pressure: ',line,ip,tp(2),temp,nohelp)
+  call gparrdx('Pressure: ',line,ip,tp(2),temp,'dummy')
   if(buperr.ne.0) goto 1000
   if(tp(2).lt.1.0d0) then
      write(*,*)'Pressure must be larger than 1 Pa'
@@ -84,7 +102,7 @@ program octq2
   do n=1,nel-1
      quest='Mole fraction of '//cnam(n)(1:len_trim(cnam(n)))//':'
      temp=xf(n)
-     call gparrd(quest,line,ip,xf(n),temp,nohelp)
+     call gparrdx(quest,line,ip,xf(n),temp,'dummy')
      if(buperr.ne.0) goto 1000
      if(xf(n).lt.1.0d-6) then
         write(*,*)'Fraction must be larger than 1.0D-6'
@@ -118,6 +136,7 @@ program octq2
   if(gx%bmperr.ne.0) then
      write(*,310)gx%bmperr,bmperrmess(gx%bmperr)
 310  format('Calculation failed, error code: ',i5/a)
+     goto 600
      gx%bmperr=0; goto 600
   else
      write(*,320)
@@ -223,11 +242,21 @@ program octq2
 2098 format(/'LN(mobility) values for',i3,' components')
   write(*,2095)1,(mobilities(jp),jp=1,noel())
 !--------------------------------------
+! testing tqgpsm
+  write(*,2000)
+2000 format(/'Testing tqgpsm')
+  call tqgpsm(zz,xphase,xstat,xdgm,ceq)
+  if(gx%bmperr.ne.0) stop 'error in tqgp'
+  do n=1,zz
+     write(*,30)n,xphase(n),xstat(n),xdgm(n)
+30   format(i3,2x,a,2x,i3,E12.4)
+  enddo
+!--------------------------------------
 ! loop
 600 continue
   write(*,*)
   ip=len(line)
-  call gparcd('Any more calculations?',line,ip,1,ch1,'N',nohelp)
+  call gparcdx('Any more calculations?',line,ip,1,ch1,'N','dummy')
   if(ch1.ne.'N') goto 100
 !--------------------------------------
 1000 continue

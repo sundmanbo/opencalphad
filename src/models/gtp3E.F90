@@ -4184,7 +4184,7 @@
 ! the phase must have been defined
       if(nophase) then
          if(thisphaserejected) then
-            write(*,*)'3E previous phase rejected '
+!            write(*,*)'3E previous phase rejected '
             goto 100
          endif
          if(.not.silent) write(kou,327)nl,trim(longline)
@@ -4324,8 +4324,10 @@
 ! name2 is model, ignored on reading TDB
       ionliq=.FALSE.
       mqmqa=.FALSE.
+!      write(*,*)'3E phtype: "',phtype,'"'
       if(phtype.eq.'Y') then
-         name2='IONIC_LIQUID '
+!         name2='IONIC_LIQUID '
+         name2='I2SL '
          ionliq=.TRUE.
       elseif(phtype.eq.'Q') then
          name2='MQMQA '
@@ -4588,8 +4590,7 @@
 ! HANDLE THE ABBREVIATION BM to be accepted as BMAG         
          if(name1(1:3).eq.'BM ') then
             write(kou,*)&
-                 ' *** WARNING unknown parameter identifier "BM"',&
-                 ' assumed to mean "BMAG" on line',nl
+                 ' The parameter identifier "BM" assumed to be "BMAG", line',nl
             name1='BMAG'
          endif
          call get_parameter_typty(name1,lokph,typty,fractyp)
@@ -6237,7 +6238,10 @@
          elseif(name1(1:7).eq.'LIQUID ') then
             phtype='L'
          endif
-         if(modelname(1:5).eq.'I2SL ') phtype='Y'
+         if(modelname(1:5).eq.'I2SL ') then
+            phtype='Y'
+!            emodel=
+         endif
 !
 ! THIS IS READPDB subroutine .... OBSOLETE
 !

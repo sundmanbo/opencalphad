@@ -353,7 +353,11 @@
 !
    lk3=0
 10  continue
-   call gparcx('Parameter name: ',cline,ip,7,parname,' ','?Enter parameter')
+   if(mode.eq.1) then
+      call gparcx('Parameter name: ',cline,ip,7,parname,' ','?Amend parameter')
+   else
+      call gparcx('Parameter name: ',cline,ip,7,parname,' ','?Enter parameter')
+   endif
 ! simple parameter names are like G(SIGMA,FE:CR:FE,CR;1)
    kp=index(parname,' ')
    parname(kp:)=' '

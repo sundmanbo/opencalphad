@@ -20,6 +20,11 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2022.09.21 OC version 6.058: An irritating bug that FCC_4SL with FCC
+permutations was stored as the alphabetically last phase has been
+fixed.  Several minor things also fixed, for example append plot files
+were very sensitive to text on comment lines.  
+
 2022.08.18 OC version 6.057: The command SET OPTIMIZING_COND has been
 changed to SET LMDIF_ACCURACY.  LMDIF is the least square routine used
 for assessments in OC.  The commands to set an optimizing coefficent
@@ -31,7 +36,6 @@ in examples/macros for testing the optimizer been modified for this.
 The documentation of the GTP and the minimizer has been updated.  Work
 in ongoing on the online help and other modules to prepare for a
 release of version 7 later this year.
-
 
 2022.07.28 OC version 6.056: The code for the models have been
 reorganized to prepare for its documentation.  Some minor bugs fixed

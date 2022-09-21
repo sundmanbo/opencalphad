@@ -15,7 +15,7 @@ gfortran -c -fopenmp liboctq.F90
 gfortran -o sim1 -fopenmp sim-alnipt.F90 liboctq.o liboceq.a
 
 REM on Linux and Mac you need
-gfortran -o sim1 -fopenmp sim-alnipt.F90 getley.o liboctq.o liboceq.a
+gfortran -o sim1 -fopenmp sim-alnipt.F90 getkey.o liboctq.o liboceq.a
 
 
 REM In the setup file you specify the output.  This can be plotted by GNUPLOT

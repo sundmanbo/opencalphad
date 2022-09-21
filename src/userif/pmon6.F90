@@ -5112,7 +5112,7 @@ contains
           endif
           xxy=5.0
           call gparrdx('Estimated uncertainty in conditions (%): ',&
-               cline,last,xxx,xxy,'?Calculate confidence interval')
+               cline,last,xxx,xxy,'?List confidence interval')
           i1=optionsset%lut
           if(i1.eq.0) i1=kou
           call calc_conf_interval(i1,xxx,ceq)

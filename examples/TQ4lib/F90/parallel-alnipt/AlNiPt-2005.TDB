@@ -234,6 +234,7 @@ $     REF01!
    PARAMETER L(FCC_A1,AL,NI:VA;2)  298.15  +LFCC2;,,          N 03SUN !  
    PARAMETER L(FCC_A1,AL,NI:VA;3)  298.15  +LFCC3;,,          N 03SUN !  
    
+$ these ternary parameters below not included and wrong and duplicate ?? !!!
   PARAMETER L(fcc_a1,ni,pt:va;0) 2.98150E+02 +L0FCC+NIPTG0+0.375*RECNINI   
       +0.75*RECNIPT#+0.375*RECPTPT#; 6.00000E+03 N 05LU !   
   PARAMETER L(fcc_a1,ni,pt:va;1) 2.98150E+02 +L1FCC+NIPTG1+0.75*RECNINI#   
@@ -248,6 +249,8 @@ $     REF01!
   PARAMETER L(fcc_a1,al,ni,pt:va;0) 2.98150E+02 +3.0E4; 
     6.00000E+03 N 05LU !   
   PARAMETER L(fcc_a1,al,ni,pt:va;1) 2.98150E+02 0;     6.00000E+03 N 05LU !   
+  PARAMETER L(fcc_a1,al,ni,pt:va;2) 2.98150E+02 0;     6.00000E+03 N 05LU !   
+$ these ternary parameters above not included and duplicate and wrong ?? !!!
    
    PARAMETER G(FCC_A1,AL,PT:VA;0)  298.15  +APL0FCC#+ALPTG0#+1.5*REC#;      
   6000   N REF0 !   
