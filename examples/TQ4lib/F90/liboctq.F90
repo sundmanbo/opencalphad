@@ -60,6 +60,7 @@
 ! tqselceq ok select new current equilibrium
 ! tqlr     ok list results 
 ! tqlc     ok list conditions
+! tqltdb   ok list TDB file 
 !
 !------------------------------------------------------------
 !
@@ -1351,6 +1352,20 @@ end subroutine tqgpsm
 1000 continue
     return
   end subroutine tqlc
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
+  subroutine tqltdb
+! list TDB file elements, phases and parameters on screen
+    implicit none
+!\end{verbatim}
+    integer n,kou
+    call list_many_formats(' ,,,, ',n,1,kou)
+    write(*,10)
+10  format(/' no more ',/)
+    return
+  end subroutine tqltdb
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 

@@ -61,11 +61,12 @@ program octq2
 20 format('and ',i3,' phases: ',10(a,', '))
 ! --------------------------------------
 ! list parameters, the output unit, screen is zz=6
-  n=1
-  zz=6
-  call list_many_formats(' ,,,, ',n,1,zz)
-  write(*,22)
-22 format(/' no more ',/)
+  call tqltdb
+!  n=1
+!  zz=6
+!  call list_many_formats(' ,,,, ',n,1,zz)
+!  write(*,22)
+!22 format(/' no more ',/)
 ! --------------------------------------
 ! test tqgpsm
 !  call tqgpsm(zz,xphase,xstat,xdgm,ceq)
