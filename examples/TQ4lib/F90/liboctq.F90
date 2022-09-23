@@ -1361,6 +1361,8 @@ end subroutine tqgpsm
     implicit none
 !\end{verbatim}
     integer n,kou
+! n is position in text, kou is output unit
+    n=1; kou=6
     call list_many_formats(' ,,,, ',n,1,kou)
     write(*,10)
 10  format(/' no more ',/)
