@@ -1178,7 +1178,7 @@
                      write(*,*)'3B Cannot find a sublattice index order!'
                      gx%bmperr=4399; goto 1000
                   endif
-! s5 is now index of a pair, the index of the pair in %contyp is in ping(s8)
+! s5 is now index of a pair, the index of the pair in %contyp is in pinq(s8)
 ! and finally in %contyp(13..14,s5) are species indices
                   s5=mqmqa_data%pinq(s8)
                   if(s3.eq.mqmqa_data%contyp(13,s5)) then
@@ -6620,19 +6620,30 @@
 ! to enter a whole database, max set by seqnum='01' to '99'
 !   integer, parameter :: f1=maxconst
 !   integer, parameter :: f1=200
-   integer, parameter :: maxquads=200
+! mqxquads is maxium number of quads, mqq is max number of species in quads
+   integer, parameter :: maxquads=99,mqq=30
    integer ip,lenc,jp,kp,ncat,ntot,isp(4),loksp,loksparr(4),nspel,thiscon,s1
-   integer jelno(9),ielno(9),nextra,ee,nel,order1,order2,lat,nquad
+   integer jelno(9),ielno(9),nextra,ee,nel,order1,order2,lat,nquad,ij,ik
    logical endmember,sametwice1,sametwice2,nomqmqava
    character*24 cation1,species(4),quaderr
    character quadname*64,ch1*1,elnames(9)*2,seqnum*2
-   double precision val,qstoi(20),smass,qsp,extra(5),stoi(20),double(4)
+   double precision val,qstoi(mqq),smass,qsp,extra(5),stoi(20),double(4)
    double precision vazero,totstoi
-   save seqnum
 ! Example of input line with "constituents":
 ! LI/CL 6 6 2.4 LI/O 6 3 2.4 U/CL 6 2 2.4 U/O 6 3 2.4 LI,U/CL 2 6 6
 !  LI,U/O 2 6 3 LI/CL,O 6 6 3 U/CL,O 2 6 3 LI,U/CL,O 6 2 6 2 
-! The 2.4 for the pairs is the FNN/SNN ratio
+! The 2.4 for the pairs is the default FNN/SNN ratio
+! Added to have correct reference state for SNN quadruplets when elements with
+! multiple valencies are used such as U+3 and U+4
+! Species representing different valencies of an element have names as UQ4 
+! fnnquads store names of FNN quadruplets
+   integer nfnnq,nsnnq,pair,qorder(maxconst)
+   integer, parameter :: mfnnq=20
+   character (len=24) :: fnnquads(mfnnq),snnrefs(4,maxconst-mfnnq)
+! I am not sure if this routine really is called several times but if so
+! we need to save
+   save seqnum,nfnnq,nsnnq,fnnquads,snnrefs
+!
 !   write(*,2)loop,trim(inline)
 2  format('3B entering mqmqa_const: ',i3,' "',a,'"')
    if(loop.eq.0) then
@@ -6657,6 +6668,8 @@
       mqmqa_data%pp=zero
       nend=0
       seqnum='00'
+      nfnnq=0
+      nsnnq=0
    endif
    ip=0
    call capson(inline)
@@ -6703,18 +6716,18 @@
 ! This normal if species not selected
 !         write(*,*)'3B cannot find cations in: ',trim(quadname(1:jp-1)),&
 !              ' maybe not selected'
-         goto 800
+         goto 810
       endif
       ncat=2
    else
-! There is a single cation, maybe FNN or two anions
+! There is a single cation, maybe FNN or quad with two anions
       species(1)=quadname(1:jp-1)
       call find_species_by_name_exact(species(1),isp(1))
       if(gx%bmperr.ne.0) then
 ! This normal if species not selected
 !         write(*,*)'3B cannot find cation: ',trim(species(1)),&
 !              ' maybe not selected'
-         goto 800
+         goto 810
       endif
       isp(2)=0
       ncat=1
@@ -6736,9 +6749,8 @@
 ! This normal if species not selected
 !         write(*,*)'3B cannot find anion: ',trim(species(ntot)),&
 !              ' maybe not selected'
-         goto 800
+         goto 810
       endif
-!      if(gx%bmperr.ne.0) goto 800
       ntot=ntot+1
       species(ntot)=quadname(jp+kp:)
 ! this is second anion
@@ -6749,13 +6761,14 @@
 ! This normal if species not selected
 !         write(*,*)'3B cannot find anion: ',trim(species(ntot)),&
 !              ' maybe not selected'
-         goto 800
+         goto 810
          if(isp(ntot-1).eq.isp(ntot)) then
-            write(*,*)'3B two anions represent the same element'
+            write(*,*)'3B two anions represent the same species'
             sametwice2=.TRUE.
          endif
       endif
    else
+! a single anion
       ntot=ncat+1
       species(ntot)=quadname(jp+1:)
 !      write(*,*)'3B anion: ',species(ntot)
@@ -6765,11 +6778,40 @@
 ! This normal if species not selected
 !         write(*,*)'3B cannot find anion: ',trim(species(ntot)),&
 !              ' maybe not selected: ',trim(quadname)
-         goto 800
+         goto 810
       endif
 ! this is because a single cation should have stoichimetry 2.0/bonds
       double(ntot)=2.0D0
    endif
+! New code 22.12.14/BoS to handle element with multiple valences
+! we have to save the SNNs reference to its FNN quads 
+! Note the SNN may be entered before the FNN
+   if(ntot.eq.2) then
+      nfnnq=nfnnq+1
+! qorder is used when rearranging the quads in alphabetical order
+      qorder(mqmqa_data%nconst+1)=nfnnq
+      write(*,62)'3B found FNN constituent ',nfnnq,trim(quadname)
+      fnnquads(nfnnq)=quadname
+   else
+      nsnnq=nsnnq+1
+      qorder(mqmqa_data%nconst+1)=-nsnnq
+      do ij=1,4
+         snnrefs(ij,nsnnq)=' '
+      enddo
+! we have to generate the FNN constituents of this SNN, very clumsy
+      ik=0
+      do ij=1,ncat
+         do kp=ncat+1,ntot
+            ik=ik+1
+            snnrefs(ik,nsnnq)=trim(species(ij))//'/'//species(kp)
+         enddo
+      enddo
+      write(*,62)'3B found SNN constituent ',nsnnq,trim(quadname),ntot,&
+           (trim(snnrefs(ij,nsnnq)),ij=1,ik)
+62    format(a,i3,1x,a,1x,i3,': ',(a,1x,a,1x,a,1x,a))
+   endif
+   
+! end new code...............
 ! double(1..4) should be 2.0 for species 1..4 single in the sublattice
 ! if the species has been rearranged we must rearrange the stoichiometry also   
 !   write(*,77)'3B species: ',(trim(species(kp)),isp(kp),kp=1,ntot)
@@ -6778,7 +6820,7 @@
 ! we have found all species, we have a new quadrupol
    mqmqa_data%nconst=mqmqa_data%nconst+1
    thiscon=mqmqa_data%nconst
-   if(thiscon.gt.maxconst) then
+   if(thiscon.ge.maxconst) then
       write(*,*)'3B Too many constituents in MQMQA phase: ',maxconst
       gx%bmperr=4399; goto 1000
    endif
@@ -6900,10 +6942,11 @@
       elstoi: do jp=1,nspel
          notnew: do ee=1,nel
             if(ielno(jp).eq.jelno(ee)) then
-!               write(*,'(a,2i3,2x,2i3,": ",a,a)')'3B elstoi loop',jp,nspel,&
-!                    ee,nel,trim(cation1),', same element in two cat- or anions'
+! debug info
                write(*,'(a,a,a,2x,2i3,2x,2i3)')'3B same element twice',&
                     ', as cation or anion in: ',trim(quadname),jp,nspel,ee,nel
+               write(*,'(a,4(1pe15.6))')'3B factors: ',&
+                    (mqmqa_data%constoi(pair,s1),pair=1,4)
 ! Problems here if species has 2 or more elements
 ! Or if the same element occur in two anion/cation species, such as Fe+2/Fe+3
 ! we must treat all elements as new??
@@ -6920,7 +6963,7 @@
          endif
 ! ee is element index in species
          elnames(ee)=ellista(ielno(jp))%symbol
-! qstoi is the sum of element mm in all species of the quadrupole
+! qstoi is the sum of species/element mm in all species of the quadrupole
 ! element alone in a sublattice should have the stoichiometry doubled
 ! The stoichiometry should be divided by the coordination number
          qstoi(ee)=qstoi(ee)+&
@@ -6981,7 +7024,7 @@
    nspel=0
 ! loop from 0 to include the vacancy, it will be the first element?
 ! why loop to 20? Well, I assume there is less than 20 different species
-   do kp=1,20
+   do kp=1,mqq
       if(qstoi(kp).gt.zero) then
          nspel=nspel+1
          ielno(nspel)=kp
@@ -7033,7 +7076,7 @@
 ! check we have not too many quads
    nquad=nquad+1
    if(nquad.gt.maxquads) then
-      write(*,*)'3B Error, too many quadruplets, max: ',nquad,maxquads
+      write(*,*)'3B Error, too many quadruplets, max: ',maxquads,nquad
       gx%bmperr=4399
       goto 1000
    endif
@@ -7051,8 +7094,8 @@
            gx%bmperr,(mqmqa_data%contyp(kp,thiscon),kp=6,9)
       write(*,'(a,i3,4(F10.6))')trim(quadname),nspel,(qstoi(kp),kp=1,4)
       goto 1000
-   else
-      write(*,*)'3B found MQMQA quad: ',trim(quadname)
+!   else
+!      write(*,*)'3B found MQMQA quad: ',trim(quadname)
    endif
 !   write(*,*)'3B returning the quadrupole name'
    const(thiscon)=quadname
@@ -7064,15 +7107,21 @@
 ! in this place we must store the final constituent index of this species
 ! the constituents are arranged alphabetical in the call to enter_phase
    mqmqa_data%contyp(10,thiscon)=-loksp
-!   write(*,602)thiscon,(mqmqa_data%contyp(kp,thiscon),kp=1,10),&
-!        (mqmqa_data%constoi(kp,thiscon),kp=1,4)
-!602 format('3B contyp: ',5i3,2i5,3i3,i4,1x,4F7.3)
+!   write(*,602)thiscon,(mqmqa_data%contyp(kp,thiscon),kp=1,14),&
+!        qorder(thiscon),(mqmqa_data%constoi(kp,thiscon),kp=1,4)
+!   if(qorder(thiscon).gt.0) then
+!      write(*,603)'3B FNN: ',trim(fnnquads(thiscon))
+!   else
+!      write(*,603)'3B SNN: ',(trim(snnrefs(ij,thiscon)),ij=1,4)
+!   endif
 ! loop back to read next quadrupole
    goto 100
 !-----------------------------------------------------------------------
 ! illegal quadrupole, skip this quadruple there can be 2-4 reals trailing
 800 continue
-!   write(*,*)'3B skipping quadrupole: ',trim(quadname)
+   write(*,*)'3B quadrupole not selected: ',trim(quadname)
+! species not entered, maybe not selected
+810 continue
    gx%bmperr=0
    call getrel(inline,ip,val)
    call getrel(inline,ip,val)
@@ -7111,6 +7160,22 @@
 !      write(*,*)'3B MQMQA phase has no constituents!'
 !      gx%bmperr=4399
 !   endif
+   goto 1000
+! this is just debug output
+   ik=1; ij=1
+   do thiscon=1,mqmqa_data%nconst
+      if(qorder(thiscon).gt.0) then
+         write(*,603)'3B FNN: ',trim(fnnquads(ik))
+         ik=ik+1
+      else
+         write(*,603)'3B SNN: ',(trim(snnrefs(s1,ij)),s1=1,4)
+         ij=ij+1
+      endif
+603   format(a,4(1x,a))
+      write(*,602)thiscon,(mqmqa_data%contyp(kp,thiscon),kp=1,14),&
+           qorder(thiscon),(mqmqa_data%constoi(kp,thiscon),kp=1,4)
+602   format('3B contyp: ',i2,1x,4i3,1x,i3,1x,4i2,1x,i3,1x,4i2,1x,i4/30x,4F10.6)
+   enddo
 !
 1000 continue
 !   write(*,910)nend
@@ -7124,16 +7189,17 @@
 !\begin{verbatim}
  subroutine mqmqa_rearrange(const)
 ! This routine will scan the mqmqa_data datastructure
-! and for all non-endmembers replace links to species by liknks to endmembers
-! and calculate an store several useful things
-! NOTE the phase is not yet entered!!
+! and for all non-endmembers replace links to species by links to endmembers
+! and calculate and store several useful things
+! NOTE the phase is not yet entered!!  we only have arrays with data
    implicit none
 ! array with names of quadrupole constituents, needed by enter phase!!
    character const(*)*24
 !\end{verbatim}
 ! mqmqa_data contain information needed for the liquid modeled with MQMQA
    integer, parameter :: f1=maxconst
-   integer endmem(2,f1),s1,s2,s3,s4,s5,s6,nend,new(4),need,found,pair
+!   integer endmem(2,f1),s1,s2,s3,s4,s5,s6,nend,new(4),need,found,pair
+   integer s1,s2,s3,s4,s5,s6,nend,new(4),need,found,pair
    integer subcon1(f1),subcon2(f1),ncon1,ncon2,ix1,ix2,lattice,indx(f1)
    integer top,stack(0:f1),last,mqm1(f1),mqm2(f1),jk,kkk,ll,loksp,nyfas
    integer ee,gg,pix,plink(4),pinq(f1),krux,ccontyp(14,f1)
@@ -7232,117 +7298,34 @@
 !      write(*,7)'3B orig: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
 !           (mqmqa_data%constoi(s2,s1),s2=1,4),trim(const(s1))
 !   enddo
-   goto 300
-!------------------------------------------------- dead code below ----
-!   
-   skipif1: if(need.gt.1) then
-      alpha: do s1=1,need
-! if indx(s1)=s1 the record is at the correct place
-         if(indx(s1).eq.s1) cycle alpha
-! record s1 is not at its correct place
-         write(*,2)'3B move ',s1,' at',trim(const(s1)),' to ',indx(s1)
-2        format(a,i3,a,i3,a,i3)
-         top=0
-         s2=s1
-         s5=0
-         push: do while(indx(s2).ne.s1)
-! search for the record that should be in position s1
-            top=top+1; stack(top)=s2; s2=indx(s2)
-!         write(*,2)'3B record ',s2,' should be at ',indx(s2),' top is ',top
-!         s2=s2+1
-            if(s2.gt.need) then
-               write(*,*)'3B ERROR, too many shifts of records',s2,need
-               gx%bmperr=4399; exit alpha
-            endif
-         enddo push
-! here we have found that recoord s2 should be in s1
-         top=top+1; stack(top)=s2
-!      write(*,2)'3B Finally ',s2,' found record ',indx(s2),' to be in ',s1
-!      write(*,'(a,20i3)')'3B index: ',(s3,s3=1,need)
-!      write(*,'(a,20i3)')'3B sort2: ',(indx(s3),s3=1,need)
-!      write(*,'(a,i3,3x,10i3)')'3B stack: ',top,(stack(s3),s3=top,0,-1)
-! we have found the record to which the record s1 should be copied
-! (this corresponds to top=5 in the example above with indx=5; 4; 9; 8; 7;)
-! save this record in position f1 and then shift all records in the stack
-! to their correct position, i.e. indx(top) => indx(top-1)
-!      write(*,3)'3B saving record',stack(top),' in ',f1
-         s3=f1
-         beta: do while(top.gt.0)
-!         write(*,3)'3B step ',top,' store record ',s2,' in ',s3
-3           format(a,i3,a,i3,a,i3)
-            do s4=1,14
-               mqmqa_data%contyp(s4,s3)=mqmqa_data%contyp(s4,s2)
-            enddo
-            do s4=1,4
-               mqmqa_data%constoi(s4,s3)=mqmqa_data%constoi(s4,s2)
-            enddo
-! also copy totstoi
-            mqmqa_data%totstoi(s3)=mqmqa_data%totstoi(s2)
-!         write(*,7)'3B copied to: ',s3,(mqmqa_data%contyp(s4,s3),s4=1,14),&
-!           (mqmqa_data%constoi(s4,s3),s4=1,4)
-! mark that record s3 is at its correct place
-            indx(s3)=s3
-            s3=s2; top=top-1; s2=stack(top)
-         enddo beta
-!      write(*,'(a,20i3)')'3B sort2: ',(indx(s4),s4=1,need)
-! finally copy the record stored in f1 to s1
-         do s4=1,14
-            mqmqa_data%contyp(s4,s1)=mqmqa_data%contyp(s4,f1)
-         enddo
-         do s4=1,4
-            mqmqa_data%constoi(s4,s1)=mqmqa_data%constoi(s4,f1)
-         enddo
-! also copy totstoi and quadruplet name
-         mqmqa_data%totstoi(s1)=mqmqa_data%totstoi(f1)
-         indx(s1)=s1
-!         write(*,'(a,20i3)')'3B sort3: ',(indx(s3),s3=1,need)
-      enddo alpha
-! number the FNN endmembers in alphabetical order
-      s4=0
-      do s1=1,need
-         if(mqmqa_data%contyp(5,s1).gt.0) then
-            s4=s4+1
-            mqmqa_data%contyp(5,s1)=s4
-         endif
-      enddo
-   endif skipif1
-!   write(*,'(a,20i3)')'3B indx: ',(indx(s3),s3=1,need)
-!   do s1=1,need
-!      write(*,7)'3B sort: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
-!           (mqmqa_data%constoi(s2,s1),s2=1,4),&
-!           trim(splista(-mqmqa_data%contyp(10,s1))%symbol)
-!   enddo
-7  format(a,i3,1x,4i2,1x,i3,1x,4i3,1x,i3,1x,4i3,4F5.2,1x,a)
-! this needs checking ...
-   if(gx%bmperr.ne.0) then
-      write(*,*)'3B error organizing MQMQA quadrupoles',gx%bmperr
-      goto 1000
-   endif
-!   stop 7
-!----------------------------------------------------------
-!
-! %totstoi is not used anywhere
-!   write(*,'(a,10F6.3)')'3B totstoi: ',&
-!        (mqmqa_data%totstoi(s1),s1=1,mqmqa_data%nconst)
-! search for pairs (with a single constituent in each sublattice)
-!------------------------------------------------- dead code above ----
+!   goto 300
 300 continue
    pair=0
-!   write(*,*)'3B Search for pairs'
+! endmem never used !!! skip it
+!   endmem=0
+   write(*,*)'3B Loop to set SNN endmembers links to FNN and factor'
    try1: do s1=1,mqmqa_data%nconst
       if(mqmqa_data%contyp(5,s1).gt.0) then
-! this is an pair
+! this is a mixed SNN endmember, only one anion allowed!
+         if(mqmqa_data%contyp(8,s1).gt.0) then
+            write(*,*)'3B reciprocal quads not implemented'
+            gx%bmperr=4399; goto 1000
+         endif
          pair=pair+1
          pinq(pair)=s1
-         endmem(1,pair)=mqmqa_data%contyp(6,s1)
-         endmem(2,pair)=mqmqa_data%contyp(7,s1)
-!        write(*,'(a,4i4)')'3B endmember ',pair,s1,endmem(1,pair),endmem(2,pair)
+!         endmem(1,pair)=mqmqa_data%contyp(6,s1)
+!         endmem(2,pair)=mqmqa_data%contyp(7,s1)
 ! save stoichiometry of each constituent in pp(1..2,s1)
          mqmqa_data%pp(1,s1)=2.0D0/mqmqa_data%constoi(1,s1)
-!         mqmqa_data%pp(2,s1)=2.0D0/mqmqa_data%constoi(1,s1) ?????????a
+!         mqmqa_data%pp(2,s1)=2.0D0/mqmqa_data%constoi(1,s1)
          mqmqa_data%pp(2,s1)=2.0D0/mqmqa_data%constoi(2,s1)
-!         write(*,'(a,i3,2F12.7,2x,a)')'3B pp 1: ',s1,&
-!              (mqmqa_data%pp(s2,s1),s2=1,2)
+         write(*,'(a,2i3,1x,4i3,4(1pe12.4)/27x,4(1pe12.4))')'3B SNN: ',pair,s1,&
+              (mqmqa_data%contyp(s2,s1),s2=6,9),&
+              (mqmqa_data%constoi(s2,s1),s2=1,4),(mqmqa_data%pp(s2,s1),s2=1,4)
+      else
+         write(*,'(a,2i3,1x,4i3,4(1pe12.4))')'3B FNN: ',0,s1,&
+              (mqmqa_data%contyp(s2,s1),s2=6,9),&
+              (mqmqa_data%constoi(s2,s1),s2=1,4)
       endif
 ! note code above is skipped due to cycle try1
    enddo try1
@@ -7405,7 +7388,7 @@
 ! AB/XX should have first pair A/X then B/X           b_A b_B b_X
 ! AA/XY should have first A/X, then A/Y               b_A b_X b_Y
 ! AB/XY should have pairs in order A/X, A/Y, B/X, BY  b_A b_B b_X b_Y
-! BUG: when 2 cinstituents in 2nd sublattice
+! BUG: when 2 constituents in 2nd sublattice
       if(mqmqa_data%contyp(9,s1).gt.0) need=4
 !      write(*,87)'3B set pair links in quad ',s1,&
 !           (mqmqa_data%contyp(s2,s1),s2=6,9)
@@ -7508,7 +7491,7 @@
    if(s1+s2+s3-mqmqa_data%nconst.ne.0) then
       write(*,'(a,i5,a,i5)')'3B total number of quadrupoles is wrong, is ',&
            s1+s2+s3,' should be: ',mqmqa_data%nconst
-! We should automatically create the additional quadrupoles
+! IN THE FURURE ... we should automatically create the additional quadrupoles
 !        call mqmqa_addquads
 !        if(gx%bmperr.ne.0) goto 1000
       gx%bmperr=4399; goto 1000

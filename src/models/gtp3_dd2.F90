@@ -1357,7 +1357,7 @@
 ! contyp(1..4,const) 1,2 species in first sublattice, -1,-2 in second sublattice
 ! contyp(5,const) non-zero for PAIR AA/XX, value same as pair index YES !!
 ! contyp(6,7,const) for PAIR species index 
-! contyp(6..9,const) index of constuent PAIRs
+! contyp(6..9,const) index of constituent PAIRs
 ! contyp(10,const) index of itself
 ! contyp(11..14,const) index of sublattice constituent except:
 ! contyp(13..14,const) FOR PAIRS: species index of constituent

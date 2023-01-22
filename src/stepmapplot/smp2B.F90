@@ -276,6 +276,7 @@
 ! with fcc stable. Check if * is before or after a ,
 ! NOTE that a single * without , can be phase or component:
 ! MU(*) is for a component, HM(*) is for a phase 
+! For MQMQA one sometimes plot N(*,component) when phase have zero amount
           ikol=index(pltax(iax),',')
 !          write(*,*)'smp2b selectph: ',trim(pltax(iax)),ikol
           if(ikol.gt.0) then
@@ -288,6 +289,9 @@
 !                   write(*,*)'SMP2B wildcard selected phase: ',trim(selphase)
                    selectph=.TRUE.
                 endif
+!             else
+! we can also have N(*,constituent) plotting MQMQA diagrams? Never here
+!                write(*,*)'SMP2B plotting: ',trim(pltax(iax))
              endif
 !          else
 ! this is perfectly possible, for example NP(*)
@@ -595,13 +599,14 @@
 ! probably because new composition set created
 !                write(*,*)'SMP2B get_many ',trim(statevar),nzp,selectph,hashtag
 ! nzp is dimentsion of yyy, np is number of values
-!                write(*,*)'SMP2B calling get_many_svar: ',trim(statevar)
+!                write(*,*)'SMP2B calling get_many_svar: ',trim(statevar)
                 call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
 !                write(*,*)'In ocplot2, segmentation fault search: '
                 if(gx%bmperr.ne.0) then
                    write(*,*)'Error return from "get_many_svar',gx%bmperr
                    goto 1000
                 endif
+!                write(*,223)'SMP2B values: ',np,(yyy(i),i=1,np)
 ! problem that part of encoded2 desctroyed in late calls, it is OK here
 !                write(*,737)len_trim(encoded2),trim(encoded2)
 737             format('smp2b: debug encoded2 ',i5/a/)
@@ -614,7 +619,7 @@
 !                write(*,223)'SMP2B Values: ',np,(yyy(i),i=1,np)
 !                if(selectph) then
 !                   write(*,*)'SMP2B: number of values: ',trim(selphase),np,nv
-!223                format(a,i3,8F8.4)
+223                format(a,i3,20F8.4)
 !                endif
                 nix=np
 ! we must allocate the array to indicate which values that should e plotted
@@ -626,7 +631,7 @@
                 endif
 ! This quite complicated IF is to handle the case when the wildcard is
 ! is a phase or component/constituent
-!                write(*,*)'SMP stvarix: ',trim(statevar),selectph
+!                write(*,*)'SMP2B stvarix: ',trim(statevar),selectph
                 if(statevar(1:2).EQ.'MU' .or. &
                      statevar(1:2).EQ.'AC' .or. statevar(1:4).EQ.'LNAC' .or. &
                      selectph.and.(&
@@ -1484,6 +1489,9 @@
             trim(pltax(1)),trim(pltax(2)),trim(labelkey),&
             ltf1+1,ltf1+2,ltf1+3,ltf1+4,ltf1+5,&
             ltf1+6,ltf1+7,ltf1+8,ltf1+9,ltf1+10
+! add information of any scaling factors for the axis "xf" or "yf"
+!    if(graphopt%scalefact(1).ne.one) xf=graphopt%scalefact(1)
+!    if(graphopt%scalefact(2).ne.one) yf=graphopt%scalefact(2)
 8601   format('set origin 0.0, 0.0 '/&
             'set size ',F8.4', ',F8.4/&
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
@@ -1606,7 +1614,7 @@
 !---------------------------------------------------------------
 ! handle appended files here ....
 !
-    write(*,*)'ocplot2B append?',trim(graphopt%appendfile)
+!    write(*,*)'ocplot2B append?',trim(graphopt%appendfile)
     appfildata: if(graphopt%appendfile(1:1).eq.' ') then
        appfil=0
     else
@@ -1859,6 +1867,7 @@
        write(21,3100)'KEYS: ',trim(pltax(3-anpax)),(trim(lid(jj)),jj=1,npx)
 !2900 format(a,i3,2x,10(a,2x))
     else
+!       write(*,*)'SMP2B mqmqa plot?'
        write(21,3100)'KEYS: ',trim(pltax(3-anpax)),(trim(lid(jj)),jj=1,np)
 3100   format(a,' ',100(a,' '))
     endif
@@ -2730,6 +2739,9 @@
 ! Plot grid?
     if(graphopt%setgrid.eq.1) write(21,777)
 777 format('set grid')
+! add information of any scaling factors for the axis "xf" or "yf"
+!    if(graphopt%scalefact(1).ne.one) xf=graphopt%scalefact(1)
+!    if(graphopt%scalefact(2).ne.one) yf=graphopt%scalefact(2)
     write(21,130)graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(labelkey)
 128 format('#set title "',a,' \n #',a,'" font "',a,',10"')
@@ -3466,7 +3478,7 @@
 ! plotonwin set by compiler option, 1 means windows 
     if(plotonwin.eq.1) then
        if(btest(graphopt%status,GRKEEP)) then
-! this is a TERNARY PLOT with 2 extenive axis
+! this is a TERNARY PLOT with 2 extensive axis
 !          write(*,*)'executing command '//trim(gnuplotline(9:))
 !          call system(gnuplotline(9:))
    write(*,*)'ocplot3B executing Command: "start /B '//trim(gnuplotline)//'"'

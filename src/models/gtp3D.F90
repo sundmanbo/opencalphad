@@ -91,13 +91,18 @@
       chd='N'
    endif
 ! ask for constitution
+   write(kou,'(a,a)')'NOTE: For a constituent which should be the rest.',&
+        ' give "rest"'
    kkk=0
    nylat: do ll=1,nsl
       yrest=0
+!      ydef=one
       sss=one
-      ydef=one
       if(knl(ll).eq.1) then
          kkk=kkk+1; cycle nylat
+      else
+! default new constitution is 1/(constituents in sublattice)
+         ydef=one/real(knl(ll))
       endif
       nycon: do nr=1,knl(ll)
          if(nr.eq.knl(ll) .and. yrest.eq.0) then
@@ -147,7 +152,9 @@
 21          format(a,1pe12.4)
             ydef=1.0D-12
          else
-            ydef=sss
+!            ydef=sss
+! reduce by dividing with the remaining constituents
+            ydef=sss/real(knl(ll)-nr)
          endif
 !         write(*,*)'ydef: ',ydef,sss
          yarr(kkk)=xxx

@@ -1,8 +1,8 @@
 This file contains information on OpenCalphad (OC) version 6 and
 earlier.  This log started 2016-03-03.
 
-For general information please read the intro-OC6.pdf and the
-OC6-macros.pdf.
+For general information please read the intro-OC7.pdf and the
+macros-OC7.pdf.
 
 There is a new precompiled installation of OC on Windows
 on the OpenCalphad web page.  It includes an introduction, on-line
@@ -19,6 +19,30 @@ envirionment and we who provide this software for free do not have the
 time to answer such questions.
 
 In the list below the most recent changes come first.
+
+2023.01.22 OC version 6.060: A long time without work, or rather too
+much to have time with the software.  I am still struggling with the
+MQMQA model with litte progress, the map19 and cslaf-map macros are
+still the only examples.  But I have improved the stability of some
+STEP calculations using T as axis variable.  An OC user had a
+complicated step calculation with 18 components (a nuclear fuel) and
+it failed many times calculating phase amounts from 1000 to 3000 K.  I
+found the reason was the negligable solubility of some elements in the
+metallic liquid combined with bad extrapolation of the Gibbs energies
+of some of the 200 solid compounds.  This meant that some elements did
+not dissolve properly in the liquid and some compounds tried to become
+stable at various T.  I added an extra check to prevent this and the
+step calculation became much more stable.  Unfortunately this extra
+check had a bad influence on the normal MAP/STEP calculations so the
+checks had to be refined.  But the current version should be able to
+reproduce all the examples.
+
+2022.10.13 OC version 6.059: The way of entering constitutions for the
+command "calculate phase" has changed to set, by default, the same
+fraction of all constituents in each sublattice.  That is usually the
+best when using this command to set an initial composition of a phase
+when there are convergence problems.  Individual fractions can be set
+and the fraction of the major constituent can be set as the "rest".
 
 2022.09.21 OC version 6.058: An irritating bug that FCC_4SL with FCC
 permutations was stored as the alphabetically last phase has been

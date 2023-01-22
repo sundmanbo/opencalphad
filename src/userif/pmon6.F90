@@ -1932,7 +1932,9 @@ contains
           endif
 ! calceq2 set appropriate bits for listing
           if(gx%bmperr.ne.0) then
-             if(gx%bmperr.eq.4204) write(*,*)'Try using "CALCULATE CAREFULLY"'
+             if(gx%bmperr.eq.4204) write(*,2049)
+2049         format('If the conditions allow using the global minimizer, ',&
+                  ' try "CALCULATE CAREFULLY"')
              ceq%status=ibset(ceq%status,EQFAIL)
              goto 990
           endif
@@ -7555,7 +7557,7 @@ contains
 !...............................................
 ! PLOT EXTRA axis_factor for example to plot kJ or GPa instead of J and Pa
           case(13)
-             call gparcdx('Wich axis?',cline,last,1,ch1,'Y',&
+             call gparcdx('Which axis?',cline,last,1,ch1,'Y',&
                   '?Plot extra factor')
              call capson(ch1)
              if(ch1.eq.'Y' .or. ch1.eq.'X') then

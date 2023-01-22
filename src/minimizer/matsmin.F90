@@ -1288,7 +1288,6 @@ CONTAINS
     mapx=0
     call meq_sameset(irem,iadd,mapx,meqrec,meqrec%phr,inmap,ceq)
     if(ocv()) write(*,*)'MM back from sameset ',irem,iadd,meqrec%noofits
-!    write(*,*)'MM back from meq_sameset ',irem,iadd,meqrec%noofits
     if(gx%bmperr.ne.0) then
        if(gx%bmperr.eq.4364) then
 !          write(*,*)'MM Two phases with same stoichiometry stable, to be fixed'
@@ -1984,6 +1983,7 @@ CONTAINS
 !-$omp parallel do private(pmi) shared(meqrec)
 ! nullify liquid pointer
     nullify(meqrec%pmiliq)
+!    write(*,*)'MM meq_sameset: begin loop for all phases'
     parallel: do mph=1,meqrec%nphase
        pmi=>phr(mph)
 ! this routine calculates G and derivatives, the phase matrix and inverts it.
@@ -1992,6 +1992,7 @@ CONTAINS
 ! to set correct pmiliq we must calculate all liquids first!!
 !       write(*,*)'MM call onephase: ',pmi%iph,pmi%ics
        call meq_onephase(meqrec,pmi,ceq)
+!       write(*,*)'MM back from onephase: ',gx%bmperr
        if(gx%bmperr.ne.0) then
 ! using LAPCK gives severe problems if we do not stop
           goto 1000
@@ -2015,6 +2016,7 @@ CONTAINS
 !107       format(a,6(1pe12.3))
 ! end of pmi% scope
     enddo parallel
+!    write(*,*)'MM meq_sameset: end loop for all phases'
 !-$omp end parallel do
 !
 !=======================================================================
@@ -2025,15 +2027,15 @@ CONTAINS
 ! (If a fix phase condition or chem.pot. condition slightly different??)
 !----------------------------------------
 300 continue
-!    if(vbug) write(*,301)'Calculating general equil matrix',meqrec%nfixmu,&
-!    write(*,301)'Calculating general equil matrix',meqrec%nfixmu,&
+!    if(vbug) write(*,301)'MM Calculating general equil matrix',meqrec%nfixmu,&
+!    write(*,301)'MM Calculating general equil matrix',meqrec%nfixmu,&
 !         meqrec%nfixph,meqrec%tpindep,meqrec%noofits
 301 format(a,2i2,2l2,i5)
 ! some arguments here are redundant but kept for some
     call setup_equilmatrix(meqrec,phr,nz1,smat,tcol,pcol,&
          dncol,converged,ceq)
     if(gx%bmperr.ne.0) goto 1000
-!    write(*,*)'Back from setup_equilmatrix',tcol
+!    write(*,*)'MM Back from setup_equilmatrix',tcol
 !=====================================================================
 ! debug output of equil matrix, last column is right hand side
 !380 continue
@@ -2088,11 +2090,11 @@ CONTAINS
 
 ! Rearranged the IF statements/BoS
 !    if(inmap.eq.0 and ceq%splitsolver .eq. 1) then
-    !CCI
-    !-----------------------------------------------------------------------
-    !-----------------------------------------------------------------------
-    ! Development based on the work of Joao Pedro Carvalho Teuber 12/2020
-    ! Jacobi preconditioning if allowed
+!CCI
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+! Development based on the work of Joao Pedro Carvalho Teuber 12/2020
+! Jacobi preconditioning if allowed
     if((inmap.eq.0).and.(ceq%splitsolver.gt.0).and.&
          (meqrec%nrel.eq.meqrec%nstph)) then
        call precond(nz1,nz2,smat,badmat)
@@ -2112,9 +2114,9 @@ CONTAINS
 !    endif
 !    if((inmap.eq.0).and.(ceq%splitsolver.gt.0).and.&
 !         .not.badmat .and. (meqrec%nrel.eq.meqrec%nstph)) then
-       ! Splitting is possible for given T, P, composition and
-       ! when the number of component is equal to the number of stable phases
-       ! (conditions giving square mass matric)
+! Splitting is possible for given T, P, composition and
+! when the number of component is equal to the number of stable phases
+! (conditions giving square mass matric)
 ! ís this OK if BADNAT is TRUE??
        if(badmat) write(*,*)'MEQ_SAMESET: matrix has a diagonal element zero'
        call lingldSplit(nz1,nz2,smat,svar,nz1,ierr,meqrec%nrel,meqrec%nstph)
@@ -2123,8 +2125,8 @@ CONTAINS
         call lingld(nz1,nz2,smat,svar,nz1,ierr)
     endif
 !-----------------------------------------------------------------------
-
-
+!    write(*,*)'MM meq_sameset: back from lingld'
+!
 119 continue
     if(ierr.ne.0) then
        if(vbug) write(*,*)'Error solving equil matrix 1',meqrec%noofits,ierr,&
@@ -3071,7 +3073,7 @@ if(meqrec%noofits.eq.1) then
        gx%bmperr=4364; goto 1000
     endif
 !    if(meqrec%noofits.gt.2 .and. (irem.gt.0 .or. iadd.gt.0)) then
-    if(irem.gt.0 .or. iadd.gt.0) then
+    if(irem.ne.0 .or. iadd.ne.0) then
        goto 1100
     endif
 !--------------------------------------------------------------------
@@ -3209,6 +3211,21 @@ if(meqrec%noofits.eq.1) then
     endif
 ! jump here if phase change
 1100 continue
+! DEBUG output for testing when phase change, Christines probkem
+!    write(*,*)'MM iadd and irem: ',iadd,irem
+!    if(iadd.gt.0) then
+!       jy=meqrec%phr(iadd)%phtupix
+!       call get_phasetup_name(jy,phnames)
+!       write(*,'(a,i4,2x,a,1pe12.4)')'MM found new stable phase: ',jy,&
+!            trim(phnames),ceq%phase_varres(phasetuple(jy)%lokvares)%dgm
+!       call list_conditions(kou,ceq)
+!    elseif(irem.ne.0) then
+!       jy=meqrec%phr(abs(irem))%phtupix
+!       call get_phasetup_name(jy,phnames)
+!       write(*,*)'MM found unstable phase: ',trim(phnames),jy,&
+!            trim(phnames),ceq%phase_varres(phasetuple(jy)%lokvares)%dgm
+!       call list_conditions(kou,ceq)
+!    endif
     if(vbug) write(*,*)'Deallocating smat and svar'
     deallocate(smat)
     deallocate(svar)
@@ -5605,6 +5622,7 @@ if(meqrec%noofits.eq.1) then
 !       write(*,*)'MM meq_onephase 13: ',iph,ics,nsl,gx%bmperr
 !       gtpdebug=0
 !    endif
+!    write(*,*)'MM back from get_phase_data',gx%bmperr
     if(gx%bmperr.ne.0) then
 ! handling of parallel by openMP
 !$       if(.TRUE.) then
@@ -5677,6 +5695,7 @@ if(meqrec%noofits.eq.1) then
 ! sublattice rows, nd2=nd1+1 because I use Lukas matrix inverter
     nd1=nd1+nsl
     nd2=nd1+1
+!    write(*,*)'MM meq_onephase: allocate pmat',allocated(pmat)
 ! Allocate phase matrix, one extra dimension if external charge balance
 ! last column of pmat is left hand side ?? (reminicent from Lukas program)
 !    allocate(pmat(nd1,nd2))
@@ -5711,7 +5730,8 @@ if(meqrec%noofits.eq.1) then
 !--------------------------------------------------
 ! now treat different phase types
     call get_phase_variance(iph,nv)
-    if(nv.eq.0) then
+!    write(*,*)'MM phase variance: ',nv
+    nvzero: if(nv.eq.0) then
 !------------------------------------- stoichiometric phase, fixed composition
 ! For stoichiometric phases calculate just G with T and P derivatives
 ! and driving force.  All pmi%dxmol=zero but one must also calculate 
@@ -5807,7 +5827,7 @@ if(meqrec%noofits.eq.1) then
 !       enddo
 ! maybe some common ending
        goto 900
-    endif
+    endif nvzero
 !--------------------------------------------- zero some arrays, ideal phase
     pmi%xmol=zero
     pmi%dxmol=zero
@@ -5816,7 +5836,7 @@ if(meqrec%noofits.eq.1) then
     pmi%xdone=-1
 !    if(phase_model(iph,ics,PHID,ceq)) then
 !    write(*,*)'MM test ideal: ',test_phase_status_bit(iph,PHID)
-    if(test_phase_status_bit(iph,PHID)) then
+    ideal: if(test_phase_status_bit(iph,PHID)) then
 !--------------------------------------------- ideal phase (subst, no excess)
 !       write(*,*)'Phase is ideal'
        if(test_phase_status_bit(iph,PHLIQ)) then
@@ -5959,7 +5979,7 @@ if(meqrec%noofits.eq.1) then
           gx%bmperr=4205; goto 1000
        endif
        goto 900
-    endif
+    endif ideal
 !---------------------------------------------- no analytical 2nd derivatives
 ! phases with models with no analytical second derivatives ....
 !    if(phase_model(iph,ics,PHNODGDY2,ceq)) then
@@ -6199,7 +6219,7 @@ if(meqrec%noofits.eq.1) then
 ! For all other phases calculate G and all first and second derivatives
 ! for current composition
 300 continue
-!    write(*,*)'MM CEF phase',ceq%eqno
+!    write(*,*)'MM CEF phase?',ceq%eqno
 ! Calculate M_i and dM_i/dy^s_k and the net charge charge Q and dQ/dy^s_k
 !   call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
 ! how to normalize xmol?  use qq(1)!!, it handels vacancies .... ????

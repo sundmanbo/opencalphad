@@ -224,7 +224,8 @@
 !    gridpoints, returned as xarr composition of these and
 ! ny and yarr not used here
 !>>>>>>> important: changes here must be made also in global_equil_check
-!      write(*,*)'3Y grid for phase: ',zph,phlista(phases(iphx(zph)))%name
+!      write(*,*)'3Y grid for phase:',zph,phlista(phases(iphx(zph)))%name,&
+!           btest(globaldata%status,GSOGRID)
       if(btest(globaldata%status,GSOGRID)) then
 ! The possibility to use the old grid tested
          call generate_grid(0,iphx(zph),ng,nrel,xarr(1,iv),garr(iv),&
@@ -280,7 +281,7 @@
    endif
 !-----------------------------------------------
 !    write(*,109)ngrid(pph),finished-starting,endoftime-starttid
-109 format('3Y Calculated ',i6,' gridpoints in ',1pe12.4,' seconds, ',&
+109 format('3Y Gridmin Calculated ',i6,' gridpoints in ',1pe12.4,' seconds, ',&
          i7,' clockcycles')
 ! find the minimum of nrel gridpoints among the kp-1 gridpoint
 ! for current overall composition, xknown
@@ -987,7 +988,7 @@
 201      format('3Y ggz: ',i2,i4,5(F10.6))
          if(ocv()) write(*,*)'3Y Calculating gridpoint: ',ngg
          if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
-              write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+              write(*,*)'3Y Calculates gridpoint ',ngg,' for ',&
               trim(phlista(lokph)%name)
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
@@ -1392,7 +1393,7 @@
 !   enddo
 !   do ii=1,nend
 !      write(*,22)ii,(yendm(ij,ii),ij=1,incl(nsl))
-22    format(i3,20F4.1)
+!22    format(i3,20F4.1)
 !   enddo
 ! jump here from generate_fccord_grid ... not any longer ...
 200 continue
@@ -1423,7 +1424,7 @@
             endif
             if(ng.gt.0 .and. mod(ng,30000).eq.0) then
                lokph=phases(iph)
-               write(*,*)'3Y calculated ',ng,' gridpoints for ',&
+               write(*,*)'3Y Calculates grid point ',ng,' for phase ',&
                     trim(phlista(lokph)%name)
             endif
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
@@ -1497,10 +1498,14 @@
                         endif
                      endif
                      if(ng.gt.0 .and. mod(ng,30000).eq.0) &
-                          write(*,*)'3Y calculated ',ng,' gridpoints for ',&
+                          write(*,*)'3Y Calculate gridpoint ',ng,' for ',&
                           trim(phlista(lokph)%name)
+! for debugging grid minimizer with MQMQA
+!                     write(*,*)'3Y Calculate grid point ',ng,' for phase ',&
+!                          trim(phlista(lokph)%name)
                      call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
 ! generate a GNUPLOT graph for dense grid
+!                     write(*,*)'3Y back from calc_gridpoint',ng,garr(ng)
                      if(mode.eq.0 .and. lutbug.gt.0) then
 !                        write(*,710)ng,nrel,garr(ng),(xarr(iz,ng),iz=1,nrel)
                         write(lutbug,710)ng,nrel,garr(ng),&
@@ -1814,7 +1819,7 @@
 ! this is for a single endmember
 !         write(*,201)'3Y end: ',ngg,(yfra(is),is=1,inkl(nsl))
          if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
-              write(*,*)'3Y calculated ',ngg,' gridpoints 4',&
+              write(*,*)'3Y Gridmin calculated ',ngg,' gridpoints 4',&
               trim(phlista(lokph)%name)
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
@@ -1843,7 +1848,7 @@
 ! is done elsewhere but the error disapperared when I allocated a larger
 ! xarr although the allocated one did not seem too small. 
             if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
-                 write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                 write(*,*)'3Y Calculate grid point ',ngg,' for ',&
                  trim(phlista(lokph)%name)
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
@@ -1884,7 +1889,7 @@
                if(mode.eq.0) then
 ! this is for 0.96*y1 + 0.03*y2+0.01*y3
                   if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
-                       write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                       write(*,*)'3Y to calculate grid point  ',ngg,' for ',&
                        trim(phlista(lokph)%name)
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
@@ -2277,7 +2282,7 @@
                ngg=ngg+1
                if(mode.eq.0) then
                   if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
-                       write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                       write(*,*)'3Y calculate ',ngg,' grid points for ',&
                        trim(phlista(lokph)%name)              
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
@@ -2337,7 +2342,7 @@
                ngg=ngg+1
                if(mode.eq.0) then
                   if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
-                       write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                       write(*,*)'3Y calculate ',ngg,' gridpoints for ',&
                        trim(phlista(lokph)%name)              
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(lutbug.gt.0) then
@@ -2393,8 +2398,8 @@
                ngg=ngg+1
                if(mode.eq.0) then
                   if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
-                       write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
-                       trim(phlista(lokph)%name)
+                       write(*,*)'3Y Gridmin calculated ',ngg,&
+                       ' gridpoints for ',trim(phlista(lokph)%name)
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2743,8 +2748,8 @@
                      endif
                      if(ng.gt.0 .and. mod(ng,30000).eq.0) then
                           lokph=phases(iph)
-                          write(*,*)'3Y calculated ',ng,' gridpoints for ',&
-                          trim(phlista(lokph)%name)
+                          write(*,*)'3Y Gridmin calculated ',ng,&
+                               ' gridpoints for ',trim(phlista(lokph)%name)
                        endif
                      call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
                      if(lutbug.gt.0) then
@@ -2896,7 +2901,7 @@
 ! if mode=0 calculate G for this endmember
 !         write(*,*)'3Y a single neutral endmember for ',iph,mode
             if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
-                 write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                 write(*,*)'3Y Gridmin calculated ',ngg,' gridpoints for ',&
                  trim(phlista(lokph)%name)
             call calc_gridpoint(iph,ydum,nrel,xarr(1,ngg),garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
@@ -3563,7 +3568,7 @@
             gx%bmperr=4399; goto 1000
          endif
          if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
-              write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+              write(*,*)'3Y Gridmin calculated ',ngg,' gridpoints for ',&
               trim(phlista(lokph)%name)
          call calc_gridpoint(iph,y4,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(lutbug.gt.0) then
@@ -3630,11 +3635,15 @@
 !
 ! BEWARE must be tested for parallel processing
 !
+!   write(*,'(a,F8.2)')'3Y in calc_gridpoint',globaldata%sysreal(1)
    call set_constitution(iph,1,yfra,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3Y constitution set',qq(1)
    call calcg(iph,1,0,lokres,ceq)
+!   write(*,*)'3Y calculated G error:',gx%bmperr
    if(gx%bmperr.ne.0) goto 1000
    call calc_phase_mol(iph,xmol,ceq)
+!   write(*,*)'3Y calculated x, error:',gx%bmperr
    if(gx%bmperr.ne.0) goto 1000
 !-------------------------------------------------
 ! globaldata%sysreal(1) is positive if EEC activated
@@ -3683,6 +3692,8 @@
    do i=1,nrel
       xarr(i)=real(xmol(i))
    enddo
+!   write(*,111)'3Y X:',qq(1),(xarr(i),i=1,nrel)
+111 format(a,1pe12.4,20(F8.4))
 ! handle special problems
    if(qq(1).lt.5.0D-1) then
 ! number of real atoms less than 50%, a gridpoint with mainly vacancies ....

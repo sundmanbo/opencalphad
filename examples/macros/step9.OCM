@@ -141,7 +141,14 @@ l,,,,,
 @$ but the convergence is then very bad, better to keep T constant.
 @$
 
-@$ use the save T axis to calculate the 2nd order line
+@$ use the save values on the T axis to calculate the 2nd order line
+@$ Start at a low value
+
+
+set c t=100
+
+c n
+
 
 step
 

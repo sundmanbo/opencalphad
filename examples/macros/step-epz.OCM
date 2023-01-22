@@ -168,7 +168,7 @@ C
 plot
 
 
-Title step-epz Fig 2
+Title step-epz Fig 3
 
 
 @&
@@ -183,21 +183,21 @@ text
 .8
 -19
 FCC paraequilibrium line
-Title step-epz Fig 3
+Title step-epz Fig 4
 
 
 @$ the carbon solubility curves, in fcc and bcc
 @$ the calculation failed at the highest T
 @$ ==============================================================
 @&
-@$ Append this on the previous diagram
+@$ Append the previous diagram to this and write on a new file
 
 plot
 
 
-app ./epzpd
 scale x n 0 .008
-Title step-epz Fig 4
+Title step-epz Fig 5
+app ./epzpd
 out ./epzpdpara
 y
 
@@ -247,7 +247,7 @@ text
 .8
 -24
 Tzero line
-Title step-epz Fig 5
+Title step-epz Fig 6
 
 
 @$ We have plotted the Tzero line with a label
@@ -261,7 +261,7 @@ Title step-epz Fig 5
 plot
 
 
-Title step-epz Fig 6
+Title step-epz Fig 7
 app ./epzpdpara
 
 
@@ -278,7 +278,7 @@ plot
 scale y n
 750
 1150
-Title step-epz Fig 7
+Title step-epz Fig 8
 out ./epzall
 y
 

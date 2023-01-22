@@ -5,7 +5,7 @@ new Y
 
 set echo Y
 
-r t ./mgnacl
+r t ./MgNaCl
 
 
 @&
@@ -20,7 +20,7 @@ set stat ph liq-na liq-mg=s
 
 l sh a
 
-@$ These phases are the pure liquid clorerids, used only for activity curves
+@$ These phases are the pure liquid chlorids, used only for activity curves
 @&
 
 set c t=2000 p=1e5 n(mg)=.5 n(na)+n(mg)=1 ac(cl)=1
@@ -51,10 +51,14 @@ x(*,mg)
 T_C
 scale y n 300 850
 title map 19 Fig 1
+extra axis-factor x 3
+text .15 350 .9 0 n
+Note fraction scale multiplied by 3, the composition of compounds wrong
 
 
 @$ The scaling on horisontal axis in in moles Mg in the phases.
 @$ MgCl2 has 1/3, MgNaCl3 has 1/5=0.2, MgNa2Cl4 has 1/7=0.143
+@$ As the axis is multiplied with 3 the compound fractions are wrong
 
 @&
 
@@ -111,7 +115,7 @@ enter sym acmgcl2=exp((mu(mg)-refmgcl2)/RT);
 
 @$ The same for NaCl (with 2 moles of atoms) as for MgCl2
 
-ent sym refnacl=2*gm(liqref-nacl);
+enter sym refnacl=2*gm(liqref-nacl);
 
 enter sym munacl=mu(na)-refnacl;
 
@@ -126,6 +130,14 @@ l ax
 
 @&
 
+@$ For some unknown reason n(mg) axis does not go to lower values
+@$ Thus stat at n(mg)=.01
+
+set c n(mg)=.01
+
+c e
+
+
 step
 
 
@@ -138,7 +150,7 @@ y(salt,*)
 title map 19 Fig 2
 
 
-@$ This plot show the fraction of constituents (quadrupoles)
+@$ This plot show the fraction of the constituents (quadrupoles)
 @&
 
 

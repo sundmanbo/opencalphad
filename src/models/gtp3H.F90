@@ -469,8 +469,9 @@
    endif
    tc=phres%gval(1,itc)
    beta=phres%gval(1,ibm)
-!    write(*,95)'3H Magnetic values in: ',itc,ibm,tc,beta
-!95 format(a,2i3,3(1PE15.6))
+! Probably beta should be divided by atoms/formula unit ...
+!   write(*,95)'3H Magnetic values in: ',itc,ibm,tc,beta,phres%abnorm(1)
+95 format(a,2i3,4(1PE12.3))
    if(tc.lt.zero) then
 ! we should take care of the case when tc and beta have different signs
 ! note: all derivatives of tc must be multiplied with iaff

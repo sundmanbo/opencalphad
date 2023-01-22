@@ -255,9 +255,10 @@
 ! inactive not used ...
     integer iadd,irem,isp,seqx,seqy,mode,halfstep,jj,ij,inactive(4),bytaxis
     integer ceqlista,phfix,haha,lastax,mapx,lokph,lokcs,bypass
+    integer trynewphase,jrem,addcheck
 ! inmap=1 turns off converge control of T
     integer, parameter :: inmap=1
-    character ch1*1
+    character ch1*1,phasename*32
     logical firststep,onetime,noderrmess
 !
 !    write(*,*)'in map_doallines'
@@ -432,6 +433,8 @@
 321 continue
     irem=0
     mapline%meqrec%noofits=0
+    if(mod(mapline%number_of_equilibria+1,20).eq.0) &
+       write(kou,*)'Calculated equilibria: ',mapline%number_of_equilibria+1
 !    write(*,*)'Calling meq_sameset 7: ',mapline%number_of_equilibria,&
 !         ceq%tpval(1),gx%bmperr
 !
@@ -455,6 +458,66 @@
 331 format(a,5i5,2(F10.2))
 !    write(*,884)2,mapline%linefixph(1)%ixphase,&
 !         mapline%linefixph(1)%compset,iadd,meqrec%nphase,abs(phfix)
+!------------------------------------------------------------------
+!    write(*,*)'SMP2A axis: ',maptop%number_ofaxis
+!    goto 3000
+! suck
+    if(maptop%number_ofaxis.eq.2) goto 3000
+!==================================================================
+! The code between ==== is added to avoid STEP termination because unstable
+! phases tries to be stable.  It is very fragile and should not
+! be used for MAP calculations    
+    trynewphase=0; addcheck=0; jrem=0
+! We may have to extract the axis condition ?? 
+    jj=abs(mapline%axandir)
+!    write(*,*)'SMP2A axandir: ',jj
+    if(jj.le.0 .or. jj.gt.2) then
+       write(*,*)'SMP error: no axis direction! Set to 1'
+       mapline%axandir=1
+       jj=1
+!       call list_conditions(kou,ceq)
+    endif
+    seqz=axarr(jj)%seqz
+    call locate_condition(seqz,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! end extracting axis condition
+!    write(*,'(a,F10.2,4i4)')'SMP2A new phase and T axis?',ceq%tpval(1),&
+!         maptop%number_ofaxis,iadd,pcond%statev
+    baddata: if(iadd.gt.0 .and. pcond%statev.eq.1 .and. &
+         maptop%number_ofaxis.eq.1) then
+! If a new phase is stable and axis is T and we have only one axis then
+! make a second call with same conditions to check if really stable
+717    continue
+       if(trynewphase.gt.4) then
+! we have tried 4 times with different new phases trying to be stable
+          write(*,*)'SMP2A cannot find which phase to set stable',trynewphase
+          gx%bmperr=4399; exit baddata
+!       elseif(trynewphase.eq.3) then
+! restore original phase constitutions  .... does not help
+!          call restore_constitutions(ceq,copyofconst)
+       endif
+       trynewphase=trynewphase+1
+       addcheck=iadd; iadd=0
+       call meq_sameset(jrem,iadd,mapx,mapline%meqrec,mapline%meqrec%phr,&
+            inmap,ceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'SMP2A reset error in meq_sameset',gx%bmperr
+          gx%bmperr=0
+       endif
+!       call get_phasetup_name(meqrec%phr(iadd)%phtupix,phasename)
+!       write(*,'(a,F10.2,2x,a)')'SMP2A test if phase at T is stable ',&
+!            ceq%tpval(1),trim(phasename)
+! exit if no phase wants to be stable, loop if a different one
+       if(iadd.gt.0 .and. iadd.ne.addcheck) then
+!          cycle baddata  this would have been elegant .... if allowed
+          call get_phasetup_name(meqrec%phr(iadd)%phtupix,phasename)
+          write(*,'(a,a,a,F10.2)')'SMP2A test if ',trim(phasename),&
+               ' is stable at T=',ceq%tpval(1)
+          goto 717
+       endif
+! exit if iadd=0 or same twice to calculate node
+    endif baddata
+!==================================================================
 !------------------------------------------------------------------
 ! we come back here if iadd was 0 but removed as 
 3000 continue
