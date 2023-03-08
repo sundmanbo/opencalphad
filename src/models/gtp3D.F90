@@ -91,7 +91,7 @@
       chd='N'
    endif
 ! ask for constitution
-   write(kou,'(a,a)')'NOTE: For a constituent which should be the rest.',&
+   write(kou,'(a,a)')'NOTE: For a constituent which should be the rest,',&
         ' give "rest"'
    kkk=0
    nylat: do ll=1,nsl

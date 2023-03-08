@@ -258,7 +258,7 @@
     integer trynewphase,jrem,addcheck
 ! inmap=1 turns off converge control of T
     integer, parameter :: inmap=1
-    character ch1*1,phasename*32
+    character ch1*1,phasename*28
     logical firststep,onetime,noderrmess
 !
 !    write(*,*)'in map_doallines'
@@ -433,8 +433,6 @@
 321 continue
     irem=0
     mapline%meqrec%noofits=0
-    if(mod(mapline%number_of_equilibria+1,20).eq.0) &
-       write(kou,*)'Calculated equilibria: ',mapline%number_of_equilibria+1
 !    write(*,*)'Calling meq_sameset 7: ',mapline%number_of_equilibria,&
 !         ceq%tpval(1),gx%bmperr
 !
@@ -467,7 +465,13 @@
 ! The code between ==== is added to avoid STEP termination because unstable
 ! phases tries to be stable.  It is very fragile and should not
 ! be used for MAP calculations    
-    trynewphase=0; addcheck=0; jrem=0
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Failed calculate equilibrium, terminate line',gx%bmperr
+       call map_lineend(mapline,axvalok,ceq)
+       axvalok=zero
+       goto 300
+    endif
+    gx%bmperr=0; trynewphase=0; addcheck=0; jrem=0
 ! We may have to extract the axis condition ?? 
     jj=abs(mapline%axandir)
 !    write(*,*)'SMP2A axandir: ',jj
@@ -483,6 +487,8 @@
 ! end extracting axis condition
 !    write(*,'(a,F10.2,4i4)')'SMP2A new phase and T axis?',ceq%tpval(1),&
 !         maptop%number_ofaxis,iadd,pcond%statev
+! Return here if map_calcnode return with error code 4223
+716 continue
     baddata: if(iadd.gt.0 .and. pcond%statev.eq.1 .and. &
          maptop%number_ofaxis.eq.1) then
 ! If a new phase is stable and axis is T and we have only one axis then
@@ -505,14 +511,15 @@
           gx%bmperr=0
        endif
 !       call get_phasetup_name(meqrec%phr(iadd)%phtupix,phasename)
-!       write(*,'(a,F10.2,2x,a)')'SMP2A test if phase at T is stable ',&
-!            ceq%tpval(1),trim(phasename)
+!       write(*,'(a,F10.2,a,a)')'SMP2A test at  T=',&
+!            ceq%tpval(1),' for stablility of ',trim(phasename)
 ! exit if no phase wants to be stable, loop if a different one
        if(iadd.gt.0 .and. iadd.ne.addcheck) then
 !          cycle baddata  this would have been elegant .... if allowed
-          call get_phasetup_name(meqrec%phr(iadd)%phtupix,phasename)
-          write(*,'(a,a,a,F10.2)')'SMP2A test if ',trim(phasename),&
-               ' is stable at T=',ceq%tpval(1)
+          call get_phasetup_name(meqrec%phr(addcheck)%phtupix,phasename)
+          write(*,'(a,a,a,F10.2,2i5)')'SMP2A test if ',phasename(1:16),&
+               ' is stable at T=',ceq%tpval(1),&
+               meqrec%phr(addcheck)%phtupix,meqrec%phr(iadd)%phtupix
           goto 717
        endif
 ! exit if iadd=0 or same twice to calculate node
@@ -569,8 +576,6 @@
              endif
           endif
        endif checkinterval
-!    elseif(gx%bmperr.ne.0) then
-!       goto 1000
     endif phasecheck
 !------------------------------------------------------------------
 !    write(*,*)'SMP looking for error 7:'
@@ -950,15 +955,24 @@
 ! HERE WE CREATE A NODE WITH NEW EXIT LINES
        call map_calcnode(irem,iadd,maptop,mapline,mapline%meqrec,axarr,ceq)
 ! segmentation fault in map_calcnode 170518 !!
-!       write(*,*)'Back from map_calcnode',gx%bmperr,irem,iadd
+!       write(*,*)'Back from map_calcnode',gx%bmperr,irem,iadd,noderrmess
        if((gx%bmperr.ne.0 .or. irem.ne.0 .or. iadd.ne.0) .and. noderrmess) then
-          write(*,777)gx%bmperr,irem,iadd,noderrmess,ceq%tpval(1)
-777       format('SMP problem calculating node: ',3i5,l2,F8.2)
+          write(*,777)gx%bmperr,irem,iadd,ceq%tpval(1)
+777       format('SMP2A problem calculating node: ',3i5,' at T=',F8.2)
+! this occured in an STEP caculation for an 18 element nuclear fuel, 
+! If only one axis return to calculate line
           noderrmess=.false.
+          if(maptop%number_ofaxis.eq.1 .and. pcond%statev.eq.1) then
+             gx%bmperr=0
+             write(*,*)'SMP2A tries to continue'
+!             call list_conditions(kou,ceq)
+             call restore_constitutions(ceq,copyofconst)
+             gx%bmperr=0; goto 716
+          endif
        endif
        noderror: if(gx%bmperr.ne.0) then
 ! if error one can try to calculate using a shorter step or other things ...
-!          write(*,*)'Error return from map_calcnode: ',gx%bmperr
+!          write(*,*)'SMP2A Error return from map_calcnode: ',gx%bmperr
           if(gx%bmperr.eq.4353) then
 ! this means node point not global, the line leading to this is set inactive
 ! and we should not generate any startpoint.             
@@ -975,8 +989,8 @@
 ! restore here creates an infinite loop with no axis increment in map2-crmo
 !          write(*,*)'Restore constitutions 4'
           call restore_constitutions(ceq,copyofconst)
-!          write(*,800)'map_calcnode error: ',gx%bmperr,mapline%problems,&
-!               mapline%lasterr,axvalok
+!          write(*,800)'SMP2A map_calcnode error, trying smaller step: ',&
+!          gx%bmperr,mapline%lasterr,axvalok
 800       format(a,3i5,1pe12.4)
           gx%bmperr=0
           call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
@@ -1017,15 +1031,16 @@
 ! we come here if a new node has been calculated and stored
        axvalok=zero
     else
-! phasechance: els: Here neither iadd or irem>0, we should never be here
-! and nno error ... we should go back to label 3000
+! phasechance: else: Here neither iadd or irem>0, we should never be here
+! and no error ... we should go back to label 300
        write(*,*)'SMPA no phase change?',gx%bmperr,iadd,irem
        stop 'Report this error to the OC development team!'
     endif phasechange
 ! we have finished a line and look for another at label 300
 805 continue
-    write(kou,808)mapline%number_of_equilibria,ceq%tpval(1)
-808 format('Finishing line with ',i5,' equilibria at T=',0pF8.2,' ')
+    write(kou,808)mapline%number_of_equilibria,ceq%tpval(1),axarr(1)%lastaxval
+808 format('Finishing line with ',i5,' equilibria at T=',0pF8.2,&
+         ', xaxis:',1pe12.4,' ')
     mapline%problems=0
     mapline%lasterr=0
     goto 300
@@ -1033,8 +1048,9 @@
 ! we come here when there are no more lines to calculate
 900 continue
 !-----------------------------------------------------
-! jump here if errors above
+! jump here if faital errors above
 1000 continue
+    if(gx%bmperr.ne.0) write(*,*)'Exit map_doallines due to error:',gx%bmperr
 !--------------------------------------------------
     return
   end subroutine map_doallines
@@ -2507,6 +2523,8 @@
     endif
     mapline%last=place
     mapline%number_of_equilibria=mapline%number_of_equilibria+1
+    if(mod(mapline%number_of_equilibria,20).eq.0) &
+         write(kou,'("Equilibria calculated  ",i5)')mapline%number_of_equilibria
     if(mapline%first.eq.0) mapline%first=place
 ! this counter is zeroed when starting a new map/step unless old saved kept
     totalsavedceq=totalsavedceq+1
@@ -4209,7 +4227,7 @@
 !       meqrec%nv=meqrec%nv+1
 !---------------------------------------------------
 ! call meq_sameset with new set of phases and axis condition removed
-! If there is a phase change (iadd or irem nonzeri) or error it exits 
+! If there is a phase change (iadd or irem nonzero) or error it exits 
     sameadd=0
 200 continue
     iadd=0; irem=0
@@ -4227,10 +4245,13 @@
 ! We may have to calculate with the axis fix again, maybe even read up
 ! the previous calculated equilibrium
     if(gx%bmperr.ne.0) then
-       if(ocv()) write(*,*)'Error trying to calculate a node point',gx%bmperr
+       write(*,*)'Error trying to calculate a node point',gx%bmperr
+! Below is code to reset the fix phase to continue map/step unless error 4187
        if(gx%bmperr.eq.4187) goto 1000
     elseif(irem.gt.0) then
-       if(ocv()) write(*,*)'Another phase wants to disappear',irem
+       write(*,207)gx%bmperr,irem
+207    format('Failed calculating a node when another phase',&
+            ' wants to disappear',2i5)
        gx%bmperr=4222
     elseif(iadd.gt.0) then
 ! another phase wants to be stable

@@ -968,7 +968,7 @@ CONTAINS
     meqrec%dormlink=0
 !
 !-------------------------------
-! Now we calculate the equilibrium
+! Now we (try to) calculate the equilibrium
 200 continue
 ! allocate phaseremoved to avoid same phase stable again and again
 !    write(*,*)'MM start interative minimizer',ceq%eqno
@@ -1108,13 +1108,13 @@ CONTAINS
     nip=1
 !    krem=0
     meqrec%nstph=0
-    do iph=1,noph()
-       do ics=1,noofcs(iph)
+    allphases: do iph=1,noph()
+       allcompsets: do ics=1,noofcs(iph)
 ! ignore hidden and suspended phases (also ignored above in sumofphcs)
 ! entered, fixed and dormat has values 1, 2 and 3, suspended 4, hidden 5
           zap=test_phase_status(iph,ics,xxx,ceq)
 ! new: -4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
-          if(zap.ge.PHDORM) then
+          phstatus: if(zap.ge.PHDORM) then
              mph=mph+1
 ! this iph is the index in the phlista record
              meqrec%phr(mph)%iph=iph
@@ -1131,15 +1131,18 @@ CONTAINS
 ! set link to calculated values of G etc.
              call get_phase_compset(iph,ics,lokph,lokcs)
              meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
-! ALSO save phase tuple index
+! save phase tuple index
              findtupix=meqrec%phr(mph)%curd%phtupx
              meqrec%phr(mph)%phtupix=findtupix
+! set %volatile=0 to indicate start of equilibrium calculation
+! used for the cvmsro model (maybe not needed) in ges5X.F90
+             ceq%phase_varres(lokcs)%volatile=0
 !             write(*,'(a,4i6,5x,3i6)')'MM save tuple index: ',mph,iph,ics,&
 !                  findtupix,phasetuple(findtupix)%ixphase,&
 !                  phasetuple(findtupix)%compset,phasetuple(findtupix)%lokph
 ! set number of constituents, DO NOT USE size(...curd%size(yfr)!!!
              meqrec%phr(mph)%ncc=noconst(iph,ics,ceq)
-             if(formap) then
+             whenmap: if(formap) then
 ! when mapping fix phases are used to replace axis conditions.  The
 ! fix phases are in the meqrec%fixph array
 ! They do not return PHFIXED for test_phase_status !!!
@@ -1161,7 +1164,7 @@ CONTAINS
              else
 ! inmap=0 means not called from step/map routines
                 inmap=0
-             endif
+             endif whenmap
              meqrec%phr(mph)%ionliq=-1
              meqrec%phr(mph)%i2sly=0
              if(test_phase_status_bit(iph,PHIONLIQ)) meqrec%phr(mph)%ionliq=1
@@ -1169,7 +1172,7 @@ CONTAINS
 !             call get_phase_compset(iph,ics,lokph,lokcs)
 !             meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
 ! causing trouble at line 3175 ???
-             if(nip.le.meqrec%nv) then
+             compset: if(nip.le.meqrec%nv) then
                 if(iph.eq.meqrec%iphl(nip) .and. ics.eq.meqrec%icsl(nip)) then
 ! this phase is part of the initial stable set, increment nstph
                    meqrec%nstph=meqrec%nstph+1
@@ -1215,14 +1218,14 @@ CONTAINS
                    meqrec%phr(mph)%curd%amfu=zero
                 endif
              else
+! unstable phase
 !                write(*,312)'MM nip: ',nip,meqrec%nv
 !312             format(a,5i4)
-! unstable phase
                 meqrec%phr(mph)%stable=0
                 meqrec%phr(mph)%prevam=zero
                 meqrec%phr(mph)%prevdg=-one
                 meqrec%phr(mph)%curd%amfu=zero
-             endif
+             endif compset
 ! mark that no data arrays allocated for this phase
              meqrec%phr(mph)%idim=0
 ! initiate link to another phase temporarily set dormant zero
@@ -1244,9 +1247,9 @@ CONTAINS
 !z                ceq%phase_varres(lokcs)%status2=&
 !z                     ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
 !z             endif
-          endif
-       enddo
-    enddo
+          endif phstatus
+       enddo allcompsets
+    enddo allphases
 ! problem phases suspended are restored!!
 !    write(*,*)'MM at start, nonsuspenden phases: ',mph
     meqrec%noofits=0
@@ -2846,7 +2849,8 @@ if(meqrec%noofits.eq.1) then
                 endif mapping7
              elseif(converged.lt.4) then
 ! large correction in fraction of constituent fraction of stable phase
-!                write(*,*)'mm converged 4A: ',jj,nj,ys
+! Problem here with CVMSRO model, ys=0.00272 when x(b)=.5
+!                write(*,*)'MM converged 4A: ',jj,nj,ys
                 converged=4
                 cerr%mconverged=converged
                 yss=ys
@@ -2873,6 +2877,17 @@ if(meqrec%noofits.eq.1) then
 !---------------------------------
 ! Limit change in fractions .... all ycorr(nj) multiplied with same factor
 ! keeping the sum of corrections in all sublattices as zero
+!       if(converged.ge.4) then
+! Added to underetand convergence problem with CVMSRO
+!          write(*,*)'MM CVMSRO convergence: ',meqrec%noofits,jj,converged
+! converged=1 or 2 means constituent fraction in metastable phase not converged
+! converged 3 means large change constituent fraction of unstable phase
+! converged 4 means a constituent fraction of a stable phase change a lot
+! converged=5 means a condition not fullfilled
+! converged=6 means charge balance not converged or large phase fraction change
+! converged=7 means large change in chemical potentials
+! converged=8 means large change T or P
+!       endif
        if(vbug) write(*,74)'maximum corr: ',&
             meqrec%noofits,jj,ycormax2,ycormax(jj)
 74     format(a,2i3,2(1pe12.4))

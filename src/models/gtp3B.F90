@@ -587,6 +587,9 @@
 ! model: character, some fixed parts, some free text
 ! phtype: character*1, specifies G for gas, L for liquid
 ! emodel: for entropy model and maybe more
+! THING TO FIX: an I2SL phase with no cations should be accepted but
+! as a regular solution with 1 site for neutrals, no anions allowed!
+! When reading the database the first sublattice will be empty
    implicit none
    character name*(*),model*(*),phtype*(*)
    integer nsl,emodel
@@ -604,13 +607,14 @@
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
    integer s1,mqm1(20),mqm2(20),s2,s3,s4,s5,minus,s8
 ! logicals for models later stored in phase record
-   logical i2sl,QCE,uniquac,mqm,clusterr
-!   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
+   logical i2sl,QCE,uniquac,mqm,clusterr,nocations,cvmtfs
 ! csfree and highcs for finding phase_varres record
    if(.not.allowenter(2)) then
       gx%bmperr=4125
       goto 1000
    endif
+! if I2SL phase with no cation
+!   if(nsl.eq.2) write(*,'(i3,2x,2i3)')'3B phase: ',nsl,knr(1),knr(2)
 !   if(emodel.ne.0) then
 !      write(*,'(a,3i5,F7.3)')'3B emodel phase: ',emodel,nsl,knr(1),sites(1)
 !   endif
@@ -618,6 +622,11 @@
    QCE=.FALSE.
    mqm=.FALSE.
    uniquac=.FALSE.
+! phase with tetrahedron CVM configurational entropy
+   cvmtfs=.FALSE.
+! this will be set to TRUE if no cations for the I2SL liquid.
+! changes are needed also when calculating with such a liquid
+   nocations=.FALSE.
 ! check input
    call capson(name)
 !   if(.not.ucletter(name)) then
@@ -693,9 +702,25 @@
       write(*,7)
 7     format('3B With this model some of the following questions'&
            ' are irrelevant'/'but kept for compatibility with other models')
+   elseif(model(1:7).eq.'CVMTFS ') then
+      cvmtfs=.TRUE.
+   endif
+   externalchargebalance=.false.
+! CVMTFS creates its own set of constituents in a special subroutine
+   if(cvmtfs) then
+!      write(*,*)'3B creating CVMTFS constituents',knr(1)
+! This will create new set of constituents!
+      call enter_cvmtfs_phase(name,nsl,knr,const)
+      if(gx%bmperr.ne.0) goto 1000
+! sort the phase in its place, create varres record etc
+      nkk=knr(1)
+      sites(1)=one
+! set below
+!      phlista(lokph)%status1=bset(phlista(lokph)%status1,PHSRO)
+!      write(*,*)'3B exit cvmtfs: ',nsl,nkk,knr(1)
+!      goto 370
    endif
 ! check constituents
-   externalchargebalance=.false.
    constest: do jl=1,nkk
       if(jl.eq.1 .and. i2sl) then
 ! in this case * is allowed on first sublattice!!
@@ -764,8 +789,8 @@
          externalchargebalance=.true.
       endif
    enddo constest
-!   goto 370
 ! we should have the check if the phase can be neutral here ....
+! a phase with net charge is automatically suspended later ...
 !--------------------------------------------------------------------------
 370 continue
 ! the first phase entered is the reference phase created by init_gtp
@@ -888,9 +913,9 @@
       phlista(nyfas)%nooffr(ll)=knr(ll)
       formalunits=formalunits+sites(ll)
    enddo
-!  write(*,*)'3B enter_phase 8x: ',nyfas,nkk
+!   write(*,*)'3B enter_phase 8x: ',nyfas,nkk,sites(1)
    phlista(nyfas)%tnooffr=nkk
-!  write(*,*)'3B enter_phase 8y: ',nyfas,phlista(nyfas)%tnooffr
+!   write(*,*)'3B enter_phase 8y: ',nyfas,phlista(nyfas)%tnooffr
 ! create constituent record
    call create_constitlist(phlista(nyfas)%constitlist,nkk,klok)
 ! in phase_varres we will indicate the VA constituent, indicate in iva
@@ -950,6 +975,10 @@
       do ll=1,nsl
          firsteq%phase_varres(lokcs)%sites(ll)=sites(ll)
       enddo
+! this is the model for tetrahedron FCC with just SRO (reduced set of clusters)
+      if(model(1:7).eq.'CVMTFS ') then
+         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHSSRO)
+      endif
    endif
 ! make sure status word and some other links are set
    firsteq%phase_varres(lokcs)%status2=0
@@ -1265,6 +1294,169 @@
 1000 continue
    return
  END subroutine enter_phase
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine enter_cvmtfs_phase
+!\begin{verbatim}
+ subroutine enter_cvmtfs_phase(name,nsl,knr,const)
+! enter an CVMTFS phase, tetrahedron FCC with just SRO
+! name phase name
+! nsl sublattices, must be 1
+! knr number of elements, constituents are generated here
+! const array of element namees
+   implicit none
+   integer nsl,knr(*)
+   character name*24,const(*)*24
+!\end{verbatim}
+   integer ia,ib,ic,id,nq,ne,nn,la,lb,lc,ld
+   integer, allocatable :: lenel(:)
+   character*24, allocatable :: conel(:)
+   character prefix*4,sroname*24,srosp(4)*24
+   double precision stoisp(4)
+!
+!   write(*,*)'3B creating CVMTFS constituents with ',knr(1),'  elements'
+   if(nsl.ne.1) then
+      write(*,*)'The CVMTFS phase has a single set of sites.'
+      gx%bmperr=4399; goto 1000
+   endif
+   if(knr(1).le.1 .or. knr(1).gt.10) then
+      write(*,*)'The CVMTFS phase to few or too many elements',knr(1)
+      gx%bmperr=4399; goto 1000
+   endif
+! save names of elements and check they exist!
+   ne=knr(1)
+   allocate(conel(ne))
+   allocate(lenel(ne))
+   do ia=1,ne
+      call find_species_record_noabbr(const(ia),ib)
+      if(gx%bmperr.ne.0) goto 1000
+      conel(ia)=const(ia)
+      lenel(ia)=len_trim(const(ia))
+   enddo
+! create all SRO constituents in a sungle set of sites
+! Note duplictates with the different elements on different sites only once
+! This means LRO cannot be modeled but reduces the number of constituents
+! They must be in a fixed order   
+   prefix='Q000'
+   nn=0
+   do ia=1,ne
+! species Q001_AAAA and Q00x_BBBB and Q0xy_CCCC etc
+      if(nn.gt.maxconst) then
+         write(*,*)'3B overflow of SRO constituents',nn
+         gx%bmperr=4399; goto 1000
+      endif
+      srosp(1)=conel(ia)
+      la=lenel(ia)
+      nn=nn+1
+      call incnum(prefix)
+      sroname=prefix//'_'//srosp(1)(1:la)//srosp(1)(1:la)//&
+           srosp(1)(1:la)//srosp(1)(1:la)
+      stoisp(1)=one
+      call enter_species(sroname,1,srosp,stoisp)
+      if(gx%bmperr.ne.0) goto 1100
+      const(nn)=sroname
+      do ib=ia+1,ne
+! species Qxyz_AAAB, Qxyz_AABB, Qxyz_ABBB and Qxyz_BBBC etc
+         srosp(2)=conel(ib)
+         lb=lenel(ib)
+! AAAB
+         nn=nn+1
+         call incnum(prefix)
+         sroname=prefix//'_'//srosp(1)(1:la)//srosp(1)(1:la)//&
+              srosp(1)(1:la)//srosp(2)(1:lb)
+         stoisp(1)=0.75D0
+         stoisp(2)=0.25D0
+         call enter_species(sroname,2,srosp,stoisp)
+         const(nn)=sroname
+! AABB
+         nn=nn+1
+         call incnum(prefix)
+         sroname=prefix//'_'//srosp(1)(1:la)//srosp(1)(1:la)//&
+              srosp(2)(1:lb)//srosp(2)(1:lb)
+         stoisp(1)=0.5D0
+         stoisp(2)=0.5D0
+         call enter_species(sroname,2,srosp,stoisp)
+         const(nn)=sroname
+! ABBB
+         nn=nn+1
+         call incnum(prefix)
+         sroname=prefix//'_'//srosp(1)(1:la)//srosp(2)(1:lb)//&
+              srosp(2)(1:lb)//srosp(2)(1:lb)
+         stoisp(1)=0.25D0
+         stoisp(2)=0.75D0
+         call enter_species(sroname,2,srosp,stoisp)
+         if(gx%bmperr.ne.0) goto 1100
+         const(nn)=sroname
+         do ic=ib+1,ne
+! this only if 3 elements or more
+! species Qxyz_AABC, Qxyz_ABBC, Qxyz_ABCC and Qxyz_BBBC etc
+            srosp(3)=conel(ic)
+            lc=lenel(ic)
+! AABC
+            nn=nn+1
+            call incnum(prefix)
+            sroname=prefix//'_'//srosp(1)(1:la)//srosp(1)(1:la)//&
+              srosp(2)(1:lb)//srosp(3)(1:lc)
+            stoisp(1)=0.5D0
+            stoisp(2)=0.25D0
+            stoisp(3)=0.25D0
+            call enter_species(sroname,3,srosp,stoisp)
+            const(nn)=sroname
+! ABBC
+            nn=nn+1
+            call incnum(prefix)
+            sroname=prefix//'_'//srosp(1)(1:la)//srosp(2)(1:lb)//&
+                 srosp(2)(1:lb)//srosp(3)(1:lc)
+            stoisp(1)=0.25D0
+            stoisp(2)=0.5D0
+            stoisp(3)=0.25D0
+            call enter_species(sroname,3,srosp,stoisp)
+            const(nn)=sroname
+! ABCC
+            nn=nn+1
+            call incnum(prefix)
+            sroname=prefix//'_'//srosp(1)(1:la)//srosp(2)(1:lb)//&
+                 srosp(3)(1:lc)//srosp(3)(1:lc)
+            stoisp(1)=0.25D0
+            stoisp(2)=0.25D0
+            stoisp(3)=0.5D0
+            call enter_species(sroname,3,srosp,stoisp)
+            if(gx%bmperr.ne.0) goto 1100
+            const(nn)=sroname
+            do id=ic+1,ne
+! this only if 4 elements or more
+               srosp(4)=conel(id)
+               ld=lenel(id)
+! ABCD
+               nn=nn+1
+               call incnum(prefix)
+!               sroname=prefix//'_'//srosp(ia)(1:la)//srosp(ib)(1:lb)//&
+!                    srosp(ic)(1:lc)//srosp(id)(1:ld)
+               sroname=prefix//'_'//srosp(1)(1:la)//srosp(2)(1:lb)//&
+                    srosp(3)(1:lc)//srosp(4)(1:ld)
+               stoisp(1)=0.25D0
+               stoisp(2)=0.25D0
+               stoisp(3)=0.25D0
+               stoisp(4)=0.25D0
+               call enter_species(sroname,4,srosp,stoisp)
+               if(gx%bmperr.ne.0) goto 1100
+               const(nn)=sroname
+            enddo
+         enddo
+      enddo
+   enddo
+   knr(1)=nn
+!   write(*,*)'3B leaving enter_cvmtfs, constituents: ',knr(1)
+! update the number of constituents and their names ...
+1000 continue
+   return
+1100 continue
+   write(*,1110)'3B error entering cvmtfs species ',nn,trim(sroname),&
+        (trim(srosp(ia)),ia=1,4),stoisp
+1110 format(a,i4,1x,a,': ',4(1x,a),4(1pe12.2))
+   goto 1000
+ end subroutine enter_cvmtfs_phase
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

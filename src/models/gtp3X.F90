@@ -154,6 +154,7 @@
    rtg=globaldata%rgas*ceq%tpval(1)
    ceq%rtn=rtg
 !   write(*,*)'3X in calcg_internal: ',lokph
+!   if(ocv()) write(*,*)'3X in gcalc_internal: ',lokph
 !-----------------------
    chkperm=.false.
    mqmqa=.false.
@@ -177,7 +178,6 @@
 !         phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHPALM)
       endif
    endif
-!   if(ocv()) write(*,*)'3X in gcalc_internal: ',lokph
 !-----------------------------------------------------------------
 50  continue
 ! local work arrays for products of Y and calculated parameters are allocated
@@ -283,9 +283,12 @@
            phlista(lokph),gz%tpv(1))
 ! phstate
    elseif(btest(phlista(lokph)%status1,PHSSRO)) then
-! Simple short range order entropy model
-      write(*,*)'3X calling SSRO liquid model'
+! CVM tetraheron SRO (no LRO) configurational entropy
       call config_entropy_ssro(moded,lokph,phres,gz%tpv(1))
+! phstate
+   elseif(btest(phlista(lokph)%status1,PHCVMTFL)) then
+! CVM tetraheron SRO (no LRO) configurational entropy
+      call config_entropy_cvmtfl(moded,lokph,phres,gz%tpv(1))
    else
 !----------- the CF Bragg-Williams ideal configurational entropy per sublattice
 ! NOTE: for phases with disordered fraction set this is calculated
@@ -2574,7 +2577,7 @@
 ! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
 ! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
 ! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
-! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
+! d2dval(ixsym(N*(M+1)/2),1) are derivatives of G wrt fractions N and M
 ! this is a symmetric matrix and index givem by ixsym(M,N)
          ss=ss+yfra*ylog
          if(moded.gt.0) then
@@ -2608,16 +2611,755 @@
 ! test calculates SSRO configurational entropy/R for phase lokph
    implicit none
    integer moded,lokph
+   double precision tval
+   TYPE(gtp_phase_varres), pointer :: phvar
+!\end{verbatim}
+! CVM tetrahedron model with ONLY SRO, no sublattices
+   integer ia,ib,ic,id,jj,jk,jl,jm,ne,nc,zz,pz
+! this is multiplicities
+   integer, allocatable :: mijkl(:)
+! this is mole fractions and derivatives
+   double precision, allocatable :: xf(:),dxf(:,:),d2xf(:,:)
+! these are constituent fractions for entropy!!!
+   double precision, allocatable :: ysro(:)
+! these are site fractions, not needed when only SRO as y^s_i=x_i
+!   double precision, allocatable :: yf1(:),yf2(:),yf3(:),yf4(:)
+!   double precision, allocatable :: dyf1(:,:),dyf2(:,:),dyf3(:,:),yf4(:,:)
+! these are pair fractions, same for all bonds!
+!   double precision, allocatable :: p12(:,:),p13(:,:),p14(:,:),&
+!        p23(:,:),p24(:,:),p34(:,:)
+!   double precision, allocatable :: dp12(:,:,:),dp13(:,:,:),dp14(:,:,:),&
+!        dp23(:,:,:),dp24(:,:,:),p34(:,:,:)
+   double precision, allocatable :: pstij(:,:)
+   double precision, allocatable :: dpstij(:,:,:),d2pstij(:,:,:)
+   double precision, parameter :: f1=0.75D0, f2=0.5D0, f3=0.25D0
+!   double precision, parameter :: f1=3.0D0, f2=2.0D0, f3=1.0D0
+! auxilliary
+   character dummy*80
+   double precision pijx,fpf,ssumy,ssump,ssumx,ylog,yfra,ycorr,yrest
+   double precision pstijtest,pstijsave
+! debugging
+   double precision ylog1(5),ylog2,ylog3
+   double precision sylog1,sylog2,sylog3
+! These factors should be 2.0, -6.0 and 5.0 according to Kikuchi
+! I have no idea why I have to divide them by 10 ...
+   double precision, parameter :: syfact=2.0D0, spfact=-6.0D0, sxfact=5.0D0
+   logical sdebug
+   save pstijsave
+! use phvar%volatile to initiate ycorr at first itertation
+!   sdebug=.TRUE.
+   sdebug=.FALSE.
+!   write(*,*)'3X sdebug: ',sdebug
+   if(phvar%volatile.eq.0) then
+! phvar%volatile is set to zero in matsmin: meq_calceq at first iteration
+! decrease ycorr when pstijsave constant
+      phvar%volatile=phvar%volatile+1
+      ycorr=0.5D0
+      pstijsave=0.0D0
+   endif
+   yrest=1.0D0-ycorr
+! nc is number of constituent, ne is number of elements
+   nc=phlista(lokph)%tnooffr
+! using empirical rule to calcuöate ne from nc
+   select case(nc)
+   case default
+      write(*,*)'3X SRO number of constituents not implemented',nc
+   case(1)
+      ne=1
+      write(*,*)'3X SRO entropy zero for single element'
+      goto 1000
+   case(5)
+! binary system
+      ne=2 
+   case(15) 
+      ne=3
+   case(35) 
+      ne=4
+   case(70) 
+! without merging AAAB etc there would be 625 clusters instead of just 70
+      ne=5
+   case(126)
+      ne=6
+   case(210)
+      ne=7
+   case(330)
+! without merging AAAB etc there would be 4096 clusters
+      ne=8
+   end select
+!
+!   write(*,*)'3X CVMTFS model for configurational entropy',nc,ne
+!
+   allocate(mijkl(nc))
+   allocate(xf(ne))
+   allocate(dxf(ne,nc))
+   allocate(d2xf(ne,nc))
+!   allocate(yf1(ne))
+!   allocate(yf2(ne))
+!   allocate(yf3(ne))
+!   allocate(yf4(ne))
+!   allocate(dyf1(ne,nc))
+!   allocate(dyf2(ne,nc))
+!   allocate(dyf3(ne,nc))
+!   allocate(dyf4(ne,nc))
+! jj incremented for each cluster
+   jj=0
+   mijkl=0
+   xf=zero
+   dxf=zero
+! site fractions same as mole fractions as no LRO
+!   yf1=zero
+!   yf2=zero
+!   yf3=zero
+!   yf4=zero
+!   dyf1=zero
+!   dyf2=zero
+!   dyf3=zero
+!   dyf4=zero
+! extrahera mole fractions from constituent fractions
+   do ia=1,ne
+      jj=jj+1
+! this is AAAA or BBBB etc
+      mijkl(jj)=1
+      xf(ia)=xf(ia)+phvar%yfr(jj)
+      dxf(ia,jj)=1
+      do ib=ia+1,ne
+         jj=jj+3
+         mijkl(jj-2)=4
+         mijkl(jj-1)=6
+         mijkl(jj)=4
+! jj-2 is A3B1, jj-1 is A2B2, jj is A1B3 including permutations in mijkl
+         xf(ia)=xf(ia)+f1*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
+         xf(ib)=xf(ib)+f3*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f1*phvar%yfr(jj)
+         dxf(ia,jj-2)=f1; dxf(ia,jj-1)=f2; dxf(ia,jj)=f3;
+         dxf(ib,jj-2)=f3; dxf(ib,jj-1)=f2; dxf(ib,jj)=f1;
+         do ic=ib+1,ne
+            jj=jj+3
+            mijkl(jj-2)=12
+            mijkl(jj-1)=12
+            mijkl(jj)=12
+! jj-2 is A2BC, jj-1 is AB2C, jj is ABC2
+            xf(ia)=xf(ia)+f2*phvar%yfr(jj-2)+f3*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
+            xf(ib)=xf(ib)+f3*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
+            xf(ic)=xf(ic)+f3*phvar%yfr(jj-2)+f3*phvar%yfr(jj-1)+f2*phvar%yfr(jj)
+            dxf(ia,jj-2)=f2; dxf(ia,jj-1)=f3; dxf(ia,jj)=f3;
+            dxf(ib,jj-2)=f3; dxf(ib,jj-1)=f2; dxf(ib,jj)=f3;
+            dxf(ic,jj-2)=f3; dxf(ic,jj-1)=f3; dxf(ic,jj)=f2;
+            do id=ic+1,ne
+               jj=jj+1
+               mijkl(jj-2)=24
+! jj is ABCD
+               xf(ia)=xf(ia)+f3*phvar%yfr(jj)
+               xf(ib)=xf(ib)+f3*phvar%yfr(jj)
+               xf(ic)=xf(ic)+f3*phvar%yfr(jj)
+               xf(id)=xf(id)+f3*phvar%yfr(jj)
+               dxf(ia,jj)=f3; dxf(ib,jj)=f3; dxf(ic,jj)=f3; dxf(id,jj)=f3;
+            enddo
+         enddo
+      enddo
+   enddo
+! Convergence problem, when pstij constant make rest approach 1.0
+   pstijtest=zero
+   do ia=1,ne
+      do ib=ia+1,ne
+         if(xf(ia)*xf(ib).gt.pstijtest) pstijtest=xf(ia)*xf(ib)
+      enddo
+   enddo
+! pstijtest is maximum pair fraction using mole fractions calculated
+!     from cluster fractions provided by the minimizer
+! if almost the same as previous decrease ycorr
+   if(abs(pstijtest-pstijsave).lt.1.0D-4) then
+      ycorr=max(0.5D0*ycorr,1.0D-8)
+! when yrest=1 we use the fractions from the minimizer
+   else
+      ycorr=min(0.5d0*ycorr,0.5D0)
+   endif
+   yrest=1.0D0-ycorr
+   if(SDEBUG) write(*,'(a,1x,l,1x,12F6.3)')'3X corr: ',sdebug,&
+        pstijtest,pstijsave,yrest,ycorr
+! without this stupid dummy statement the calculations does not converge
+   write(dummy,'(a,1x,l,1x,12F6.3)')'3X corr: ',sdebug,&
+        pstijtest,pstijsave,yrest,ycorr
+! save pstij for next iteration
+   pstijsave=pstijtest
+! IDEA
+! We have no LRO, fractions on all sublattices same and equal to molefractions
+! THUS recalculate the cluster fractions from the mole fractions ....
+   allocate(ysro(jj))
+   jj=0
+   do ia=1,ne
+      jj=jj+1
+      ysro(jj)=yrest*phvar%yfr(jj)+ycorr*xf(ia)**4
+      do ib=ia+1,ne
+         jj=jj+1
+         ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ib)*xf(ia)**3
+         jj=jj+1
+         ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ib)**2*xf(ia)**2
+         jj=jj+1
+         ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ib)**3*xf(ia)
+         do ic=ib+1,ne
+            jj=jj+1
+            ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)**2*xf(ib)*xf(ic)
+            jj=jj+1
+            ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)*xf(ib)**2*xf(ic)
+            jj=jj+1
+            ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)*xf(ib)*xf(ic)**2
+            do id=ic+1,ne
+               jj=jj+1
+               ysro(jj)=yrest*phvar%yfr(jj)+&
+                    ycorr*mijkl(jj)*xf(ia)*xf(ib)*xf(ic)*xf(id)
+            enddo
+         enddo
+      enddo
+   enddo
+!
+   if(SDEBUG) then
+      write(*,'(a,12F6.3)')'3X yfr: ',(phvar%yfr(jj),jj=1,nc)
+      write(*,'(a,12F6.3)')'3X ysro:',ysro
+   endif
+!
+!   write(*,'(a,F5.2,10F6.3)')'3X xf2: ',fpf,(xf(ia),ia=1,ne)
+! calculate pair fractions using the site fractions
+!   allocate(p12(ne,ne))
+!   allocate(p13(ne,ne))
+!   allocate(p14(ne,ne))
+!   allocate(p23(ne,ne))
+!   allocate(p24(ne,ne))
+!   allocate(p34(ne,ne))
+   allocate(pstij(ne,ne))
+   allocate(dpstij(ne,ne,nc))
+   allocate(d2pstij(ne,ne,nc*(nc+1)/2))
+   pstij=zero
+   dpstij=zero
+   d2pstij=zero
+! calculation of pair fractions using mole fractions (same as site fractions)
+! include AA, AB, AC, BB etc pairs but exclude BA, CA ??
+   do ia=1,ne
+      do ib=1,ne
+! If we had LRO we should need yf1, yf2, yf3 and yf4
+! but the site fractions are the same in all sublattces when no LRO (?)
+         pstij(ia,ib)=xf(ia)*xf(ib)
+         do jj=1,nc
+            dpstij(ia,ib,jj)=dxf(ia,jj)*xf(ib)+dxf(ib,jj)*xf(ia)
+            do jk=jj,nc
+               zz=ixsym(jj,jk)
+!               write(*,'(a,2i4,2x,2i4,i7)')'3X d2pstij: ',ia,ib,jj,jk,zz
+!               d2pstij(ia,ib,zz)=d2pstij(ia,ib,zz)+&
+!                    dxf(ia,jj)*dxf(ib,jk)+dxf(ib,jj)*dxf(ia,jk)
+            enddo
+         enddo
+      enddo
+   enddo
+! All necessary fractions and derivatives calculated, now the entropy
+! S = -2 \sum_ijkl y_ijkl\ln(y_ijkl) +
+!     6  \sum_ij p_ij\ln(p_ij) - 5 \sum_j x_j\ln(x_j)
+! As we calculate G the signs are inverse
+! constituent fraction entropy
+! entropy contribution from the constituent fractions ------------------
+! USE ysro fractions!!! not phvar%yfr  or a mix ...
+   ssumy=zero
+!   sylog1=zero
+   do jj=1,nc
+!      yfra=phvar%yfr(jj)
+      yfra=ysro(jj)
+      if(yfra.lt.bmpymin) yfra=bmpymin
+      if(yfra.gt.one) yfra=one
+! yfra is divided by mijkl as it represent mijkl fractions
+      ylog=log(yfra/mijkl(jj))
+! debugging
+!      if(jj.le.5) ylog1(jj)=ylog
+!      sylog1=sylog1+yfra*ylog
+      ssumy=ssumy+syfact*yfra*ylog
+      if(moded.gt.0) then
+! dgval(1,1:nc,1) are derivative of G/RT wrt fraction 1:nc
+! d2gval(ixsym(jj*(jk+1)/2,1) are 2nd derivarive of G/RT wrt fraction jj and jk
+! dgval and d2gval are zero before this loop
+!         phvar%dgval(1,jj,1)=syfact*(mijkl(jj)+ylog)
+! convergence problem test
+         phvar%dgval(1,jj,1)=syfact*(one+ylog)
+! ? T and y derivative
+         phvar%dgval(2,jj,1)=syfact*(mijkl(jj)+ylog)/tval
+! 2nd derivative, each term depend on a single y fraction
+         phvar%d2gval(kxsym(jj,jj),1)=syfact*mijkl(jj)/yfra
+      endif
+!      write(*,'(a,3(1pe12.4))')'3X ssumy: ',yfra,ylog,ssumy
+   enddo
+   phvar%gval(1,1)=ssumy
+   phvar%gval(2,1)=ssumy/tval
+! No convergence just using ysro ... change the phvar%yfr ....
+   do jj=1,nc
+      phvar%yfr(jj)=ysro(jj)
+   enddo
+! entropy contributions from the 6 pair fractions -----------------------
+   ssump=zero
+! all pairs the same, no need to loop over sublattices
+   fpf=spfact
+!   sylog2=zero
+   do ia=1,ne
+!      do ib=ia+1,ne
+      do ib=1,ne
+! bond between atom ia and ib
+         ylog=log(pstij(ia,ib))
+! debugging
+!         ylog2=ylog
+!         sylog2=sylog2+pstij(ia,ib)*ylog
+!         write(*,'(a,2i3,3(1pe12.4))')'3X ylogp: ',ia,ib,pstij(ia,ib),ylog,&
+!              pstij(ia,ib)*ylog
+         ssump=ssump+fpf*pstij(ia,ib)*ylog
+         if(moded.gt.0) then
+            do jl=1,nc
+! we need derivatives of pair fractions wrt constituent fractions
+               phvar%dgval(1,jl,1)=phvar%dgval(1,jl,1)+&
+                    fpf*dpstij(ia,ib,jl)*(one+ylog)
+               do jm=jl,nc
+                  zz=ixsym(jl,jm)
+                  phvar%d2gval(zz,1)=phvar%d2gval(zz,1)+&
+                       fpf*(d2pstij(ia,ib,zz)*(one+ylog)+&
+                       dpstij(ia,ib,jl)*dpstij(ia,ib,jm)/pstij(ia,ib))
+               enddo
+            enddo
+         endif
+!         write(*,'(a,2i3,4(1pe12.4))')'3X ssump: ',ia,ib,fpf,pstij(ia,ib),&
+!              ylog,ssump
+      enddo
+   enddo
+   phvar%gval(1,1)=phvar%gval(1,1)+ssump
+   phvar%gval(2,1)=phvar%gval(2,1)+ssump/tval
+! entropy contributions from the mole fractions -----------------------
+   ssumx=zero
+!   sylog3=zero
+   do ia=1,ne
+! we need derivatives of mole fractions wrt constituent fractions
+      ylog=log(xf(ia))
+! debugg
+!      ylog3=ylog
+!      sylog3=sylog3+xf(ia)*ylog
+      ssumx=ssumx+sxfact*xf(ia)*ylog
+      if(moded.gt.0) then
+         do jl=1,nc
+! we need derivatives of mole fractions wrt constituent fractions
+            phvar%dgval(1,jl,1)=phvar%dgval(1,jl,1)+&
+                 sxfact*dxf(ia,jl)*(ylog+one)
+            do jm=jl,nc
+! note d2xf/dyidyj==0
+               zz=kxsym(jl,jm)
+               phvar%d2gval(zz,1)=phvar%d2gval(zz,1)+&
+                    sxfact*dxf(ia,jl)*dxf(ia,jm)/xf(ia)
+            enddo
+         enddo
+      endif
+   enddo
+   phvar%gval(1,1)=phvar%gval(1,1)+ssumx
+   phvar%gval(2,1)=phvar%gval(2,1)+ssumx/tval
+! All done
+   if(SDEBUG) then
+      write(*,900)'3X xf: ',(xf(ia),ia=1,ne)
+900   format(a,6F7.3)
+      write(*,910)'3X pstij: ',((pstij(ia,ib),ib=1,ne),ia=1,ne)
+910   format(a,10F7.3)
+!      write(*,'(a,5(1pe12.4))')'3X sylog: ',sylog1,sylog2,sylog3
+!      write(*,'(a,5(1pe12.4))')'3X ylog1: ',ylog1
+!      write(*,'(a,5(1pe12.4))')'3X ylogx: ',ylog2,ylog3
+      write(*,'(a,5(1pe12.4))')'3X cvmtfs: ',ssumy,ssump,ssumx,&
+           phvar%gval(1,1),8.31451*phvar%gval(1,1)
+!   write(*,*)'3X cvmtfs model not yet released'
+   endif
+1000 continue
+   return
+ end subroutine config_entropy_ssro
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_cvmtfl
+!\begin{verbatim}
+ subroutine config_entropy_cvmtfl(moded,lokph,phvar,tval)
+! CVM tetrahedron model for FCC with LRO and SRO, all constituents mix
+!
+   implicit none
+   integer moded,lokph
+   double precision tval
+   TYPE(gtp_phase_varres), pointer :: phvar
+!\end{verbatim}
+!========================================
+! Current code 230308 if same as _SSRO, only SRO ordering
+! Need modification to handle LRO
+!========================================
+   integer ia,ib,ic,id,jj,jk,jl,jm,ne,nc,zz,pz
+! this is multiplicities
+   integer, allocatable :: mijkl(:)
+! this is mole fractions and derivatives
+   double precision, allocatable :: xf(:),dxf(:,:),d2xf(:,:)
+! these are constituent fractions for entropy!!!
+   double precision, allocatable :: ysro(:)
+! these are site fractions, not needed when only SRO as y^s_i=x_i
+!   double precision, allocatable :: yf1(:),yf2(:),yf3(:),yf4(:)
+!   double precision, allocatable :: dyf1(:,:),dyf2(:,:),dyf3(:,:),yf4(:,:)
+! these are pair fractions, same for all bonds!
+!   double precision, allocatable :: p12(:,:),p13(:,:),p14(:,:),&
+!        p23(:,:),p24(:,:),p34(:,:)
+!   double precision, allocatable :: dp12(:,:,:),dp13(:,:,:),dp14(:,:,:),&
+!        dp23(:,:,:),dp24(:,:,:),p34(:,:,:)
+   double precision, allocatable :: pstij(:,:)
+   double precision, allocatable :: dpstij(:,:,:),d2pstij(:,:,:)
+   double precision, parameter :: f1=0.75D0, f2=0.5D0, f3=0.25D0
+!   double precision, parameter :: f1=3.0D0, f2=2.0D0, f3=1.0D0
+! auxilliary
+   character dummy*80
+   double precision pijx,fpf,ssumy,ssump,ssumx,ylog,yfra,ycorr,yrest
+   double precision pstijtest,pstijsave
+! debugging
+   double precision ylog1(5),ylog2,ylog3
+   double precision sylog1,sylog2,sylog3
+! These factors should be 2.0, -6.0 and 5.0 according to Kikuchi
+! I have no idea why I have to divide them by 10 ...
+   double precision, parameter :: syfact=2.0D0, spfact=-6.0D0, sxfact=5.0D0
+   logical sdebug
+   save pstijsave
+! use phvar%volatile to initiate ycorr at first itertation
+!========================================
+   write(*,*)'3X CVM tetrahedron FCC with LRO not yet implemented'
+   gx%bmperr=4399
+   goto 1000
+!========================================
+!   sdebug=.TRUE. 
+   sdebug=.FALSE.
+!   write(*,*)'3X sdebug: ',sdebug
+   if(phvar%volatile.eq.0) then
+! phvar%volatile is set to zero in matsmin: meq_calceq at first iteration
+! decrease ycorr when pstijsave constant
+      phvar%volatile=phvar%volatile+1
+      ycorr=0.5D0
+      pstijsave=0.0D0
+   endif
+   yrest=1.0D0-ycorr
+! nc is number of constituent, ne is number of elements
+   nc=phlista(lokph)%tnooffr
+! using empirical rule to calcuöate ne from nc
+   select case(nc)
+   case default
+      write(*,*)'3X SRO number of constituents not implemented',nc
+   case(1)
+      ne=1
+      write(*,*)'3X SRO entropy zero for single element'
+      goto 1000
+   case(5)
+! binary system
+      ne=2 
+   case(15) 
+      ne=3
+   case(35) 
+      ne=4
+   case(70) 
+! without merging AAAB etc there would be 625 clusters instead of just 70
+      ne=5
+   case(126)
+      ne=6
+   case(210)
+      ne=7
+   case(330)
+! without merging AAAB etc there would be 4096 clusters
+      ne=8
+   end select
+!
+!   write(*,*)'3X CVMTFS model for configurational entropy',nc,ne
+!
+   allocate(mijkl(nc))
+   allocate(xf(ne))
+   allocate(dxf(ne,nc))
+   allocate(d2xf(ne,nc))
+!   allocate(yf1(ne))
+!   allocate(yf2(ne))
+!   allocate(yf3(ne))
+!   allocate(yf4(ne))
+!   allocate(dyf1(ne,nc))
+!   allocate(dyf2(ne,nc))
+!   allocate(dyf3(ne,nc))
+!   allocate(dyf4(ne,nc))
+! jj incremented for each cluster
+   jj=0
+   mijkl=0
+   xf=zero
+   dxf=zero
+! site fractions same as mole fractions as no LRO
+!   yf1=zero
+!   yf2=zero
+!   yf3=zero
+!   yf4=zero
+!   dyf1=zero
+!   dyf2=zero
+!   dyf3=zero
+!   dyf4=zero
+! extrahera mole fractions from constituent fractions
+   do ia=1,ne
+      jj=jj+1
+! this is AAAA or BBBB etc
+      mijkl(jj)=1
+      xf(ia)=xf(ia)+phvar%yfr(jj)
+      dxf(ia,jj)=1
+      do ib=ia+1,ne
+         jj=jj+3
+         mijkl(jj-2)=4
+         mijkl(jj-1)=6
+         mijkl(jj)=4
+! jj-2 is A3B1, jj-1 is A2B2, jj is A1B3 including permutations in mijkl
+         xf(ia)=xf(ia)+f1*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
+         xf(ib)=xf(ib)+f3*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f1*phvar%yfr(jj)
+         dxf(ia,jj-2)=f1; dxf(ia,jj-1)=f2; dxf(ia,jj)=f3;
+         dxf(ib,jj-2)=f3; dxf(ib,jj-1)=f2; dxf(ib,jj)=f1;
+         do ic=ib+1,ne
+            jj=jj+3
+            mijkl(jj-2)=12
+            mijkl(jj-1)=12
+            mijkl(jj)=12
+! jj-2 is A2BC, jj-1 is AB2C, jj is ABC2
+            xf(ia)=xf(ia)+f2*phvar%yfr(jj-2)+f3*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
+            xf(ib)=xf(ib)+f3*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
+            xf(ic)=xf(ic)+f3*phvar%yfr(jj-2)+f3*phvar%yfr(jj-1)+f2*phvar%yfr(jj)
+            dxf(ia,jj-2)=f2; dxf(ia,jj-1)=f3; dxf(ia,jj)=f3;
+            dxf(ib,jj-2)=f3; dxf(ib,jj-1)=f2; dxf(ib,jj)=f3;
+            dxf(ic,jj-2)=f3; dxf(ic,jj-1)=f3; dxf(ic,jj)=f2;
+            do id=ic+1,ne
+               jj=jj+1
+               mijkl(jj-2)=24
+! jj is ABCD
+               xf(ia)=xf(ia)+f3*phvar%yfr(jj)
+               xf(ib)=xf(ib)+f3*phvar%yfr(jj)
+               xf(ic)=xf(ic)+f3*phvar%yfr(jj)
+               xf(id)=xf(id)+f3*phvar%yfr(jj)
+               dxf(ia,jj)=f3; dxf(ib,jj)=f3; dxf(ic,jj)=f3; dxf(id,jj)=f3;
+            enddo
+         enddo
+      enddo
+   enddo
+! Convergence problem, when pstij constant make rest approach 1.0
+   pstijtest=zero
+   do ia=1,ne
+      do ib=ia+1,ne
+         if(xf(ia)*xf(ib).gt.pstijtest) pstijtest=xf(ia)*xf(ib)
+      enddo
+   enddo
+! pstijtest is maximum pair fraction using mole fractions calculated
+!     from cluster fractions provided by the minimizer
+! if almost the same as previous decrease ycorr
+   if(abs(pstijtest-pstijsave).lt.1.0D-4) then
+      ycorr=max(0.5D0*ycorr,1.0D-8)
+! when yrest=1 we use the fractions from the minimizer
+   else
+      ycorr=min(0.5d0*ycorr,0.5D0)
+   endif
+   yrest=1.0D0-ycorr
+   if(SDEBUG) write(*,'(a,1x,l,1x,12F6.3)')'3X corr: ',sdebug,&
+        pstijtest,pstijsave,yrest,ycorr
+! without this stupid dummy statement the calculations does not converge
+   write(dummy,'(a,1x,l,1x,12F6.3)')'3X corr: ',sdebug,&
+        pstijtest,pstijsave,yrest,ycorr
+! save pstij for next iteration
+   pstijsave=pstijtest
+! IDEA
+! We have no LRO, fractions on all sublattices same and equal to molefractions
+! THUS recalculate the cluster fractions from the mole fractions ....
+   allocate(ysro(jj))
+   jj=0
+   do ia=1,ne
+      jj=jj+1
+      ysro(jj)=yrest*phvar%yfr(jj)+ycorr*xf(ia)**4
+      do ib=ia+1,ne
+         jj=jj+1
+         ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ib)*xf(ia)**3
+         jj=jj+1
+         ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ib)**2*xf(ia)**2
+         jj=jj+1
+         ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ib)**3*xf(ia)
+         do ic=ib+1,ne
+            jj=jj+1
+            ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)**2*xf(ib)*xf(ic)
+            jj=jj+1
+            ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)*xf(ib)**2*xf(ic)
+            jj=jj+1
+            ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)*xf(ib)*xf(ic)**2
+            do id=ic+1,ne
+               jj=jj+1
+               ysro(jj)=yrest*phvar%yfr(jj)+&
+                    ycorr*mijkl(jj)*xf(ia)*xf(ib)*xf(ic)*xf(id)
+            enddo
+         enddo
+      enddo
+   enddo
+!
+   if(SDEBUG) then
+      write(*,'(a,12F6.3)')'3X yfr: ',(phvar%yfr(jj),jj=1,nc)
+      write(*,'(a,12F6.3)')'3X ysro:',ysro
+   endif
+!
+!   write(*,'(a,F5.2,10F6.3)')'3X xf2: ',fpf,(xf(ia),ia=1,ne)
+! calculate pair fractions using the site fractions
+!   allocate(p12(ne,ne))
+!   allocate(p13(ne,ne))
+!   allocate(p14(ne,ne))
+!   allocate(p23(ne,ne))
+!   allocate(p24(ne,ne))
+!   allocate(p34(ne,ne))
+   allocate(pstij(ne,ne))
+   allocate(dpstij(ne,ne,nc))
+   allocate(d2pstij(ne,ne,nc*(nc+1)/2))
+   pstij=zero
+   dpstij=zero
+   d2pstij=zero
+! calculation of pair fractions using mole fractions (same as site fractions)
+! include AA, AB, AC, BB etc pairs but exclude BA, CA ??
+   do ia=1,ne
+      do ib=1,ne
+! If we had LRO we should need yf1, yf2, yf3 and yf4
+! but the site fractions are the same in all sublattces when no LRO (?)
+         pstij(ia,ib)=xf(ia)*xf(ib)
+         do jj=1,nc
+            dpstij(ia,ib,jj)=dxf(ia,jj)*xf(ib)+dxf(ib,jj)*xf(ia)
+            do jk=jj,nc
+               zz=ixsym(jj,jk)
+!               write(*,'(a,2i4,2x,2i4,i7)')'3X d2pstij: ',ia,ib,jj,jk,zz
+!               d2pstij(ia,ib,zz)=d2pstij(ia,ib,zz)+&
+!                    dxf(ia,jj)*dxf(ib,jk)+dxf(ib,jj)*dxf(ia,jk)
+            enddo
+         enddo
+      enddo
+   enddo
+! All necessary fractions and derivatives calculated, now the entropy
+! S = -2 \sum_ijkl y_ijkl\ln(y_ijkl) +
+!     6  \sum_ij p_ij\ln(p_ij) - 5 \sum_j x_j\ln(x_j)
+! As we calculate G the signs are inverse
+! constituent fraction entropy
+! entropy contribution from the constituent fractions ------------------
+! USE ysro fractions!!! not phvar%yfr  or a mix ...
+   ssumy=zero
+!   sylog1=zero
+   do jj=1,nc
+!      yfra=phvar%yfr(jj)
+      yfra=ysro(jj)
+      if(yfra.lt.bmpymin) yfra=bmpymin
+      if(yfra.gt.one) yfra=one
+! yfra is divided by mijkl as it represent mijkl fractions
+      ylog=log(yfra/mijkl(jj))
+! debugging
+!      if(jj.le.5) ylog1(jj)=ylog
+!      sylog1=sylog1+yfra*ylog
+      ssumy=ssumy+syfact*yfra*ylog
+      if(moded.gt.0) then
+! dgval(1,1:nc,1) are derivative of G/RT wrt fraction 1:nc
+! d2gval(ixsym(jj*(jk+1)/2,1) are 2nd derivarive of G/RT wrt fraction jj and jk
+! dgval and d2gval are zero before this loop
+!         phvar%dgval(1,jj,1)=syfact*(mijkl(jj)+ylog)
+! convergence problem test
+         phvar%dgval(1,jj,1)=syfact*(one+ylog)
+! ? T and y derivative
+         phvar%dgval(2,jj,1)=syfact*(mijkl(jj)+ylog)/tval
+! 2nd derivative, each term depend on a single y fraction
+         phvar%d2gval(kxsym(jj,jj),1)=syfact*mijkl(jj)/yfra
+      endif
+!      write(*,'(a,3(1pe12.4))')'3X ssumy: ',yfra,ylog,ssumy
+   enddo
+   phvar%gval(1,1)=ssumy
+   phvar%gval(2,1)=ssumy/tval
+! No convergence just using ysro ... change the phvar%yfr ....
+   do jj=1,nc
+      phvar%yfr(jj)=ysro(jj)
+   enddo
+! entropy contributions from the 6 pair fractions -----------------------
+   ssump=zero
+! all pairs the same, no need to loop over sublattices
+   fpf=spfact
+!   sylog2=zero
+   do ia=1,ne
+!      do ib=ia+1,ne
+      do ib=1,ne
+! bond between atom ia and ib
+         ylog=log(pstij(ia,ib))
+! debugging
+!         ylog2=ylog
+!         sylog2=sylog2+pstij(ia,ib)*ylog
+!         write(*,'(a,2i3,3(1pe12.4))')'3X ylogp: ',ia,ib,pstij(ia,ib),ylog,&
+!              pstij(ia,ib)*ylog
+         ssump=ssump+fpf*pstij(ia,ib)*ylog
+         if(moded.gt.0) then
+            do jl=1,nc
+! we need derivatives of pair fractions wrt constituent fractions
+               phvar%dgval(1,jl,1)=phvar%dgval(1,jl,1)+&
+                    fpf*dpstij(ia,ib,jl)*(one+ylog)
+               do jm=jl,nc
+                  zz=ixsym(jl,jm)
+                  phvar%d2gval(zz,1)=phvar%d2gval(zz,1)+&
+                       fpf*(d2pstij(ia,ib,zz)*(one+ylog)+&
+                       dpstij(ia,ib,jl)*dpstij(ia,ib,jm)/pstij(ia,ib))
+               enddo
+            enddo
+         endif
+!         write(*,'(a,2i3,4(1pe12.4))')'3X ssump: ',ia,ib,fpf,pstij(ia,ib),&
+!              ylog,ssump
+      enddo
+   enddo
+   phvar%gval(1,1)=phvar%gval(1,1)+ssump
+   phvar%gval(2,1)=phvar%gval(2,1)+ssump/tval
+! entropy contributions from the mole fractions -----------------------
+   ssumx=zero
+!   sylog3=zero
+   do ia=1,ne
+! we need derivatives of mole fractions wrt constituent fractions
+      ylog=log(xf(ia))
+! debugg
+!      ylog3=ylog
+!      sylog3=sylog3+xf(ia)*ylog
+      ssumx=ssumx+sxfact*xf(ia)*ylog
+      if(moded.gt.0) then
+         do jl=1,nc
+! we need derivatives of mole fractions wrt constituent fractions
+            phvar%dgval(1,jl,1)=phvar%dgval(1,jl,1)+&
+                 sxfact*dxf(ia,jl)*(ylog+one)
+            do jm=jl,nc
+! note d2xf/dyidyj==0
+               zz=kxsym(jl,jm)
+               phvar%d2gval(zz,1)=phvar%d2gval(zz,1)+&
+                    sxfact*dxf(ia,jl)*dxf(ia,jm)/xf(ia)
+            enddo
+         enddo
+      endif
+   enddo
+   phvar%gval(1,1)=phvar%gval(1,1)+ssumx
+   phvar%gval(2,1)=phvar%gval(2,1)+ssumx/tval
+! All done
+   if(SDEBUG) then
+      write(*,900)'3X xf: ',(xf(ia),ia=1,ne)
+900   format(a,6F7.3)
+      write(*,910)'3X pstij: ',((pstij(ia,ib),ib=1,ne),ia=1,ne)
+910   format(a,10F7.3)
+!      write(*,'(a,5(1pe12.4))')'3X sylog: ',sylog1,sylog2,sylog3
+!      write(*,'(a,5(1pe12.4))')'3X ylog1: ',ylog1
+!      write(*,'(a,5(1pe12.4))')'3X ylogx: ',ylog2,ylog3
+      write(*,'(a,5(1pe12.4))')'3X cvmtfs: ',ssumy,ssump,ssumx,&
+           phvar%gval(1,1),8.31451*phvar%gval(1,1)
+!   write(*,*)'3X cvmtfs model not yet released'
+   endif
+1000 continue
+   return
+ end subroutine config_entropy_cvmtfl
+
+ !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_ssro_old
+!\begin{verbatim}
+ subroutine config_entropy_ssro_old(moded,lokph,phvar,tval)
+! test calculates SSRO configurational entropy/R for phase lokph
+   implicit none
+   integer moded,lokph
 !   integer, dimension(nsl) :: nkl
    TYPE(gtp_phase_varres), pointer :: phvar
+   double precision tval
 !\end{verbatim}
 ! SRO species AB with stoichiometry AaBb FOR BINARY TEST ONLY
 ! -S/R = yAln(yA)+yBln(yB)+yABln(yAB/(yA^abyB^b))
 !      =(yA-ayAB)ln(yA) + (yB-byAB)ln(yB) + yABln(yAB)
 ! some simple way to associate yAB with yA and yB needed
 ! at present assume yAB is first species
+! REDUNDANT DID NOT WORK
    integer ll,kk,kall,nk,jl,loksp,nsl
-   double precision tval,ss,yfra,ylog,ypair,ratios(2)
+   double precision ss,yfra,ylog,ypair,ratios(2)
    ll=0
    kall=0
    nsl=phlista(lokph)%noofsubl
@@ -2696,7 +3438,7 @@
    endif
 1000 continue
    return
- end subroutine config_entropy_ssro
+ end subroutine config_entropy_ssro_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -3610,6 +4352,7 @@
  subroutine config_entropy_srot(moded,ncon,phvar,phrec,tval)
 !
 ! calculates configurational entropy/R for tetrahedron SRO model
+! I DO NOT THINK THIS IS USED ??
 !
 ! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
 ! ncon is number of constituents, each cell a constituent
@@ -3643,7 +4386,7 @@
    rrk(0)=one; rrk(1)=0.25D0; rrk(2)=one/6.0D0; rrk(3)=0.25; rrk(4)=one
    if(ncon.ne.5) then
 ! ncon should be 5 for a binary system
-      write(*,*)'3X constituents not 5!',ncon
+      write(*,*)'3X constituents must be 5!',ncon
       gx%bmperr=4399; goto 1000
    endif
 ! allocations

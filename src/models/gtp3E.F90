@@ -4193,6 +4193,7 @@
          gx%bmperr=4308; goto 1000
       endif
       nophase=.true.
+!      write(*,*)'3E constituents: ',trim(longline)
       condis1: if(dodis.eq.1) then
 ! searchin why sigma in TAFID does not have c disordered fraction set
 !         write(*,*)'3E sigma 17:',trim(longline),thisdis
@@ -4309,8 +4310,10 @@
       endif
       ch1=longline(ip:ip)
       if(ch1.eq.',') then
+! separator (not needed) between constituents
          ip=ip+1; goto 380
       elseif(ch1.eq.':') then
+! end of constituents in a sublattice
          ip=ip+1; goto 370
       endif
       if(ch1.ne.'!') goto 380
@@ -4336,9 +4339,10 @@
          name2='CEF-TDB-RKM? '
       endif
       if(ocv()) write(*,*)'readtdb 9: ',name1,nsl,knr(1),knr(2),phtype
+!      write(*,*)'3E readtdb 9: ',name1,nsl,knr(1),knr(2),phtype
 395   continue
 !
-! THE CODE HERE IS A MESS .... NEW PDB FORMAT NEEDED
+! THE CODE HERE IS A MESS
 !
 !    write(*,*)'3E sigma4 label 395 add disordered fraction set: ',dodis,nphrej
       condis2: if(dodis.eq.1) then
@@ -4446,11 +4450,13 @@
 !         write(*,*)'3E enter phase: ',name1
 !         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
          call enter_phase(name1,nsl,knr,const,stoik,name2,phtype,warning,emodel)
-!      write(*,*)'readtdb 9A: ',gx%bmperr
+! no error entering an I2SL liuqid with empty first sublattice ... suck
+! It is just not entered ....
+!         write(*,*)'3E readtdb 9A: error?',gx%bmperr
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then
                if(.not.silent) write(kou,*) &
-                    '3E Phase ',name1(1:len_trim(name1)),&
+                    '3E Phase ',trim(name1),&
                     ' is ambiguous or short for another phase'
             endif
             goto 1000

@@ -1563,7 +1563,12 @@ contains
        case(17) ! AMEND START_CONSTITUTION for assessments
 ! copy constitutions from one equilibrium to another, to handle miscibility gaps
 ! Default from "previous"
-          ll=ceq%eqno-1
+          if(.not.allocated(firstash%coeffstate)) then
+             write(kou,*)'This is used during assessments'
+! to copy start values from one experimental equilibria to another
+             goto 100
+          endif
+          ll=max(1,ceq%eqno-1)
           call gparidx('From equilibrium number: ',cline,last,&
                fromeq,ll,'?Amend start_constitution')
 ! copy constitutions of non-suspended phases from fromeq to current equilibrium
@@ -2413,7 +2418,7 @@ contains
           END SELECT setstatus
 !-----------------------------------------------------------
        case(3) ! set ADVANCED
-! default is DENSE_GRID
+! default is WORKING_DIRECT
 ! subsubcommands to SET ADVANCED
 !    character (len=16), dimension(ncadv) :: cadv=&
 !         ['EQUILIB_TRANSFER','QUIT            ','SYMBOL          ',&
@@ -2539,7 +2544,7 @@ contains
                 globaldata%status=ibclr(globaldata%status,GSOGRID)
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
                 globaldata%status=ibset(globaldata%status,GSYGRID)
-                write(kou,3110)'Very dense','set'
+                write(kou,3110)'Only level 0, 1 and 2 implemented'
              else
                 write(*,*)'Only level 0, 1 and 2 implemented'
              endif

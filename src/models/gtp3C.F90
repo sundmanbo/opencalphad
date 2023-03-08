@@ -2005,6 +2005,11 @@
             text(ip:)='*'
          endif
          ip=len_trim(text)+1
+         if(len(text)-ip.lt.30) then
+! text is 3000 characters ....
+            write(kou,'(a,i6)')'Warning: very long onstituent list truncated',ip
+            exit sublatloop
+         endif
 !         text(ip:ip)=','
          text(ip:ip)=' '
          ip=ip+1

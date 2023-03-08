@@ -670,15 +670,15 @@
 ! LIQ phase is liquid (can be several but listed directly after gas)
 ! IONLIQ phase has ionic liquid model (I2SL)
 ! AQ1 phase has aqueous model (not implemented)
-! 2STATE elemental liquid twostate model parameter (not same as I2SL!)
+! 2STATE elemental liquid twostate model parameters (not same as I2SL!)
 ! QCE phase has corrected quasichemical entropy (Hillerst-Selleby-Sundman)
-! CVMCE phase has some CVM ordering entropy (not implemented)
+! CVMCE phase has some CVM ordering entropy (not implemented, SEE CVMTFL)
 ! EXCB phase need explicit charge balance (has ions)
-! XGRID use extra dense grid for this phase
-! MQMQA (old FACTCE) phase has FACT quasichemical SRO model (not implemented)
+! XGRID use extra dense grid for this phase (not used ?)
+! MQMQA (old FACTCE) phase has FACT quasichem SRO model - implementation pending
 ! NOCS not allowed to create composition sets for this phase
 ! HELM parameters are for a Helmholz energy model (not implemented),
-! PHNODGDY2 phase has model with no analytical 2nd derivatives
+! PHNODGDY2 phase has model with no analytical 2nd derivatives (not implemented)
 ! not implemented ELMA phase has elastic model A (not implemented)
 ! EECLIQ this is the condensed phase (liquid) that should have highest entropy
 ! PHSUBO special use testing models DO NOT USE
@@ -687,7 +687,9 @@
 ! BMAV Xion magnetic model with average Bohr magneton number
 ! UNIQUAC The UNIQUAC fluid model
 ! TISR phase has the TSIR entropy model (E Kremer)
-! SROT phase has the tetrahedral SRO
+! PHSSRO phase has the tetrahedral FCC model for SRO
+! SROT phase has the tetrahedron quasichemical model ?? not MQMQMA ?? NOT USED
+! CVMTFL phase has the tetrahedral FCC for LRO and SRO
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,    PHID=2,      PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,     PHBORD=6,    PHSORD=7, &     ! 
@@ -696,7 +698,7 @@
        PHEXCB=16,   PHXGRID=17,   PHMQMQA=18,  PHNOCS=19,&     !
        PHHELM=20,   PHNODGDY2=21, PHEECLIQ=22, PHSUBO=23,&     ! 
        PHPALM=24,   PHMULTI=25,   PHBMAV=26,   PHUNIQUAC=27, & !
-       PHTISR=28,   PHSSRO=29,    PHSROT=30                                  !
+       PHTISR=28,   PHSSRO=29,    PHSROT=30,   PHCVMTFL=31     !
 !
 !----------------------------------------------------------------
 !-Bits in PHASE_VARRES (constituent fraction) record STATUS2
@@ -1657,6 +1659,8 @@
      integer invsavediter
 ! arrays to save time in calc_dgdyterms, do not need to be saved on unformatted
      double precision, dimension(:,:), allocatable ::invsaved
+! added to initiate calculations for CVMSRO model, maybe used elsewhere also?
+     integer volatile
   END TYPE gtp_phase_varres
 ! this record is created inside the gtp_equilibrium_data record
 !\end{verbatim}

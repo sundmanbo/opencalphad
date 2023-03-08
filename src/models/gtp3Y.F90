@@ -231,6 +231,7 @@
          call generate_grid(0,iphx(zph),ng,nrel,xarr(1,iv),garr(iv),&
               ny,yarr,gmax,ceq)
       else
+!         write(*,*)'3Y calling generic',iphx(zph),ng
          call generic_grid_generator(0,iphx(zph),ng,nrel,xarr(1,iv),garr(iv),&
               ny,yarr,gmax,ceq)
       endif
@@ -242,7 +243,8 @@
       endif
 ! nphl(zph) is last gridpoint in phase zph
       nphl(zph)=nphl(zph-1)+ng
-   enddo phloop
+!      write(*,*)'3Y gridpoint range for ',iphx(zph),nphl(zph-1)+1,nphl(zph)
+  enddo phloop
 !----------------------------------------------------------
 ! if lutbug>0 close it
    if(lutbug.gt.0) then
@@ -370,6 +372,7 @@
          call generate_grid(mode,iphx(zph),ng,nrel,xarr(1,iv),garr(iv),&
               ny,yarr,gmax,ceq)
       else
+!         write(*,*)'3Y phase, jbias: ',iphx(zph),jbias
          call generic_grid_generator(mode,iphx(zph),jbias,nrel,xarr,garr,&
               ny,yarr,gmax,ceq)
       endif
@@ -1254,16 +1257,18 @@
 ! local loop variables etc
    integer ii,ij,ik,il,im,in,is,ie,iz,incl(0:maxsubl),maxng,ng,ncon
    integer nend,nendj,nendk,nendl,nendm
-   integer ijs,iks,ils,ims,lokph,errall
+   integer ijs,iks,ils,ims,lokph,errall,disng,ngdis
 ! these are for call of get_phase_data
-   integer nsl,nkl(maxsubl),knr(maxconst)
+   integer orddis1,orddis2,zz,nsl,nkl(maxsubl),knr(maxconst)
    double precision ydum(maxconst),sites(maxsubl),qq(5)
 ! this is for generating endmembers
    integer, dimension(:,:), allocatable :: endm
 ! these are for generating the constituion of gridpoint
    double precision, dimension(:,:), allocatable :: yendm
-   double precision, dimension(:), allocatable :: yfra
+   double precision, dimension(:), allocatable :: yfra,ydis
+   double precision aa
    integer :: warning1const=0
+   character phname*24,ch1*1
    save warning1const
 ! ----------------------------------------------------------------
 ! these are the factors to generate gridpoints from endmember fractions
@@ -1275,20 +1280,31 @@
 !        yf=[0.11D0,0.33D0,0.14D0,0.28D0,0.18D0]
 ! include a small factor
 !        yf=[0.11D0,0.37D0,0.04D0,0.30D0,0.18D0]
-! Try to avoid several identical compositions
-        yf=[0.07D0,0.28D0,0.16D0,0.45D0,0.04D0]
+! Try to avoid several identical compositions, sum should be unity??
+        yf=[0.07D0,0.28D0,0.16D0,0.45D0,0.04D0]    ! used for 10 years ...
+!        yf=[0.04D0,0.07D0,0.16D0,0.27D0,0.46D0] ! HEA OK, not map7
+!        yf=[0.07D0,0.46D0,0.16D0,0.04D0,0.27D0]
+!        yf=[0.28D0,0.07D0,0.45D0,0.16D0,0.04D0]
 !        yf=[0.33D0,0.28D0,0.18D0,0.14D0,0.11D0] OK for fuel
 !        yf=[0.11D0,0.13D0,0.18D0,0.23D0,0.35D0]
+! these are used for a phase with order/disorder but no permutations
+   double precision, dimension(5), parameter :: &
+        yf2=[0.10D0,0.20D0,0.30D0,0.25D0,0.15D0]   ! not good ...
 !------------------------------------------------------------------
-   logical gas,dense,verydense,gles,trace
+! verydense not implemented
+   logical gas,dense,verydense,gles,trace,orddis3
 ! bugfix by Clement Instroini 18.02.14
    if(iph.lt.1 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    else
       lokph=phases(iph)
    endif
+! ngdis is normally 0, nonzero for phases with order/disorer transitions
+   ngdis=0
+! disng counts the number of disordered constitutions
+   disng=0
 ! handle special phases like ionic crystals, ionic liquids and order/disorder
-!   write(*,*)'3Y in generic_grid_generator',iph
+!   write(*,*)'3Y in generic_grid_generator',iph,ngg
    gas=.FALSE.
 ! to have some output
 !   if(mode.gt.0 .and. ny.eq.-100) then
@@ -1389,7 +1405,7 @@
 !   write(*,20)'3Y gend2: ',ncon,nend,(incl(ii),ii=0,nsl)
 !   do ii=1,nsl
 !      write(*,21)(endm(ii,ij),ij=1,nend)
-21    format(26i3)
+!21    format(26i3)
 !   enddo
 !   do ii=1,nend
 !      write(*,22)ii,(yendm(ij,ii),ij=1,incl(nsl))
@@ -1440,7 +1456,102 @@
       enddo
       goto 800
    endif
+! skip attempt to inlcude disordered gridpoints
+   orddis1=0; orddis2=0
+!   goto 150
+!==================================================================
+! For phases that can have order/disorder transition maybe generate
+! a few more gridpoints corresponing to the disordered state, for a
+! case with Li-Mg the disordered BCC with equal Li and Mg fractions
+! was not found and the ordered Li:Mg was not enough stable to be included
+! in the grid.
+   call get_phase_name(iph,1,phname)
+   two: if(nsl.eq.2 .or. nsl.eq.3) then
+! note: phases with 2 or 4 sublattice with permutations never come here
+      ij=nkl(1)
+      if(mode.eq.0) then
+!         write(*,88)trim(phname),nsl,(nkl(ii),ii=1,nsl)
+!         write(*,89)trim(phname),nsl,(sites(ii),ii=1,nsl)
+88       format('3Y grid1: ',a,i3,9i3)
+89       format('3Y grid2: ',a,i3,9F8.4)
+      endif
+      if(ij.gt.1 .and. nkl(2).eq.ij .and.&
+           abs(sites(1)-sites(2)).lt.1.0D-12) then
+         do ik=1,nkl(1)
+            if(knr(ik).ne.knr(ik+ij)) exit two
+         enddo
+      else
+         exit two
+      endif
+!  A phase with 2 (plus 1) or 4 (plus 1) and same set of constituents
+! on first two sublattices should have some additional gridpoints.
+! representing the disordered state.  Note phases with permutations
+! calculated with a separate grid but that may be missing this also.
+      orddis1=2
+      orddis2=nkl(1)
+      call get_phase_name(iph,1,phname)
+!      if(mode.eq.0) then
+!         write(*,101)trim(phname),nkl(1),nkl(2),orddis1,orddis2,&
+!              sites(1),sites(2)
+101      format('3Y orddis2 ',a,4i3,2F6.3)
+!            write(*,111)trim(phname),orddis2,nend,iph,orddis1,orddis2
+!111         format(/'3Y *** Warning ',a,' may be stable as disordered ',5i3)
+! For exampe: (A,B,C)(A,B,C)(D, E)
+!                      1   2   3  
+! ordered endmembers: AAD ABD ACD BAD, BBD BCD CAD CBD CCD ...(only D=Va?)
+! disordered endmem:  AAD BBD CCD
+!         do ij=1,nend
+!            write(*,112)(endm(ii,ij),ii=1,nsl)
+!112         format('3Y endm: ',9i3)
+!         enddo
+!      endif
+      allocate(ydis(ncon))
+      ydis=zero
+! this is selected as the value of loop variable ii for disordering
+!      ngdis=ncon
+!      ngdis=1
+      ngdis=nkl(1)
+!      read(*,10)ch1
+   endif two
+!
+   continue
+   four: if(nsl.eq.4 .or. nsl.eq.5) then
+      ij=nkl(1)
+! note: phases with 2 or 4 sublattice with permutations never come here
+!      write(*,*)'3Y order/disorder? ',nsl,nkl(1)
+      if(ij.gt.1 .and. nkl(2).eq.ij .and. nkl(3).eq.ij .and. nkl(4).eq.ij) then
+         if(mode.eq.0) then
+!            write(*,88)trim(phname),nsl,(nkl(ii),ii=1,nsl)
+!            write(*,89)trim(phname),nsl,(sites(ii),ii=1,nsl)
+         endif
+         aa=sites(1)
+         if(abs(aa-sites(2)).lt.1.0D-12 &
+              .and. abs(aa-sites(3)).lt.1.0D-12 &
+              .and. abs(aa-sites(4)).lt.1.0D-12) then
+            do ik=1,ij
+               if(knr(ik).ne.knr(ik+ij) .or. &
+                    knr(ik).ne.knr(ik+2*ij) .or. &
+                    knr(ik).ne.knr(ik+3*ij)) exit four
+            enddo
+         endif
+         orddis1=4
+         orddis2=nkl(1)
+!         write(*,102)trim(phname),nkl(1),nkl(2),sites(1),sites(2),sites(3),&
+!              sites(4)
+102      format('3Y orddis4 ',a,4i3,4F6.3)
+!        if(mode.eq.0) write(*,111)trim(phname),orddis2,nend,orddis1,orddis2
+      endif
+      allocate(ydis(ncon))
+      ydis=zero
+! this is selected as the value of loop variable ii for disordering
+!      ngdis=ncon
+!      ngdis=1
+      ngdis=nkl(1)
+!      read(*,10)ch1
+10    format(a)
+   endif four
 !-----------------------
+150 continue
    gles=.not.dense
 !   write(*,*)'3Y grid1: ',nend,mode,dense,gles
    iiloop: do ii=1,nend
@@ -1480,9 +1591,11 @@
                           yf(3)*yendm(is,ik)+yf(4)*yendm(is,il)+&
                           yf(5)*yendm(is,im)
                   enddo
+                  orddis3=.TRUE.
+! if orddis1 is nonzero below return here to calculate for disordered state
+300               continue
                   ng=ng+1
-!                  write(*,323)'3Y imloop1: ',ng,ii,ij,ik,il,im,0.0D0,yfra
-323                format(a,i5,5i3,': ',1pe12.4,0p10F5.2)
+!                  write(*,310)'3Y Y1:',ng,ii,ij,ik,il,im,yfra
                   if(mode.eq.0) then
 ! strange bug in map3, maxng was zero sometimes ...
                      if(ng.gt.maxng) then
@@ -1506,7 +1619,7 @@
                      call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
 ! generate a GNUPLOT graph for dense grid
 !                     write(*,*)'3Y back from calc_gridpoint',ng,garr(ng)
-                     if(mode.eq.0 .and. lutbug.gt.0) then
+                     if(lutbug.gt.0) then
 !                        write(*,710)ng,nrel,garr(ng),(xarr(iz,ng),iz=1,nrel)
                         write(lutbug,710)ng,nrel,garr(ng),&
                              (xarr(iz,ng),iz=1,nrel)
@@ -1517,16 +1630,105 @@
                              iph,gx%bmperr
                         goto 1000
                      endif
+!                     write(*,*)'3Y orddis:',ng,orddis1,orddis3,ngdis
+! The code below is to add some disordered constititutions to order/disorder
+! I tried several values of ii and this worked best.  I do not know why
+                     if(ii.le.ngdis .and. orddis1.gt.0 .and. orddis3) then
+! generate an additional gridpoint as disordered
+! But only for the first loop of ii=1, otherwise too many gridpoints
+!                        write(*,310)'3Y YO:',ng,ii,ij,ik,il,im,yfra
+! orddis1 is 2 or 4; orddis2 is number of constituent in these sublattices
+! use fractions in yf2 !!!
+                        do is=1,ncon
+                           yfra(is)=yf2(1)*yendm(is,ii)+yf2(2)*yendm(is,ij)+&
+                                yf2(3)*yendm(is,ik)+yf2(4)*yendm(is,il)+&
+                                yf2(5)*yendm(is,im)
+                        enddo
+                        if(orddis1.eq.2) then
+                           disloop2: do zz=1,orddis2
+                              ydis(zz)=0.5D0*(yfra(zz)+yfra(zz+orddis2))
+                           enddo disloop2
+!                           write(*,310)'3Y YS1:',ng,ii,ij,ik,il,im,ydis
+! same fractions in both sublattice, disordered
+                           do zz=1,orddis2
+                              yfra(zz)=ydis(zz)
+                              yfra(zz+orddis2)=ydis(zz)
+                           enddo
+! fractions in 3rd sublattice not affected
+!                           write(*,310)'3Y YS1:',ng,ii,ij,ik,il,im,yfra
+                        else
+                           disloop4: do zz=1,orddis2
+                              ydis(zz)=0.25D0*(yfra(zz)+yfra(zz+orddis2)+&
+                                   yfra(zz+2*orddis2)+yfra(zz+3*orddis2))
+                           enddo disloop4
+! same fractions in both sublattice, disordered
+                           do zz=1,orddis2
+                              yfra(zz)=ydis(zz)
+                              yfra(zz+orddis2)=ydis(zz)
+                              yfra(zz+2*orddis2)=ydis(zz)
+                              yfra(zz+3*orddis2)=ydis(zz)
+                           enddo
+                        endif
+! this should be made only once for each set of fractions
+                        disng=disng+1
+                        orddis3=.FALSE.
+!                        write(*,310)'3Y YD:',ng,disng,ii,ij,ik,il,im,yfra
+310                     format(a,i4,i3,1x,5i2,11F5.2)
+! jump back to calculate this!!
+                        goto 300
+                     endif
 !                     write(*,323)'3Y imloop2: ',ng,ii,ij,ik,il,im,garr(ng),yfra
                   elseif(mode.eq.ng) then
 ! when mode>0 we just want to know the constituent fractions
+!                     write(*,*)'3Y found fractions for gridpoint',ng
                      goto 900
+                  elseif(ii.le.ngdis .and. orddis1.gt.0 .and. orddis3) then
+                     if(mode.eq.ng+1) then
+! the gridpoint found is a disordered one, we have to disorder yfra as above
+                        if(orddis1.eq.2) then
+                           disloop2b: do zz=1,orddis2
+                              ydis(zz)=0.5D0*(yfra(zz)+yfra(zz+orddis2))
+                           enddo disloop2b
+                           do zz=1,orddis2
+                              yfra(zz)=ydis(zz)
+                              yfra(zz+orddis2)=ydis(zz)
+                           enddo
+! fractions in 3rd sublattice not affected
+                        else
+                           disloop4b: do zz=1,orddis2
+                              ydis(zz)=0.25D0*(yfra(zz)+yfra(zz+orddis2)+&
+                                   yfra(zz+2*orddis2)+yfra(zz+3*orddis2))
+                           enddo disloop4b
+! same fractions in both sublattice, disordered
+                           do zz=1,orddis2
+                              yfra(zz)=ydis(zz)
+                              yfra(zz+orddis2)=ydis(zz)
+                              yfra(zz+2*orddis2)=ydis(zz)
+                              yfra(zz+3*orddis2)=ydis(zz)
+                           enddo
+                        endif
+! we have regenerated the disordered fractions for this gridpoint
+                        write(*,*)'3Y found disordered state for gridpoint',ng
+!                        write(*,310)'3Y YD:',ng,disng,ii,ij,ik,il,im,yfra
+                        goto 900
+                     else
+! we have to increment ng as we skip a gridpoint with a disordered fraction
+                        ng=ng+1
+                     endif
+!------------------------
                   endif
                enddo imloop
             enddo illoop
          enddo ikloop
       enddo ijloop
    enddo iiloop
+! extra output for order/disordered phases
+   if(orddis1.ne.0 .and. gx%bmperr.eq.0 .and. mode.eq.0) then
+      call get_phase_name(iph,1,phname)
+      write(*,790)trim(phname),disng
+790   format('3Y For ',a,i5,' additional disordered gridpoints calculated')
+   endif
+! jump here for gas
 800 continue
    if(mode.gt.0) then
       write(*,*)'3Y Could not find gridpoint ',mode,' in phase ',iph,ng
@@ -1543,7 +1745,7 @@
       yarr(ii)=yfra(ii)
    enddo
 1000 continue
-!   write(*,*)'3Y finished generic mode ',mode,ngg
+!   write(*,*)'3Y finished generic mode ',mode,iph,ngg
    return
  end subroutine generic_grid_generator
 
