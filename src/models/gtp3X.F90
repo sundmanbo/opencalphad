@@ -2813,7 +2813,7 @@
    enddo
 !
    if(SDEBUG) then
-      write(*,'(a,12F6.3)')'3X yfr: ',(phvar%yfr(jj),jj=1,nc)
+      write(*,'(a,12F7.4)')'3X yfr: ',(phvar%yfr(jj),jj=1,nc)
       write(*,'(a,12F6.3)')'3X ysro:',ysro
    endif
 !
@@ -2981,47 +2981,62 @@
 !\end{verbatim}
 !========================================
 ! Current code 230308 if same as _SSRO, only SRO ordering
-! Need modification to handle LRO
+! Modified code 230311 works partially for SRO (not LRO)
 !========================================
-   integer ia,ib,ic,id,jj,jk,jl,jm,ne,nc,zz,pz
+   integer ia,ib,ic,id,jj,jk,jl,jm,ne,nc,zz,pz,ja,jb
 ! this is multiplicities
-   integer, allocatable :: mijkl(:)
+!   integer, allocatable :: mijkl(:)
 ! this is mole fractions and derivatives
    double precision, allocatable :: xf(:),dxf(:,:),d2xf(:,:)
 ! these are constituent fractions for entropy!!!
-   double precision, allocatable :: ysro(:)
-! these are site fractions, not needed when only SRO as y^s_i=x_i
-!   double precision, allocatable :: yf1(:),yf2(:),yf3(:),yf4(:)
-!   double precision, allocatable :: dyf1(:,:),dyf2(:,:),dyf3(:,:),yf4(:,:)
+!   double precision, allocatable :: ysro(:)
+   double precision, allocatable :: ylro(:)
+! these are site fractions, needed for LRO  yf(1..4,*)
+   double precision, allocatable :: yf(:,:)
+   double precision, allocatable :: dyf(:,:,:)
 ! these are pair fractions, same for all bonds!
+   double precision, allocatable :: pst(:,:,:)
+   double precision, allocatable :: dpst(:,:,:,:)
+! use this dqst to relate derivatives pf pair directly to cluster fractions
+   double precision, allocatable :: dqst(:,:,:,:)
+   double precision, allocatable :: d2pst(:,:,:,:)
 !   double precision, allocatable :: p12(:,:),p13(:,:),p14(:,:),&
 !        p23(:,:),p24(:,:),p34(:,:)
 !   double precision, allocatable :: dp12(:,:,:),dp13(:,:,:),dp14(:,:,:),&
-!        dp23(:,:,:),dp24(:,:,:),p34(:,:,:)
-   double precision, allocatable :: pstij(:,:)
-   double precision, allocatable :: dpstij(:,:,:),d2pstij(:,:,:)
-   double precision, parameter :: f1=0.75D0, f2=0.5D0, f3=0.25D0
-!   double precision, parameter :: f1=3.0D0, f2=2.0D0, f3=1.0D0
+!        dp23(:,:,:),dp24(:,:,:),dp34(:,:,:)
+!   double precision, allocatable :: d2p12(:,:,:),d2p13(:,:,:),d2p14(:,:,:),&
+!        d2p23(:,:,:),d2p24(:,:,:),d2p34(:,:,:)
+! to be removed
+!   double precision, allocatable :: pstij(:,:)
+!   double precision, allocatable :: dpstij(:,:,:),d2pstij(:,:,:)
+!   double precision, parameter :: f1=0.75D0, f2=0.5D0, f3=0.25D0
 ! auxilliary
    character dummy*80
-   double precision pijx,fpf,ssumy,ssump,ssumx,ylog,yfra,ycorr,yrest
+   double precision pijx,ssumy,ssump,ssumx,ylog,yfra,pfra,ycorr,yrest,ybase
    double precision pstijtest,pstijsave
+! reduce derivatives
+   double precision, parameter :: dfdy=1.0D0
 ! debugging
-   double precision ylog1(5),ylog2,ylog3
+   double precision ylog1(5),ylog2,ylog3,mass
    double precision sylog1,sylog2,sylog3
-! These factors should be 2.0, -6.0 and 5.0 according to Kikuchi
-! I have no idea why I have to divide them by 10 ...
-   double precision, parameter :: syfact=2.0D0, spfact=-6.0D0, sxfact=5.0D0
-   logical sdebug
+   integer ss,tt,mm,wb1,wb2,wa1,wa2,iphf
+   character cluster*4, chel(2)*1, spname*24
+! Kikuchi factors, note we calculate dG/dT, not S, thus signs inverted
+! spfact -6 not used as we calculate and add 6 pair, sxfact/4 as 4 sublattices
+   double precision, parameter :: syfact=2.0D0, spfact=-6.0D0, sxfact=1.250D0
+   logical sdebug,s2debug
    save pstijsave
 ! use phvar%volatile to initiate ycorr at first itertation
 !========================================
-   write(*,*)'3X CVM tetrahedron FCC with LRO not yet implemented'
-   gx%bmperr=4399
-   goto 1000
+   write(*,*)
+   write(*,*)'3X CVM tetrahedron FCC with LRO for testing only'
+!   gx%bmperr=4399
+!   goto 1000
 !========================================
-!   sdebug=.TRUE. 
+!   sdebug=.TRUE.
    sdebug=.FALSE.
+!   s2debug=.TRUE.
+   s2debug=.FALSE.
 !   write(*,*)'3X sdebug: ',sdebug
    if(phvar%volatile.eq.0) then
 ! phvar%volatile is set to zero in matsmin: meq_calceq at first iteration
@@ -3041,102 +3056,417 @@
       ne=1
       write(*,*)'3X SRO entropy zero for single element'
       goto 1000
-   case(5)
-! binary system
+   case(16)
+! binary system 2*2*2*2=16
       ne=2 
-   case(15) 
+   case(81) 
+      write(*,*)'3X max 2 elements!'; gx%bmperr=4399; goto 1000
       ne=3
-   case(35) 
+   case(256) 
+      write(*,*)'3X max 2 elements!'; gx%bmperr=4399; goto 1000
       ne=4
-   case(70) 
-! without merging AAAB etc there would be 625 clusters instead of just 70
-      ne=5
-   case(126)
-      ne=6
-   case(210)
-      ne=7
-   case(330)
-! without merging AAAB etc there would be 4096 clusters
-      ne=8
+!   case(625) 
+!      ne=5
    end select
 !
 !   write(*,*)'3X CVMTFS model for configurational entropy',nc,ne
 !
-   allocate(mijkl(nc))
    allocate(xf(ne))
    allocate(dxf(ne,nc))
    allocate(d2xf(ne,nc))
-!   allocate(yf1(ne))
-!   allocate(yf2(ne))
-!   allocate(yf3(ne))
-!   allocate(yf4(ne))
-!   allocate(dyf1(ne,nc))
-!   allocate(dyf2(ne,nc))
-!   allocate(dyf3(ne,nc))
-!   allocate(dyf4(ne,nc))
+   allocate(yf(4,ne))
+   allocate(dyf(4,ne,nc))
+   allocate(dqst(6,ne,ne,nc))
 ! jj incremented for each cluster
-   jj=0
-   mijkl=0
    xf=zero
    dxf=zero
 ! site fractions same as mole fractions as no LRO
-!   yf1=zero
-!   yf2=zero
-!   yf3=zero
-!   yf4=zero
-!   dyf1=zero
-!   dyf2=zero
-!   dyf3=zero
-!   dyf4=zero
-! extrahera mole fractions from constituent fractions
-   do ia=1,ne
+   yf=zero
+   dyf=zero
+! derivative of pair fractions related to clusters
+   dqst=zero
+! for nice debug output ...
+   chel(1)='A'
+   chel(2)='B'
+! phase number ... 
+   iphf=1
+! extrahera site fractions from cluster fractions
+! order is always AAAA, AAAB_01.._04; AABB_01.._06; ABBB_01.._04, BBBB etc
+   jj=0
+   ialoop: do ia=1,ne
       jj=jj+1
 ! this is AAAA or BBBB etc
-      mijkl(jj)=1
+      do ss=1,4
+         yf(ss,ia)=yf(ss,ia)+phvar%yfr(jj)
+         dyf(ss,ia,jj)=dfdy
+         cluster(ss:ss)=chel(ia)
+      enddo
       xf(ia)=xf(ia)+phvar%yfr(jj)
-      dxf(ia,jj)=1
-      do ib=ia+1,ne
-         jj=jj+3
-         mijkl(jj-2)=4
-         mijkl(jj-1)=6
-         mijkl(jj)=4
-! jj-2 is A3B1, jj-1 is A2B2, jj is A1B3 including permutations in mijkl
-         xf(ia)=xf(ia)+f1*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
-         xf(ib)=xf(ib)+f3*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f1*phvar%yfr(jj)
-         dxf(ia,jj-2)=f1; dxf(ia,jj-1)=f2; dxf(ia,jj)=f3;
-         dxf(ib,jj-2)=f3; dxf(ib,jj-1)=f2; dxf(ib,jj)=f1;
-         do ic=ib+1,ne
-            jj=jj+3
-            mijkl(jj-2)=12
-            mijkl(jj-1)=12
-            mijkl(jj)=12
+      dxf(ia,jj)=dfdy
+!      call get_constituent_name(iphf,jj,spname,mass)
+!      write(*,*)'3X cluster: ',cluster,' ',trim(spname),jj
+!      write(*,300)(xf(ss),ss=1,ne)
+!      write(*,310)((yf(ss,zz),ss=1,4),zz=1,ne)
+!      write(*,*)'3X done AAAA: ',jj
+      ibloop: do ib=ia+1,ne
+! handle 4 of AAAB, 6 of AABB and 4 of ABBB with elements in different order
+! In first 4 there is one atom ib in sublattice 4, 3, 2 and 1
+         wb1=4
+         do jj=jj+1,jj+4
+! These are 4 clusters ordered AAAB, AAABA, ABAA, BAAA
+!            write(*,*)'3X site fractions in cluster: ',jj,phvar%yfr(jj)
+            do ss=1,4
+               if(ss.eq.wb1) then
+                  yf(ss,ib)=yf(ss,ib)+phvar%yfr(jj)
+                  dyf(ss,ib,jj)=dfdy
+                  cluster(ss:ss)=chel(ib)
+               else
+                  yf(ss,ia)=yf(ss,ia)+phvar%yfr(jj)
+                  dyf(ss,ia,jj)=dfdy
+                  cluster(ss:ss)=chel(ia)
+               endif
+            enddo
+!            call get_constituent_name(iphf,jj,spname,mass)
+!            write(*,*)'3X cluster: ',cluster,' ',trim(spname),jj
+            wb1=wb1-1
+            xf(ia)=xf(ia)+0.75D0*phvar%yfr(jj)
+            dxf(ia,jj)=0.75D0*dfdy
+            xf(ib)=xf(ib)+0.25D0*phvar%yfr(jj)
+            dxf(ib,jj)=0.25D0*dfdy
+! derivative of pair fraction relative to cluster fractions, 3 AB bonds
+            dqst(1,ia,ib,jj)=3.0d0
+         enddo
+! after a loop the loop variable is one higher than max limit
+         jj=jj-1
+!         write(*,300)(xf(ss),ss=1,ne)
+!         write(*,310)((yf(ss,zz),ss=1,4),zz=1,ne)
+!         write(*,*)'3X done AAAB: ',jj
+! there are 3 clusters ordered AABB, ABAB, ABBA, always A in first
+         wa1=2
+         do jj=jj+1,jj+3
+!            write(*,*)'3X site fractions in cluster: ',jj,phvar%yfr(jj)
+            yf(1,ia)=yf(1,ia)+phvar%yfr(jj)
+            dyf(1,ia,jj)=dfdy
+            cluster(1:1)=chel(ia)
+            do ss=2,4
+               if(ss.eq.wa1) then
+                  yf(ss,ia)=yf(ss,ia)+phvar%yfr(jj)
+                  dyf(ss,ia,jj)=dfdy
+                  cluster(ss:ss)=chel(ia)
+               else
+                  yf(ss,ib)=yf(ss,ib)+phvar%yfr(jj)
+                  dyf(ss,ib,jj)=dfdy
+                  cluster(ss:ss)=chel(ib)
+               endif
+            enddo
+!            call get_constituent_name(iphf,jj,spname,mass)
+!            write(*,*)'3X cluster: ',cluster,' ',trim(spname),jj
+            wa1=wa1+1
+            xf(ia)=xf(ia)+0.5D0*phvar%yfr(jj)
+            dxf(ia,jj)=0.5d0*dfdy
+            xf(ib)=xf(ib)+0.5D0*phvar%yfr(jj)
+            dxf(ib,jj)=0.5D0*dfdy
+! derivative of pair fraction relative to cluster fractions, 4 AB bonds
+            dqst(1,ia,ib,jj)=4.0d0
+         enddo
+         jj=jj-1
+!         write(*,300)(xf(ss),ss=1,ne)
+!         write(*,310)((yf(ss,zz),ss=1,4),zz=1,ne)
+!         write(*,*)'3X done first half AABB: ',jj
+! these are 3 clusters ordered BAAB, BABA, BBAA
+         wb1=4
+         do jj=jj+1,jj+3
+!            write(*,*)'3X site fractions in cluster: ',jj,phvar%yfr(jj)
+            yf(1,ib)=yf(1,ib)+phvar%yfr(jj)
+            dyf(1,ib,jj)=dfdy
+            cluster(1:1)=chel(ib)
+            do ss=2,4
+               if(ss.eq.wb1) then
+                  yf(ss,ib)=yf(ss,ib)+phvar%yfr(jj)
+                  dyf(ss,ib,jj)=dfdy
+                  cluster(ss:ss)=chel(ib)
+               else
+                  yf(ss,ia)=yf(ss,ia)+phvar%yfr(jj)
+                  dyf(ss,ia,jj)=dfdy
+                  cluster(ss:ss)=chel(ia)
+               endif
+            enddo
+!            call get_constituent_name(iphf,jj,spname,mass)
+!            write(*,*)'3X cluster: ',cluster,' ',trim(spname),jj
+            wb1=wb1-1
+            xf(ia)=xf(ia)+0.5D0*phvar%yfr(jj)
+            dxf(ia,jj)=0.5D0*dfdy
+            xf(ib)=xf(ib)+0.5D0*phvar%yfr(jj)
+            dxf(ib,jj)=0.5D0*dfdy
+! derivative of pair fraction relative to cluster fractions, 3 AB bonds
+            dqst(1,ia,ib,jj)=4.0d0
+         enddo
+         jj=jj-1
+!         write(*,300)(xf(ss),ss=1,ne)
+!         write(*,310)((yf(ss,zz),ss=1,4),zz=1,ne)
+!         write(*,*)'3X done second half AABB: ',jj
+! now 4 clusters ABBB, BABB, BBAB, BBBA
+! These are 4 clusters ordered ABBB, BABB, BBAB, BBBA
+         wa1=1
+         do jj=jj+1,jj+4
+!            write(*,*)'3X site fractions in cluster: ',jj,phvar%yfr(jj)
+            do ss=1,4
+               if(ss.eq.wa1) then
+                  yf(ss,ia)=yf(ss,ia)+phvar%yfr(jj)
+                  dyf(ss,ia,jj)=dfdy
+                  cluster(ss:ss)=chel(ia)
+               else
+                  yf(ss,ib)=yf(ss,ib)+phvar%yfr(jj)
+                  dyf(ss,ib,jj)=dfdy
+                  cluster(ss:ss)=chel(ib)
+               endif
+            enddo
+!            call get_constituent_name(iphf,jj,spname,mass)
+!            write(*,*)'3X cluster: ',cluster,' ',trim(spname),jj
+            wa1=wa1+1
+            xf(ia)=xf(ia)+0.25D0*phvar%yfr(jj)
+            dxf(ia,jj)=0.25D0*dfdy
+            xf(ib)=xf(ib)+0.75D0*phvar%yfr(jj)
+            dxf(ib,jj)=0.75D0*dfdy
+! derivative of pair fraction relative to cluster fractions, 3 AB bonds
+            dqst(1,ia,ib,jj)=3.0d0
+         enddo
+         jj=jj-1
+!         write(*,300)(xf(ss),ss=1,ne)
+!         write(*,310)((yf(ss,zz),ss=1,4),zz=1,ne)
+!         write(*,*)'3X done ABBB: ',jj
+! constitent list
+!   3 Q01                       A1A1A1A 
+!   4 Q02                       A1A1A1B  
+!   5 Q03                       A1A1B1A  
+!   6 Q04                       A1B1A1A  
+!   7 Q05                       B1A1A1A  
+!   8 Q06                       A1A1B1B  
+!   9 Q07                       A1B1A1B  
+!  10 Q08                       A1B1B1A  
+!  11 Q09                       B1A1A1B  
+!  12 Q10                       B1A1B1A  
+!  13 Q11                       B1B1A1A  
+!  14 Q12                       A1B1B1B  
+!  15 Q13                       B1A1B1B  
+!  16 Q14                       B1B1A1B  
+!  17 Q15                       B1B1B1A  
+!  18 Q16                       B1B1B1B  
+! loop below not active when ne=2 ==============================
+         icloop: do ic=ib+1,ne
+            write(*,*)'3X LRO not implemented for 3 elements'
+            gx%bmperr=4399; goto 1000
+!            mijkl(jj-2)=12
+!            mijkl(jj-1)=12
+!            mijkl(jj)=12
 ! jj-2 is A2BC, jj-1 is AB2C, jj is ABC2
-            xf(ia)=xf(ia)+f2*phvar%yfr(jj-2)+f3*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
-            xf(ib)=xf(ib)+f3*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
-            xf(ic)=xf(ic)+f3*phvar%yfr(jj-2)+f3*phvar%yfr(jj-1)+f2*phvar%yfr(jj)
-            dxf(ia,jj-2)=f2; dxf(ia,jj-1)=f3; dxf(ia,jj)=f3;
-            dxf(ib,jj-2)=f3; dxf(ib,jj-1)=f2; dxf(ib,jj)=f3;
-            dxf(ic,jj-2)=f3; dxf(ic,jj-1)=f3; dxf(ic,jj)=f2;
+!           xf(ia)=xf(ia)+f2*phvar%yfr(jj-2)+f3*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
+!           xf(ib)=xf(ib)+f3*phvar%yfr(jj-2)+f2*phvar%yfr(jj-1)+f3*phvar%yfr(jj)
+!           xf(ic)=xf(ic)+f3*phvar%yfr(jj-2)+f3*phvar%yfr(jj-1)+f2*phvar%yfr(jj)
+!           dxf(ia,jj-2)=f2; dxf(ia,jj-1)=f3; dxf(ia,jj)=f3;
+!           dxf(ib,jj-2)=f3; dxf(ib,jj-1)=f2; dxf(ib,jj)=f3;
+!           dxf(ic,jj-2)=f3; dxf(ic,jj-1)=f3; dxf(ic,jj)=f2;
+            idloop: do id=ic+1,ne
+               jj=jj+1
+!               mijkl(jj-2)=24
+! jj is ABCD
+!               xf(ia)=xf(ia)+f3*phvar%yfr(jj)
+!               xf(ib)=xf(ib)+f3*phvar%yfr(jj)
+!               xf(ic)=xf(ic)+f3*phvar%yfr(jj)
+!               xf(id)=xf(id)+f3*phvar%yfr(jj)
+!               dxf(ia,jj)=f3; dxf(ib,jj)=f3; dxf(ic,jj)=f3; dxf(id,jj)=f3;
+            enddo idloop
+         enddo icloop
+      enddo ibloop
+   enddo ialoop
+! debug   
+!   if(sdebug) then
+   write(*,300)(xf(ia),ia=1,ne)
+   do ia=1,ne
+      write(*,290)chel(ia),(dxf(ia,jj),jj=1,8)
+      write(*,291)chel(ia),(dxf(ia,jj),jj=9,16)
+   enddo
+290 format('3X dxf "',a,'" 1-8 : ',8F6.3)
+291 format('3X dxf "',a,'" 9-16: ',8F6.3)
+   write(*,310)((yf(ss,ia),ss=1,4),ia=1,ne)
+!   if(sdebug) then
+      do ia=1,ne
+         write(*,270)1,ia,(dyf(1,ia,jj),jj=1,16)
+         write(*,270)2,ia,(dyf(2,ia,jj),jj=1,16)
+         write(*,270)3,ia,(dyf(3,ia,jj),jj=1,16)
+         write(*,270)4,ia,(dyf(4,ia,jj),jj=1,16)
+      enddo
+270   format('3X dyf: ',2i2,16F4.1)
+280   format('3X dyf: ',2i2,8F6.3)
+300   format('3X xf: ',8F6.3)
+310   format('3X yf: A: ',4F6.3,'  B: ',4F6.3,' C: ',4F6.3)
+!   endif
+!============================================== pair fractions
+   allocate(pst(6,ne,ne))
+   allocate(dpst(6,ne,ne,nc))
+   allocate(d2pst(6,ne,ne,nc*(nc+1)/2))
+   pst=zero
+   dpst=zero
+   d2pst=zero
+   zz=0
+   ploop: do ia=1,ne
+! in ternary systems pst(ss,ia,ib) can be different from pst(ib,ia) etc
+      do ib=1,ne
+! assume only SRO, all pair frations the same (in a binary)
+!         pst(1,ia,ib)=xf(ia)*xf(ib)
+!         pst(2,ia,ib)=pst(1,ia,ib)
+!         pst(3,ia,ib)=pst(1,ia,ib)
+!         pst(4,ia,ib)=pst(1,ia,ib)
+!         pst(5,ia,ib)=pst(1,ia,ib)
+!         pst(6,ia,ib)=pst(1,ia,ib)
+         pst(1,ia,ib)=yf(1,ia)*yf(2,ib)
+         pst(2,ia,ib)=yf(1,ia)*yf(3,ib)
+         pst(3,ia,ib)=yf(1,ia)*yf(4,ib)
+         pst(4,ia,ib)=yf(2,ia)*yf(3,ib)
+         pst(5,ia,ib)=yf(2,ia)*yf(4,ib)
+         pst(6,ia,ib)=yf(3,ia)*yf(4,ib)
+! Taking the average values here improve convergence.  But not below 0.4 ...
+!         p12(ia,ib)=0.5*(yf(1,ia)*yf(2,ib)+yf(2,ia)*yf(1,ib))
+!         p13(ia,ib)=0.5*(yf(1,ia)*yf(3,ib)+yf(3,ia)*yf(1,ib))
+!         p14(ia,ib)=0.5*(yf(1,ia)*yf(4,ib)+yf(4,ia)*yf(1,ib))
+!         p23(ia,ib)=0.5*(yf(2,ia)*yf(3,ib)+yf(3,ia)*yf(2,ib))
+!         p24(ia,ib)=0.5*(yf(2,ia)*yf(4,ib)+yf(4,ia)*yf(2,ib))
+!         p34(ia,ib)=0.5*(yf(3,ia)*yf(4,ib)+yf(4,ia)*yf(3,ib))
+         dploop: do jj=1,nc
+! when ignoring LRO
+!            dpst(1,ia,ib,jj)=xf(ia)*dxf(ib,jj)+dxf(ia,jj)*dxf(ib,jj)
+!            dpst(2,ia,ib,jj)=dpst(1,ia,ib,jj)
+!            dpst(3,ia,ib,jj)=dpst(1,ia,ib,jj)
+!            dpst(4,ia,ib,jj)=dpst(1,ia,ib,jj)
+!            dpst(5,ia,ib,jj)=dpst(1,ia,ib,jj)
+!            dpst(6,ia,ib,jj)=dpst(1,ia,ib,jj)
+! NOTE:  Make use of the fact that pstij depend direcly on cluster fractions
+! Just using relations to y^s_A fauvours z_AAAA and z_BBBB, i.e. no mixing
+! IDEA: Use p_AB = 3z_AAAB + 4z_ABAB + 3z_ABBB
+! dp_AB/d_AAAB = 3 etc., calculated above when extracting yf
+            dpst(1,ia,ib,jj)=yf(1,ia)*dyf(2,ib,jj)+dyf(1,ia,jj)*yf(2,ib)
+            dpst(2,ia,ib,jj)=yf(1,ia)*dyf(3,ib,jj)+dyf(1,ia,jj)*yf(3,ib)
+            dpst(3,ia,ib,jj)=yf(1,ia)*dyf(4,ib,jj)+dyf(1,ia,jj)*yf(4,ib)
+            dpst(4,ia,ib,jj)=yf(2,ia)*dyf(3,ib,jj)+dyf(2,ia,jj)*yf(3,ib)
+            dpst(5,ia,ib,jj)=yf(2,ia)*dyf(4,ib,jj)+dyf(2,ia,jj)*yf(4,ib)
+            dpst(6,ia,ib,jj)=yf(3,ia)*dyf(4,ib,jj)+dyf(3,ia,jj)*yf(4,ib)
+! using average values
+!            dp12(ia,ib,jj)=0.5D0*(yf(1,ia)*dyf(2,ib,jj)+dyf(1,ia,jj)*yf(2,ib)+&
+!                 dyf(1,ia,jj)*yf(2,ib)+yf(1,ia)*dyf(2,ib,jj))
+!            dp13(ia,ib,jj)=0.5D0*(yf(1,ia)*dyf(3,ib,jj)+dyf(1,ia,jj)*yf(3,ib)+&
+!                 dyf(1,ia,jj)*yf(3,ib)+yf(1,ia)*dyf(3,ib,jj))
+!            dp14(ia,ib,jj)=0.5D0*(yf(1,ia)*dyf(4,ib,jj)+dyf(1,ia,jj)*yf(4,ib)+&
+!                 dyf(1,ia,jj)*yf(4,ib)+yf(1,ia)*dyf(4,ib,jj))
+!            dp23(ia,ib,jj)=0.5D0*(yf(2,ia)*dyf(3,ib,jj)+dyf(2,ia,jj)*yf(3,ib)+&
+!                 dyf(2,ia,jj)*yf(3,ib)+yf(2,ia)*dyf(3,ib,jj))
+!            dp24(ia,ib,jj)=0.5D0*(yf(2,ia)*dyf(4,ib,jj)+dyf(2,ia,jj)*yf(4,ib)+&
+!                 dyf(2,ia,jj)*yf(4,ib)+yf(2,ia)*dyf(4,ib,jj))
+!            dp34(ia,ib,jj)=0.5D0*(yf(3,ia)*dyf(4,ib,jj)+dyf(3,ia,jj)*yf(4,ib)+&
+!                 dyf(3,ia,jj)*yf(4,ib)+yf(3,ia)*dyf(4,ib,jj))
+! Hm 2nd derivatives ... should check ... kxsym requires ib>ia
+!            zz=kxsym(ia,ib) 16*15/2=8*15=4*30=120
+! let second derivatives be zeo
+            cycle dploop
+            do mm=jj,nc
+               zz=kxsym(jj,mm)
+               d2pst(1,ia,ib,zz)=dyf(1,ia,jj)*dyf(2,ib,mm)+&
+                    dyf(1,ia,jj)*dyf(2,ib,mm)
+            enddo
+         enddo dploop
+     enddo
+  enddo ploop
+  do ss=1,6
+     write(*,320)'3X pst:',ss,((pst(ss,ia,ib),ia=1,ne),ib=1,ne)
+320  format(a,i2,8F7.4)
+  enddo
+  do ia=1,ne
+     do ib=1,ne
+        write(*,*)'3X pair ',chel(ia),'-',chel(ib)
+        do ss=1,6
+           write(*,330)'3X dpst 1-8 : ',ss,(dpst(ss,ia,ib,jj),jj=1,8)
+           write(*,330)'3X dpst 9-16: ',ss,(dpst(ss,ia,ib,jj),jj=9,16)
+        enddo
+     enddo
+  enddo
+330  format(a,i2,8F7.4)
+!
+!  write(*,*)'3X calculation of pair fractions done'
+!  gx%bmperr=4399; goto 1000
+!
+! Recalculate constituent fractions from the site fractions  
+! Note the ordering of the constituent important  !!!
+   allocate(ylro(nc))
+   ylro=zero
+   jj=0
+   do ia=1,ne
+! this is AAAA or BBBB etc
+      ybase=yf(1,ia)*yf(2,ia)*yf(3,ia)*yf(4,ia)
+      jj=jj+1
+      write(*,*)'3X ylro_',chel(ia)//chel(ia)//chel(ia)//chel(ia),&
+           ' from yf(ss,ia): ',jj,ybase
+      ylro(jj)=ybase
+      do ib=ia+1,ne
+         do ss=4,1,-1
+            jj=jj+1
+! to obtain 4 AAAB replace one yf(ss,ia) with yf(ss,ib) in sublattice ss
+! NOTE it has to be in correct order: AAAB, AABA, ABAA and BAAA
+            ylro(jj)=ybase*yf(ss,ib)/yf(ss,ia)
+         enddo
+! to obtain the 3 AABB in correct order: AABB, ABAB, ABBA
+         jj=jj+1
+         ylro(jj)=yf(1,ia)*yf(2,ia)*yf(3,ib)*yf(4,ib)
+         jj=jj+1
+         ylro(jj)=yf(1,ia)*yf(2,ib)*yf(3,ia)*yf(4,ib)
+         jj=jj+1
+         ylro(jj)=yf(1,ia)*yf(2,ib)*yf(3,ib)*yf(4,ia)
+! to obtain the 3 more variants: BAAB, BABA, BBAA
+         jj=jj+1
+         ylro(jj)=yf(1,ib)*yf(2,ia)*yf(3,ia)*yf(4,ib)
+         jj=jj+1
+         ylro(jj)=yf(1,ib)*yf(2,ia)*yf(3,ib)*yf(4,ia)
+         jj=jj+1
+         ylro(jj)=yf(1,ib)*yf(2,ib)*yf(3,ia)*yf(4,ia)
+! to obtain the 4 variants ABBB, similar to AAAB
+         ybase=yf(1,ib)*yf(2,ib)*yf(3,ib)*yf(4,ib)
+         do ss=1,4
+            jj=jj+1
+! to obtain 4 ABBB replace one yf(ss,ib) with yf(ss,ia) in sublattice ss
+! NOTE it has to be in correct order: ABBB, BABB, BBAB and BBBA
+            ylro(jj)=ybase*yf(ss,ia)/yf(ss,ib)
+         enddo
+! element C and D ...
+! These lines not needed for binary systems ... NOT IMPLEMENTED
+         do ic=ib+1,ne
+            write(*,*)'3X ternary LRO not implemented'
+            gx%bmperr=4399; goto 1000
+            jj=jj+1
+!           ylro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)**2*xf(ib)*xf(ic)
+!            jj=jj+1
+!           ylro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)*xf(ib)**2*xf(ic)
+!            jj=jj+1
+!           ylro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)*xf(ib)*xf(ic)**2
             do id=ic+1,ne
                jj=jj+1
-               mijkl(jj-2)=24
-! jj is ABCD
-               xf(ia)=xf(ia)+f3*phvar%yfr(jj)
-               xf(ib)=xf(ib)+f3*phvar%yfr(jj)
-               xf(ic)=xf(ic)+f3*phvar%yfr(jj)
-               xf(id)=xf(id)+f3*phvar%yfr(jj)
-               dxf(ia,jj)=f3; dxf(ib,jj)=f3; dxf(ic,jj)=f3; dxf(id,jj)=f3;
+!               ylro(jj)=yrest*phvar%yfr(jj)+&
+!                    ycorr*mijkl(jj)*xf(ia)*xf(ib)*xf(ic)*xf(id)
             enddo
          enddo
       enddo
    enddo
-! Convergence problem, when pstij constant make rest approach 1.0
-   pstijtest=zero
+!
+! handle only SRO, set all pst same
+   write(*,'(a,3F10.7)')'3X >>>>>>>>>>>>> only SRO <<<<<<<<<',xf(1),xf(2)
    do ia=1,ne
-      do ib=ia+1,ne
-         if(xf(ia)*xf(ib).gt.pstijtest) pstijtest=xf(ia)*xf(ib)
+      do ib=1,ne
+         do ss=1,6
+            pst(ss,ia,ib)=xf(ia)*xf(ib)
+            do jj=1,nc
+               dpst(ss,ia,ib,jj)=dxf(ia,jj)*xf(ib)+xf(ia)*dxf(ib,jj)
+            enddo
+         enddo
       enddo
    enddo
+! SKIP CORRECTION, then converges with (almost) exactly ideal start values
 ! pstijtest is maximum pair fraction using mole fractions calculated
 !     from cluster fractions provided by the minimizer
 ! if almost the same as previous decrease ycorr
@@ -3144,100 +3474,48 @@
       ycorr=max(0.5D0*ycorr,1.0D-8)
 ! when yrest=1 we use the fractions from the minimizer
    else
-      ycorr=min(0.5d0*ycorr,0.5D0)
+      ycorr=min(2.0d0*ycorr,0.5D0)
    endif
+   ycorr=zero
    yrest=1.0D0-ycorr
-   if(SDEBUG) write(*,'(a,1x,l,1x,12F6.3)')'3X corr: ',sdebug,&
+   write(*,'(a,1x,l,1x,12F6.3)')'3X corr: ',sdebug,&
         pstijtest,pstijsave,yrest,ycorr
-! without this stupid dummy statement the calculations does not converge
+! without this stupid dummy statement the calculations does not converge SRO
    write(dummy,'(a,1x,l,1x,12F6.3)')'3X corr: ',sdebug,&
         pstijtest,pstijsave,yrest,ycorr
 ! save pstij for next iteration
    pstijsave=pstijtest
-! IDEA
-! We have no LRO, fractions on all sublattices same and equal to molefractions
-! THUS recalculate the cluster fractions from the mole fractions ....
-   allocate(ysro(jj))
-   jj=0
-   do ia=1,ne
-      jj=jj+1
-      ysro(jj)=yrest*phvar%yfr(jj)+ycorr*xf(ia)**4
-      do ib=ia+1,ne
-         jj=jj+1
-         ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ib)*xf(ia)**3
-         jj=jj+1
-         ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ib)**2*xf(ia)**2
-         jj=jj+1
-         ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ib)**3*xf(ia)
-         do ic=ib+1,ne
-            jj=jj+1
-            ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)**2*xf(ib)*xf(ic)
-            jj=jj+1
-            ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)*xf(ib)**2*xf(ic)
-            jj=jj+1
-            ysro(jj)=yrest*phvar%yfr(jj)+ycorr*mijkl(jj)*xf(ia)*xf(ib)*xf(ic)**2
-            do id=ic+1,ne
-               jj=jj+1
-               ysro(jj)=yrest*phvar%yfr(jj)+&
-                    ycorr*mijkl(jj)*xf(ia)*xf(ib)*xf(ic)*xf(id)
-            enddo
-         enddo
-      enddo
-   enddo
+! We have LRO, fractions on sublattices can be different
+!   do jj=1,nc
+!      ylro(jj)=phvar%yfr(jj)
+!   enddo
 !
-   if(SDEBUG) then
-      write(*,'(a,12F6.3)')'3X yfr: ',(phvar%yfr(jj),jj=1,nc)
-      write(*,'(a,12F6.3)')'3X ysro:',ysro
-   endif
+!   if(SDEBUG) then
+   write(*,'(a,8F7.4)')'3X yfr: ',(phvar%yfr(jj),jj=1,8)
+   write(*,'(a,8F7.4)')'3X ylro:',(ylro(jj),jj=1,8)
+   write(*,'(a,8F7.4)')'3X yfr: ',(phvar%yfr(jj),jj=9,nc)
+   write(*,'(a,8F7.4)')'3X ylro:',(ylro(jj),jj=9,16)
+!   endif
 !
-!   write(*,'(a,F5.2,10F6.3)')'3X xf2: ',fpf,(xf(ia),ia=1,ne)
-! calculate pair fractions using the site fractions
-!   allocate(p12(ne,ne))
-!   allocate(p13(ne,ne))
-!   allocate(p14(ne,ne))
-!   allocate(p23(ne,ne))
-!   allocate(p24(ne,ne))
-!   allocate(p34(ne,ne))
-   allocate(pstij(ne,ne))
-   allocate(dpstij(ne,ne,nc))
-   allocate(d2pstij(ne,ne,nc*(nc+1)/2))
-   pstij=zero
-   dpstij=zero
-   d2pstij=zero
-! calculation of pair fractions using mole fractions (same as site fractions)
-! include AA, AB, AC, BB etc pairs but exclude BA, CA ??
-   do ia=1,ne
-      do ib=1,ne
-! If we had LRO we should need yf1, yf2, yf3 and yf4
-! but the site fractions are the same in all sublattces when no LRO (?)
-         pstij(ia,ib)=xf(ia)*xf(ib)
-         do jj=1,nc
-            dpstij(ia,ib,jj)=dxf(ia,jj)*xf(ib)+dxf(ib,jj)*xf(ia)
-            do jk=jj,nc
-               zz=ixsym(jj,jk)
-!               write(*,'(a,2i4,2x,2i4,i7)')'3X d2pstij: ',ia,ib,jj,jk,zz
-!               d2pstij(ia,ib,zz)=d2pstij(ia,ib,zz)+&
-!                    dxf(ia,jj)*dxf(ib,jk)+dxf(ib,jj)*dxf(ia,jk)
-            enddo
-         enddo
-      enddo
-   enddo
+!      write(*,*)'3X calculation of clusters from site fractions done'
+!   gx%bmperr=4399; goto 1000
+!
 ! All necessary fractions and derivatives calculated, now the entropy
 ! S = -2 \sum_ijkl y_ijkl\ln(y_ijkl) +
 !     6  \sum_ij p_ij\ln(p_ij) - 5 \sum_j x_j\ln(x_j)
-! As we calculate G the signs are inverse
-! constituent fraction entropy
+! As we calculate dG/dT the signs of Kikuchi are inverse
 ! entropy contribution from the constituent fractions ------------------
-! USE ysro fractions!!! not phvar%yfr  or a mix ...
    ssumy=zero
 !   sylog1=zero
    do jj=1,nc
 !      yfra=phvar%yfr(jj)
-      yfra=ysro(jj)
+! use cluster factions recalculated from site fractions
+      yfra=ylro(jj)
       if(yfra.lt.bmpymin) yfra=bmpymin
       if(yfra.gt.one) yfra=one
 ! yfra is divided by mijkl as it represent mijkl fractions
-      ylog=log(yfra/mijkl(jj))
+!      ylog=log(yfra/mijkl(jj))
+      ylog=log(yfra)
 ! debugging
 !      if(jj.le.5) ylog1(jj)=ylog
 !      sylog1=sylog1+yfra*ylog
@@ -3246,199 +3524,127 @@
 ! dgval(1,1:nc,1) are derivative of G/RT wrt fraction 1:nc
 ! d2gval(ixsym(jj*(jk+1)/2,1) are 2nd derivarive of G/RT wrt fraction jj and jk
 ! dgval and d2gval are zero before this loop
-!         phvar%dgval(1,jj,1)=syfact*(mijkl(jj)+ylog)
-! convergence problem test
          phvar%dgval(1,jj,1)=syfact*(one+ylog)
 ! ? T and y derivative
-         phvar%dgval(2,jj,1)=syfact*(mijkl(jj)+ylog)/tval
+!         phvar%dgval(2,jj,1)=syfact*(mijkl(jj)+ylog)/tval
+         phvar%dgval(2,jj,1)=syfact*(one+ylog)/tval
 ! 2nd derivative, each term depend on a single y fraction
-         phvar%d2gval(kxsym(jj,jj),1)=syfact*mijkl(jj)/yfra
+         phvar%d2gval(kxsym(jj,jj),1)=syfact/yfra
       endif
-!      write(*,'(a,3(1pe12.4))')'3X ssumy: ',yfra,ylog,ssumy
    enddo
    phvar%gval(1,1)=ssumy
    phvar%gval(2,1)=ssumy/tval
-! No convergence just using ysro ... change the phvar%yfr ....
-   do jj=1,nc
-      phvar%yfr(jj)=ysro(jj)
-   enddo
+!   do jj=1,nc
+! use cluster fractions recalculated from site fractions !!!
+!      phvar%yfr(jj)=ylro(jj)
+!   enddo
+   write(*,*)'3X calculation of cluster entropy term done',ssumy
+!  gx%bmperr=4399; goto 1000
 ! entropy contributions from the 6 pair fractions -----------------------
+! each can be different pst(ss,ia,ib) can be different for each ss
    ssump=zero
-! all pairs the same, no need to loop over sublattices
-   fpf=spfact
-!   sylog2=zero
    do ia=1,ne
-!      do ib=ia+1,ne
       do ib=1,ne
-! bond between atom ia and ib
-         ylog=log(pstij(ia,ib))
-! debugging
-!         ylog2=ylog
-!         sylog2=sylog2+pstij(ia,ib)*ylog
-!         write(*,'(a,2i3,3(1pe12.4))')'3X ylogp: ',ia,ib,pstij(ia,ib),ylog,&
-!              pstij(ia,ib)*ylog
-         ssump=ssump+fpf*pstij(ia,ib)*ylog
+         ssloop: do ss=1,6
+! bond between atom ia and ib in sublattice s,t, there are 6 such paris
+! we must repeat this for all 6 pairs in each cluster
+! Note this term is negative in the Kikuchi summation !!!
+            pfra=pst(ss,ia,ib)
+            if(pfra.lt.bmpymin) pfra=bmpymin
+            if(pfra.gt.one) pfra=one
+            ylog=log(pfra)
+            ssump=ssump-pfra*ylog
+            if(moded.gt.0) then
+               do jl=1,nc
+! we need derivatives of pair fractions wrt constituent fractions
+! Note negative sign because this is part of the 6 pln(p) term
+! NOTE:  Make use of the fact that pstij depend direcly on cluster fractions
+! Just using relations to y^s_A fauvours z_AAAA and z_BBBB, i.e. no mixing
+! Use p_AB = 3z_AAAB + 4z_ABAB+3z_ABBB
+! dp_AB/d_AAAB = 3 etc.
+                  if(ia.eq.ib) then
+                     phvar%dgval(1,jl,1)=phvar%dgval(1,jl,1)-&
+                          dpst(ss,ia,ib,jl)*(one+ylog)
+                  else
+! this is derivative of AB pair related to clusters with ABBB, ABAB and ABBB
+                     phvar%dgval(1,jl,1)=phvar%dgval(1,jl,1)-&
+                          dqst(1,ia,ib,jl)*(one+ylog)
+                  endif
+                  do jm=jl,nc
+                     zz=ixsym(jl,jm)
+                     phvar%d2gval(zz,1)=phvar%d2gval(zz,1)-&
+                          d2pst(ss,ia,ib,zz)*(one+ylog)+&
+                          dpst(ss,ia,ib,jl)*dpst(ss,ia,ib,jm)/pst(ss,ia,ib)
+                  enddo
+               enddo
+            endif
+         enddo ssloop
+! done all 6 pairs for ia,ib
+      enddo
+   enddo
+! done all pairs ia,ib
+! We have changed the sign when we calculate 6*p*ln(p) terms above
+! The derivatives have the negative sign already
+   phvar%gval(1,1)=phvar%gval(1,1)+ssump
+   phvar%gval(2,1)=phvar%gval(2,1)+ssump/tval
+   write(*,*)'3X calculation of 6 pair fractions entropy term done',ssump
+! entropy contributions from the site fractions, factor 5/4 = 1.25
+   ssumx=zero
+!   sylog3=zero
+   do ss=1,4
+      do ia=1,ne
+! we need derivatives of mole fractions wrt constituent fractions
+         pfra=yf(ss,ia)
+         if(pfra.lt.bmpymin) pfra=bmpymin
+         if(pfra.gt.one) pfra=one
+         ylog=log(pfra)
+         ssumx=ssumx+sxfact*pfra*ylog
          if(moded.gt.0) then
             do jl=1,nc
-! we need derivatives of pair fractions wrt constituent fractions
+! we need derivatives of site fractions wrt constituent fractions
                phvar%dgval(1,jl,1)=phvar%dgval(1,jl,1)+&
-                    fpf*dpstij(ia,ib,jl)*(one+ylog)
+                    sxfact*dyf(ss,ia,jl)*(ylog+one)
                do jm=jl,nc
-                  zz=ixsym(jl,jm)
+! note d2xf/dyidyj==0
+                  zz=kxsym(jl,jm)
                   phvar%d2gval(zz,1)=phvar%d2gval(zz,1)+&
-                       fpf*(d2pstij(ia,ib,zz)*(one+ylog)+&
-                       dpstij(ia,ib,jl)*dpstij(ia,ib,jm)/pstij(ia,ib))
+                       sxfact*dyf(ss,ia,jl)*dyf(ss,ia,jm)/pfra
                enddo
             enddo
          endif
-!         write(*,'(a,2i3,4(1pe12.4))')'3X ssump: ',ia,ib,fpf,pstij(ia,ib),&
-!              ylog,ssump
       enddo
    enddo
-   phvar%gval(1,1)=phvar%gval(1,1)+ssump
-   phvar%gval(2,1)=phvar%gval(2,1)+ssump/tval
-! entropy contributions from the mole fractions -----------------------
-   ssumx=zero
-!   sylog3=zero
-   do ia=1,ne
-! we need derivatives of mole fractions wrt constituent fractions
-      ylog=log(xf(ia))
-! debugg
-!      ylog3=ylog
-!      sylog3=sylog3+xf(ia)*ylog
-      ssumx=ssumx+sxfact*xf(ia)*ylog
-      if(moded.gt.0) then
-         do jl=1,nc
-! we need derivatives of mole fractions wrt constituent fractions
-            phvar%dgval(1,jl,1)=phvar%dgval(1,jl,1)+&
-                 sxfact*dxf(ia,jl)*(ylog+one)
-            do jm=jl,nc
-! note d2xf/dyidyj==0
-               zz=kxsym(jl,jm)
-               phvar%d2gval(zz,1)=phvar%d2gval(zz,1)+&
-                    sxfact*dxf(ia,jl)*dxf(ia,jm)/xf(ia)
-            enddo
-         enddo
-      endif
-   enddo
+! the sxfact +5/4 is already included above
    phvar%gval(1,1)=phvar%gval(1,1)+ssumx
    phvar%gval(2,1)=phvar%gval(2,1)+ssumx/tval
+   write(*,'(a,F12.4)')'3X calculation of site fraction entropy: ',ssumx
+!   write(*,*)'3X all entropy calculations made'
 ! All done
-   if(SDEBUG) then
+!   if(SDEBUG) then
       write(*,900)'3X xf: ',(xf(ia),ia=1,ne)
-900   format(a,6F7.3)
-      write(*,910)'3X pstij: ',((pstij(ia,ib),ib=1,ne),ia=1,ne)
+900   format(a,6F10.7)
+      do ss=1,6
+         write(*,320)'3X pst',ss,((pst(ss,ia,ib),ia=1,ne),ib=1,ne)
+      enddo
 910   format(a,10F7.3)
-!      write(*,'(a,5(1pe12.4))')'3X sylog: ',sylog1,sylog2,sylog3
-!      write(*,'(a,5(1pe12.4))')'3X ylog1: ',ylog1
-!      write(*,'(a,5(1pe12.4))')'3X ylogx: ',ylog2,ylog3
+      write(*,310)((yf(ss,ia),ss=1,4),ia=1,ne)
+      do ia=1,ne
+         write(*,270)1,ia,(dyf(1,ia,jj),jj=1,16)
+         write(*,270)2,ia,(dyf(2,ia,jj),jj=1,16)
+         write(*,270)3,ia,(dyf(3,ia,jj),jj=1,16)
+         write(*,270)4,ia,(dyf(4,ia,jj),jj=1,16)
+      enddo
+      write(*,'(a,8F7.4)')'3X yfr  1-8: ',(phvar%yfr(jj),jj=1,8)
+      write(*,'(a,8F7.4)')'3X ylro 1-8: ',(ylro(jj),jj=1,8)
+      write(*,'(a,8F7.4)')'3X yfr  9-16:',(phvar%yfr(jj),jj=9,nc)
+      write(*,'(a,8F7.4)')'3X ylro 9-16:',(ylro(jj),jj=9,16)
       write(*,'(a,5(1pe12.4))')'3X cvmtfs: ',ssumy,ssump,ssumx,&
            phvar%gval(1,1),8.31451*phvar%gval(1,1)
 !   write(*,*)'3X cvmtfs model not yet released'
-   endif
+!   endif
 1000 continue
    return
  end subroutine config_entropy_cvmtfl
-
- !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable subroutine config_entropy_ssro_old
-!\begin{verbatim}
- subroutine config_entropy_ssro_old(moded,lokph,phvar,tval)
-! test calculates SSRO configurational entropy/R for phase lokph
-   implicit none
-   integer moded,lokph
-!   integer, dimension(nsl) :: nkl
-   TYPE(gtp_phase_varres), pointer :: phvar
-   double precision tval
-!\end{verbatim}
-! SRO species AB with stoichiometry AaBb FOR BINARY TEST ONLY
-! -S/R = yAln(yA)+yBln(yB)+yABln(yAB/(yA^abyB^b))
-!      =(yA-ayAB)ln(yA) + (yB-byAB)ln(yB) + yABln(yAB)
-! some simple way to associate yAB with yA and yB needed
-! at present assume yAB is first species
-! REDUNDANT DID NOT WORK
-   integer ll,kk,kall,nk,jl,loksp,nsl
-   double precision ss,yfra,ylog,ypair,ratios(2)
-   ll=0
-   kall=0
-   nsl=phlista(lokph)%noofsubl
-   if(nsl.ne.1) stop 'Illegal call to SSRO, more than one set of sites'
-   sublatticeloop: do while (ll.lt.nsl)
-! Hm ... we need an array with the relation between the species ...
-      ll=ll+1
-!      nk=nkl(ll)
-      nk=phlista(lokph)%nooffr(ll)
-      if(nk.ne.3) stop 'Illegal call to SSRO, not 3 constituents'
-      kk=0
-      ss=zero
-      fractionloop: do while (kk.lt.nk)
-         kk=kk+1
-         kall=kall+1
-! cycle if a single constituent in this sublattice
-         if(nk.eq.1) cycle sublatticeloop
-         yfra=phvar%yfr(kall)
-         if(yfra.lt.bmpymin) yfra=bmpymin
-         if(yfra.gt.one) yfra=one
-         ylog=log(yfra)
-! if the constituent is the first species (SRO pair) additional action needed
-         if(kk.eq.1) then
-! the first constituent should be the pair, 
-            loksp=phlista(lokph)%constitlist(kk)
-            if(splista(loksp)%noofel.eq.2) then
-! conversion of rations to powers
-! ratios   GNUPLOT for same y; manual for same G as ideal
-! A1/2B1/2 0.8:0.8             5:5  does not converge when ordering ... SUCK
-! A1/3B2/3 0.6:1.0
-! A1/4B1/4 0.5:1.1               
-! these are for A1/2B1/2
-               ratios(1)=5*splista(loksp)%stoichiometry(1)
-               ratios(2)=5*splista(loksp)%stoichiometry(2)
-            else
-               stop 'Illegal call to SSRO, first constituent not a pair'
-            endif
-            ypair=yfra
-         else
-! second and third constituent are elements, subtract contribution from pair
-            write(*,'(a,i2,F10.6)')'3X ssro 2: ',kk,-ratios(kk-1)*ypair*ylog
-            ss=ss-ratios(kk-1)*ypair*ylog
-         endif
-! gval(1:6,1) are G and derivator wrt T and P
-! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
-! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
-! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
-! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
-! this is a symmetric matrix and index givem by ixsym(M,N)
-         ss=ss+yfra*ylog
-         if(moded.gt.0) then
-! there are contributions from all 3 constituents
-            phvar%dgval(1,kall,1)=phvar%dgval(1,kall,1)+&
-                 phvar%sites(ll)*(one+ylog)
-! 2nd derivative, kxsym same as ixsym when first index is >= second index
-            phvar%d2gval(kxsym(kall,kall),1)=phvar%sites(ll)/yfra
-         endif
-         if(kk.gt.1) then
-! extra terms, assume %sites(ll) is one
-            phvar%dgval(1,1,1)=phvar%dgval(1,1,1)-ratios(kk-1)*ylog
-            phvar%dgval(1,kk,1)=phvar%dgval(1,kk,1)-ratios(kk-1)*ypair/yfra
-! assume extra terms in second derivatives not needed
-         endif
-      enddo fractionloop
-      phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(ll)*ss
-   enddo sublatticeloop
-! looking for error calculating 4 sublattice ordered FCC
-!   write(*,69)kall,(phvar%d2gval(ixsym(jl,jl),1),jl=1,kall)
-69 format('3X d2G/dy2: ',i3,6(1pe12.4))
-! set temperature derivative of G and dG/dy
-   phvar%gval(2,1)=phvar%gval(1,1)/tval
-   if(moded.gt.0) then
-      do jl=1,kall
-         phvar%dgval(2,jl,1)=phvar%dgval(1,jl,1)/tval
-      enddo
-   endif
-1000 continue
-   return
- end subroutine config_entropy_ssro_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

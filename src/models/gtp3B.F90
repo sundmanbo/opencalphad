@@ -607,7 +607,7 @@
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
    integer s1,mqm1(20),mqm2(20),s2,s3,s4,s5,minus,s8
 ! logicals for models later stored in phase record
-   logical i2sl,QCE,uniquac,mqm,clusterr,nocations,cvmtfs
+   logical i2sl,QCE,uniquac,mqm,clusterr,nocations,cvmtfs,cvmtfl
 ! csfree and highcs for finding phase_varres record
    if(.not.allowenter(2)) then
       gx%bmperr=4125
@@ -624,6 +624,7 @@
    uniquac=.FALSE.
 ! phase with tetrahedron CVM configurational entropy
    cvmtfs=.FALSE.
+   cvmtfl=.FALSE.
 ! this will be set to TRUE if no cations for the I2SL liquid.
 ! changes are needed also when calculating with such a liquid
    nocations=.FALSE.
@@ -703,7 +704,11 @@
 7     format('3B With this model some of the following questions'&
            ' are irrelevant'/'but kept for compatibility with other models')
    elseif(model(1:7).eq.'CVMTFS ') then
+! FCC tetrahedron model without LRO (ABBB, AABA, ABAA and BAAA same)
       cvmtfs=.TRUE.
+   elseif(model(1:7).eq.'CVMTFL ') then
+! FCC tetrahedrom model with LRO (max 2 elements)
+      cvmtfl=.TRUE.
    endif
    externalchargebalance=.false.
 ! CVMTFS creates its own set of constituents in a special subroutine
@@ -978,6 +983,9 @@
 ! this is the model for tetrahedron FCC with just SRO (reduced set of clusters)
       if(model(1:7).eq.'CVMTFS ') then
          phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHSSRO)
+      endif
+      if(model(1:7).eq.'CVMTFL ') then
+         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHCVMTFL)
       endif
    endif
 ! make sure status word and some other links are set
@@ -1321,7 +1329,7 @@
       gx%bmperr=4399; goto 1000
    endif
    if(knr(1).le.1 .or. knr(1).gt.10) then
-      write(*,*)'The CVMTFS phase to few or too many elements',knr(1)
+      write(*,*)'The CVMTFS phase has too few or too many elements',knr(1)
       gx%bmperr=4399; goto 1000
    endif
 ! save names of elements and check they exist!

@@ -4,11 +4,11 @@ earlier.  This log started 2016-03-03.
 For general information please read the intro-OC7.pdf and the
 macros-OC7.pdf.
 
-There is a new precompiled installation of OC on Windows
-on the OpenCalphad web page.  It includes an introduction, on-line
-help and examples with macro files and some small databases.  For
-graphics the free GNUPLOT software must be installed separately from
-Sourceforge or a similar website.
+There is a precompiled installation of OC for Windows on the
+OpenCalphad web page.  It includes an introduction, on-line help and
+examples with macro files and some small databases.  For graphics the
+free GNUPLOT software must be installed separately from Sourceforge or
+a similar website.
 
 On Linux, MacOS and other OS the installation requires some general
 knowledge about compiling and linking of software.  There is an
@@ -20,10 +20,27 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2023.04.24 OC version 6.062: The example step-epz has been modified.
+This macro calculates sections of an Fe-C alloy with small additions
+of Mn and Si system in order to explain various transformations in
+steels using full equlibrium, the para-equilibrium concept and the
+T-zero line for diffusionless transformations (martensite!).
+
+The GEIN function to calculate the Einstein low T vibrational
+contribution to the heat capacity has been modified to take the
+logarithm of the Einstein THETA as argument.  This is to be compatible
+with the LNTH parameter which calculates the composition dependent
+Einstein function.  When an element has several THETA they are each
+weighted with factors, sum of which must be unity.  When one of them
+is selected as the LNTH parameter, which has the weight unity, the
+weight factor for the corresponding GEIN function must be negative and
+the same value of the Einsten T must be used for the LNTH and the GEIN
+function.
+
 2023.03.08 OC version 6.061: Celebrating women day!  I have started
 implementing a model for SRO a la CVM for tetrahedron FCC.  This is
 still only for testing and a model also for CVM LRO is in the
-pipeline.  A number of other minor improvementa and bugs fiand.
+pipeline.  A number of other minor improvement added and bugs fixed.
 
 2023.01.22 OC version 6.060: A long time without work, or rather too
 much to have time with the software.  I am still struggling with the
@@ -764,7 +781,7 @@ link the Scheil program.  Probably a similar change is needed for
 Linux but I cannot test that.
 
 2020.02.04 OC version 5.058: Finally some improvement of mapping but
-as always some diagrams are worse.  There is many things still to fix.
+as always some diagrams are worse.  There are many things still to fix.
 
 A stronger check of ambiguous phase names in TDB files has been
 introduced.  At present only as a warning but in a future version

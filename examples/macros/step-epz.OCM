@@ -31,16 +31,29 @@ set echo
 
 
 @$ Use Bengt Hallstedt's special database for cast iron
-r t ./iron4cd
+@$ Using read selected to avoid graphite and all carbides except cementite
+@$ read selected tdb ./iron4cd
+@$ fe mn c si
+
+@$ fcc bcc cementit
+
+read tdb ./iron4cd
 fe mn c si
 
 
 @$ ignore the warnings ...
 @&
 
+l sh a
+
+
+@$ Normally graphite is never formed in steel
+set st ph gra=dor
+
+@&
 @$ Conditions for a low alloyed steel
 
-set c t=1000 p=1e5 n=1 w(mn)=.015 w(si)=.003 w(c)=.001
+set c t=1000 p=1e5 n=1 w(mn)=0.015 w(si)=.003 w(c)=.001
 c e
 
 l , 4
@@ -53,7 +66,7 @@ set ref fe bcc * 1e5
 
 @$ Set axis to calculate the equilibrium isopleth
 
-set ax 1 w(c) 0 .02 0.0005
+set ax 1 w(c) 0 0.02 0.0005
 set ax 2 t 750 1200 10
 
 @&
@@ -65,61 +78,54 @@ map
 plot
 
 
-Title step-epz Fig 1
+title map Fe-Mn-Si-C Fig 1a
+
 
 @&
-@$ Save the diagram on a gnuplot file epzpd.plt
-@$ with some labels
+@$ For plotting one can use T_C, in degrees Celsius
 plot
-
-
-text
-0.004
-1100
-1
+w%(c)
+T_C
+scale x n 0 1
+scale y n 500 900
+title map-epz Fig 1b
+@$ label the FCC region
+text 
+.4
+840
+2
 0
-y
-@$ empty line means calculate equilibrium
-
+N
+FCC
+@$ Label the FCC+BCC+CEMENTITE
 text
-n
-.004
-930
+N
+.65
+710
+.8
+2
+N
+FCC+BCC+CEMENTITE
+text
+N
+.65
+600
 .8
 0
+N
+BCC+CEMENTITE
+out ./map-epz1
 y
 
-text
-n
-.004
-980
-.8
-0
-y
-
-text
-n
-.0012
-1020
-.8
-0
-y
-
-Title step-epz Fig 2
-out ./epzpd
-y
-
-@&
-@$ The T condition is 980 K after adding the label
-@$ set inter
 @$===========================================
 @$
 @$ Calculate a paraequilibrium diagram between fcc and bcc
 @$ Suspend all phases except fcc and bcc
-set st ph *=sus
-set st ph fcc bcc=ent 1
+@$ set st ph *=sus
+set st ph fcc bcc=ent 0
 
-@$ Use "c n" not to create additional composition sets
+@$ Use "c n" using previous results and
+@$ to avoid creating additional composition sets
 c n
 
 l,,,,
@@ -127,7 +133,17 @@ l,,,,
 
 @$
 @&
-@$ Calculate first a single paraequilibrium at this T
+@$ Prepare to calculate a paraequilibrium fcc/bcc at this T
+set st ph *=sus
+set st ph fcc bcc=ent 1
+
+c n
+
+l,,,,,
+
+@&
+@$ Now calculate the para equilibrium just for C
+@$ because C can diffuse must faster than Mn and Si
 calc para
 fcc
 bcc
@@ -139,7 +155,7 @@ l,,,,
 
 
 @$ The composition of the two phases is listed
-@$ Compare with the (ortho) equilibrium above
+@$ Compare with the full equilibrium above (sometimes called ortho-equil)
 @$ Note the content of Mn and Si are the same in bcc and fcc
 @$ The Gibbs energy is higher, -43869.0 J/mol
 @$ as it is not the stable equilibrium.
@@ -161,54 +177,54 @@ bcc
 C
 
 
-@$ The step command emporarily lists the values
-@$ of the axis and the carbon content in bcc and fcc
+
+@$ The step command calculates the carbon contenet
+@$ in bcc and fcc with same carbon activity and
+@$ same fractions of Mn and Si, i.e. the para-equilibrium
 @&
 
 plot
 
 
-Title step-epz Fig 3
+Title step-epz Fig 2a
 
 
 @&
+
 @$ Scale the x-axis
 plot
-
-
-scale x n 0 .008
+w%(*,c)
+T_C
+scale x n 0 1
+scale y n 500 900
 text
-.0015
-1073
+.15
+800
 .8
--19
+-23
 FCC paraequilibrium line
-Title step-epz Fig 4
+Title step-epz Fig 2b
 
-
-@$ the carbon solubility curves, in fcc and bcc
-@$ the calculation failed at the highest T
 @$ ==============================================================
+@$ Overlay the carbon solubility curves, in fcc and bcc with the phase diagram
 @&
-@$ Append the previous diagram to this and write on a new file
+@$ Append this on the previous diagram
 
 plot
 
 
-scale x n 0 .008
-Title step-epz Fig 5
-app ./epzpd
+app ./map-epz1
+Title step-epz Fig 3
 out ./epzpdpara
 y
 
 
-@$ We have plotted paraequilibrium lines together with the equilibrium diagram
+@$ This is the paraequilibrium lines together with the equilibrium diagram
 @$ The paraequilibrium solubility lines are inside
-@$ the stable two-phase region and the carbides suspended
+@$ the stable two-phase region fcc/bcc
 
 @&
 
-@$
 @$================================================
 @$ Finally calculate the tzero line with equal
 @$ Gibbs energy for FCC and BCC
@@ -239,16 +255,15 @@ bcc
 @&
 
 plot
-w(c)
-T
+w%(c)
+T_C
 text
-.0039
-895
+.39
+620
 .8
--24
-Tzero line
-Title step-epz Fig 6
-
+-33
+T-zero line
+Title T-zero Fig 4
 
 @$ We have plotted the Tzero line with a label
 @$ *************************************
@@ -261,29 +276,13 @@ Title step-epz Fig 6
 plot
 
 
-Title step-epz Fig 7
+scale x n 0 1
+scale y n 500 900
+Title step-epz Fig 5
 app ./epzpdpara
 
 
 
-@&
-
-@$ This gives some indication of possible transitions
+@$ This diagran gives some indication of possible transitions
 @$ because carbon can diffuse rapidly even at low T
-@$ *************************************
-
-plot
-
-
-scale y n
-750
-1150
-Title step-epz Fig 8
-out ./epzall
-y
-
-
-
-set inter
-
 

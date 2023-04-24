@@ -3566,7 +3566,7 @@
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
 !   character*24 disph(20)
    integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz,dismag
-   integer enteredpar,loop,emodel,manylonglines
+   integer enteredpar,loop,emodel,manylonglines,zp
    type(gtp_phase_add), pointer :: addrec
    logical warning,only_typedefs
 ! this is used for reading encrypted FUNCTION and PARAMETER part of a TDB file
@@ -4121,7 +4121,7 @@
          do jt=1,nooftypedefs
             if(ch1.eq.typedefchar(jt)) goto 320
          enddo
-! ignore typedef % meaning sequantial read ...
+! ignore typedef % meaning sequential read ...
          if(ch1.eq.'%') goto 310
 ! WARNING that unknown TYPE_DEF has been used!!
          write(kou,313)trim(name1),ch1
@@ -4168,7 +4168,7 @@
          if(.not.silent) write(kou,*)'3E tdb: "',longline(1:jp),'"',buperr
          gx%bmperr=buperr; goto 1000
       endif
-! dummy statement to fool -O2 optimization
+! dummy statement to fool -O2 optimization (or parallelization?)
       if(nsl.lt.0) jt=1
       nsl=int(xsl)
       do ll=1,nsl
@@ -4816,7 +4816,10 @@
       endif
       if(eolch(longline,kp)) continue
       if(kp.lt.jp) then
+! NEW feature, comment after bibliographic reference, to be suppressed online!!
          refx=longline(kp:jp-1)
+         zp=index(refx,' ')
+         if(zp.gt.0) refx(zp:)=' '
          call capson(refx)
       else
          refx=' '

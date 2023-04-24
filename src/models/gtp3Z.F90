@@ -1462,7 +1462,7 @@
 ! now combine term1 and term2 using chain rule. link values are
 ! -1: LOG,   -2: LN,    -3: EXP, -4: ERF, only LN and EXP implemented below
 ! -5: GEIN, is the Einstein function, integrated as a Gibbs energy
-!             the argument is the Einstein T
+!             the argument is the Einstein theta, or rather ln(theta)
 ! -6: MAX1, if argument <0 ERROR, if >1 replace by 1
 !         write(*,'(a,5i4,1pe12.4)')'3Z intein5: ',ic,ipow,link,link3,link4,ff
          evunfun: if(unfun.eq.-1) then
@@ -1520,7 +1520,7 @@
             endif
 !           write(*,'(a,5i5,1pe12.4)')'3Z intein6: ',ic,ipow,link,link3,link4,ff
 ! ff is the constant factor in front of the Einstein function
-! It is overwritten by the Einsten function (multiplied by original ff)
+! It is overwritten by the Einstein function (multiplied by original ff)
             call tpfun_geinstein(tpval,gg,ff,dfdt,dfdp,d2fdt2,d2fdtdp,d2fdp2)
 !            write(*,'(a,i3,6(1pe12.4))')'3Z call Einstein:',link,&
 !                 gg,ff,dfdt,d2fdt2
@@ -1626,13 +1626,22 @@
    double precision tpval(*)
    double precision gg,ff,dfdt,dfdp,d2fdt2,d2fdtdp,d2fdp2
 !\end{verbatim}
-   double precision kvot,kvotexpkvotm1,expmkvot,lnexpkvot,ww,rgas
-! return ff = 1.5*R*gg + 3*R*T*LN(EXP(-gg/T) + 1) and derivatives
+   double precision kvot,kvotexpkvotm1,expmkvot,lnexpkvot,ww,rgas,egg
+! return ff = 1.5*R*gg + 3*R*T*LN(1 - EXP(-gg/T)) and derivatives
+! NOTE gg is THETA, not LN(THETA) below
 ! gg must be a constant >0
    rgas=globaldata%rgas
 !   write(*,*)'3Z in Einstein function',gg,tpval(1)
+! in the call ff is a constant factor multiplied with the Einstein function
+! NOTE gg is the logarithm of the Einstein THETA, take the exponential!!
    ww=ff
-   kvot=gg/tpval(1)
+   if(gg.gt.8.0D1) then
+      write(*,'(a,F8.2)')'Einstein T in GEIN too large, use the logarithm!',gg
+      gx%bmperr=5399; goto 1000
+   endif
+   egg=exp(gg)
+   kvot=egg/tpval(1)
+!write(*,'(a,5(1pE12.4))')'GEIN: ',gg,egg,kvot,tpval(1)
    if(kvot.gt.2.0d2) then
 ! handle extreme values of kvot, we divide by kvotexpkvotm1**2 by expmkvot bolw
       expmkvot=one
@@ -1648,7 +1657,7 @@
 !           kvotexpkvotm1,lnexpkvot
    endif
 ! this is the integral G contribution from an Einstein solid
-   ff=1.5d0*rgas*gg*ww + 3.0D0*rgas*tpval(1)*lnexpkvot*ww
+   ff=1.5d0*rgas*egg*ww + 3.0D0*rgas*tpval(1)*lnexpkvot*ww
    dfdt=3.0d0*rgas*(lnexpkvot-kvotexpkvotm1)*ww
 !   write(*,10)rgas,kvot,lnexpkvot,kvotexpkvotm1,dfdt
 !10 format('3Z bug: ',6(1pe12.4))
