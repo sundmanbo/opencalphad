@@ -1542,20 +1542,20 @@
 ! add some useful things for maniplulation of graph
     write(21,8000)
 8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
-          '# ** This is a dashed line (on pdf/wxt):'/&
+          '# ** THIS IS A DASHED LINE (on pdf/wxt):'/&
           '# set style line 15 lt 0 lc rgb "#C8C800" lw 2 pt 2'//&
           '# set pointsize 0.6'/&
           '# set label "text" at 0.5, 0.5 rotate by 60 font "arial,12"'/&
           '# set xrange [0.5 : 0.7] '/&
-          '# ** Adding manually a line and keep scaling:'/&
-          '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
-          '# ** Add a red dot at 0.1,1000:'/&
+          '# ** ADDING MANUALLY A LINE AND KEEP SCALING:'/&
+          '# set arrow from x0, y0 to x1,y1 nohead linestyle 1'/&
+          '# ** ADD A RED DOT AT 0.1,1000:'/&
           '# set obj 1 circle fc rgb "#FF0000" fs sol size 0.02 noclip at 1,1'/&
-          '# ** Modify the axis value:'/&
+          '# ** MODIFY THE AXIS VALUE:'/&
           '# plot for [i=] ... using (2*column(i)/(1-2*column(i))):2 with ...'/&
-          '# ** Plotting symbols instead of line:'/&
+          '# ** PLOTTING SYMBOLS INSTEAD OF LINE:'/&
           '# ... using 2:i with points pt 7 ps 3 '/&
-          '# ** Overlay plots: '/&
+          '# ** OVERLAY PLOTS: '/&
           '# set multiplot'/&
           '# set xrange [] writeback'/&
           '#  ... plot someting'/&
@@ -2786,19 +2786,20 @@
 ! add some useful things for manual maniplulation of graph
     write(21,8000)
 8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
-          '# This is a dashed line (on pdf/wxt):'/&
+          '# *** THIS IS A DASHED LINE (on pdf/wxt):'/&
           '# set style line 15 lt 0 lc rgb "#C8C800" lw 2 pt 2'//&
           '# set pointsize 0.6'/&
-          '# set label "text" at 0.5, 0.5 rotate by 60 font "arial,12"'/&
+          '# set label "text" at 0.5, 0.5 rotate by 60 font "Arial,12"'/&
           '# set xrange [0.5 : 0.7] '/&
-          '# Adding manually a line and keep scaling:'/&
-          '# set arrow x0, y0 to x1,y1 nohead linestyle 1'/&
-          '# Add a red dot at 1,100:'/&
+          '# *** ADDING MANUALLY A LINE AND KEEP SCALING:'/&
+          '# set arrow from x0, y0 to x1,y1 nohead linestyle 1'/&
+          '# *** ADD A RED DOT AT 1,100:'/&
           '# set obj 1 circle fc rgb "#FF0000" fs sol size 0.02 noclip at 1,1'/&
-          '# Plotting symbols instead of line:'/&
+          '# *** PLOTTING SYMBOLS INSTEAD OF LINE:'/&
           '# ... using 2:i with points pt 7 ps 3'/&
-          '# ** Modify the axis value:'/&
+          '# ** MODIFY THE AXIS VALUE:'/&
           '# plot for [i=] ... using (2*column(i)/(1-2*column(i))):2 with ...'/&
+          '# ** OVERLAY PLOTS: '/&
           '# set multiplot'/&
           '# set xrange [] writeback'/&
           '#  ... plot someting'/&

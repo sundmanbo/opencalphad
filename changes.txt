@@ -20,6 +20,17 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2023.05.27 OC version 6.063: The development is really slow, the only
+thing added is the command CALCULATE LIQUID_EET which calculates the T
+(or composition) where two phases (not necessarily the liquid) have
+the same entropy.  This can be useful to calculate when the "EEC" or
+Equi-Entropy Criteria would prevent a solid phase to become stable
+because it has higher entropy than the liquid.  This is one feature
+added to the unary database to avoid introducing a breakpoint in the
+heat capacity of the solid phases extrapolated above the melting point
+of the element.  However, STEP LIQUID_EET is not implemented yet, one
+has to calculate point by point.
+
 2023.04.24 OC version 6.062: The example step-epz has been modified.
 This macro calculates sections of an Fe-C alloy with small additions
 of Mn and Si system in order to explain various transformations in

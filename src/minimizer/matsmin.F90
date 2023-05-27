@@ -190,7 +190,7 @@ MODULE liboceqplus
 ! This is an (failed) attempt to limit Delta-T when having condition on y
   logical ycondTlimit
   double precision deltatycond
-! TZERO and PARAEQUIL calculation need these (CANNOT BE USED IN PARALLEL)
+! TZERO, EET and PARAEQUIL calculation need these (CANNOT BE USED IN PARALLEL)
   type(gtp_equilibrium_data), pointer :: tzceq
   type(gtp_condition), pointer :: tzcond
   type(gtp_state_variable), target :: musvr,xsvr
@@ -10494,6 +10494,7 @@ if(meqrec%noofits.eq.1) then
     nv=1
 ! testing tzero calculation with larger composition difference in the phases?
 !    tol=1.0D-2  this is max difference in G, maybe relative??
+! tzcalc used by hybrd1 to calculate G individually for the two phases
     tol=1.0D-6
     call hybrd1(tzcalc,nv,xv,fvec,tol,info,wa,lwa)
     if(info.ne.1) then
@@ -10528,6 +10529,7 @@ if(meqrec%noofits.eq.1) then
 !\begin{verbatim}
   subroutine tzcalc(nv,xv,fvec,iflag)
 ! calculates the value of a condition for two phases to have same G
+! called by hybrd1 used by tzero
     implicit none
     integer nv,iflag
     double precision xv(*),fvec(*)
@@ -10549,9 +10551,6 @@ if(meqrec%noofits.eq.1) then
     mode=0
 ! we have to calculate each phase separately and compare G values (per atom)
 ! Set current value of condition
-    tzcond%prescribed=xv(1)
-!    write(*,*)'Prescribed condition: ',tzcond%prescribed
-! on entry both phases 1 and 2 are entered, suspend phase 2
     tzcond%prescribed=xv(1)
 !    write(*,*)'Prescribed condition: ',tzcond%prescribed
 ! on entry both phases 1 and 2 are entered, suspend phase 2
@@ -10580,6 +10579,146 @@ if(meqrec%noofits.eq.1) then
     write(*,*)'Quit tzcalc due to error: ',gx%bmperr
     fvec(1)=zero; goto 1000
   end subroutine tzcalc
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine liquid_eet
+!\begin{verbatim}
+  subroutine liquid_eet(iph1,iph2,icond,value,ceq)
+! calculates the value of condition "icond" when they have equal entropy, EET
+    implicit none
+    integer iph1,iph2,icond
+    double precision value
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer, parameter :: lwa=100
+    integer info,nv,ja,jb
+    type(gtp_condition), pointer :: first
+    type(gtp_phase_varres), pointer :: cps1,cps2
+    double precision xv(5),fvec(5),tol,wa(lwa)
+!    external tzcalc NOT NEEDED
+!
+!    write(*,'(a,3i4," and ",3i4)')'In tzero!',iph1,phasetuple(iph1)%ixphase,&
+!         phasetuple(iph1)%lokph,&
+!         iph2,phasetuple(iph2)%ixphase,phasetuple(iph2)%lokph
+! in some way ceq, iph1, iph2 and icond must be transferred to tzcalc
+    tzceq=>ceq
+! always use first composition set, iph is also index in phasetuple
+!    tzph1=phasetuple(iph1)%lokph; tzph2=phasetuple(iph2)%lokph
+    tzph1=iph1; tzph2=iph2
+! find the condition
+    first=>ceq%lastcondition
+    tzcond=>first%next
+    ja=0
+    do while(.not.associated(first,tzcond))
+! we should only count ACTIVE conditions
+       if(tzcond%active.eq.0) then
+          ja=ja+1
+          if(ja.eq.icond) goto 100
+          tzcond=>tzcond%next
+       endif
+    enddo
+! the loop above does not find the last condition !!! SUCK
+    if(icond.ne.ja+1) then
+       write(*,*)'No such condition'
+       gx%bmperr=4399; goto 1000
+!    else
+! the last condition was the selected one
+    endif
+!
+100 continue
+! Set status of all phases except iph1 and iph2 as suspended
+!    call change_many_phase_status('* ',-3,zero,ceq)
+!    call change_phtup_status(iph1,1,one,ceq)
+!    call change_phtup_status(iph2,1,one,ceq)
+!    if(gx%bmperr.ne.0) goto 1000
+! start value of condition to vary
+    xv(1)=tzcond%prescribed
+!    write(*,*)'Found condition, current value ',xv(1)
+! do we need to think about parallelization?
+! calculate the zero
+!    write(*,*)'Calling hybrd1',xv(1)
+    nv=1
+! testing tzero calculation with larger composition difference in the phases?
+!    tol=1.0D-2  this is max difference in G, maybe relative??
+! eetcalc is used to calculate the entropy difference of the two phases
+    tol=1.0D-6
+    call hybrd1(eetcalc,nv,xv,fvec,tol,info,wa,lwa)
+    if(info.ne.1) then
+! info=0 Improper input parameters
+!     =2 Too many iterations 
+!     =3 tol variable too small
+!     =4 Too slow progress
+       write(*,*)'HYBRD solver return error: ',info
+       if(gx%bmperr.eq.0) gx%bmperr=4371
+    else
+    endif
+    if(gx%bmperr.ne.0) goto 1000
+    tzcond%prescribed=xv(1)
+    value=xv(1)
+1000 continue
+! restore suspeded phases and set equilibrium may be onconsistent
+!    ceq%status=ibset(ceq%status,EQINCON)
+!    call change_many_phase_status('* ',0,zero,ceq)
+!    if(gx%bmperr.eq.0) then
+! set amount of the two phases
+!       cps1=>tzceq%phase_varres(phasetuple(tzph1)%lokvares)
+!       cps2=>tzceq%phase_varres(phasetuple(tzph2)%lokvares)
+!       cps1%amfu=one
+!       cps2%amfu=one
+!    endif
+    return
+  end subroutine liquid_eet
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine eetcalc
+!\begin{verbatim}
+  subroutine eetcalc(nv,xv,fvec,iflag)
+! calculates the value of a condition for two phases to have same entropy
+! called by hybrd1 used by liquid_eet
+    implicit none
+    integer nv,iflag
+    double precision xv(*),fvec(*)
+!\end{verbatim}
+    type(gtp_phase_varres), pointer :: cps1,cps2
+    integer mode,lokph1,lokph2,lokvares1,lokvares2
+    double precision sm1,sm2
+! we transfer the data needed by tzph1,tzph2,tzceq and tzcond !!
+!    write(*,*)'In eetcalc: ',tzph1,tzph2
+!    write(*,*)'Current value of condition: ',tzcond%prescribed,xv(1)
+!
+    lokph1=phasetuple(tzph1)%lokph
+    lokph2=phasetuple(tzph2)%lokph
+    lokvares1=phasetuple(tzph1)%lokvares
+    lokvares2=phasetuple(tzph2)%lokvares
+    cps1=>tzceq%phase_varres(lokvares1)
+    cps2=>tzceq%phase_varres(lokvares2)
+!
+    mode=0
+! we have to calculate the equilibrium and the entropy difference of the phases
+! Set current value of condition
+    tzcond%prescribed=xv(1)
+!    write(*,*)'Prescribed condition: ',tzcond%prescribed
+! UNFINISHED BELOW
+! on entry both phases 1 and 2 are entered, suspend phase 2
+!    call change_phtup_status(tzph2,-3,one,tzceq)
+    call calceq3(mode,.FALSE.,tzceq)
+    if(gx%bmperr.ne.0) goto 1100
+! value is divided by RT
+    sm1=8.31451*tzceq%tpval(1)*cps1%gval(2,1)/cps1%abnorm(1)
+    sm2=8.31451*tzceq%tpval(1)*cps2%gval(2,1)/cps2%abnorm(1)
+!
+    fvec(1)=sm1-sm2
+!    write(*,'(a,F7.2,F7.4,2(1pe12.4))')'EET: ',xv(1),fvec(1),sm1,sm2
+!
+1000 continue
+    return
+1100 continue
+! error quit also calling routine by setting value to zero
+    write(*,*)'Quit tzcalc due to error: ',gx%bmperr
+    fvec(1)=zero; goto 1000
+  end subroutine eetcalc
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

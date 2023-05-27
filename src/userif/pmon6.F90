@@ -152,7 +152,7 @@ contains
 ! temporary integer variables in loops etc
     integer i1,i2,j4,j5,j2,iax,threads,modelx,jquad
 ! more temporary integers
-    integer jp,kl,svss,language,last,leak,j3,tzcond
+    integer jp,kl,svss,language,last,leak,j3,tzcond,eetcond
 ! and more temporary integers
     integer ll,lokcs,lokph,lokres,loksp,lrot,maxax
 ! and more temporary integers
@@ -296,7 +296,7 @@ contains
          'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
          'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ',&
          'ONLY_GRIDMIN    ','BOSSES_METHOD   ','PARAEQUILIBRIUM ',&
-         '                ','                ','                ']
+         'LIQUID_EET      ','                ','                ']
 !-------------------
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
@@ -402,7 +402,7 @@ contains
 ! subcommands to STEP
     character (len=16), dimension(nstepop) :: cstepop=&
          ['NORMAL          ','SEPARATE        ','QUIT            ',&
-          'CONDITIONAL     ','TZERO           ','                ',&
+          'CONDITIONAL     ','TZERO           ','LIQUID_EET      ',&
           'SCHEIL_GULLIVER ','PARAEQUILIBRIUM ','FAST            ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
@@ -581,6 +581,7 @@ contains
 ! clear some other variables
     dummy=' '; name1=' '; name2=' '; name3=' '
     tzcond=0
+    eetcond=0
     parael=' '
 ! initiallize ploted, it is not done in reset_plotoptions
     graphopt%plotend='pause mouse'
@@ -1585,7 +1586,7 @@ contains
 !         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
 !         'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ',&
 !         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','PARAEQUILIBRIUM ',&
-!         '                ','                ','                ']
+!         'LIQUID_EET      ','                ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8,'?TOPHLP')
        calculate: SELECT CASE(kom2)
@@ -2279,8 +2280,38 @@ contains
 ! what are the conditions??
 !          call list_conditions(kou,ceq)
 !-------------------------------------------------------
-       case(16) ! CALCULATE ??
-          write(kou,*)'Not implemented yet'
+       case(16) ! CALCULATE LIQUID_EET, check how TZERO is calculated
+          ll=degrees_of_freedom(ceq)
+          if(ll.ne.0) then
+             write(*,*)'You must have zero degrees of freedoms for this'
+             goto 100
+          endif
+          write(kou,*)'You should have calculated an equilibrium',&
+               ' close to the EET point'
+! ask for 2 phases and which condition to vary
+! remember the phases ... user may try several times
+          dummy='LIQUID '
+          call gparcdx('First phase ',cline,last,1,name2,dummy,'?EET ')
+          call find_phase_by_name(name2,iph,ics)
+          if(gx%bmperr.ne.0) goto 990
+          if(dummy(1:1).ne.' ') dummy=name3
+          call gparcdx('Second phase ',cline,last,1,name3,dummy,'?EET ')
+          call find_phase_by_name(name3,iph2,ics)
+          if(gx%bmperr.ne.0) goto 990
+          dummy=name3
+          call list_conditions(kou,ceq)
+          if(eetcond.eq.0) then
+             j2=1
+          else
+             j2=eetcond
+          endif
+         call gparidx('Release condition number',cline,last,eetcond,j2,'?Tzero')
+          call liquid_eet(iph,iph2,eetcond,xxx,ceq)
+          if(gx%bmperr.ne.0) goto 990
+          write(*,'(/a)')'The two phases has equal entropy at:'
+          call list_conditions(kou,ceq)
+! a warning when list equilibria
+          ceq%status=ibset(ceq%status,EQINCON)
 !-------------------------------------------------------
        case(17) ! CALCULATE ??
           write(kou,*)'Not implemented yet'
@@ -6403,7 +6434,7 @@ contains
 !=================================================================
 ! STEP, must be tested if compatible with assessments
 !         ['NORMAL          ','SEPARATE        ','QUIT            ',&
-!          'CONDITIONAL     ','TZERO           ','                ',&
+!          'CONDITIONAL     ','TZERO           ','LIQUID_EET      ',&
 !          'SHEIL_GULLIVER  ','PARAEQUILIBRIUM ','FAST            ']
     case(19)
 ! disable continue optimization
@@ -6618,7 +6649,7 @@ contains
                maptop%linehead(2)%number_of_equilibria
           write(kou,'(a,i5,a)')'Calculated ',jp,' points along the tzero line'
 !-----------------------------------------------------------
-! STEP no longer NPLE, note quitting already above
+! STEP LIQUID_EET, not yet implemented
        case(6)
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
