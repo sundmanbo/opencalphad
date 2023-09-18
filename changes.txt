@@ -20,6 +20,13 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2023.09.18 OC version 6.064: The first update using my new PC!  I am
+still not working full time, there are reasons to enjoy the time as
+retired also.  I added a LIST WORKING_DIR making it easier to know
+where the any plot files have disappeared if you do not find them.
+The macros STEP-TZERO and and MAP19 have some additional features
+also.  No major changes in the software.
+
 2023.05.27 OC version 6.063: The development is really slow, the only
 thing added is the command CALCULATE LIQUID_EET which calculates the T
 (or composition) where two phases (not necessarily the liquid) have

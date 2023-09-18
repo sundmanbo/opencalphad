@@ -130,15 +130,89 @@ plot
 w%(c)
 T
 Title step-tzero Fig 1
+out ./tzero-noG-nucleation
+Y
 
 @&
-@$ Let us verify this by calculating the Gibbs energy curves at 950 K
-@$ at varying C content.
+@$ To nucleate the BCC phase there an additional energy is needed and
+@$ we can add an estimated nucleation energy to the BCC phase
+@$
+@$ This can be achieved by adding an energy independent on composition and T
+
+enter para g(bcc,*:*) 298.15 100; 6000 N nucleation
+
+@&
+
+l phase bcc data
+
+
+@$ The parameter G(BCC,*:*) give a shift of the BCC Gibbs energy
+@$ which is independent of the composition and T
+
+@&
+@$ Now calculate the tzero T again, previous value was 946 K:
+
+l eq
+
+
+c tz
+fcc
+bcc
+1
+
+
+@$ With a 300 J/mol nucleation barrier the Tzero temperature is 873 K
+@$ lowered by about 70 degrees at this carbon content.
+
+@&
+@$ And calculate the new T-zero curve
+
+step tz
+y
+Y
+fcc
+bcc
+1
+
+
+plot
+w%(c)
+T
+Title step-tzero Fig 2
+append tzero-noG-nucleation
+scale Y N
+700
+1200
+
+
+
+@$ The second Tzero curve is lower than the first as expected
+@$ The largest difference is when the carbon content is zero.
+
+@&
+
+
+plot
+w%(c)
+T
+Title step-tzero Fig 3
+text .4 930 1 -30 T-zero
+text n .4 870 1 -30 T-zero plus nucleation barrier
+
+
+@$ In this figure the curves are labelled
+@&
+@$ Finally let us verify that the Gibbs energy curves at 950 K
+@$ actually cross at at some C content.
 @$ First suspend again all other phases
 
 set status ph *=sus
 
 set st ph fcc bcc=ent 0
+
+l c
+
+@&
 
 c n
 
@@ -162,8 +236,8 @@ Y
 N
 -6500
 -5000
-Title step-tzero Fig 2
-
+Title step-tzero Fig 4
+text .1 -5200 2 0 NOTE: No tie-line in the plane of the diagram!
 
 @$ We can see the Gibbs energy curves cross around w%(C)=0.3
 @$ inside the two-phase region FCC and BCC.
@@ -177,6 +251,7 @@ c e
 l,,,,,
 
 
+@&
 
 
 set inter

@@ -10716,8 +10716,9 @@ if(meqrec%noofits.eq.1) then
     return
 1100 continue
 ! error quit also calling routine by setting value to zero
-    write(*,*)'Quit tzcalc due to error: ',gx%bmperr
-    fvec(1)=zero; goto 1000
+!    write(*,*)'Quit eetcalc, most likely there is no EET for this phase'
+    fvec(1)=zero; gx%bmperr=4375
+    goto 1000
   end subroutine eetcalc
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

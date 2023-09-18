@@ -199,11 +199,10 @@ contains
     logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
     logical listzero,maptopbug
 ! default plot axis for some STEP command:
-! 1 for SEPARATE, 2 SCHEIL, 3 TZERO, 4 PARAEQUIL, 5 no longer NPLE
+! 1 for SEPARATE, 2 SCHEIL, 3 TZERO, 4 PARAEQUIL, 5 LIQUID_EET
     logical stepspecial(5)
 ! fast elements for Scheil, max 3
     character*2 fast(3)
-!    logical tzeroline,separate, stepspecial(5)
 ! unit for logfile input, 0 means no logfile
     integer logfil
 ! remember default for calculate phase
@@ -232,7 +231,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=24,ncalc=18,ncent=21,ncread=9
+    integer, parameter :: ncbas=30,nclist=27,ncalc=18,ncent=21,ncread=9
     integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=12
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
@@ -272,7 +271,8 @@ contains
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
          'ACTIVE_EQUILIBR ','ELEMENTS        ','EXCELL_CSV_FILE ',&
-         'QUADRUPLETS     ','ESTIMAT_ACCURACY','                ']
+         'MQMQA_QUADS     ','ESTIMAT_ACCURACY','WORKING_DIRECTOR',&
+         '                ','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -1787,11 +1787,12 @@ contains
 !         with respect to endmember J
 ! mobilities(i) is mobility of component i
 ! derivatives of mu and mobilities, the FALSE means not quiet
-                !CCI
+! CCI
                 call get_sublattice_number(phtup%ixphase,nsub,ceq)
                 allocate(nkl(nsub))
                 allocate(nsites(nsub))
-                call get_sublattice_structure(phtup%ixphase,phtup%compset,nsub,nkl,nsites,ceq)
+                call get_sublattice_structure(phtup%ixphase,phtup%compset,&
+                     nsub,nkl,nsites,ceq)
                 nend=1
                 do nv=1,nsub
                   nend = nend * nkl(nv)
@@ -1824,7 +1825,7 @@ contains
                 deallocate(mugrad)
                 deallocate(mobilities)
                 call list_defined_properties(lut)
-                !CCI
+!CCI
              endif
 !.......................................................
           case(6) ! Quit
@@ -2286,16 +2287,24 @@ contains
              write(*,*)'You must have zero degrees of freedoms for this'
              goto 100
           endif
-          write(kou,*)'You should have calculated an equilibrium',&
-               ' close to the EET point'
-! ask for 2 phases and which condition to vary
-! remember the phases ... user may try several times
+          write(kou,878)
+878       format(/'The Equi-Entropy T is the temperature where a solid phase ',&
+               'has the same entropy'/'as the liquid phase.  This can be ',&
+               'considered as the limit of stability of the'/'solid phase ',&
+               'even if its Gibbs energy may become lower than the Gibbs ',&
+               'energy'/'of the liquid at an even higher T.  This command ',&
+               'varies T or a composition'/'of the phase to find EET. ',&
+               'It may fail if there is no EET for the phase.'&
+               //'You should have calculated an equilibrium',&
+               ' close to the EET point already.')
+! ask for liquid and another phase name and a condition to vary
+! remember the phases ... a user may try several times
           dummy='LIQUID '
-          call gparcdx('First phase ',cline,last,1,name2,dummy,'?EET ')
+          call gparcdx('The liquid phase ',cline,last,1,name2,dummy,'?EET ')
           call find_phase_by_name(name2,iph,ics)
           if(gx%bmperr.ne.0) goto 990
           if(dummy(1:1).ne.' ') dummy=name3
-          call gparcdx('Second phase ',cline,last,1,name3,dummy,'?EET ')
+          call gparcdx('The solid phase ',cline,last,1,name3,dummy,'?EET ')
           call find_phase_by_name(name3,iph2,ics)
           if(gx%bmperr.ne.0) goto 990
           dummy=name3
@@ -2305,9 +2314,15 @@ contains
           else
              j2=eetcond
           endif
-         call gparidx('Release condition number',cline,last,eetcond,j2,'?Tzero')
+         call gparidx('Release condition number',cline,last,eetcond,j2,'?EET')
           call liquid_eet(iph,iph2,eetcond,xxx,ceq)
-          if(gx%bmperr.ne.0) goto 990
+          if(gx%bmperr.ne.0) then
+! Failed calculation normally means T is negative, try to set it to 1
+!             write(*,*)'Value of T: ',ceq%tpval(1), gx%bmperr
+!             ceq%tpval(1)=one
+! does not change T ??? Why?
+             goto 990
+          endif
           write(*,'(/a)')'The two phases has equal entropy at:'
           call list_conditions(kou,ceq)
 ! a warning when list equilibria
@@ -5111,7 +5126,7 @@ contains
           if(gx%bmperr.ne.0) goto 990
 !          write(*,*)'Not implemented yet'
 !------------------------------
-! list QUADRUPLETS
+! list MQMQA_QUADS
        case(22)
           jquad=0
           qlista: do i1=1,nosp()
@@ -5140,6 +5155,7 @@ contains
 !    max length         8+25+4*11=33+44=77
 ! include listing of mqmqa_data%constoi(1..4,index)
           enddo qlista
+          if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
 !------------------------------
 ! LIST ESTIMATE_ACCURACY.  Additional calculations are made
 ! Eventually included in case(12) ???
@@ -5159,8 +5175,21 @@ contains
              goto 990
           endif
 !------------------------------
-! list ??
+! list WORKING_DIR
        case(24)
+          write(kou,1685)trim(workingdir)
+1685      format('Current working directory is: ',a)
+!------------------------------
+! list ??
+       case(25)
+          write(*,*)'Not implemented yet'
+!------------------------------
+! list ??
+       case(26)
+          write(*,*)'Not implemented yet'
+!------------------------------
+! list ??
+       case(27)
           write(*,*)'Not implemented yet'
        end SELECT list
 !=================================================================
@@ -6454,8 +6483,8 @@ contains
        stepspecial=.FALSE.
 ! IMPORTANT I have changed the order between option and reinitiate!!
        kom2=submenu('Step options?',cline,last,cstepop,nstepop,1,'?TOPHLP')
-! skip here for step quit and other cases not implemented: case(3, 4 and 6)
-       if(kom2.eq.3 .or. kom2.eq.4 .or. kom2.eq.6) goto 100
+! skip here for step quit and other cases not implemented: case(3 and 4)
+       if(kom2.eq.3 .or. kom2.eq.4) goto 100
 ! check if there are previous results
        if(associated(maptop)) then
           write(kou,833)
@@ -6633,6 +6662,7 @@ contains
           endif
           nullify(maptop)
           nullify(maptopsave)
+! step tzero
           stepspecial(3)=.TRUE.
 ! This is to keep trace of total number of saved equilibria
           totalsavedceq=0
@@ -6652,6 +6682,60 @@ contains
 ! STEP LIQUID_EET, not yet implemented
        case(6)
           write(kou,*)'Not implemented yet'
+          goto 100
+          write(kou,879)
+879       format('For this command you must already have',&
+               ' "calculatd liquid_EET"'/&
+               'for the phases you specify below and you must',&
+               ' have selected an axis condion')
+          call gparcx('Have you done all that?',cline,last,1,&
+               name1,'NO','?Step liquid_eet')
+          call capson(name1)
+          if(name1(1:1).ne.'Y') goto 100
+          call gparcx('The liquid phase name: ',cline,last,1,name1,' ',&
+               '?Step liquid_eet')
+          if(buperr.ne.0) goto 990
+          call find_phase_by_name(name1,iph,ics)
+          if(gx%bmperr.ne.0) goto 990
+          if(ics.ne.1) then
+             write(*,*)'You must use first composition set'
+             goto 100
+          endif
+          call gparcx('The solid phase name: ',cline,last,1,name2,' ',&
+               '?Step liquid_eet')
+          call find_phase_by_name(name2,iph2,ics)
+          if(gx%bmperr.ne.0) goto 990
+          if(ics.ne.1) then
+             write(*,*)'You must use first composition set'
+             goto 100
+          endif
+! normally T is the first condition
+          j2=1
+          call gparidx('Release condition number',cline,last,tzcond,j2,&
+               '?Step liquid_eet')
+! Delete previous step/map results
+          if(associated(maptop)) then
+             write(kou,*)'Previous map/step results will be deleted'
+             call delete_mapresults(maptop)
+          endif
+          nullify(maptop)
+          nullify(maptopsave)
+! step EET
+          stepspecial(5)=.TRUE.
+! This is to keep trace of total number of saved equilibria
+          totalsavedceq=0
+! initiate indexing nodes and lines
+          seqxyz=0
+! remove all graphopt settings
+          call reset_plotoptions(graphopt,plotfile,textlabel)
+          axplotdef=' '
+!          call step_tzero(maptop,noofaxis,axarr,seqxyz,iph,iph2,tzcond,ceq)
+          call step_eet(maptop,noofaxis,axarr,seqxyz,iph,iph2,tzcond,ceq)
+          if(gx%bmperr.ne.0) goto 990
+! sum the points calculated
+          jp=maptop%linehead(1)%number_of_equilibria+&
+               maptop%linehead(2)%number_of_equilibria
+          write(kou,'(a,i5,a)')'Calculated ',jp,' points along the EET line'
 !-----------------------------------------------------------
 ! STEP SCHEIL_GULLIVER and STEP FAST
        case(7,9)
@@ -6682,6 +6766,7 @@ contains
 ! remove all graphopt settings
           call reset_plotoptions(graphopt,plotfile,textlabel)
           axplotdef=' '
+! step scheil
           stepspecial(2)=.TRUE.
           if(kom2.eq.9) then
 ! ask for fast diffusing elements in Scheil simulation
@@ -6760,6 +6845,7 @@ contains
           axplotdef(1)='W(*,'//trim(parael)//') '
 ! one can calculate paraequilibria diagrams at constant T
 !          axplotdef(2)='T '
+! step paraequil
           stepspecial(4)=.TRUE.
           call step_paraequil(maptop,noofaxis,axarr,seqxyz,tupix,icond,ceq)
           if(gx%bmperr.ne.0) goto 990
@@ -6931,7 +7017,7 @@ contains
 ! Paraequilibrium, fraction vs T
                    if(iax.eq.2) text='T'
                 elseif(stepspecial(5)) then
-! no longer NPLE, fraction vs T
+! step liquid_eet
                    if(iax.eq.2) text='T'
                 endif
                 nullify(maptop%plotlink)

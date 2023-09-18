@@ -571,7 +571,7 @@
        'Error from DGETRS/F generating isopleth invariant exits         ',&
        'Supressed value due to special circumstances                    ',&
        'Mobility parameters must not have wildcard constituents         ',&
-       '5                                                               ',&
+       'No EET temperature calculated for this system                   ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&

@@ -16,6 +16,11 @@ l d
 
 @&
 
+l mq
+
+@$ Listing of the MQMQA quadruplets with bonds
+@&
+
 set stat ph liq-na liq-mg=s
 
 l sh a

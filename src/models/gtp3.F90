@@ -37,7 +37,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use ocparam
 !
 !! overall version number
-  character (len=8), parameter :: version='  6.063 '
+  character (len=8), parameter :: version='  6.064 '
 !
 !
 ! data structure for non-encrypted TP functions

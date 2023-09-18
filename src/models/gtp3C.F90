@@ -576,7 +576,8 @@
    nsusp=1
    write(unit,10)nooftuples
 10  format(/'List of ',i3,' phases'/ &
-         '  No tup Name',22x,'Mol.comp. Comp/FU   dGm/RT  Status1  Status2')
+         ' No tup Name',22x,'Mol.comp. Comp/FU    dGm/RT  Status1  Status2')
+! 230709 '  No tup Name',22x,'Mol.comp. Comp/FU   dGm/RT  Status1  Status2')
 !         '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
    jl=0
    trailer=' '
@@ -661,7 +662,9 @@
                     csrec%amfu*csrec%abnorm(1),&
                     csrec%abnorm(1),phlista(lokph)%status1,&
                     ceq%phase_varres(lokcs)%status2,ch1
-110            format(2i4,1x,a24,1PE10.2,1x,0PF8.2,'       0.0',2(0p,z8),a1)
+! 230709 shorter
+110            format(i3,i4,1x,a24,1PE10.2,1x,0PF8.2,'       0.0 ',2(0p,z8),a1)
+!110            format(2i4,1x,a24,1PE10.2,1x,0PF8.2,'       0.0',2(0p,z8),a1)
 !110            format(2i4,1x,a24,1PE10.2,1x,0PF9.2,'       0.0',2(0p,z8))
             else
 !               write(unit,112)jk,ics,csname, &
@@ -669,7 +672,9 @@
                     csrec%amfu*csrec%abnorm(1),&
                     csrec%abnorm(1),csrec%dgm/csrec%abnorm(1),&
                     phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2,ch1
-112            format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2,2(0p,z8),a1)
+! 230709 shorter
+112            format(i3,i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2,1x,2(0p,z8),a1)
+!112            format(2i4,1x,a24,1PE10.2,1x,0PF8.2,1PE10.2,2(0p,z8),a1)
 !112            format(2i4,1x,a24,1PE10.2,1x,0PF9.2,1PE10.2,2(0p,z8))
             endif
          else
@@ -677,15 +682,18 @@
             write(unit,111)jk,csrec%phtupx,csname, &
                  csrec%abnorm(1),csrec%dgm/csrec%abnorm(1),&
                  phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2,ch1
-111         format(2i4,1x,a24,'       0.0',1x0PF8.2,1PE10.2,2(0p,z8),a1)
+! 230709 shorter
+111         format(i3,i4,1x,a24,'       0.0',1x0PF8.2,1PE10.2,1x,2(0p,z8),a1)
+!111         format(2i4,1x,a24,'       0.0',1x0PF8.2,1PE10.2,2(0p,z8),a1)
 !111         format(2i4,1x,a24,'       0.0',1x0PF9.2,1PE10.2,2(0p,z8))
          endif
       enddo csloop
    enddo phloop
    if(ndorm.gt.0) then
       write(unit,200)
+! 230709 shorter
 200   format(/'List of dormant phases'/ &
-           '  No tup Name',22x,'Mol.comp.  Comp/FU  dGm/RT   Status1 Status2')
+           ' No tup Name',22x,'Mol.comp.  Comp/FU  dGm/RT   Status1 Status2')
 !           '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
       ndorm=-1
       goto 20
