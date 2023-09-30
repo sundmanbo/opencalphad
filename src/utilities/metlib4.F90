@@ -1228,7 +1228,7 @@ CONTAINS
     bug=ival
 ! wow, set sign bit of an integer? Assume 32 bits ...
     IF(ISIGN.EQ.1) ival=ibset(ival,31)
-    write(*,*)'In metlib4 GETHEX: ',ival,bug
+!    write(*,*)'In metlib4 GETHEX: ',ival,bug
     RETURN
   END SUBROUTINE GETHEX
 
@@ -2651,8 +2651,12 @@ CONTAINS
 ! open a popup window to browse directories and files using tinyfiledialogs
 ! typ<0 means new or old file; 0 old file no filer, 
 ! typ >0 means old file with filter:
-! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT
+! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=XTDB, 7=DAT
+! these are defined in pmon6.F90 also !!!!!!!!!!!!!!!!!!!!!!!!!
+! getfilename is in utilities/TINYFILEDIALOGS/ftinyopen
        call getfilename(typ,sval)
+!       write(*,333)trim(sval),typ
+333    format('METLIB: Back from getfilename 1: "',a,'" typ: ',i3)
        if(sval(1:1).eq.' ') then
           buperr=1020
        elseif(typ.eq.-7) then
@@ -3406,18 +3410,27 @@ CONTAINS
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
 ! sval is the answer either extracted from SVAR or obtained by user input
 ! cdef is a default answer
-! typ  is default file extenion, at present only:
-!  1=".TDB", 2=".OCU", 3=".OCM", 4= , 5=".PLT" , 6= , 7=".DAT" , 8=".LOG"
+! typ  is default file extenion in OpenCalphad (OC), at present only:
+!  1=".TDB", 2=".OCU", 3=".OCM", 4=OCD , 5=".PLT" , 6=XTDB , 7=".DAT" , 8=".LOG"
+! 1 TDB is old TDB format
+! 2 OCU is unformatted file (works)
+! 3 OCM is macro file (not implemented)
+! 4 OCD is unformatted direct files (not implemented)
+! 5 PLT is GNUPLOT graphics format (OK)
+! 6 XTDB is XML format
+! 7 DAT is unspecified data file 
+! 8 LOG is not used ?? 
 ! negative value for writing ...
 ! hyper is a hypertext target for help
     implicit none
 !    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*),hyper*(*)
-    integer last,jtyp
+! type is cnaged inside this rooutine, must be a variable when called
+    integer last,jtyp,typ
 !    EXTERNAL HELP
 !\end{verbatim}
     CHARACTER SLIN*256
-    integer typ,typeahead,kk,iflag
+    integer typeahead,kk,iflag
     logical beware
     sval=' '
     slin=cdef
@@ -3452,7 +3465,7 @@ CONTAINS
 ! we are running a macro and if SVAL(1:2) is './' replace this with MACROPATH'
              sval=trim(macropath(IUMACLEVL))//sval(3:)
           elseif(sval(1:3).eq.'../') then
-! we are running a macro and if SVAL(1:3) is '../' prefix with MACROPATH'
+! we are running a macro and if SVAL(1:3) is '../' then prefix with MACROPATH'
              sval=trim(macropath(IUMACLEVL))//sval
 !             write(*,*)'M3 add path: ',trim(sval),IUMACLEVL
 !          else
@@ -3462,10 +3475,12 @@ CONTAINS
 #ifdef tinyfd
     else
 ! open a popup window to browse directories and files using tinyfiledialogs
-! typ<0 means new or old file; 0 old file no filer, 
+! typ<0 means new or old file; 0 old file no filter, 
 ! typ >0 means old file with filter:
-! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT, 8=LOG
+! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=XTDB, 7=DAT, 8=LOG
+! these are defined in pmon6.F90 also !!!!!!!!!!!!!!!!!!!!!!!!!
 !       write(*,*)'M4 opening popup window',typ
+! getfilename is in utilities/TINYFILEDIALOGS/ftinyopen
        call getfilename(typ,sval)
 !       write(*,*)'M4 From getfilename: "',trim(sval),'"',typ
        if(sval(1:1).eq.' ') then
@@ -4934,8 +4949,12 @@ CONTAINS
     ELSEIF(SLIN(2:2).EQ.'&') THEN
 !...       A PAUSE REQUESTED. CONTINUE AFTER A RETURN, skipp if iox(8) nonzero
 !       write(*,*)'calling testb from gptcm1'
-       if(iox(8).eq.0) then
-! if iox(8) nonzero do not stop
+!       if(iox(8).eq.0) then
+! MODIFY to force stop on '&&' ....
+       if(iox(8).eq.0 .or. SLIN(3:3).eq.'&') then
+! if iox(8) nonzero or a single & after @ do not stop
+! This is to handle running many macro files for testing and force stop
+! after each macro file finish with a @&&
           WRITE(KOUD,*)'Hit RETURN to continue'
           READ(KIUD,310)CH1
 310       FORMAT(A1)

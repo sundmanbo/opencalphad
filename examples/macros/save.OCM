@@ -152,10 +152,11 @@ new Y
 
 @&
 @$ ===================================================================
-@$ testing unformatted save and read using a PDB file
+@$ testing unformatted save and read using an XTDB file
+@$ NOT YET IMPLEMENTED use the TDB file ....
 @$ with disordered fraction set and a second equilibrium
 
-r p ./MoRe1
+r t ./MoRe
 
 @&
 

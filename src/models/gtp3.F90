@@ -37,7 +37,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use ocparam
 !
 !! overall version number
-  character (len=8), parameter :: version='  6.064 '
+  character (len=8), parameter :: version='  6.065 '
 !
 !
 ! data structure for non-encrypted TP functions
@@ -50,7 +50,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !  include "gtp3_dd2.F90" all other data structures
 #include "gtp3_dd2.F90"
-!  
+!
+! XML elements and attributes
+#include "gtp3_xml.F90"
+!
 CONTAINS
 
 ! 1-5: initialization, how many, find things, get things, set things, 

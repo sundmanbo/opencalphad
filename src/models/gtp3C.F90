@@ -1412,7 +1412,7 @@
 !\end{verbatim}
    integer iph,ipos,kousave,unit,isp
 ! the retured file name can be very long
-   character text*512, text2*2000,fil*128
+   character text*512, text2*2000,fil*128,zext*5
    character date*8,CHTD*1
 ! if not screen then ask for file name
 ! for screen output of file use /option= ...
@@ -1421,14 +1421,14 @@
 ! gparfilex called in PMON6
    if(ftyp.ne.1) then
 !     call gparcdx('Output file: ',cline,last,1,fil,'database','?Output format')
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, -8=LOG
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT, -8=LOG
 ! NEGATIVE is for write, 0 read without filter, -100 write without filter
 ! gparfilex may call TINYFILESDIALOG
       text=' '
       call gparfilex('Output file: ',cline,last,1,fil,text,&
            -ftyp,'?Output format')
 ! Sometimes segmentation fault between the exit of GPARFILEX and this write
-      write(*,*)'3C back from gpafilex',ftyp,' "',trim(fil),'"'
+      write(*,*)'3C back from gparfilex',ftyp,' "',trim(fil),'"'
       ipos=len_trim(fil)
       if(ipos.le.0) then
          write(*,*)'No file name, quit'
@@ -1451,9 +1451,12 @@
             fil(ipos:)='.OCM'
          elseif(ftyp.eq.4) then
             fil(ipos:)='.tex'
-         elseif(ftyp.eq.5) then
-! PDB file
-            fil(ipos:)='.PDB'
+         elseif(ftyp.eq.6) then
+! XTDB
+            fil(ipos:)='.XTDB'
+         else
+! filetype not used
+            gx%bmperr=4399; goto 1000
          endif
       endif
       write(*,*)'3C opening a new file',ftyp
@@ -1494,10 +1497,15 @@
 !--------------------------------------------------------------
 ! write on unit
    case(2) ! ftyp=2 TDB format  THIS IS NOW REDUNDANT
+      write(*,*)'Please use the SAVE command'
+      goto 1000
 ! CHTD1 keeps track of type definitions, note: incremented before use
       CHTD='0'
       write(*,*)'3C saving TDB format'
       if(notallowlisting(privilege)) goto 1000
+      write(*,*)'Use SAVE TDB to write a TDB database file'
+      goto 1000
+!
       write(*,106)date(1:4),date(5:6),date(7:8)
       write(unit,106)date(1:4),date(5:6),date(7:8)
 106   format('$ Database file written by Open Calphad ',a,'-',a,'-',a/)
@@ -1562,9 +1570,12 @@
    case(4) ! ftyp=4 LATEX format
       write(kou,*)'LaTeX not implemented yet'
 !--------------------------------------------------------------
-   case(5) ! ftyp=5 Open Calphad TDB format
-!      write(kou,*)'PDB not implemented yet'
-      call write_pdbformat(unit)
+   case(5) ! ftyp=5 Graphics PLT format
+      write(*,*)'PLT format is for plotting'
+!--------------------------------------------------------------
+   case(6) ! ftyp=6 XTDB format
+!      write(kou,*)'XTDB not implemented yet'
+      write(*,*)'Please use the SAVE command'
    end select
 !--------------------------------------------------------------
    goto 1000
@@ -2548,6 +2559,7 @@
             
       enddo tooploop
    endif
+!   write(*,*)'3C listing by list_phase_data'
 1000 continue
    return
  END subroutine list_phase_data
@@ -2572,6 +2584,9 @@
    logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap
 ! a smart way to have an array of pointers
+!
+! this subroutine is not used ....
+!
    TYPE intrecarray 
       type(gtp_interaction), pointer :: p1
    end TYPE intrecarray
@@ -3067,6 +3082,7 @@
       goto 100
    endif
 1000 continue
+   write(*,*)'3C listing by list_phase_data2'
    return
  END subroutine list_phase_data2
 
@@ -3276,17 +3292,17 @@
    integer eli,noelx,iel,isto,jpos,ich,nlen
    double precision stoi,charge
    if(spno.lt.1 .or. spno.gt.noofsp) then
-!       write(*,*)'in encode_stoik'
+!       write(*,*)'3C in encode_stoik, no species: ',spno
       gx%bmperr=4051
       goto 1000
    endif
    ipos=1
    noelx=splista(spno)%noofel
-!  write(6,*)'encode_stoik 1: ',spno,noelx
+!   write(6,*)'3C encode_stoik 1: ',spno,noelx
    loop1: do iel=1,noelx
       eli=splista(spno)%ellinks(iel)
       elnam=ellista(eli)%symbol
-!     write(6,*)'encode_stoik 2: ',eli,elnam
+!      write(6,*)'3C encode_stoik 2: ',eli,elnam
       if(elnam(2:2).ne.' ') then
          ltext(ipos:ipos+1)=elnam
          nlen=2
@@ -3311,7 +3327,7 @@
             write(ltext(ipos:ipos),210)isto
 210          format(i1)
             ipos=ipos+1
-!           write(6,*)'encode_stoik 4B: ',ltext(ipos-3:ipos)
+!           write(6,*)'3C encode_stoik 4B: ',ltext(ipos-3:ipos)
          elseif(nlen.eq.1 .and. iel.ne.noelx) then
             ltext(ipos:ipos)='1'
             ipos=ipos+1
@@ -3333,7 +3349,7 @@
    enddo loop1
    charge=splista(spno)%charge
    ich=int(charge)
-!  write(6,*)'encode_stoik 5: ',ich,charge
+!   write(6,*)'3C encode_stoik 5: ',ich,charge
    if(ich.lt.zero) then
 ! limit output to integer charges <10
       ltext(ipos:ipos+3)='/-'//char(ichar('0')-ich)

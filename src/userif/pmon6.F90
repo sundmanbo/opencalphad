@@ -55,7 +55,7 @@ contains
     character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort*1
     integer, parameter :: ocmonversion=71
 ! for the on-line help, at present turn off by default, if a HTML file set TRUE
-    character*128 browser,latexfile,htmlfile,unformfile
+    character*128 browser,latexfile,htmlfile,unformfile,xtdbdef
     logical :: htmlhelp=.FALSE.
 !    logical :: htmlhelp=.TRUE.
 ! element symbol and array of element symbols for database use
@@ -69,7 +69,9 @@ contains
     double precision finish2,start2
     integer endoftime,startoftime
 ! separate file names for remembering and providing a default
-    character ocmfile*128,ocufile*128,tdbfile*128,ocdfile*128,filename*128
+    character ocmfile*128,ocufile*128,tdbfile*128,xtdbfile*128
+    character ocdfile*128,filename*128
+    character zext*8
 ! home for OC and default directory for databases
 !    character ochome*64,ocbase*64, change suggested by Chunhui
     character ochome*128,ocbase*128
@@ -176,7 +178,7 @@ contains
 ! saved parameters for analyze
     double precision, allocatable, dimension(:,:) :: savedcoeff
     double precision savesumerr,delta
-    integer analyze,cormatix,nvcoeffsave,mexpsave,iz,jz
+    integer analyze,cormatix,nvcoeffsave,mexpsave,iz,jz,ztyp
 ! this is least square error from using LMDIF
 ! 1: previous value, 2 new value, 3 normalized error (divided by m-n)
     double precision err0(3)
@@ -232,7 +234,7 @@ contains
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=27,ncalc=18,ncent=21,ncread=9
-    integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=12
+    integer, parameter :: ncam1=18,ncset=27,ncadv=18,ncstat=6,ncdebug=12
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=9
@@ -276,8 +278,8 @@ contains
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
-        ['SCREEN          ','TDB             ','MACRO           ',&
-         'LATEX           ','PDB             ','                ']
+        ['SCREEN          ','                ','MACRO           ',&
+         '                ','                ','                ']
 !-------------------
 ! subsubcommands to LIST PHASE
     character (len=16), dimension(nclph) :: clph=&
@@ -316,14 +318,14 @@ contains
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
         ['UNFORMATTED     ','TDB             ','QUIT            ',&
-         'DIRECT          ','PDB             ','SELECTED_PHASES ',&
+         'DIRECT          ','XTDB            ','SELECTED_PHASES ',&
          'ENCRYPTED       ','                ','                ']
 !-------------------
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
     character (len=16), dimension(ncsave) :: csave=&
         ['TDB             ','SOLGAS          ','QUIT            ',&
-         'DIRECT          ','UNFORMATTED     ','PDB             ']
+         'DIRECT          ','UNFORMATTED     ','XTDB            ']
 !-------------------
 ! subcommands to AMEND first level
 ! many of these should be subcommands to PHASE
@@ -374,7 +376,8 @@ contains
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIALS    ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
-          'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR']
+          'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR',&
+          'XTDB_DEFAULTS   ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -577,7 +580,7 @@ contains
 ! jump here after NEW to reinitiallize all local variables also
 20  continue
 ! clear file names
-    ocmfile=' '; ocufile=' '; tdbfile=' '
+    ocmfile=' '; ocufile=' '; tdbfile=' '; xtdbfile=' '
 ! clear some other variables
     dummy=' '; name1=' '; name2=' '; name3=' '
     tzcond=0
@@ -711,6 +714,9 @@ contains
           startupmacro=.TRUE.
        endif
     endif noochome
+! initiate XML defaults
+    lowTdef='298.15  '; hightdef='6000    '; refiddef='U.N. Known';
+    eldef='VA /-'; unary1991=.TRUE.; includemodels=.FALSE.
 ! running a initial macro file
     write(*,*)'Working directory is: ',trim(workingdir)
 !
@@ -2471,7 +2477,8 @@ contains
 !          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIALS    ',&
 !          'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
 !          'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
-!          'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR']
+!          'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR',&
+!          'XTDB_DEFAULTS   ','                ','                ']
           name1='Advanced command'
 !          kom3=submenu(name1,cline,last,cadv,ncadv,4,'?TOPHLP')
 ! changed default to working_directory
@@ -2660,15 +2667,17 @@ contains
           case(9) ! WORKING DIRECTORY
              write(kou,*)'Current working directory: ',trim(workingdir)
              write(kou,*)'To change please select an OCM file in the directory'
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
+! IMPORTANT: extensions also in utilities/ftinydialog.F90/ftinyopen !!!!
 ! try to set current working directory as input to allow editing
 !             cline=workingdir
 !             last=len_trim(cline)
 !             call gparcx('New: ',cline,last,1,string,trim(workingdir),&
 !                  '?Set adv workdir')
 ! The promt here is never displayed ...
+             ztyp=3
              call gparfilex('Select new working directory',&
-                  cline,last,1,string,' ',3,'?Set adv workdir')
+                  cline,last,1,string,' ',ztyp,'?Set adv workdir')
              inquire(file=string,exist=logok)
              if(.not.logok) then
                 write(*,*)'No such directory, working directory not changed'
@@ -2772,6 +2781,40 @@ contains
                   '?Set adv protect')
 !.................................................................
           case(15) ! IGNORE_MACRE_ERRORS normally a macro error returns inter
+             continue
+!.................................................................
+          case(16) ! SET ADVANCED XTDB_DEFAULTS
+             dummy=lowtdef
+             call gparcdx('Default low T limit',cline,last,1,lowtdef,dummy,&
+                  '?Set adv xtdb')
+             unary1991=.FALSE.
+             if(lowtdef.eq.'298.15 ') unary1991=.TRUE.
+             dummy=hightdef
+             call gparcdx('Default high T limit',cline,last,1,hightdef,dummy,&
+                  '?Set adv xtdb')
+             ch1='N'
+             call gparcdx('Include model descriptions (Y to include)',&
+                  cline,last,1,chz,ch1,'?Set adv xtdb')
+             if(chz.eq.'Y') then
+                includemodels=.TRUE.
+             else
+                includemodels=.FALSE.
+             endif
+             dummy=eldef
+             call gparcdx('Default elements (NONE to remove)',&
+                  cline,last,1,eldef,dummy,'?Set adv xtdb')
+             if(dummy(1:5).eq.'NONE ') eldef=' '
+             dummy=refiddef
+! argument 4 equal to 5 means the whole line is read
+             call gparcdx('Default bibiographic reference (One line!)',&
+                  cline,last,5,refiddef,dummy,'?Set adv xtdb')
+             if(dummy(1:5).eq.'NONE ') refiddef=' '
+!.................................................................
+          case(17) ! not used
+             continue
+!.................................................................
+          case(18) ! not used
+             continue
           end select advanced
 !-----------------------------------------------------------
        case(4) 
@@ -3023,7 +3066,8 @@ contains
 !             write(*,*)'PMON maptop bug 1A?',associated(maptop)
              maptopbug=.false.
           endif
-          call gparfilex('Log file name: ',cline,last,1,model,'oclog',-8,&
+          ztyp=-8
+          call gparfilex('Log file name: ',cline,last,1,model,'oclog',ztyp,&
                '?Set logfile')
           name1=model(1:5)
           call capson(name1)
@@ -3758,15 +3802,18 @@ contains
 3730      format('Number of variable coefficients are now ',i3)
 !------------------------- 
        case(24) ! SET SYSTEM_VARIABLE
-          call gparidx('System variable index: ',cline,last,ll,0,&
+          write(kou,3733)
+3733      format('Variable 2 is frequency of stability checks during step/map')
+          call gparidx('System variable: ',cline,last,ll,0,&
                '?Set system variable')
-          if(ll.gt.0 .and. ll.le.10) then
+!          if(ll.gt.0 .and. ll.le.10) then
+          if(ll.eq.2) then
 ! sysparam(2) used during STEP/MAP often to check if equilibrium is stable
              call gparidx('System variable value: ',cline,last,j4,0,&
                   '?Set system variable')
              globaldata%sysparam(ll)=j4
           else
-             write(*,*)'Index must be between 1 and 10'
+             write(*,*)'No other variable can be changed'
           endif
 !------------------------- 
        case(25) ! SET INITIAL_T_AND_P start values?, NOT CONDITIONS!!
@@ -4247,39 +4294,47 @@ contains
 ! LIST DATA SCREEN/TDB/MACRO/LaTeX
 ! it is also possible to give SAVE TDB 
 !    character (len=16), dimension(nlform) :: llform=&
-!        ['SCREEN          ','TDB             ','MACRO           ',&
-!         'LATEX           ','PDB             ','                ']
+!        ['SCREEN          ','                ','MACRO           ',&
+!         '                ','                ','                ']
           if(globaldata%encrypted.ne.0) then
              write(kou,*)'Illegal for encrypted databases'
              goto 100
           endif
           kom3=submenu('Output format for data?',cline,last,llform,nlform,1,&
                '?TOPHLP')
-          if(kom3.eq.2) then
-             call gparfilex('File name: ',cline,last,1,filename,text,-1,&
-                  '?Save TDB')
-             kl=max(index(filename,'.dat '),index(filename,'.TDB '))
-             if(kl.le.0) then
-                kl=len_trim(filename)+1
-                if(kl.eq.1) then
-                   write(*,*)'Too short file name'
-                   goto 100
-                endif
-                filename(kl:)='.DAT '
-             endif
-             call list_TDB_format(filename)
-          elseif(kom3.gt.0) then
+!          write(*,*)'LIST DATA output format',kom3
+          if(kom3.eq.1) then
+! list on screen
              call list_many_formats(cline,last,kom3,kou)
              if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
                 write(kou,*)bmperrmess(gx%bmperr)
              elseif(gx%bmperr.ne.0) then
                 write(kou,*)'Error code ',gx%bmperr
-             else
-                if(tdbfile(1:1).ne.' ') &
-                     write(kou,*)'Database file: ',trim(tdbfile)
              endif
+          elseif(kom3.eq.3) then
+             write(*,*)'Output in MACRO format not yet implemented'
           else
-             write(kou,*)'Unknown format'
+! TDB format does not work here, use SAVE
+             write(*,*)'Use SAVE to list with other formats than SCREEN'
+!             ztyp=-1
+!             call gparfilex('File name: ',cline,last,1,filename,text,ztyp,&
+!                  '?Save TDB')
+!             kl=max(index(filename,'.dat '),index(filename,'.TDB '))
+!             if(kl.le.0) then
+!                kl=len_trim(filename)+1
+!                if(kl.eq.1) then
+!                   write(*,*)'Too short file name'
+!                   goto 100
+!                endif
+!                filename(kl:)='.DAT '
+!             endif
+!             call list_TDB_format(filename)
+!             else
+!                if(tdbfile(1:1).ne.' ') &
+!                     write(kou,*)'Database file: ',trim(tdbfile)
+!             endif
+!          else
+!             write(kou,*)'Unknown format'
           endif
 !-----------------------------------------------------------
        case(2) ! list short with status bits
@@ -5078,7 +5133,8 @@ contains
           endif
           if(buperr.ne.0) buperr=0
 ! What does -5 as argument mean?? Well, open for write!!
-          call gparfilex('Output file: ',cline,last,1,plotfile,' ',-5,&
+          ztyp=-5
+          call gparfilex('Output file: ',cline,last,1,plotfile,' ',ztyp,&
                '?List excell CSV')
 ! make sure there is a file name
           if(len_trim(plotfile).le.0) then
@@ -5109,7 +5165,7 @@ contains
              endif
 ! trouble passing on ling file names ....
 !             write(*,*)'PMON working directory: ',trim(workingdir)
-             write(*,*)'Saving on file: ',trim(plotfile)
+!             write(*,*)'Saving on file: ',trim(plotfile)
           endif
 1234      continue
 ! use the graphics record to transfer data ...
@@ -5124,6 +5180,7 @@ contains
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
           graphopt%status=ibclr(graphopt%status,GRCSVTABLE)
           if(gx%bmperr.ne.0) goto 990
+          write(*,*)'CSV output saved on file: ',trim(plotfile)
 !          write(*,*)'Not implemented yet'
 !------------------------------
 ! list MQMQA_QUADS
@@ -5211,7 +5268,7 @@ contains
 !=================================================================
 ! READ subcommand
 !        ['UNFORMATTED     ','TDB             ','QUIT            ',&
-!         'DIRECT          ','PDB             ','SELECTED_PHASES ']
+!         'DIRECT          ','XTDB            ','SELECTED_PHASES ']
     case(8)
 ! disable continue optimization
 !       iexit=0
@@ -5242,9 +5299,10 @@ contains
              call gparcdx('File name: ',cline,last,1,ocufile,text,&
                   '?Read unformatted')
           else
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
-             call gparfilex('File name: ',cline,last,1,ocufile,' ',2,&
+             ztyp=2
+             call gparfilex('File name: ',cline,last,1,ocufile,' ',ztyp,&
                   '?Read unformatted')
           endif
           call gtpread(ocufile,text)
@@ -5287,9 +5345,10 @@ contains
              text=tdbfile
              call gparcdx('File name: ',cline,last,1,tdbfile,text,'?Read TDB')
           else
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, 8=LOG
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
-             call gparfilex('File name: ',cline,last,1,tdbfile,' ',1,&
+             ztyp=1
+             call gparfilex('File name: ',cline,last,1,tdbfile,' ',ztyp,&
                   '?Read TDB')
           endif
 ! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
@@ -5410,21 +5469,23 @@ contains
        case(4) ! read direct
           write(*,*)'Read direct not implemented yet'
 !-----------------------------------------------------------
-! this should be merged with read TDB
-       case(5) ! read PDB 
-          if(tdbfile(1:1).ne.' ') then
-             text=tdbfile
-             call gparcdx('File name: ',cline,last,1,tdbfile,text,'?Read PDB')
+! the new format for Calphad databases
+       case(5) ! read XTDB 
+          if(xtdbfile(1:1).ne.' ') then
+             text=xtdbfile
+             call gparcdx('File name: ',cline,last,1,xtdbfile,text,'?Read XTDB')
           else
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! THESE TYPES ARE USED ALSO IN METLIB4
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT, 8=LOG
 ! negative is for write, 0 read without filter, -100 write without filter
-             call gparfilex('File name: ',cline,last,1,tdbfile,' ',6,&
-                  '?Read PDB')
+             ztyp=6
+             call gparfilex('File name: ',cline,last,1,xtdbfile,' ',ztyp,&
+                  '?Read XTDB')
           endif
 ! this call checks the file exists and returns the elements
-          call checkdb2(tdbfile,'.pdb',jp,ellist)
+          call checkdb2(xtdbfile,'.XTDB',jp,ellist)
           if(gx%bmperr.ne.0) then
-             write(kou,*)'No PDB database with this name'
+             write(kou,*)'No XTDB database with this name'
              goto 990
           elseif(jp.eq.0) then
              write(Kou,*)'No elements in the database'
@@ -5434,7 +5495,7 @@ contains
           jp=1
           selection='Select elements /all/:'
 8217      continue
-          call gparcx(selection,cline,last,1,ellist(jp),' ','?Read PDB')
+          call gparcx(selection,cline,last,1,ellist(jp),' ','?Read XTDB')
           if(ellist(jp).ne.'  ') then
              call capson(ellist(jp))
              jp=jp+1
@@ -5452,20 +5513,21 @@ contains
           else
              write(*,8220)jp,(ellist(iel),iel=1,jp)
           endif
-! later we can add possible options
           name1=' '
-          call readpdb(tdbfile,jp,ellist,name1)
+! This should read the XTDB files in new XML format
+          call read_xtdb(xtdbfile,jp,ellist)
 ! also list the bibliography
           call list_bibliography(' ',kou)
           write(kou,*)
 !-----------------------------------------------------------
        case(6) ! read SELECTED_PHASES
-! Ask if TDB or PDB
+! Ask if TDB or XTDB
           call gparcdx('Database format: ',&
                cline,last,1,name1,'TDB','?Read select phase')
           call capson(name1)
+! here XTDB files are excluded temporarily
           if(name1(1:1).ne.'T') then
-             write(*,*)'Only TDB files currently implemented'
+             write(*,*)'Selected phases implemented only for TDB files'
              gx%bmperr=4399; goto 990
           endif
 ! the first part copied from READ TDB
@@ -5474,13 +5536,13 @@ contains
              text=tdbfile
              call gparcdx('File name: ',cline,last,1,tdbfile,text,'?Read TDB')
           else
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, 8=LOG
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT, 8=LOG
 ! negative is for write, 0 read without filter, -100 write without filter
-             call gparfilex('File name: ',cline,last,1,tdbfile,' ',1,&
+             ztyp=1
+             call gparfilex('File name: ',cline,last,1,tdbfile,' ',ztyp,&
                   '?Read TDB')
           endif
 ! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
-!          write(*,*)'PMON tdbfile: ',trim(tdbfile)
 ! check for replacement of OCBASE probably redundant now ...
           name1=tdbfile(1:7)
           call capson(name1)
@@ -5630,7 +5692,7 @@ contains
 ! SAVE in various formats (NOT MACRO and LATEX, use LIST DATA)
 ! It is a bit inconsistent as one READ TDB but not SAVE TDB ...
 !        ['TDB             ','SOLGAS          ','QUIT            ',&
-!         'DIRECT          ','UNFORMATTED     ','PDB             ']
+!         'DIRECT          ','UNFORMATTED     ','XTDB            ']
     CASE(9)
 ! default is 3, unformatted
        kom2=submenu(cbas(kom),cline,last,csave,ncsave,5,'?TOPHLP')
@@ -5651,8 +5713,11 @@ contains
              write(kou,*)'Illegal for encrypted databases'
              goto 100
           endif
-          call gparfilex('File name: ',cline,last,1,filename,text,-1,&
+! gparfilex next to last argument is negative if 
+          ztyp=-1
+          call gparfilex('File name: ',cline,last,1,filename,text,ztyp,&
                '?Save TDB')
+! Bosse do not understand ???
           kl=max(index(filename,'.dat '),index(filename,'.TDB '))
           if(kl.le.0) then
              kl=len_trim(filename)+1
@@ -5660,6 +5725,7 @@ contains
                 write(*,*)'Too short file name'
                 goto 100
              endif
+! Bosse do not understand ???
              filename(kl:)='.DAT '
           endif
 ! inside list_TDB_format
@@ -5689,9 +5755,10 @@ contains
           write(*,'(/a/)')' WARNING: Do not run on LINUX/MAC'//&
                ' because END-OF-LINE different from Windows'
 !' WARNING: Do not run on LINUX/MAC because END-OF-LINE different from Windows'
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
-          call gparfilex('File name: ',cline,last,1,filename,text,-7,&
+          ztyp=-7
+          call gparfilex('File name: ',cline,last,1,filename,text,ztyp,&
                '?Save SOLGAS')
           kl=max(index(filename,'.dat '),index(filename,'.DAT '))
           if(kl.le.0) then
@@ -5716,9 +5783,10 @@ contains
              text=ocdfile
             call gparcdx('File name: ',cline,last,1,ocdfile,text,'?Save direct')
           else
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
-             call gparfilex('File name: ',cline,last,1,ocdfile,' ',-4,&
+             ztyp=-4
+             call gparfilex('File name: ',cline,last,1,ocdfile,' ',ztyp,&
                   '?Save direct')
           endif
           jp=0
@@ -5756,9 +5824,10 @@ contains
              call gparcdx('File name: ',cline,last,1,ocufile,text,&
                   '?Save unformatted')
           else
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
-             call gparfilex('File name: ',cline,last,1,ocufile,' ',-2,&
+             ztyp=-2
+             call gparfilex('File name: ',cline,last,1,ocufile,' ',ztyp,&
                   '?Save unformatted')
           endif
           jp=0
@@ -5793,13 +5862,27 @@ contains
           text='U '//model
           call gtpsave(ocufile,text)
 !-----------------------------------------------------------
-       case(6) ! PDB
-          write(kou,*)'PDB output not yet implemented'
+       case(6) ! SAVE XTDB
+!          write(kou,*)'PMON: XTDB format still fragile'
           if(globaldata%encrypted.ne.0) then
              write(kou,*)'Illegal for encrypted databases'
              goto 100
           endif
-          continue
+! is there any data?
+          if(noph().le.0) then
+             write(kou,*)'There is no data to save'
+             goto 100
+          endif
+! Ask for file name
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
+          ztyp=-6
+          call gparfilex('File name: ',cline,last,1,xtdbfile,' ',ztyp,&
+               '?Save XTDB')
+!
+          zext='XTDB'
+          call write_xtdbformat(xtdbfile,zext)
+          if(gx%bmperr.ne.0) goto 990
        end SELECT save
 !=================================================================
 ! help ... just list the commands
@@ -6211,10 +6294,16 @@ contains
              endif
              write(kou,2047)trim(name1),xxx
           endif
+! test for NaN, a NaN is never equal to itself
+!          if(xxx /= xxx) then
+          if(xxx .ne. xxx) then
+             write(kou,*)'Calculated value of ',trim(name1),' is NaN'
+             stop
+          endif
           xxz=1.0D-6
           if(abs(xxy).gt.1.0d0) xxz=xxz*abs(xxy)
           if(abs(xxx-xxy).gt.xxz) then
-             write(*,'(a,2(1pe12.4))')'Symbol value outside limit!',xxx,xxy
+             write(kou,'(a,2(1pe12.4))')'Symbol value outside limit!',xxx,xxy
              stop
           else
              write(kou,*)'Testing symbol ',trim(name1),' value OK ++++++++'
@@ -7215,6 +7304,7 @@ contains
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! always restore default plot file name and plot option to screem
+          write(*,*)'Plot saved on file: ',trim(plotfile)
           if(graphopt%gnutermsel.ne.1) &
                write(kou,*)'Restoring plot device to screen'
           graphopt%gnutermsel=1
@@ -7390,7 +7480,7 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! PLOT GRAPHICS_FORMAT
+! PLOT GRAPHICS_FORMAT and PLOT OUTPUT_FILE
 ! when setting graphics format always also ask for plot file
        case(7,8)
 !          write(*,*)'P6 kom2: ',kom2
@@ -7414,7 +7504,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT OUTPUT_FILE, always asked when changing graphics terminal type
 21140     continue
-! default extension: 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, 8=LOG
+! default extension: 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT, 8=LOG
 ! negative is for write, 0 read without filter, -100 write without filter
 ! DO NOT USE tinyfiledialog here ...
           write(*,*)'To use file the browser give just a <'
@@ -7422,7 +7512,8 @@ contains
 ! to avoid confusion abot use of > and <
           if(plotfile(1:1).eq.'<' .or. plotfile(1:1).eq.'>') then
 ! use the file browser
-             call gparfilex('File name: ',cline,last,1,plotfile,' ',-5,&
+             ztyp=-5
+             call gparfilex('File name: ',cline,last,1,plotfile,' ',ztyp,&
                   '?Plot file')
 ! make sure there is a plt extention
              jp=index(plotfile,'.')
@@ -7513,14 +7604,16 @@ contains
        case(12)
           write(kou,*)'Give a file name with graphics in GNUPLOT format'
 ! append plot file, specifying extension PLT
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
 !          if(len_trim(graphopt%appendfile).gt.1) then
 !             text=trim(graphopt%appendfile)
-!             call gparfilex('File name',cline,last,1,filename,text,5,&
+!              ztyp=5
+!             call gparfilex('File name',cline,last,1,filename,text,ztyp,&
 !                  '?Plot append')
 !          else
-             call gparfilex('File name',cline,last,1,filename,'  ',5,&
+             ztyp=5
+             call gparfilex('File name',cline,last,1,filename,'  ',ztyp,&
                   '?Plot append')
 !          endif
 ! check it is OK and add .plt if necessary ...
@@ -8513,7 +8606,7 @@ contains
     integer afo
     TYPE(ocoptions) :: optionsset
 !\end{verbatim}
-    integer next,kom,slen,errno,jj
+    integer next,kom,slen,errno,jj,ztyp
     character option*64,string*64,dummy*128,date*8,time*10
     integer, parameter :: nopt=9
     character (len=16), dimension(nopt) :: copt=&
@@ -8555,9 +8648,10 @@ contains
 ! 6 means extension DAT
 !          jj=next+1
 !          if(eolch(option,jj)) then
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
-          call gparfilex('Output file',option,next,1,string,'  ',-7,&
+          ztyp=-7
+          call gparfilex('Output file',option,next,1,string,'  ',ztyp,&
                '?Command options')
           if(string(1:1).eq.' ') then
              string='ocoutput.DAT'
@@ -8602,10 +8696,11 @@ contains
 ! next argument after = must be a file name
 !          jj=next
 !          if(eolch(option,jj)) then
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
+          ztyp=-7
           call gparfilex('Append to file:',option,next,&
-               1,string,'  ',-7,'?Command options')
+               1,string,'  ',ztyp,'?Command options')
           if(string(1:1).eq.' ') then
              string='ocappend.DAT'
              write(kou,*)' *** No file name given, will use: ',trim(string)
