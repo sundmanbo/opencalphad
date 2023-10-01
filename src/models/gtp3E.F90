@@ -7047,7 +7047,9 @@
    integer lokph,ics,lokcs,proptyp,lokxx
 !   integer, parameter :: maxint=20
    character date*20,tlim8*8,ch1*1,configmodel*32
-   character line*2000,text16*16,text80*80,text256*256,text512*512
+!   character line*2000,text16*16,text80*80,text256*256,text512*512
+! TPfun in TAFID more than 700 characters ....
+   character line*2000,text16*16,text80*80,text256*256,text512*1024
    logical lrange
    TYPE(gtp_phase_varres), pointer :: phvarres
    TYPE(gtp_phase_add), pointer :: addrec
@@ -7069,7 +7071,7 @@
    nl=0
 ! write heading
    call date_and_time(date)
-   write(*,80)trim(XTDBversion),version(2:7),date(1:4),date(5:6),date(7:8)
+!   write(*,80)trim(XTDBversion),version(2:7),date(1:4),date(5:6),date(7:8)
    write(lut,80)trim(xtdbversion),version(2:7),date(1:4),date(5:6),date(7:8)
 80 format('<?xml version="1.0"?>'/&
          '<?xml-model href="database.rng"',&
@@ -7080,7 +7082,7 @@
          '    <writer Software="OpenCalphad ',a,&
          '" Date="',a,'-',a,'-',a,'" />'/&
          '  </metadata>')
-   nl=nl+9
+   nl=nl+6
 ! values of lowtdef,hightdef,refiddef and eldef are set in gtp3_xml.F90
 ! but can be changed by user or when reading an XTDB database
    if(eldef(1:1).eq.' ') then
@@ -7135,7 +7137,9 @@
       if(text512(1:1).eq.'_') cycle tpfuns
 ! check that there is a " N " in text512 to indicate end of expression
       if(index(text512,' N ').le.0) then
-         write(*,*)'3E no end of TPfun not in text512'
+         ip=index(text512,'= ')-1
+         write(*,*)text512(1:ip)
+130      format('3E no end of TPfun ',a,' in text512')
          stop
       endif
 ! we have to format this using TPfun anda Trange tags
@@ -7322,7 +7326,8 @@
       nl=nl+1
 ! SplitPhase 
       if(btest(phlista(lokph)%status1,PHMFS)) then
-         write(*,*)'3E This phase has disordered fraction set'
+         write(*,*)'3E The phase '//trim(phlista(lokph)%name)//&
+              ' has disordered fraction set'
 ! in gtp_fraction_set the data for splitphase can be found
 !         write(*,*)'3E split:',phvarres%disfra%latd,phvarres%disfra%totdis
          if(phvarres%disfra%totdis.eq.1) then
@@ -7386,7 +7391,7 @@
          text512(ip:)='BCC4PERM'; ip=ip+9
       endif
       if(ip.gt.1) then
-         write(*,*)'3E additions: ',trim(text512),ip
+!         write(*,*)'3E additions: ',trim(text512),ip
          if(len_trim(text512).gt.1) write(lut,270)trim(text512)
 270      format('    <AmendPhase Models="',a,'" />')
          nl=nl+1
@@ -7409,33 +7414,38 @@
    do ia=1,noph()
 !      write(*,*)'3E calling write_parametrar',lut
       lokph=phases(ia)
-      call write_parameters(lokph,lut,2)
+      call write_parameters(lokph,lut,2,nl)
       if(gx%bmperr.ne.0) goto 1100
 !      write(*,*)'3E Finished listing parameters for this phase'
    enddo
 !-----------------------------
 ! 5: Bibliography
-      write(*,*)'3E reffree: ',reffree
+!      write(*,*)'3E reffree: ',reffree
       if(reffree.gt.1) then
          write(lut,400)
 400      format('  <Bibliograpy>')
+         nl=nl+1
          do ia=1,reffree-1
 ! Wow, reference texts are stored using storec/loadc ... max 1024 chars
             ip=bibrefs(ia)%wprefspec(1)
             line=' '
             call loadc(2,bibrefs(ia)%wprefspec,line(1:ip))
-            write(*,*)'Bibitem: ',trim(line),ip
+! check to < > and &
+            call check_illegal_xml(line,ip)
+!            write(*,*)'Bibitem: ',trim(line),ip
             write(lut,410)trim(bibrefs(ia)%reference),trim(line)
 410         format('    <Bibitem Id="',a,'" Text="',a,'" /> ')
+            nl=nl+1
          enddo
          write(lut,420)trim(refiddef)
 420      format(4x,'<Bibitem Id="Default" Text="',a,'" /> '/'  </Bibliograpy>')
+         nl=nl+1
       else
       endif
 !-----------------------------
 ! 6: Models
    if(includemodels) then
-      call write_xtdbmodels1(lut)
+      call write_xtdbmodels1(lut,nl)
    endif
 ! finished
 900 continue
@@ -7458,16 +7468,48 @@
  
 !/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!
 
+! \addtotable subroutine check_illegal_xml
+ subroutine check_illegal_xml(line,ip)
+! replace < > & and " in references
+   character*(*) line
+   integer ip
+!
+   integer jp
+   lt: do while(.true.)
+      jp=index(line(1:ip),'<')
+      if(jp.eq.0) exit lt
+      line(jp:jp)='['
+   enddo lt
+   gt: do while(.true.)
+      jp=index(line(1:ip),'>')
+      if(jp.eq.0) exit gt
+      line(jp:jp)=']'
+   enddo gt
+   amp: do while(.true.)
+      jp=index(line(1:ip),'&')
+      if(jp.eq.0) exit amp
+      line(jp:jp)='|'
+   enddo amp
+   quote: do while(.true.)
+      jp=index(line(1:ip),'"')
+      if(jp.eq.0) exit quote
+      line(jp:jp)='#'
+   enddo quote
+   return
+ end subroutine check_illegal_xml
+
+!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!
+
 ! \addtotable subroutine exp2xml
- subroutine exp2xml(lut,expr,tag)
+ subroutine exp2xml(lut,expr,tag,nl)
 ! convert expr to TPfun/Parameter and Trange and write lines on unit lut
 ! tag is TPfun or Parameter and the first part of expr is the Id followd
 ! by the expression
    integer lut
-   character expr*(*),tag*(*),bibref*16
+   character expr*(*),tag*(*)
 !
    integer ip,jp,kp
-   character tlim8*8,line*1000
+   character tlim8*8,line*1000,bibref*16
    logical lrange
 !   
 ! make sure there is a final ' N '
@@ -7544,6 +7586,7 @@
          write(lut,10)trim(line)
 10       format(a)
          nl=nl+1
+         nl=nl+1
          ip=ip+jp+2
          line='    <Trange Expr="'
          kp=19
@@ -7558,12 +7601,10 @@
 ! at the highT limit
             line(kp:)='" />'
          endif
-! maybe add the Bibref if there has not been any Tranges
+! add the Bibref if there has not been any Tranges
          if(bibref(1:1).ne.' ') then
             kp=len_trim(line)-1
-            line(kp:)=' Bibref1="'//trim(bibref)//'" />'
-!         else
-!            line(kp:)=' Bibref="Default" />'
+            line(kp:)=' Bibref="'//trim(bibref)//'" />'
          endif
 !         ip=ip+jp+1
          kp=len_trim(line)
@@ -7574,6 +7615,7 @@
 !         write(*,*)trim(line)
          if(lrange) then
             write(lut,10)'  </'//trim(tag)//'>'
+            nl=nl+1
          endif
          exit tranges
       endif
@@ -7587,12 +7629,12 @@
 
 !\addtotable subroutine write_parameters
 !\begin{verbatim}
- subroutine write_parameters(lokph,lut,typ)
+ subroutine write_parameters(lokph,lut,typ,nl)
 ! code below same as in list_all_data ... maybe make it a subroutine ...
 ! lokph is phlista index, lut is output unit
-! typ 1 for screen, 2 for XML
+! typ 1 for screen, 2 for XML, nl counts number of lines written
    implicit none
-   integer lokph,lut,typ
+   integer lokph,lut,typ,nl
 !\end{verbatim}
    integer parlist,ll,nsl,ij,ideg,typty,typspec,kk,kkx,iel,linkcon,nz,ics
    integer ncsum,ip,intpq,prplink,nint,lokcs,ik,jdeg,kkk,iqhigh,iqnext,lqq
@@ -7636,7 +7678,7 @@
       endmemrec=>phlista(lokph)%ordered
       nsl=phlista(lokph)%noofsubl
    else
-      write(*,*)'3E Listing disordred parameters 1',nsl
+!      write(*,*)'3E Listing disordred parameters 1',nsl
       endmemrec=>phlista(lokph)%disordered
       disfrap=>firsteq%phase_varres(lokcs)%disfra
       nsl=disfrap%ndd
@@ -7783,7 +7825,7 @@
             endif
          endif
 203      continue
-! this writes the expression
+! this writes the expression as a TDB file
          call list_tpfun(proprec%degreelink(0),1,funexpr(ip:))
 !         write(*,*)' >>>> fun? ',trim(funexpr(ip:)),lut
          ip=len_trim(funexpr)
@@ -7799,7 +7841,8 @@
          else
 !            write(*,10)funexpr(1:ip)
 !            write(lut,10)funexpr(1:ip)
-            call exp2xml(lut,funexpr,xmlel(19))
+! this convert TDB expression to XTDB format
+            call exp2xml(lut,funexpr,xmlel(19),nl)
          endif
          proprec=>proprec%nextpr
       enddo ptyloop
@@ -8036,7 +8079,7 @@
                else
 !                  write(*,10)funexpr(1:ip)
 !                  write(lut,10)funexpr(1:ip)
-                  call exp2xml(lut,funexpr,xmlel(19))
+                  call exp2xml(lut,funexpr,xmlel(19),nl)
 10                format(a)
                endif
             enddo degree
@@ -8110,7 +8153,7 @@
       write(lut,810)disfrap%fsites,nsl
 810    format('<!-- Disordered fraction set factor: ',F10.4,i3,' -->')
       parlist=2
-      write(*,*)'Jump back to list disordered parameters',nsl,parlist
+!      write(*,*)'3E Jump back to list disordered parameters',nsl,parlist
       goto 100
    endif
 ! Check if there are toop/kohler ternaries
@@ -8644,10 +8687,10 @@
 
 !\addtotable subroutine write_xtdbmodels1
 !\begin{verbatim}
- subroutine write_xtdbmodels1(lut)
+ subroutine write_xtdbmodels1(lut,nl)
 ! write the model tags on unit lut with some explanations
    implicit none
-   integer lut
+   integer lut,nl
 !\end{verbatim}
 ! Magnetic models
    write(lut,100)
@@ -8662,6 +8705,7 @@
          'has thus a phase attribute.'/&
          4x,'The EEC tag is global for the whole database if included.'/&
          4x,'Some model tags and MPIDs are tentative and some attributes of the tags are optional.')
+   nl=nl+9
    write(lut,102)
 102 format(4x,'<Magnetic Id="IHJBCC" MPID1="TC" MPID2="BMAGN" Aff=" -1.00" Bibref="82Her" > '/&
          6x,'f_below_TC= +1-0.905299383*TAO**(-1)-0.153008346*TAO**3-.00680037095*TAO**9-.00153008346*TAO**15; and'/&
@@ -8669,6 +8713,7 @@
          6x,'in G=f(TAO)*LN(BMAGN+1) where TAO=T/TC.  Aff is the antiferromagnetic factor.'/&
          6x,'TC is a combined Curie/Neel T and BMAGN the average Bohr magneton number.'/&
          4x,'</Magnetic>')
+   nl=nl+6
 !-----------------------------------------------
    write(lut,105)
 105 format(4x,'<Magnetic Id="IHJREST"  MPID1="TC" MPID2="BMAGN" Aff=" -3.00" Bibref="82Her" > '/&
@@ -8677,6 +8722,7 @@
          6x,'in G=f(TAO)*LN(BMAGN+1) where TAO=T/TC.  Aff is the antiferromagnetic factor.'/&
          6x,'TC is a combined Curie/Neel T and BMAGN the average Bohr magneton number.'/&
          4x,'</Magnetic>')
+   nl=nl+6
 !------------------------------------------ a lot of line-truncation errors
    write(lut,110)
 110 format(4x,'<Magnetic Id="IHJQX" MPID1="CT" MPID2="NT" MPID3="BMAGN" Aff=" 0.00" Bibref="01Che 12Xio" > '/6x,&
@@ -8686,12 +8732,14 @@
          6x,'in G=f(TAO)*LN(BMAGN+1) where TAO=T/CT or T/NT.  Aff is the (redundant) antiferromagnetic factor.'/&
          6x,'CT is the Curie T and NT the Neel T and BMAGN the average Bohr magneton number.'/&
          4x,'</Magnetic>')
+   nl=nl+5
 !----------------------------------------------- "
    write(lut,120)
 120 format(4x,'<Einstein Id="GLOWTEIN" MPID1="LNTH" Bibref="01Qing" > '/&
          6x,'The Gibbs energy due to the Einstein low T vibrational model, G=1.5*R*THETA+3*R*T*LN(1-EXP(-THETA/T)).'/&
          6x,'The Einstein THETA is the exponential of the parameter LNTH.'/&
          4x,'</Einstein>')
+   nl=nl+4
 !-----------------------------------------------
    write(lut,125)
 125 format(4x,'<Liquid2state Id="LIQ2STATE" MPID1="G2"  MPID2="LNTH" Bibref="88Agr 13Bec" > '/&
@@ -8699,6 +8747,7 @@
          6x,'The G2 parameter describes the stable liquid and the transition to the amorphous state and'/&
          6x,'LNTH is the logarithm of the Einstein THETA for the amorphous phase.'/&
          4x,'</Liquid2state>')
+   nl=nl+5
 !-----------------------------------------------
    write(lut,130)
 130 format(4x,'<Volume Id="VOLOWP" MPID1="V0"  MPID2="VA" MPID3="VB" Bibref="05Lu" > '/&
@@ -8706,6 +8755,7 @@
          6x,'V0 is the volume at the reference state, VA is the integrated thermal expansion ',&
          'and VB is the isothermal compressibilty at 1 bar.'/&
          4x,'</Volume>')
+   nl=nl+4
 !-----------------------------------------------
    write(lut,135)
 135 format(4x,'<Split3Phase Disordered=" " Sum=" " Bibref="97Ans" > '/&
@@ -8717,6 +8767,7 @@
          6x,'Some software has no special disordered phase but all parameters are stored in the ordered one and'/&
          6x,'the parameters for the disordered phase has a suffix "D" (and different number of sublattices).'/&
          4x,'</Split3Phase>')
+   nl=nl+8
 !-----------------------------------------------
    write(lut,137)
 137 format(4x,'<Split2Phase Disordered=" " Sum=" " Bibref="07Hal" > '/&
@@ -8727,36 +8778,42 @@
          6x,'Some software has no special disordered phase but all parameters are stored in the ordered one and'/&
          6x,'the parameters for the disordered phase has a suffix "D" (and different number of sublattices).'/&
          4x,'</Split2Phase>')
+   nl=nl+7
 !-----------------------------------------------
    write(lut,140)
 140 format(4x,'<Permutations Id="FCC4Perm" Bibref="09Sun" > '/&
          6x,'An FCC phase with 4 sublattices for the ordered tetrahedron use this model to indicate that parameters ',/&
          6x,'with permutations of the same set of constituents on identical sublattices are included only once.'/&
          4x,'</Permutations>')
+   nl=nl+4
 !-----------------------------------------------
    write(lut,142)
 142 format(4x,'<Permutations Id="BCC4Perm" Bibref="09Sun" > '/&
          6x,'A BCC phase with 4 sublattices for the ordered asymmetric tetrahedron use this model to indicate that parameters '/&
          6x,'with permutations of the same set of constituents on identical sublattices are included only once.'/&
          4x,'</Permutations>')
+   nl=nl+4
 !-----------------------------------------------
    write(lut,145)
 145 format(4x,'<EEC Id="EEC" Bibref="20Sun" > '/&
          6x,'The Equi-Entropy Criterion means that the software must ensure that solid phases with higher entropy than the ',&
          'liquid phase must not be stable. '/&
          4x,'</EEC>')
+   nl=nl+3
 !-----------------------------------------------
    write(lut,150)
 150 format(4x,'<KohlerTernary Phase=" " Constituents=" " Bibref="01Pel" > '/&
          6x,'The symmetric Kohler model can be used for a specified ternary subsystem as described in the paper by Pelton.',/&
          6x,'The 3 constituents, separated by a space, can be in any order.'/&
          4x,'</KohlerTernary>') 
+   nl=nl+4
 !-----------------------------------------------
    write(lut,155)
 155 format(4x,'<ToopTernary Phase=" " Constitutents=" " Bibref="01Pel" > '/&
          6x,'The asymmetric Toop model can be used for a specified ternary subsystem as described in the paper by Pelton.',/&
          6x,'The 3 constituents, separated by a space, must have the Toop constituent as the first one.'/&
          4x,'</ToopTernary>')
+   nl=nl+4
 !-----------------------------------------------
    write(lut,160)
 160 format(4x,'<EBEF Id="EBEF" Bibref="18Dup" > '/&
@@ -8764,12 +8821,15 @@
          6x,'for sublattices with irrelevant constituents.  The parameters may also use the short form "constituent@sublattice" '/&
          6x,'in order to specify only the constituents in sublattices without wildcards.  It also implies the Split2Phase model.'/&
          4x,'</EBEF>')
+   nl=nl+5
 !-----------------------------------------------
    write(lut,190)
 190 format('  </Models>')
+   nl=nl+1
 !  Bibliography of models
    write(lut,200)
 200 format('  <Bibliography> ')
+   nl=nl+1
 ! the value of attribute "Id" in the Bibitem tag should
 ! be identical to the value of a "Bibref" attribute
    write(lut,210)
@@ -8801,6 +8861,7 @@
          ' A. Dinsdale, B. Hallstedt, A. Khvan, H. Mao and R. Otis, A method for handling the extrapolation of solid crystalline',&
          ' phases to temperatures far above their melting point, Calphad, Vol 68 (2020) 101737" />'/&
          '  </Bibliography>')
+   nl=nl+13
 1000 continue
    return
  end subroutine write_xtdbmodels1

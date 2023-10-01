@@ -321,7 +321,7 @@
 900 continue
 !   write(*,*)'list_tpfun: ',len(str),len_trim(line)
    if(len_trim(line).gt.len(str)) then
-      write(kou,910)' *** WARNING: Character for listing funtion too short',&
+      write(kou,910)'3Z *** WARNING: Character for listing funtion too short',&
            len_trim(line),len(str)
 910   format(a,2i5)
    endif

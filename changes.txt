@@ -20,6 +20,10 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2023.10.01 OC version 6.066: A fix to supress illegal XML characters
+(< > & and ") in bibliogaphic notes.  Replaced by [ ] | and ' to avoid
+increasing character length.
+
 2023.09.30 OC version 6.065: A tentative XML format has been
 implemented when saving databases.  The command is SAVE XTDB.  The
 current TDB format has worked for 40 years but new models has made it
