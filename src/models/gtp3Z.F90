@@ -477,6 +477,7 @@
    do i=1,5
       koder(i,1)=0
    enddo
+!   write(*,*)'3Z ct1xfn: ',trim(string(ip:))
 !
 !...start of expression or after(
 100 if(eolch(string,ip)) goto 800
@@ -811,11 +812,13 @@
 !\end{verbatim} %+
    integer ich,isig,lp,jp
    character ch1*1,chs*1
+!   write(*,*)'3Z ct1power: ',trim(string(ip:))
    lp=0
    isig=1
    ipower=0
 100 continue
    ch1=string(ip:ip)
+!   write(*,*)'3Z ct1power ch1: "',ch1,'" ',lp,isig
    if(ch1.eq.'(') then
       if(lp.gt.0) then
          gx%bmperr=4007
@@ -831,7 +834,7 @@
       endif
       chs=string(jp:jp)
 !      if(chs.eq.'-') then
-! to allow (+2) etc
+! to allow (+2) etc after a (
       if(chs.eq.'-' .or. chs.eq.'+') then
 !...mark ( and save sign, update ip (incremented below)
          lp=1
@@ -841,7 +844,7 @@
       endif
    elseif(ch1.eq.')') then
       if(ipower.ne.0) then
-!...the ) can belong to other parts of the expression
+!...the ) can belong to other parts of the expression ???
          if(lp.eq.1) then
             ip=ip+1
             lp=0
@@ -854,6 +857,9 @@
       ich=ichar(ch1)-ichar('0')
       ipower=10*ipower+ich
    else
+! no ) if ipower=0 then error
+      if(ipower.eq.0) lp=99
+!      write(*,*)'3Z ct1power: no ( or digit or ) or some other error',lp,ipower
       goto 900
    endif
    ip=ip+1
@@ -862,12 +868,13 @@
       goto 1000
    endif
    goto 100
-!
+! error return unless lp=0, then it coulld be just T**3, T**(+3) should be OK
 900 if(lp.gt.0) then
-      gx%bmperr=4012
+      if(gx%bmperr.eq.0) gx%bmperr=4012
       goto 1000
    endif
    ipower=isig*ipower
+!   write(*,*)'3Z exit ct1power: ',trim(string(ip:)),ipower,gx%bmperr
 1000 return
  end subroutine ct1power
 

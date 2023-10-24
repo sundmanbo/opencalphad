@@ -20,6 +20,14 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2023.10.23 OC version 6.067: A rather serious bug in handling
+expressions for TP functions and parameters has been discovered.  This
+is now fixed and illegal expressions which were previously accepted,
+for example "T**-1", without parenthesis surrounding the power,
+i.e. "T**(-1)", will now give an explicit error message indicating the
+line on the databases which needs correction.  This may occur also
+with database you have used for a long time.
+
 2023.10.01 OC version 6.066: A fix to supress illegal XML characters
 (< > & and ") in bibliogaphic notes.  Replaced by [ ] | and ' to avoid
 increasing character length.

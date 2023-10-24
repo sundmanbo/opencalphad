@@ -3467,73 +3467,6 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\addtotable integer function ispdbkeyword
-!\begin{verbatim} %-
- integer function ispdbkeyword(text,nextc)
-! compare a text with a given keyword. Abbreviations allowed (not within _)
-! but the keyword and abbreviation must be surrounded by spaces
-! nextc set to space character in text after the (abbreviated) keyword
-   implicit none
-   character text*(*)
-   integer nextc
-!\end{verbatim} %+
-! only those currently implemented ... rest ignored
-   integer, parameter :: kwl=20
-   integer, parameter :: nkw=16
-   character (len=kwl), dimension(nkw), parameter :: keyword=&
-        ['ELEMENT             ','SPECIES             ',&
-         'PHASE               ','CONSTITUENT         ',&
-         'FUNCTION            ','PARAMETER           ',&
-         'SPECIAL             ','BIBLIOGRAPHY        ',&
-         'TABLE_OF_MODELS     ','TABLE_OF_IDENTIFIERS',&
-         'DATABASE_INFORMATION','ASSESSED_SYSTEMS    ',&
-         'DEFAULTS            ','VERSION             ',&
-         'INCLUDE_FILE        ','CHECKSUM            ']
-!   
-   character word*64
-   integer j,ks,kt
-! extract the first word of text
-   ks=1
-   if(eolch(text,ks)) then
-! if empty line, just exit
-      j=0; goto 1000
-   else
-! find the space after the first word
-      kt=ks+index(text(ks:),' ')-1
-! the abbreviation of the keyword must be at least 3 character, max kwl
-      if(kt-ks.lt.3 .or. kt-ks.ge.kwl) then
-         j=0; goto 1000
-      endif
-   endif
-   word=text(ks:kt)
-   kt=kt-ks
-   call capson(word)
-90 continue
-   j=index(word,'-')
-   if(j.gt.0) then
-      word(j:j)='_'
-      goto 90
-   endif
-! check if word is an abbreviation of a keyword
-!   write(*,*)'abbreviation: ',kt,'>',word(1:kt),'<'
-!   do j=1,10
-   do j=1,nkw
-      if(word(1:kt).eq.keyword(j)(1:kt)) goto 100
-   enddo
-   j=0
-   goto 1000
-! found keyword at start of line, set nextc to be positioned at the final space
-100 continue
-   nextc=ks+kt
-!   write(*,101)j,nextc,text(1:nextc)
-!101 format('Found keyword: ',2i3,'>',a,'<')
-1000 continue
-   ispdbkeyword=j
-   return
- end function ispdbkeyword
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
 !\addtotable subroutine readtdb
 !\begin{verbatim}
  subroutine readtdb(filename,nel,selel)
@@ -3692,6 +3625,8 @@
    read(21,110,end=2000)line
 110 format(a)
    nl=nl+1
+! missing capson??
+!   call capson(line)
 ! REDUNDANT CODE when attempting to separate TDB files in 2 parts
 !   if(nl.eq.1) then
 !      if(line(1:10).eq.'ENCRYPTED ') then
@@ -3731,6 +3666,10 @@
 ! handle all TDB keywords except function
 120 continue
    keyw=istdbkeyword(line,nextc)
+   if(.not.(keyw.eq.11 .or. keyw.eq.9 .or. keyw.eq.8)) then
+! added 2023.10.22/BoS.  kew=11 is database_information, =8,9 is bibliography
+      call capson(line)
+   endif
    if(.not.onlyfun) then
 !      write(*,71)'3E back from istdbkeyword',keyw
       if(keyw.eq.0) then
@@ -3778,6 +3717,13 @@
       read(21,110,err=2200,end=2200)line
       nl=nl+1
       if(line(1:1).ne.'$') then
+         if(.not.(keyw.eq.11 .or. keyw.eq.9 .or. keyw.eq.8)) then
+! no capson for database info and bibliography
+            call capson(line)
+         else
+!           write(*,67)trim(line)
+67          format('info or bib: ',a)
+         endif
          call replacetab(line,nl)
          longline(ip:)=line
          ip=len_trim(longline)+1
@@ -3788,6 +3734,10 @@
          endif
       endif
    enddo
+!   if(keyw.eq.8 .or. keyw.eq.9) then
+! no capson!!
+!      write(*,67)trim(longline)
+!   endif
 ! Here we have read data for the keyword up to !
 !   write(*,71)'3E line 2 ',ip,trim(longline)
 71 format(a,i4,1x,a)
@@ -5129,7 +5079,7 @@
             goto 775
          endif
       else
-! references without citation marks
+! references without citation marks no capson
 ! ip is at the start of the reference id, look for space
          if(.not.silent) write(kou,*) &
               'Cannot handle references without citation marks',nl
@@ -5317,6 +5267,7 @@
 ! skip lines with a $ in first position
       if(line(1:1).eq.'$')goto 830
       call replacetab(line,nl)
+      call capson(line)
       longline=longline(1:jp)//line
       goto 810
    endif
@@ -5369,6 +5320,7 @@
 !         goto 100
 !      endif
    endif
+! no more read(21 ...
    close(21)
 ! read numbers, value after / is maximum
 ! endmember, interactions, property,
@@ -5593,7 +5545,7 @@
  subroutine read_xtdb(filename,nel,selel)
 ! reading data from an XTFB file with selection of elements
 !
-! REDUNDANT ... TO BE MODIFIED FROM reading PDB FORMAT to read XTDB
+! UNFINISHED REDUNDANT ... TO BE MODIFIED from reading PDB FORMAT to read XTDB
 !   
    implicit none
    integer nel
@@ -5701,7 +5653,7 @@
 !---------------------------------------------------------
 ! handle all XTDB tags 
 120 continue
-   keyw=ispdbkeyword(line,nextc)
+!   keyw=ispdbkeyword(line,nextc)
 !   write(*,*)'Keyword? ',trim(line),keyw,nophase
    if(.not.onlyfun) then
       if(keyw.eq.0) then
@@ -6443,7 +6395,7 @@
 !         do jl=1,disparttc
 !            if(name2.eq.dispartph(jl)) goto 710
 !         enddo
-! not disordered phase, skip this parameter
+! not disordered part, skip this parameter
 !         goto 100
 !-----------------------
 !710      continue
@@ -7046,10 +6998,13 @@
    integer ip,jp,kp,lut,nl,ia,ib,ic,id,nk,isp
    integer lokph,ics,lokcs,proptyp,lokxx
 !   integer, parameter :: maxint=20
+   integer :: freemodels=0
    character date*20,tlim8*8,ch1*1,configmodel*32
 !   character line*2000,text16*16,text80*80,text256*256,text512*512
-! TPfun in TAFID more than 700 characters ....
+! there was a TPfun in TAFID with more than 700 characters .... BAGAS?
    character line*2000,text16*16,text80*80,text256*256,text512*1024
+! eventually list a short description of models used in this database
+   character, dimension(50) :: usedmodels*24
    logical lrange
    TYPE(gtp_phase_varres), pointer :: phvarres
    TYPE(gtp_phase_add), pointer :: addrec
@@ -7083,13 +7038,13 @@
          '" Date="',a,'-',a,'-',a,'" />'/&
          '  </metadata>')
    nl=nl+6
-! values of lowtdef,hightdef,refiddef and eldef are set in gtp3_xml.F90
+! values of lowtdef,hightdef,bibrefdef and eldef are set in gtp3_xml.F90
 ! but can be changed by user or when reading an XTDB database
    if(eldef(1:1).eq.' ') then
-      write(lut,90)trim(lowtdef),trim(hightdef),trim(refiddef)
+      write(lut,90)trim(lowtdef),trim(hightdef),trim(bibrefdef)
 90    format('  <Defaults LowT="',a,'" HighT="',a,'" Bibref="',a,'" />')
    else
-      write(lut,91)trim(lowtdef),trim(hightdef),trim(refiddef),trim(eldef)
+      write(lut,91)trim(lowtdef),trim(hightdef),trim(bibrefdef),trim(eldef)
 91    format('  <Defaults LowT="',a,'" HighT="',a,'" Bibref="',a,&
            '" Elements="',a,'" />')
    endif
@@ -7123,7 +7078,7 @@
    enddo
    write(*,*)'No check for MQMQA or UNIQUAC species'
 !-----------------------------
-! 2: TPfuns
+! 2: TPfuns  this is the tag xmlel(29)
    write(lut,*)' <TPfun Id="R"     Expr="8.31451;" />'
    write(lut,*)' <TPfun Id="RTLNP" Expr="R*T*LN(1.0E-5)*P);" />'
    nl=nl+2
@@ -7190,6 +7145,7 @@
             write(lut,10)trim(line)
             nl=nl+1
             ip=ip+jp+2
+! This is the tag xmlel(29)
             line='    <Trange Expr="'
             kp=19
          else
@@ -7206,7 +7162,7 @@
             kp=len_trim(line)+1
             write(lut,10)line(1:kp)
             nl=nl+1
-! if there has been Trange tags then end the TPfun
+! if there has been Trange tags then end the TPfun, tag xmlel(29)
             if(lrange) write(lut,10)'  </TPfun>'
             cycle tpfuns
          endif
@@ -7232,7 +7188,7 @@
 !  5 FORD phase has 4 sublattice FCC ordering with parameter permutations
 !  6 BORD phase has 4 sublattice BCC ordering with parameter permutations
 !  7 SORD phase has TCP type ordering (not subract ordered as disordered, NEVER)
-!  8 MFS phase has a disordered fraction set
+!  8 MFS phase has a disordered fraction set (DisorderedPart)
 !  9 GAS this is the gas phase (first in phase list) 
 ! 10 LIQ phase is liquid (can be several but listed directly after gas)
 ! 11 IONLIQ phase has ionic liquid model (I2SL)
@@ -7257,7 +7213,7 @@
 ! 30 PHSSRO phase has the tetrahedral FCC model for SRO (without LRO)
 ! 31 SROT phase has a tetrahedron quasichemical model -- NOT USED
 ! 32 CVMTFL phase has the tetrahedral FCC for LRO and SRO (not impl)
-! some bits tested later for AmendPhase and SplitPhase
+! some bits tested later for AmendPhase and DisorderedPart
       configmodel='CEF'; ch1='S'
       if(btest(phlista(lokph)%status1,PHGAS)) then
          configmodel='IDEAL'
@@ -7278,8 +7234,9 @@
            '" Configuration="'//trim(configmodel)//'" State="'//ch1//'" >'
       write(lut,10)trim(line)
       nl=nl+1
-! sublattices
-      line='    <Sublattices NumberOf="'
+! sublattices/sites
+!      line='    <Sublattices NumberOf="'
+      line='    <Sites NumberOf="'
       ip=len_trim(line)+1
       ib=phlista(lokph)%noofsubl
 ! wriint update the position
@@ -7321,23 +7278,25 @@
          write(lut,10)trim(line)
          nl=nl+1
       enddo
+! end of sublattices/sites
       write(lut,250)
-250   format('    </Sublattices>')
+250   format('    </Sites>')
+!250   format('    </Sublattices>')
       nl=nl+1
-! SplitPhase 
+! DisorderedPart 
       if(btest(phlista(lokph)%status1,PHMFS)) then
          write(*,*)'3E The phase '//trim(phlista(lokph)%name)//&
-              ' has disordered fraction set'
-! in gtp_fraction_set the data for splitphase can be found
-!         write(*,*)'3E split:',phvarres%disfra%latd,phvarres%disfra%totdis
+              ' has a DisorderedPart'
+! in gtp_fraction_set the data for disordered phase can be found
+!         write(*,*)'3E Disordere:',phvarres%disfra%latd,phvarres%disfra%totdis
          if(phvarres%disfra%totdis.eq.1) then
-            line='    <Split3Phase Sum="'
+            line='    <DisorderedPart Subtract="Y" Sum="'
          else
-            line='    <Split2Phase Sum="'
+            line='    <DisorderedPart Sum="'
          endif
          if(btest(phlista(lokph)%status1,PHSORD)) then
-! I am not sure how this is connected with SplitPhase in OC
-            write(*,*)'3E do not subtract ordered as disordered'
+! I am not sure how this is connected with Disordered_Part in OC
+!            write(*,*)'3E do not subtract ordered as disordered'
          endif
          ip=len_trim(line)+1
          call wriint(line,ip,phvarres%disfra%latd)
@@ -7370,7 +7329,7 @@
          case(3)!   DEBYECP=3, not implemented
             continue
          case(4) !  EINSTEINCP=4 
-            text512(ip:)='GLOWEIN'; ip=ip+8
+            text512(ip:)='GLOWTEIN'; ip=ip+9
          case(5) !  TWOSTATEMODEL1=5
             text512(ip:)='LIQ2STATE'; ip=ip+10
          case(6) !  ELASTICMODEL1=6
@@ -7437,7 +7396,7 @@
 410         format('    <Bibitem Id="',a,'" Text="',a,'" /> ')
             nl=nl+1
          enddo
-         write(lut,420)trim(refiddef)
+         write(lut,420)trim(bibrefdef)
 420      format(4x,'<Bibitem Id="Default" Text="',a,'" /> '/'  </Bibliograpy>')
          nl=nl+1
       else
@@ -7445,6 +7404,7 @@
 !-----------------------------
 ! 6: Models
    if(includemodels) then
+! if includemodels write all models, otherwise only those used
       call write_xtdbmodels1(lut,nl)
    endif
 ! finished
@@ -7525,6 +7485,7 @@
    endif
 ! in tlow is after "= "
 !   write(*,*)'3E exp2xml: ',len_trim(expr)
+!   write(*,*)'3E exp2xml: ',trim(expr)
    lrange=.FALSE.
    ip=index(expr,'= ')+2
    tlim8=expr(ip:)
@@ -7557,7 +7518,9 @@
       endif
 !      write(*,*)'3E line 1C: >',line(1:kp),'<'
 !      write(*,*)'3E exp 2: ',expr(ip:ip+20),ip
-      line(kp:)=expr(ip+1:ip+jp+1)
+!      line(kp:)=expr(ip+1:ip+jp+1)
+! problem here because initial sign disappeared!!!
+      line(kp:)=expr(ip:ip+jp-1)
 !      write(*,*)'3E line 2: >',trim(line),'<'
       kp=kp+jp
       ip=ip+jp+1
@@ -7608,7 +7571,7 @@
          endif
 !         ip=ip+jp+1
          kp=len_trim(line)
-!         write(*,*)'3E line: ',trim(line)
+!         write(*,*)'3E line 7: ',trim(line)
          write(lut,10)line(1:kp)
          nl=nl+1
 ! if there has been Trange tags then end the Parameter/Tpfun tag
@@ -7825,7 +7788,7 @@
             endif
          endif
 203      continue
-! this writes the expression as a TDB file
+! this writes the expression as for a TDB file
          call list_tpfun(proprec%degreelink(0),1,funexpr(ip:))
 !         write(*,*)' >>>> fun? ',trim(funexpr(ip:)),lut
          ip=len_trim(funexpr)
@@ -7841,7 +7804,7 @@
          else
 !            write(*,10)funexpr(1:ip)
 !            write(lut,10)funexpr(1:ip)
-! this convert TDB expression to XTDB format
+! this convert TDB expression to XTDB format, this is the Parameter tag
             call exp2xml(lut,funexpr,xmlel(19),nl)
          endif
          proprec=>proprec%nextpr
@@ -8079,6 +8042,7 @@
                else
 !                  write(*,10)funexpr(1:ip)
 !                  write(lut,10)funexpr(1:ip)
+! This is the Parameter xml tag
                   call exp2xml(lut,funexpr,xmlel(19),nl)
 10                format(a)
                endif
@@ -8141,7 +8105,7 @@
       subref=.TRUE.
 !      lokcs=phlista(lokph)%cslink
       lokcs=phlista(lokph)%linktocs(ics)
-! does this make a copy?  Maybe it should be a pointer
+! does this make a copy?  Maybe it should be a pointer. IT IS A POINTER!
       disfrap=>firsteq%phase_varres(lokcs)%disfra
       if(.not.associated(disfrap)) then
 !         write(*,*)'disfrap OK'
@@ -8151,7 +8115,8 @@
       nsl=disfrap%ndd
 !      write(*,810)disfrap%fsites,nsl
       write(lut,810)disfrap%fsites,nsl
-810    format('<!-- Disordered fraction set factor: ',F10.4,i3,' -->')
+810   format('<!-- Disordered fraction set factor: ',F10.4,&
+           ' Sublattices: ',i3,' -->')
       parlist=2
 !      write(*,*)'3E Jump back to list disordered parameters',nsl,parlist
       goto 100
@@ -8700,7 +8665,7 @@
          4x,'The AmendPhase tag (nested inside a Phase tag) is used to specify some additional models for the phase'/&
          4x,'by using the attribute "Id" specified for most of the models below.'/&
          4x,'In these model tags there are model parameter identifiers (MPID) describing the dependence on composition, T and P.'/&
-         4x,'A Split2Phase or Split3Phase tag must be nested inside the Phase tag as it has additional information.'/&
+         4x,'A DisorderedPart tag must be nested inside the Phase tag as it has additional information.'/&
          4x,'The Toop and Kohler tags will normally appear together with model parameters for the binaries and ',&
          'has thus a phase attribute.'/&
          4x,'The EEC tag is global for the whole database if included.'/&
@@ -8711,7 +8676,7 @@
          6x,'f_below_TC= +1-0.905299383*TAO**(-1)-0.153008346*TAO**3-.00680037095*TAO**9-.00153008346*TAO**15; and'/&
          6x,'f_above_TC= -.0641731208*TAO**(-5)-.00203724193*TAO**(-15)-.000427820805*TAO**(-25); '/&
          6x,'in G=f(TAO)*LN(BMAGN+1) where TAO=T/TC.  Aff is the antiferromagnetic factor.'/&
-         6x,'TC is a combined Curie/Neel T and BMAGN the average Bohr magneton number.'/&
+         6x,'MPID1 is a combined Curie/Neel T and MPID2 the average Bohr magneton number.'/&
          4x,'</Magnetic>')
    nl=nl+6
 !-----------------------------------------------
@@ -8720,7 +8685,7 @@
          6x,'f_below_TC= +1-0.860338755*TAO**(-1)-0.17449124*TAO**3-.00775516624*TAO**9-.0017449124*TAO**15; and '/&
          6x,'f_above_TC= -.0426902268*TAO**(-5)-.0013552453*TAO**(-15)-.000284601512*TAO**(-25); '/&
          6x,'in G=f(TAO)*LN(BMAGN+1) where TAO=T/TC.  Aff is the antiferromagnetic factor.'/&
-         6x,'TC is a combined Curie/Neel T and BMAGN the average Bohr magneton number.'/&
+         6x,'MPID1 is a combined Curie/Neel T and MPID2 the average Bohr magneton number.'/&
          4x,'</Magnetic>')
    nl=nl+6
 !------------------------------------------ a lot of line-truncation errors
@@ -8730,54 +8695,44 @@
    write(lut,111)
 111 format(6x,'f_above_TC= -.0261039233*TAO**(-7)-.000870130777*TAO**(-21)-.000184262988*TAO**(-35)-6.65916411E-05*TAO**(-49);'/&
          6x,'in G=f(TAO)*LN(BMAGN+1) where TAO=T/CT or T/NT.  Aff is the (redundant) antiferromagnetic factor.'/&
-         6x,'CT is the Curie T and NT the Neel T and BMAGN the average Bohr magneton number.'/&
+         6x,'MPID1 is the Curie T, MPID2 the Neel T and MPID3 the average Bohr magneton number.'/&
          4x,'</Magnetic>')
    nl=nl+5
 !----------------------------------------------- "
    write(lut,120)
-120 format(4x,'<Einstein Id="GLOWTEIN" MPID1="LNTH" Bibref="01Qing" > '/&
+120 format(4x,'<Einstein Id="GLOWTEIN" MPID1="LNTH" Bibref="01Che" > '/&
          6x,'The Gibbs energy due to the Einstein low T vibrational model, G=1.5*R*THETA+3*R*T*LN(1-EXP(-THETA/T)).'/&
-         6x,'The Einstein THETA is the exponential of the parameter LNTH.'/&
+         6x,'MPID1 is the logarithm of the Einstein THETA.'/&
          4x,'</Einstein>')
    nl=nl+4
 !-----------------------------------------------
    write(lut,125)
 125 format(4x,'<Liquid2state Id="LIQ2STATE" MPID1="G2"  MPID2="LNTH" Bibref="88Agr 13Bec" > '/&
          6x,'Unified model for the liquid and the amorphous state which is treated as an Einstein solid.'/&
-         6x,'The G2 parameter describes the stable liquid and the transition to the amorphous state and'/&
-         6x,'LNTH is the logarithm of the Einstein THETA for the amorphous phase.'/&
+         6x,'MPID1 describes the stable liquid and the transition to the amorphous state and'/&
+         6x,'MPID2 is the logarithm of the Einstein THETA for the amorphous phase.'/&
          4x,'</Liquid2state>')
    nl=nl+5
 !-----------------------------------------------
    write(lut,130)
 130 format(4x,'<Volume Id="VOLOWP" MPID1="V0"  MPID2="VA" MPID3="VB" Bibref="05Lu" > '/&
          6x,'The volume of a phase as function of T, moderate P and constitution via the model parameters:'/&
-         6x,'V0 is the volume at the reference state, VA is the integrated thermal expansion ',&
-         'and VB is the isothermal compressibilty at 1 bar.'/&
+         6x,'MPID1 is the volume at the reference state, MPID2 is the integrated thermal expansion ',&
+         'and MPID3 is the isothermal compressibilty at 1 bar.'/&
          4x,'</Volume>')
    nl=nl+4
 !-----------------------------------------------
    write(lut,135)
-135 format(4x,'<Split3Phase Disordered=" " Sum=" " Bibref="97Ans" > '/&
-         6x,'This tag is nested inside the ordered phase tag.  The disordered fractions are averaged over the ',&
-         'number of ordered sublattices indicated by Sum.'/&
-         6x,'The Gibbs energy is calculated once for the disorderd phase and twice for the ordered, the second time subtracted'/&
-         6x,'using the disordered fractions.  The configurational Gibbs energy is calculated only for the ordered phase.'/&
-         6x,'This model is used for ordered phases that can be completely disordered such as FCC, BCC and HCP.'/&
-         6x,'Some software has no special disordered phase but all parameters are stored in the ordered one and'/&
-         6x,'the parameters for the disordered phase has a suffix "D" (and different number of sublattices).'/&
-         4x,'</Split3Phase>')
-   nl=nl+8
-!-----------------------------------------------
-   write(lut,137)
-137 format(4x,'<Split2Phase Disordered=" " Sum=" " Bibref="07Hal" > '/&
+135 format(4x,'<DisorderedPart Disordered=" " Subtract=" " Sum=" " Bibref="97Ans 07Hal" > '/&
          6x,'This tag is nested inside the ordered phase tag.  The disordered fractions are averaged over the ',&
          'number of ordered sublattices indicated by Sum.'/&
          6x,'The Gibbs energy is calculated separately for the ordered and disordered model parameters and added '/&
          6x,'but the configurational Gibbs energy is calculated only for the ordered phase.'/&
+         6x,'If Subtract="Y" the Gibbs energy of the ordered phase is calculated a second time using the disordered ',&
+         'fractions and subtracted.'/&
          6x,'Some software has no special disordered phase but all parameters are stored in the ordered one and'/&
          6x,'the parameters for the disordered phase has a suffix "D" (and different number of sublattices).'/&
-         4x,'</Split2Phase>')
+         4x,'</DisorderedPart>')
    nl=nl+7
 !-----------------------------------------------
    write(lut,140)
@@ -8819,7 +8774,8 @@
 160 format(4x,'<EBEF Id="EBEF" Bibref="18Dup" > '/&
          6x,'The Effective Bond Energy Formalism for phases with multiple sublattices using wildcards, "*", in the parameters',/&
          6x,'for sublattices with irrelevant constituents.  The parameters may also use the short form "constituent@sublattice" '/&
-         6x,'in order to specify only the constituents in sublattices without wildcards.  It also implies the Split2Phase model.'/&
+         6x,'in order to specify only the constituents in sublattices without wildcards.  It also requires ',&
+         'the DisorderedPart model.'/&
          4x,'</EBEF>')
    nl=nl+5
 !-----------------------------------------------

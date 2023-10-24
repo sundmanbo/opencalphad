@@ -1551,7 +1551,7 @@
           '# set arrow from x0, y0 to x1,y1 nohead linestyle 1'/&
           '# ** ADD A RED DOT AT 0.1,1000:'/&
           '# set obj 1 circle fc rgb "#FF0000" fs sol size 0.02 noclip at 1,1'/&
-          '# ** MODIFY THE AXIS VALUE:'/&
+          '# ** MODIFY THE PLOTTED VALUE ON AN AXIS:'/&
           '# plot for [i=] ... using (2*column(i)/(1-2*column(i))):2 with ...'/&
           '# ** PLOTTING SYMBOLS INSTEAD OF LINE:'/&
           '# ... using 2:i with points pt 7 ps 3 '/&

@@ -3082,7 +3082,7 @@
       goto 100
    endif
 1000 continue
-   write(*,*)'3C listing by list_phase_data2'
+!   write(*,*)'3C listing by list_phase_data2'
    return
  END subroutine list_phase_data2
 

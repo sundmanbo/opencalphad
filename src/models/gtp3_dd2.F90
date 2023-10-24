@@ -168,7 +168,7 @@
 ! 4010:
        'Illegally placed ) in exponent in TP function                   ',&
        'Too high power in a TP function, max 99, min -99                ',&
-       'Missing ) in the exponent of a TP function                      ',&
+       'Missing ( or power or ) in the exponent of a TP function        ',&
        'Illegal termination of a TP function reading a TDB file         ',&
        'No more free TP root records                                    ',&
        'No more free TP expression records                              ',&

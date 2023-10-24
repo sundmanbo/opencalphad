@@ -5,7 +5,7 @@
   character (len=8), parameter :: XTDBversion='0.0.3   '
   character (len=8) :: lowtdef    ='298.15  '
   character (len=8) :: hightdef   ='6000    '
-  character (len=64) :: refiddef  ='U.N. Known  '
+  character (len=64) :: bibrefdef  ='U.N. Known  '
   character (len=16) :: eldef     ='VA /-'
   logical :: unary1991=.TRUE., includemodels=.FALSE.
 !
@@ -17,158 +17,173 @@
        mxmlpp=5,mxmlp2=7,mxmlca=1,mxmlsc=2,mxmlbb=0,mxmlbi=4,&
        mxmlmd=0,mxmlmm=5,mxmlvm=5,mxmlpm=2,mxmlem=3,mxmll2=4,&
        mxmleec=1,mxmltm=3,mxmlkm=3,mxmlas=1,mxmlbs=2,mxmlts=1,&
-       mxmlus=0,mxmlxx=4,mxmlcy=3
+       mxmlus=0,mxmlxx=4,mxmlcy=3,mxmlsys=2
 ! All XML elements (not using this array when writing XML except 19 and 29)
-  character (len=16), dimension(nxmlel), parameter :: xmlel=&
-       ['AmendPhase      ',&
-        'AssessedSystem  ',&
-        'Bibitem         ',&
-        'Bibliography    ',&
-        'Binary          ',&
-        'ConstArray      ',&
-        'Constituents    ',&
-        'Crystallograpy  ',&
-        'DatabaseInfo    ',&
-        'Defaults        ',& ! 10
-        'DisorderdPart   ',& ! DisorderedPart is idetical to SplitPhase
-        'EEC             ',&
-        'Element         ',&
-        'Einstein        ',&
-        'KohlerTernary   ',&
-        'Liquid2state    ',&
-        'Magnetic        ',&
-        'Models          ',&
-        'Parameter       ',& ! 19
-        'Parameter2      ',& ! 20
-        'Permutations    ',&
-        'Phase           ',&
-        'Species         ',&
-        'SplitPhase      ',& ! Splitphase is identical to DisorderedPart
-        'Sublattices     ',&
-        'SublConstituent ',&
-        'Ternary         ',&
-        'ToopTernary     ',&
-        'TPfun           ',& !29
-        'Trange          ',& !30
-        'UnAssSystem     ',&
-        'Volume          ',&
-        'XTDB            ',&
-        '                ',&
-        '                ',&
-        '                ']  !36
+  character (len=17), dimension(nxmlel), parameter :: xmlel=&
+!        123456789.123456789.123456789.123456789.123456789.123456789.
+       ['AmendPhase       ',&
+        'AssessedSystem   ',&
+        'Bibitem          ',&
+        'Bibliography     ',&
+        'Binary           ',&
+        'ConstArray       ',&
+        'Constituents     ',&
+        'CrystallStructure',&
+        'DatabaseInfo     ',&
+        'Defaults         ',& ! 10
+        'DisorderedPart   ',& ! Same as TC DISORDERED_PART and NEVER model
+        'EEC              ',&
+        'Element          ',&
+        'Einstein         ',&
+        'KohlerTernary    ',&
+        'Liquid2state     ',&
+        'Magnetic         ',&
+        'Models           ',&
+        'Parameter        ',& ! 19 This indx used in GTP3E for output of XTDB
+        'Parameter2       ',& ! 20
+        'Permutations     ',&
+        'Phase            ',&
+        'Sites            ',&
+        'Species          ',& ! replaces 'Sublattices      ',&
+        'SublConst        ',&
+        'System           ',&
+        'Ternary          ',&
+        'ToopTernary      ',& !28
+        'TPfun            ',& !29 used in gtp3E.F90
+        'Trange           ',& !30
+        'UnAssSystem      ',&
+        'Volume           ',&
+        'XTDB             ',&
+        '                 ',&
+        '                 ',&
+        '                 ']  !36
 ! Attributes in alphabetical order of the elements
-! AmendPhase attributes
+! 1 AmendPhase attributes
 ! The model attribute can have several model Id separateb by spaces
   character (len=8),dimension(mxmlap), parameter :: xmlapat=&
         ['Model  ']
-! Assessed system attributes.  It has nested Binary and Ternary elements
+! 2 Assessed system attributes.  It has nested Binary and Ternary elements
   character (len=8),dimension(mxmlas), parameter :: xmlasat=&
        ['Software']
-! Bibitem attributes.  They provide reference to parameters and models
+! 3 Bibitem attributes.  They provide reference to parameters and models
   character (len=8),dimension(mxmlbi), parameter :: xmlbiat=&
        ['Id      ','Text    ','Date    ','Sign    ']
 !        12345678---12345678...12345678---12345678---12345678
-! Bibliography has no attributes contains only Bibitem elements
+! 4 Bibliography has no attributes contains only Bibitem elements
 !  character (len=8),dimension(mxmlbb), parameter :: xmlbbat=&
-! Binary attributes.  The system has two elements joined by hyphen as value.
+! 5 Binary attributes.  The value of system is two elements joined by a hyphen
 ! The Commands is a text with commands for the appropriate software
   character (len=8),dimension(mxmlbs), parameter :: xmlbsat=&
        ['System  ','Commands']
-! ConstArray attributes.  Is has also one or several mested SublConst elements
+! 6 ConstArray attributes.  Is has also one or several mested SublConst elements
   character (len=8),dimension(mxmlca), parameter :: xmlcaat=['Degree  ']
-! Constituents attributes (used inside Phase element)
+! 7 Constituents attributes (used inside Phase element)
   character (len=16),dimension(mxmlcc), parameter :: xmlccat=&
        ['Sublattice      ','List            ','                ']
-! Crystallography attributes (used inside Phase element)
+! 8 Crystallography attributes (used inside Phase element)
   character (len=16),dimension(mxmlcy), parameter :: xmlcyat=&
        ['StructurBerict  ','WyckoffPositions','                ']
-! DatabaseInfo has no attributes
-! Defaults attributes
+! 9 DatabaseInfo has no attributes
+! 10 Defaults attributes
   character (len=16), dimension(mxmldf), parameter :: xmldfat=&
-       ['LowT            ','HighT           ','Refid           ',&
+       ['LowT            ','HighT           ','Bibref          ',&
         'Elements        ','Model           ','                ',&
         '                ','                ','                ']
 !        123456789.123456...123456789.123456---123456789.123456
-! DisorderedPart attributes. This element is identical to the SplitPhase element
+! 11 DisorderedPart attributes. Subtract="Y" menas subtract ordered as disorderd
+! If no subtract then the NEVER model
   character (len=16),dimension(mxmldp), parameter :: xmldpat=&
-       ['Disordered      ','Sum             ','                ',&
+       ['Disordered      ','Subtract        ','Sum             ',&
         '                ','                ','                ']
+!        123456789.123456...123456789.123456---123456789.123456
 !================================ 10
-! EEC attributes, identifier EEC
+! 12 EEC attributes, Id="EEC"
   character (len=8),dimension(mxmleec), parameter :: xmleecat=&
-       ['Refid   ']
-! Element attributes
+       ['Bibref  ']
+!        12345678---12345678
+! 13 Element attributes
   character (len=8), dimension(mxmlel), parameter :: xmlelat=&
        ['Id      ','Refstate','Mass    ','H298    ','S298    ']
 !        12345678...12345678---12345678---12345678---12345678
-! Einstein attributes
+! 14 Einstein attributes Id="GLOWTEIN"
   character (len=8),dimension(mxmlem), parameter :: xmlemat=&
-       ['Id      ','MPID    ','Refid   ']
+       ['Id      ','MPID    ','Bibref  ']
 !        12345678---12345678
-! Kohler attributes
+! 15 Kohler attributes
   character (len=8),dimension(mxmlkm), parameter :: xmlkmat=&
-       ['Phase   ','Constit ','Refid   ']
-! Liquid2state attributes 
+       ['Phase   ','Constit ','Bibref  ']
+! 16 Liquid2state attributes 
   character (len=8),dimension(mxmll2), parameter :: xmll2at=&
-       ['Id      ','MPID1   ','MPID2   ','Refid   ']
+       ['Id      ','MPID1   ','MPID2   ','Bibref  ']
 !        12345678---12345678...12345678---12345678---12345678
-! Magnetic model attributes
+! 17 Magnetic model attributes Id="IHJBCC" or IHJREST or IHJQX
   character (len=8),dimension(mxmlmm), parameter :: xmlmmat=&
-       ['Id      ','MPID1   ','MPID2   ','MPID3   ','Refid   ']
+       ['Id      ','MPID1   ','MPID2   ','MPID3   ','Bibref  ']
 !        12345678---12345678...12345678---12345678---12345678
-! Models have no attributes
+! 18 Models have no attributes
 !  character (len=8),dimension(mxmlmd), parameter :: xmlmdat=&
 !       '                ','                ','                ',
-! Parameter attributes
+! 19 Parameter attributes, Id is TDB format
   character (len=8),dimension(mxmlpp), parameter :: xmlppat=&
        ['Id      ','LowT    ','Expr    ','HighT   ','Bibref  ']
-! Parameter2 attributes
+! 20 Parameter2 attributes
   character (len=8),dimension(mxmlp2), parameter :: xmlp2at=&
        ['Id      ','MPID    ','Phase   ','LowT    ','Expr    ',&
         'HighT   ','Bibref  ']
 !        12345678---12345678...12345678---12345678---12345678
 !        123456789.12---123456789.12
-! Permutation attributes NEW DESIGN
-! Id can be FCC4Perm or BCC4Perm in an AmendPhase element
+! 21 Permutation attributes 
+! Id can be FCC4PERM or BCC4PERM in an AmendPhase element
   character (len=8),dimension(mxmlpm), parameter :: xmlpmat=&
-       ['Id      ','Refid   ']
+       ['Id      ','Bibref  ']
 !        12345678---12345678...12345678---12345678---12345678
 !=================================================== 20
-! Phase attributes
+! 22 Phase attributes
   character (len=16),dimension(mxmlph), parameter :: xmlphat=&
        ['Id              ','Configuration   ','State           ']
 !        123456789.123456...123456789.123456---123456789.123456
-! Species attributes
+! 23 Sites attributes (nested in the Phase element), replaces Sublattices
+  character (len=16),dimension(mxmlsl), parameter :: xmlslat=&
+       ['NumberOf        ','Multiplicities  ','                ']
+! 24 Species attributes
   character (len=16), dimension(mxmlsp), parameter :: xmlspat=&
        ['Id              ','Stoichiometry   ','MQMQA           ',&
         'UNIQUAC         ']
-! Splitphase attributes are identical to DisorderedPart element
-! Sublattice attributes (nested in the Phase element)
-  character (len=16),dimension(mxmlsl), parameter :: xmlslat=&
-       ['NumberOf        ','Multiplicities  ','                ']
-! SublConstituent attribute (nested in the parameter2 element)
+! Sublattice/Sites attributes (nested in the Phase element) replaced by Sites
+!  character (len=16),dimension(mxmlsl), parameter :: xmlslat=&
+!       ['NumberOf        ','Multiplicities  ','                ']
+! 25 SublConstituent attribute (nested in the parameter2 element)
   character (len=12),dimension(mxmlsc), parameter :: xmlscat=&
        ['Sublattice  ','Species     ']
-! Ternary attributes.
+! 26 System attributes to organize Parameters in unary, binary etc 
+  character (len=8),dimension(mxmlsys), parameter :: xmlsysat=&
+       ['Elements','Bibref  ']
+!        12345678---12345678...12345678---12345678---12345678
+! 27 Ternary attributes.
   character (len=8),dimension(mxmlts), parameter :: xmltsat=&
        ['System  ']
-! Toop attributes.  The Toop constituent should be the first one!
+! 28 Toop attributes.  The Toop constituent should be the first one!
   character (len=8),dimension(mxmltm), parameter :: xmltmat=&
-       ['Phase   ','Constit ','Refid   ']
+       ['Phase   ','Constit ','Bibref  ']
 !        12345678---12345678...12345678---12345678---12345678
-! TPfun attributes
+! 29 TPfun attributes
   character (len=8),dimension(mxmltp), parameter :: xmltpat=&
        ['Id      ','LowT    ','Expr    ','HighT   ']
 !        12345678...12345678---12345678---12345678
-! Trange attributes
+! 30 Trange attributes
   character (len=8),dimension(mxmltr), parameter :: xmltrat=&
-       ['Id      ','HighT   ']
+       ['Expr    ','HighT   ']
 !        12345678...12345678
-! UnAssSystem attributes are NONE
+! 31 UnAssSystem attributes are NONE
+! 32 Volume
+! 33 XTDB
+! 34 -
+! 35 -
+! 36 -
 !================================================ 30
 ! Attributes for Volume model
   character (len=8),dimension(mxmlvm), parameter :: xmlvmat=&
-       ['Id      ','MPID1   ','MPID2   ','MPID3   ','Refid   ']
+       ['Id      ','MPID1   ','MPID2   ','MPID3   ','Bibref  ']
 ! Attributes for XTDB
   character (len=8),dimension(mxmlxx), parameter :: xmlxxat=&
        ['Version ','Software','Date    ','Sign    ']
@@ -188,17 +203,18 @@
 ! 8      12345678---12345678...12345678---12345678---12345678---12345678
 !
 ! Addition  OCix identifiers
-! IHJBCC    1    Inden-Hillert-Jarl BCC (-1) an REST (-3)
-! IHJQX     2    Inden-Hillert-Jarl-Qing-Xiong 
+! IHJBCC    1    Inden-Hillert-Jarl for BCC with Aff=-1
+! IHJREST   1    Inden-Hillert-Jarl for other with Aff=-3
+! IHJQX     2    Inden-Hillert-Jarl-Qing-Xiong with Aff=0
 ! GLOWTEIN  4    Einsten low T 
 ! LIQ2STATE 5    Liquid 2 state model
-! VOLOWP    7    Low P volome model
+! VOLOWP    7    Low P volome model according to Lu?
 !
 ! These have no parameters and treated in another way
-! SPLITPHASE or as I prefer DISORDEREDPART
+! DISORDEREDPART same as TDB file DISORDERED_PART and NEVER
 ! FCC4PERM  FCC symmetric tetrahedron permutations
 ! BCC4PERM  BCC asymmetric tetrahedron permutations
 ! EEC       Equi Entropy Criterion
-! EBEF      Effective Bond Energy Formalism (including split phase)
+! EBEF      Effective Bond Energy Formalism using "species@sublattice"
 !
 !   

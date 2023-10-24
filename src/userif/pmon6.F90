@@ -715,7 +715,7 @@ contains
        endif
     endif noochome
 ! initiate XML defaults
-    lowTdef='298.15  '; hightdef='6000    '; refiddef='U.N. Known';
+    lowTdef='298.15  '; hightdef='6000    '; bibrefdef='U.N. Known';
     eldef='VA /-'; unary1991=.TRUE.; includemodels=.FALSE.
 ! running a initial macro file
     write(*,*)'Working directory is: ',trim(workingdir)
@@ -2804,11 +2804,10 @@ contains
              call gparcdx('Default elements (NONE to remove)',&
                   cline,last,1,eldef,dummy,'?Set adv xtdb')
              if(dummy(1:5).eq.'NONE ') eldef=' '
-             dummy=refiddef
+             dummy=bibrefdef
 ! argument 4 equal to 5 means the whole line is read
              call gparcdx('Default bibiographic reference (One line!)',&
-                  cline,last,5,refiddef,dummy,'?Set adv xtdb')
-             if(dummy(1:5).eq.'NONE ') refiddef=' '
+                  cline,last,5,bibrefdef,dummy,'?Set adv xtdb')
 !.................................................................
           case(17) ! not used
              continue
