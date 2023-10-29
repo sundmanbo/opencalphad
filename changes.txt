@@ -20,6 +20,13 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2023.10.23 OC version 6.068: A new example added using the new unary
+models.  The Al-C system assessed in 2021 by Zingtang He et al.  The
+new usnary is implemented in the software but there is still no way to
+specify these in the TDB file which is one of the reasons for the
+project to develop a new XML based format.  Anyway I added an example
+showing one can now calculate heat capacities down to a few K.
+
 2023.10.23 OC version 6.067: A rather serious bug in handling
 expressions for TP functions and parameters has been discovered.  This
 is now fixed and illegal expressions which were previously accepted,

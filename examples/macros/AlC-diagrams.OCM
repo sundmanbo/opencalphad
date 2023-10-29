@@ -1,0 +1,221 @@
+@$ Example calculating Al-C phase diagram and heat capacities
+@$ down to low T using the new unary database
+@$
+
+new Y
+set echo Y
+
+
+r t ./AlC-OC
+
+
+@$
+@$ There are warnings because LNTH and G2 parameters has no model
+@$ This will be amended with a new database format.
+@$ At present the models are set below as commands.
+
+
+@&
+
+@$ Add the two-state model to the liquid
+am ph liq add two
+Y
+
+@$ Add the Einstein model to the FCC
+am ph fcc add low
+Y
+
+@$ Add the Einstein model to the Al4C3
+am ph al4c3 add low
+Y
+
+@$ Add the Einstein model for BCC
+Am ph bcc add low
+Y
+
+@$ Add the Einstein model for Diamond
+Am ph diam add low
+Y
+
+@$ Add the Einstein model for graphite
+Am ph graph add low
+Y
+
+@$ Add the Einstein model for hcp
+Am ph hcp add low
+Y
+
+l d
+
+
+@$
+@$ Note that the is a line " + Einsten Cp model" or " + Liquid 2 state model" 
+@$ Explaining the models used for these parameters
+
+@&
+
+@$ Calculate the phase diagram
+
+set c t=1000 p=1e5 n=1 x(c)=.1
+
+c e
+
+set ax 1 x(c) 0 1 .025
+set ax 2 T 100 5000 25
+
+map
+
+
+plot
+
+
+pos left
+Title Al-C phase diagram Fig 1
+
+@&
+
+
+@$ ===========================================================
+@$ Calculate heat capacity for pure Al down to 10 K for liquid and FCC
+
+set c x(c)=1e-6
+
+c e
+
+ent sym cp=hm.t;
+
+
+set ax 1 t 10 5000 10
+set ax 2 none
+
+@$ OC has some problems to calculate with several phases, calculate one by one
+set st ph *=sus
+set st ph liq=e 1
+
+step
+N
+Y
+
+plot
+
+cp
+text 1500 32 2 0 Heat capacity for liquid Al
+text N 500 14 2 0 In the metastable range below 933~K
+text N 500 12 2 0 there is a transformation to the amorphous state
+Title Heat capacity for liquid Al Fig 2
+
+
+@$ Note that Cp goes to zero t T=0
+@$ The bump in the Cp curve is du to the liquid/amorpheus transiton
+@&
+
+set st ph liq=sus
+set st ph fcc=ent 1
+
+c e
+
+step
+N
+Y
+
+
+plot
+t
+cp
+text 500 140 2 0 FCC heat capacity for Al
+text N 500 130 2 0 Above T=933 K it is metastable
+text N 1500 30 2 0 The Equi Entropy Criteria is used to
+text N 1500 20 2 0 prevent FCC to become stable at high T
+Title Heat capacity for FCC Al Fig 3
+
+
+@$ The extrapolation of the heat capacity of metatstable FCC
+@$ at high T is unphysical.
+@$ It can be eliminated by the Equi Entropy Criterion
+
+@&
+
+@$ ===========================================================
+@$ Calculate heat capacity for pure C for liquid, graphite and diamone
+
+new Y
+
+r t ./AlC-OC
+C
+
+@$ Add the two-state model to the liquid, graphite and diamond
+am ph liq add two
+Y
+
+am ph dia add lowt
+Y
+
+am ph gra add lowt
+Y
+
+
+set c t=1000 p=1e5 n=1
+
+@$ Step separate does not work well, calculate phases one by one
+
+set st ph *=sus
+set st ph liq=e 1
+
+c e
+
+enter symb cp=hm.t;
+
+set ax 1 t 10 5000 10
+
+step norm 
+
+
+
+
+set st ph liq=sus
+set st ph dia=e 1
+
+c e
+
+step norm
+N
+
+
+
+set st ph dia=sus
+set st ph gra=e 1
+
+c e
+
+step norm
+N
+
+
+plot
+
+cp
+text 2400 42 2 0 Heat capacity for liquid C
+text N 1300 26 2 6 Heat capacity for graphite
+text N 2000 23 2 5 Heat capacity for diamond
+text N 800 10 2 0 Liquid and diamond are metastable for pure C
+Title Heat capacity for C as graphite liquid and diamond Fig 4
+
+
+
+@&
+
+plot
+
+S
+text 1000 85 2 0 Pure C
+text N 2800 80 2 17 Entropy for C as Liquid
+text N 2500 37 2 15 Entropy for C as diamond
+text N 2500 52 2 17 Entropy for C as graphite
+text N 700 10 1 0
+Liquid is not crystalline and can have non-zero entropy at T=0K
+Title Entropy for C as graphite liquid and diamond Fig 5
+
+
+
+set inter
+

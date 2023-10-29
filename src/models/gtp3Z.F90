@@ -1469,7 +1469,7 @@
 ! now combine term1 and term2 using chain rule. link values are
 ! -1: LOG,   -2: LN,    -3: EXP, -4: ERF, only LN and EXP implemented below
 ! -5: GEIN, is the Einstein function, integrated as a Gibbs energy
-!             the argument is the Einstein theta, or rather ln(theta)
+!          the argument is the Einstein theta, NO LONGER ln(theta)
 ! -6: MAX1, if argument <0 ERROR, if >1 replace by 1
 !         write(*,'(a,5i4,1pe12.4)')'3Z intein5: ',ic,ipow,link,link3,link4,ff
          evunfun: if(unfun.eq.-1) then
@@ -1642,10 +1642,75 @@
 ! in the call ff is a constant factor multiplied with the Einstein function
 ! NOTE gg is the logarithm of the Einstein THETA, take the exponential!!
    ww=ff
+!   if(gg.gt.8.0D1) then
+!      write(*,'(a,F8.2)')'Einstein T in GEIN too large, use the logarithm!',gg
+!      gx%bmperr=5399; goto 1000
+!   endif
+! MODIFIED 2023.10.26/BoS the value of gg is THETA, not LN(THETA)
+   if(gg.lt.1.0D1) then
+      write(*,*)' *** Warning, Einstein THETA in GEIN less than 10,',&
+           ' use THETA not LN(THETA)!'
+   endif
+!   egg=exp(gg)
+   egg=gg
+   kvot=egg/tpval(1)
+!write(*,'(a,5(1pE12.4))')'GEIN: ',gg,egg,kvot,tpval(1)
+! no risk for extreme values of eqq
+!-   if(kvot.gt.2.0d2) then
+! handle extreme values of kvot, we divide by kvotexpkvotm1**2 by expmkvot bolw
+!-      expmkvot=one
+!-      kvotexpkvotm1=zero
+!-      lnexpkvot=zero
+!      write(*,'(a,5(1pe12.4))')'3Z Einetsin 1: ',kvot,expmkvot,&
+!           kvotexpkvotm1,lnexpkvot
+!-   else
+      expmkvot=exp(-kvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+      lnexpkvot=log(one-expmkvot)
+!      write(*,'(a,5(1pe12.4))')'3Z Einetsin 2: ',kvot,expmkvot,&
+!           kvotexpkvotm1,lnexpkvot
+!-   endif
+! this is the integral G contribution from an Einstein solid
+   ff=1.5d0*rgas*egg*ww + 3.0D0*rgas*tpval(1)*lnexpkvot*ww
+   dfdt=3.0d0*rgas*(lnexpkvot-kvotexpkvotm1)*ww
+!   write(*,10)rgas,kvot,lnexpkvot,kvotexpkvotm1,dfdt
+!10 format('3Z bug: ',6(1pe12.4))
+   dfdp=zero
+! this is the second derivative of G wrt T; i.e. the Einstein solid Cp equation
+   d2fdt2=-3.0d0*rgas*kvotexpkvotm1**2/(expmkvot*tpval(1))*ww
+   d2fdtdp=zero
+   d2fdp2=zero
+1000 continue
+   return
+ end subroutine tpfun_geinstein
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine tpfun_geinstein_ln
+!\begin{verbatim}
+ subroutine tpfun_geinstein_ln(tpval,gg,ff,dfdt,dfdp,d2fdt2,d2fdtdp,d2fdp2)
+! evaluates the integrated Einstein function (including 1.5*R) INTEIN/GEIN
+! gg is the value of the Einstein THETA, here provided as ln(THETA)
+! ff is a constant factor which should be multiplied with all terms
+! ff is overwritten with the Einstein function (multiplied with ff in)
+! the other parameters are derivatives of the integrated Einstein function
+   implicit none
+   double precision tpval(*)
+   double precision gg,ff,dfdt,dfdp,d2fdt2,d2fdtdp,d2fdp2
+!\end{verbatim}
+   double precision kvot,kvotexpkvotm1,expmkvot,lnexpkvot,ww,rgas,egg
+! return ff = 1.5*R*gg + 3*R*T*LN(1 - EXP(-gg/T)) and derivatives
+! gg must be a constant >0
+   rgas=globaldata%rgas
+!   write(*,*)'3Z in Einstein function',gg,tpval(1)
+! in the call ff is a constant factor multiplied with the Einstein function
+! NOTE gg is the logarithm of the Einstein THETA, take the exponential!!
+   ww=ff
    if(gg.gt.8.0D1) then
       write(*,'(a,F8.2)')'Einstein T in GEIN too large, use the logarithm!',gg
       gx%bmperr=5399; goto 1000
    endif
+! MODIFIED 2023.10.26/BoS the value of gg is THETA, not LN(THETA)
    egg=exp(gg)
    kvot=egg/tpval(1)
 !write(*,'(a,5(1pE12.4))')'GEIN: ',gg,egg,kvot,tpval(1)
@@ -1675,9 +1740,9 @@
    d2fdp2=zero
 1000 continue
    return
- end subroutine tpfun_geinstein
+ end subroutine tpfun_geinstein_ln
 
-   !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine ct1wfn
 !\begin{verbatim}

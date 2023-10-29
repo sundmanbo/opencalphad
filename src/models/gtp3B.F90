@@ -3172,8 +3172,10 @@
          else
             write(*,*)'3B too many model parameter identifier errors',mundefmpi
          endif
-         write(*,*)'3B *** Warning phase ',trim(phlista(lokph)%name),&
-              ' has no addition using parameter id: ',propid(zz)%symbol
+!         write(*,*)'3B *** Warning phase ',trim(phlista(lokph)%name),&
+!              ' has no addition using parameter id: ',propid(zz)%symbol
+         write(*,*)'3B *** Warning parameter ',propid(zz)%symbol,' has no ',&
+              'addition in ',trim(phlista(lokph)%name),' (or other phases)'
       endif mpiwarning
 1005  continue
    endif lastcheck

@@ -7012,7 +7012,7 @@
 10 format(a)
 !
 !   write(*,*)'3E: in write_xtbformat: XTDB format output not yet finished
-   write(*,*)'3E: filename: "',trim(filename),'" "',ext,'"'
+!   write(*,*)'3E: filename: "',trim(filename),'" "',ext,'"'
 ! make sure extention is .XTDB
    if(index(filename,ext).le.0) then
       ip=index(filename,' ')
@@ -7382,7 +7382,7 @@
 !      write(*,*)'3E reffree: ',reffree
       if(reffree.gt.1) then
          write(lut,400)
-400      format('  <Bibliograpy>')
+400      format('  <Bibliography>')
          nl=nl+1
          do ia=1,reffree-1
 ! Wow, reference texts are stored using storec/loadc ... max 1024 chars
@@ -7397,7 +7397,7 @@
             nl=nl+1
          enddo
          write(lut,420)trim(bibrefdef)
-420      format(4x,'<Bibitem Id="Default" Text="',a,'" /> '/'  </Bibliograpy>')
+420      format(4x,'<Bibitem Id="Default" Text="',a,'" /> '/'  </Bibliography>')
          nl=nl+1
       else
       endif
@@ -7478,11 +7478,13 @@
       write(*,*)'3E expression has no terminating N'
       stop
    elseif(tag(1:1).eq.'P') then
-! extrat reference if tag is Parameter
+! extract reference if tag is Parameter
       bibref=trim(expr(ip+3:))
    else
       bibref=' '
    endif
+! missing default bibref?? fixed
+!   write(*,*)'3E exp2xml: "',trim(expr),'" "',trim(bibref)
 ! in tlow is after "= "
 !   write(*,*)'3E exp2xml: ',len_trim(expr)
 !   write(*,*)'3E exp2xml: ',trim(expr)
@@ -7582,7 +7584,7 @@
          endif
          exit tranges
       endif
-! there are more tranges
+! loop if there are more tranges
    enddo tranges
 1000 continue
    return
@@ -8035,7 +8037,13 @@
                ip=len_trim(funexpr)+1
                call list_tpfun(proprec%degreelink(jdeg),1,funexpr(ip:))
                ip=len_trim(funexpr)
-               funexpr(ip+1:)=' '//proprec%reference
+! default reference missing for excess parameters
+               if(len_trim(proprec%reference).le.0) then
+                  funexpr(ip+1:)=' Default '
+               else
+                  funexpr(ip+1:)=' '//proprec%reference
+               endif
+!               funexpr(ip+1:)=' '//proprec%reference
                ip=len_trim(funexpr)
                if(typ.eq.1) then
                   call wrice2(lun,4,12,78,1,funexpr(1:ip))
