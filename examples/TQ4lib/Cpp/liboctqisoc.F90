@@ -104,7 +104,7 @@ MODULE liboctqisoc
 ! tpval: value of T and P
 ! rtn: value of R*T
      integer(c_int) :: status,multiuse,eqno,next
-     character(c_char) :: eqname*24
+!     character(c_char) :: eqname ! NOT USED
      real(c_double) :: tpval(2),rtn
 ! svfunres: the values of state variable functions valid for this equilibrium
      type(c_ptr) :: svfunres
@@ -213,8 +213,8 @@ contains
     do i = 1, nel
        cnames(i) = trim(cnam(i)) // c_null_char
        c_cnam(i) = c_loc(cnames(i))
-	   c_mass(i)=cmass(i)
-	   write(*,*) cmass(i)
+!	   c_mass(i)=cmass(i)
+!	   write(*,*) cmass(i)
     end do
     c_ceq = c_loc(ceq)
 	deallocate(fstring)
