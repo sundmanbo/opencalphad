@@ -6091,6 +6091,7 @@
 !\begin{verbatim}
  subroutine palmtree(lokph)
 ! Initiates a numbering of all interaction trees of an endmember of a phase
+! Called from calcg_internal for each phase unless PHPALM set
    implicit none
    integer lokph
 !\end{verbatim}

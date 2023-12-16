@@ -420,7 +420,7 @@
        'Mapping cannot handle expressions as conditions                 ',&
        'Node with no exit lines                                         ',&
        'Attempt to remove the only stable phase                         ',&
-       'Yet another never never error                                   ',&
+       'A never never error                                             ',&
 ! 4240
        'Too many fix phases during mapping                              ',&
        'More than one entered phase                                     ',&
@@ -463,11 +463,11 @@
        'Internal error generating fcc permutations                      ',&
        'This excess parameter not yet implemented in option F or B      ',&
        'Internal error generating permutations for option F             ',&
-       'BCC permutations (option B) not yet implemented                 ',&
+       'BCC permutations (TDB option B) not yet fully implemented       ',&
        'Subcommand error when enter many_equilibria                     ',&
        'Too many columns when entering many_equilibria row              ',&
 ! 4280
-       'Table row missing in colum when entering many_equilbria         ',&
+       'Table row missing in column when entering many_equilbria        ',&
        'Number expected after specifying fix phase                      ',&
        'Phase name expected after status command                        ',&
        'Too many equilibra, increase dimension of eqlista               ',&
@@ -527,7 +527,7 @@
        'Magnetic model with separate Curie and Neel T not yet implement ',&
        'Addition model not yet implemented                              ',&
        'Not implemented this way                                        ',&
-       'Parameter identifier not found                                  ',&
+       'Model parameter identifier not found                            ',&
        'Value for model parameter identifier not found                  ',&
        'Flory-Huggins model must have one lattice and site              ',&
        'Too many parameter properties for this phase                    ',&

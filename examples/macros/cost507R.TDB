@@ -1,12 +1,16 @@
-
-$ From cast project 507
+$ From COST project 507
  DATABASE_INFO about the COST 507 database
  This thermodynamic database is the result of the European COST 507 project.
  It contains about 70 assessed binary and a few ternary system for 20 elements,
  Many binaries and ternaries have no data and cannot be calculated.
  A simple test is to list the data for the liquid phase: "list ph liq data"
  If there are no EXCESS parameters for a system in the liquid
- the system has not been assessed.
+ the system has not been assessed.  General reference:
+
+ Luxembourg: Office for Official Publications of the European Communities, 1998
+ Volume 2: ISBN 92-828-3902-8
+ Volumes 1 to 3: ISBN 92-828-3900-1
+
  For the each assessed model parameter a bibliographic reference is provided. !
 $
  ELEMENT /-   ELECTRON_GAS              0.0000E+00  0.0000E+00  0.0000E+00!
@@ -1230,12 +1234,12 @@ $  +7.5*GHSERAL#+2.5*GHSERSI#+3*GHSERMN#;  2.00000E+03  N REF115 !
  PARAM G(ALMNSI_BETA,AL:SI:AL:MN;0)  298.15  
                         -8.8064800E+05+3.4510400E+03*T-572.749*T*LN(T)
                         -.201935*T**2+2.00008E-05*T**3+2184750*T**(-1); 
-                        6000.00 N !
+                        6000.00 N REF115!
  PARAM G(ALMNSI_BETA,AL:SI:SI:MN;0)  298.15  
                         -7.7998000E+05+3.4510400E+03*T-593.657*T*LN(T)
                         -.16164*T**2+1.35092E-05*T**3+2946120*T**(-1);
-                        6000.00 N !
- PARAM L(ALMNSI_BETA,AL:SI:AL,SI:MN;0)  298.15 1.0E-4; 6000 N !
+                        6000.00 N REF115!
+ PARAM L(ALMNSI_BETA,AL:SI:AL,SI:MN;0)  298.15 1.0E-4; 6000 N REF115!
 
 
  PHASE ALN  %  2 1   1 !

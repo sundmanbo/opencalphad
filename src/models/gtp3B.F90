@@ -2908,7 +2908,7 @@
 ! this subroutine is in gtp3G.F90
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-! phpalm needed to handle FCC and BCC permutations
+! clear phpalm as it is needed to handle FCC and BCC permutations
          phlista(lokph)%status1=ibclr(phlista(lokph)%status1,PHPALM)
          endmemrec%intpointer=>newintrec
          intrec=>newintrec
@@ -3004,7 +3004,7 @@
          endif
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-! PHPALM needed to handle FCC and BCC parameter permutations
+! clear PHPALM as calling palmtree is needed to handle FCC and BCC permutations
          phlista(lokph)%status1=ibclr(phlista(lokph)%status1,PHPALM)
          if(newint.eq.1) then
 !           write(*,*)'3B Linking as higher',mint,highint,associated(linktohigh)
@@ -5443,6 +5443,7 @@
    integer, parameter :: prm8(32)=[1,2,3,4, 1,2,4,3, 2,1,3,4, 2,1,4,3,&
                                    3,4,1,2, 3,4,2,1, 4,3,1,2, 4,3,2,1]
 ! This is related to the order in prm4
+! WOW, comment 2023: I have completely forgotten how shape/reshape works ....
    integer, parameter :: &
         prmint4(4,4)=reshape([1,3,2,4,2,4,1,3,3,2,4,1,4,1,3,2],shape(prmint4))
 !
@@ -5793,11 +5794,20 @@
             write(*,*)'3B illegal value of noperm in bccint2'
             gx%bmperr=4277; goto 1000
 !----------------------
+! BCC permutations, 
          case(1) ! A:A:A:A interaction AX:AX:A:A or AX:A:AX:A
-            write(*,*)'3B BCC reciprocal AX:AX:A:A not implemented'
+! Trying to understand this in December 2023/BoS
+! this is recipocal parameter for B32, it is binary and should be implemented!!
+! There are 4 permutations AX:A:AX:A, A:AX:AX:A, AX:A:A:AX and A:AX:A:AX 
+! int1: AX:A:A:A    A:AX:A:A   A:A:AX:A 
+! int2: AX:AX:A:A   A:AX:AX:A  A:A:AX:AX
+!       AX:A:AX:A   A:AX:A:AX  -
+!       AX:A:A:AX   -          -           maybe not important
+            write(*,*)'3B BCC reciprocal AX:AX:A:A not implemented case1'
             gx%bmperr=4277; goto 1000
 !----------------------
          case(2) ! A:A:B:B interaction AX:AX:B:B or A:A:BX:BX
+! This is reciprocal parameter in B2 ordering
 ! int1: AX:A:B:B  A:AX:B:B B:B:AX:A   B:B:A:AX
 ! int2: AX:AX:B:B   none   B:B:AX:AX    none
 ! This can handle A,B:A,B:*:*
@@ -5808,7 +5818,7 @@
             nz=intperm(2)
             loksp=phlista(lokph)%constitlist(jord(2,2))
             isp=splista(loksp)%alphaindex
-            write(*,*)'3B reciprocal AB;AB:C:C',intperm(5),jord(1,2)
+            write(*,*)'3B reciprocal AB:AB:C:C',intperm(5),jord(1,2)
             if(jord(1,2).eq.2) then
                intlinks(1,nz+1)=2
                call findconst(lokph,intlinks(1,nz+1),isp,intlinks(2,nz+1))
@@ -5825,12 +5835,21 @@
                if(gx%bmperr.ne.0) goto 1000
             endif
 !----------------------
-         case(4) ! A:B:A:B and
-            write(*,*)'3B BCC reciprocal interaction not implemented 3'
+         case(4) ! A:B:A:B and a ternary interaction, B can be wildcard
+! this is also the B32 binary reciprocal parameter such as A,B:*:A,B:*
+! int1: AB:*:A:*    *:AB:A:*    
+! int2: AB:*:AB:*   *:AB:AB:*
+!       AB:*:*:AB   *:AB:*:AB
+! Trying to understand argument ... 2023/BoS
+            write(*,11)'3B reciprocal AB:C:AB:C',noperm,(intperm(nz),nz=1,8)
+            write(*,12)nint,(jord(1,nz),nz=1,nint),(jord(2,nz),nz=1,nint)
+11          format(a,i7,7i3)
+12          format(i3,5x,2i3,5x,2i3)
+            write(*,*)'3B BCC B32 reciprocal interaction not implemented case4'
             gx%bmperr=4277
 !----------------------
-         case(8) ! several
-            write(*,*)'3B BCC reciprocal interaction not implemented 4'
+         case(8) ! several other ternary excess parameters ignored
+            write(*,*)'3B BCC reciprocal interaction not implemented case8'
             gx%bmperr=4277
          end select
 !----------------------
@@ -5848,7 +5867,7 @@
             gx%bmperr=4277; goto 1000
 !----------------------
          case(1) ! A:A:A:A interaction AX:AY:A:A or AX:A:AY:A
-            write(*,*)'3B BCC reciprocal AX:AX:A:A not implemented'
+            write(*,*)'3B BCC reciprocal AX:AY:A:A not implemented case1B'
             gx%bmperr=4277; goto 1000
 !----------------------
          case(2) ! A:A:B:B interaction AX:AY:B:B or A:A:BX:BY
@@ -5889,12 +5908,13 @@
                if(gx%bmperr.ne.0) goto 1000
             endif
 !----------------------
-         case(4) ! A:B:A:B and
-            write(*,*)'3B BCC reciprocal interaction not implemented 10'
+         case(4) ! A:B:A:B not much used ??
+! This is the B32 reciprocal AB:*:AB:*
+            write(*,*)'3B BCC interaction not implemented case 4B'
             gx%bmperr=4277
 !----------------------
          case(8) ! several
-            write(*,*)'3B BCC reciprocal interaction not implemented 11'
+            write(*,*)'3B BCC interaction not implemented case 8B'
             gx%bmperr=4277
          end select
 !----------------------

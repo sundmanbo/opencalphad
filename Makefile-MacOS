@@ -91,11 +91,11 @@ getkey.o:
 	# Mac >>
 	$(C) -c  -DBSD src/utilities/GETKEY/getkey.c
 	# Linux >>
-	#$(C) -c $(FCOPT) -DLinux src/utilities/GETKEY/getkey.c
+	#$(C) -c  -DLinux src/utilities/GETKEY/getkey.c
 	# other UNIX systems >>
-	#$(C) -c $(FCOPT) -DG77 src/utilities/GETKEY/getkey.c
+	#$(C) -c  -DG77 src/utilities/GETKEY/getkey.c
 	# CYGWIN >> 
-	#$(C) -c $(FCOPT) -DCYGWIN src/utilities/GETKEY/getkey.c
+	#$(C) -c  -DCYGWIN src/utilities/GETKEY/getkey.c
 
 M_getkey.o:
 	$(FC) -c $(FCOPT) src/utilities/GETKEY/M_getkey.F90

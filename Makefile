@@ -87,11 +87,11 @@ getkey.o:
 	# Mac >>
 	#$(C) -c $(FCOPT) -DBSD src/utilities/GETKEY/getkey.c
 	# Linux >>
-	$(C) -c $(FCOPT) -DLinux src/utilities/GETKEY/getkey.c
+	$(C) -c  -DLinux src/utilities/GETKEY/getkey.c
 	# other UNIX systems >>
-	#$(C) -c $(FCOPT) -DG77 src/utilities/GETKEY/getkey.c
+	#$(C) -c  -DG77 src/utilities/GETKEY/getkey.c
 	# CYGWIN >> 
-	#$(C) -c $(FCOPT) -DCYGWIN src/utilities/GETKEY/getkey.c
+	#$(C) -c  -DCYGWIN src/utilities/GETKEY/getkey.c
 
 # If you have not uncommented any getkey.c line above COMMENT next line
 # and also remove the -Dlixed option for the metlib4.F90
@@ -99,10 +99,10 @@ M_getkey.o:
 	$(FC) -c $(FCOPT) src/utilities/GETKEY/M_getkey.F90
 
 tinyfiledialogs.o:
-	$(C)  -c $(FCOPT) src/utilities/TINYFILEDIALOGS/tinyfiledialogs.c
+	$(C)  -c  src/utilities/TINYFILEDIALOGS/tinyfiledialogs.c
 
 tinyopen.o:
-	$(C)  -c $(FCOPT) src/utilities/TINYFILEDIALOGS/tinyopen.c
+	$(C)  -c  src/utilities/TINYFILEDIALOGS/tinyopen.c
 
 ftinyopen.o:
 	$(FC) -c $(FCOPT) src/utilities/TINYFILEDIALOGS/ftinyopen.F90

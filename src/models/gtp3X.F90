@@ -668,6 +668,10 @@
 68          format(a,i3,5(1pe12.4)/,(16x,5e12.4))
 !---- jump here if moded is 0 or 1
 150         continue
+!
+! if debugpar nonzero add call for debug_endmemberpar(....) here
+!
+!-----------------------------------------------------
 ! d2pyq contains 2nd serivatives of endmember fractions.
 !            write(*,228)'3X d2pyq 0:',d2pyq
 !            write(*,*)'3X Config G 4A: ',phres%gval(1,1)*rtg
@@ -1511,6 +1515,7 @@
 ! check if we have more permutations for this record
                   if(chkperm) then
                      if(lastpmq(pmq).lt.maxpmq(pmq)) then
+! here we could maybe use cycle interloop ??/Bosse 2023.12.16
                         goto 200
                      endif
                   endif

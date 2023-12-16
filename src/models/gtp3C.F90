@@ -1977,10 +1977,11 @@
    endif
 ! end of exclusive bits
    kkk=2
-   if(btest(phlista(lokph)%status1,PHMFS)) then
+!   if(btest(phlista(lokph)%status1,PHMFS)) then
 ! this indicates if there is a disordered fraction set
-      special(kkk:kkk)='D'; kkk=kkk+1
-   endif
+!      write(*,*)'3C skipping suffix D, first time'
+!      special(kkk:kkk)='D'; kkk=kkk+1
+!   endif
    lokcs=phlista(lokph)%linktocs(ics)
 ! wrong use of CSORDER, it is set if the ordered part already disordered
 ! no need to calculate it again
@@ -2121,11 +2122,12 @@
          endif
          if(typty.gt.0 .and. typty.le.ndefprop) then
             prop=propid(typty)%symbol
-            if(parlist.eq.2) then
+!            if(parlist.eq.2) then
 ! disordered endmember parameter
-               kk=len_trim(prop)+1
-               prop(kk:kk)='D'
-            endif
+!               write(*,*)'3C skipping suffix D 2nd case'
+!               kk=len_trim(prop)+1
+!               prop(kk:kk)='D'
+!            endif
             if(btest(propid(typty)%status,IDELSUFFIX)) then
 ! property like ZZ&<element>(phase,constituent array)
 ! the element index should be in typsepc
@@ -2244,9 +2246,18 @@
          prplink=0
          if(associated(endmemrec%propointer)) prplink=1
 ! keep this output for the moment
-         if(parlist.eq.1) write(kou,207)endmemrec%antalem,&
-              endmemrec%noofpermut,intpq,prplink
-207      format('3C Endmember check: permut, interaction, pty: ',4i5)
+!         if(parlist.eq.1) write(kou,207)endmemrec%antalem,&
+         if(parlist.eq.1) then
+            if(prplink.eq.1) then
+               write(kou,207)endmemrec%antalem,&
+                    endmemrec%noofpermut,intpq,prplink
+            elseif(intpq.gt.0) then
+               write(kou,208)endmemrec%antalem,&
+                    endmemrec%noofpermut,intpq,prplink
+207      format('3C Endmember check: id, permut, inter, pty: ',4i5)
+208      format('3C Link to excesss: id, permut, inter, pty: ',4i5)
+            endif
+         endif
       endif
       endmemrec=>endmemrec%nextem
    enddo endmemberlist
@@ -2370,11 +2381,12 @@
 !            endif
             if(typty.gt.0 .and. typty.le.ndefprop) then
                prop=propid(typty)%symbol
-               if(parlist.eq.2) then
+!               if(parlist.eq.2) then
 ! disordered interaction parameter
-                  kk=len_trim(prop)+1
-                  prop(kk:kk)='D'
-               endif
+!                  write(*,*)'3C skipping suffix D 3rd time'
+!                  kk=len_trim(prop)+1
+!                  prop(kk:kk)='D'
+!               endif
                if(btest(propid(typty)%status,IDELSUFFIX)) then
 ! property like ZZ&<element>(phase,constituent array)
 ! the element index should be in typsepc
@@ -2764,11 +2776,12 @@
          endif
          if(typty.gt.0 .and. typty.le.ndefprop) then
             prop=propid(typty)%symbol
-            if(parlist.eq.2) then
+!            if(parlist.eq.2) then
 ! disordered endmember parameter
-               kk=len_trim(prop)+1
-               prop(kk:kk)='D'
-            endif
+!               write(*,*)'3C skipping suffix D, 4:th time'
+!               kk=len_trim(prop)+1
+!               prop(kk:kk)='D'
+!            endif
             if(btest(propid(typty)%status,IDELSUFFIX)) then
 ! property like ZZ&<element>(phase,constituent array)
 ! the element index should be in typsepc
@@ -2933,11 +2946,12 @@
 !            endif
             if(typty.gt.0 .and. typty.le.ndefprop) then
                prop=propid(typty)%symbol
-               if(parlist.eq.2) then
+!               if(parlist.eq.2) then
 ! disordered interaction parameter
-                  kk=len_trim(prop)+1
-                  prop(kk:kk)='D'
-               endif
+!                  write(*,*)'3C skipping suffix D, 5th time'
+!                  kk=len_trim(prop)+1
+!                  prop(kk:kk)='D'
+!               endif
                if(btest(propid(typty)%status,IDELSUFFIX)) then
 ! property like ZZ&<element>(phase,constituent array)
 ! the element index should be in typsepc

@@ -37,7 +37,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use ocparam
 !
 !! overall version number
-  character (len=8), parameter :: version='  6.069 '
+  character (len=8), parameter :: version='  6.070 '
 !
 !
 ! data structure for non-encrypted TP functions
@@ -72,11 +72,15 @@ CONTAINS
 !include "gtp3D.F90"
 #include "gtp3D.F90"
 
-! 7: state variable manipulations
+! 9A: Read/write TDB/UNFORMATTED
 !include "gtp3E.F90"
 #include "gtp3E.F90"
 
-! 8-9: state variable functions, interactive things
+! 9B: Read/write XML
+!include "gtp3EX.F90"
+#include "gtp3EX.F90"
+
+! 7-8: state variable functions, interactive things
 !include "gtp3F.F90"
 #include "gtp3F.F90"
 

@@ -70,10 +70,11 @@ plot
 
 
 pos left
+
 Title Al-C phase diagram Fig 1
 
-@&
 
+@&
 
 @$ ===========================================================
 @$ Calculate heat capacity for pure Al down to 10 K for liquid and FCC
@@ -198,7 +199,7 @@ text 2400 42 2 0 Heat capacity for liquid C
 text N 1300 26 2 6 Heat capacity for graphite
 text N 2000 23 2 5 Heat capacity for diamond
 text N 800 10 2 0 Liquid and diamond are metastable for pure C
-Title Heat capacity for C as graphite liquid and diamond Fig 4
+Title Heat capacity for C as graphite, liquid and diamond Fig 4
 
 
 
@@ -208,10 +209,10 @@ plot
 
 S
 text 1000 85 2 0 Pure C
-text N 2800 80 2 17 Entropy for C as Liquid
-text N 2500 37 2 15 Entropy for C as diamond
-text N 2500 52 2 17 Entropy for C as graphite
-text N 700 10 1 0
+text N 2800 80 2 17 Entropy as Liquid
+text N 2500 37 2 15 Entropy as diamond
+text N 2500 52 2 17 Entropy C as graphite
+text N 200 10 0.95 90
 Liquid is not crystalline and can have non-zero entropy at T=0K
 Title Entropy for C as graphite liquid and diamond Fig 5
 
