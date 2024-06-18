@@ -37,7 +37,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use ocparam
 !
 !! overall version number
-  character (len=8), parameter :: version='  6.070 '
+  character (len=8), parameter :: version='  6.071 '
 !
 !
 ! data structure for non-encrypted TP functions
@@ -92,9 +92,10 @@ CONTAINS
 !include "gtp3H.F90"
 #include "gtp3H.F90"
 
-! 6: calculate things
+! 6: calculate things, gtp3XQ for MQMQA
 !include "gtp3X.F90"
 #include "gtp3X.F90"
+#include "gtp3XQ.F90"
 
 ! 17-18: Grid minimizer and miscellaneous
 !include "gtp3Y.F90"

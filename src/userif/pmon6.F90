@@ -411,7 +411,7 @@ contains
 !-------------------
 ! subcommands to DEBUG
     character (len=16), dimension(ncdebug) :: cdebug=&
-         ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
+         ['FREE_LISTS      ','STOP_ON_ERROR   ','PARAMETER_STRUCT',&
           'SPECIES         ','TPFUN           ','BROWSER         ',&
           'TRACE           ','SYMBOL_VALUE    ','MAP_STARTPOINTS ',&
           'GRID            ','MQMQA_QUADS     ','BOMBMATTA       ']
@@ -2469,7 +2469,7 @@ contains
              write(kou,*)'Not implemented yet'
           END SELECT setstatus
 !-----------------------------------------------------------
-       case(3) ! set ADVANCED
+       case(3) ! set ADVANCED subcommands
 ! default is WORKING_DIRECT
 ! subsubcommands to SET ADVANCED
 !    character (len=16), dimension(ncadv) :: cadv=&
@@ -2809,7 +2809,7 @@ contains
              call gparcdx('Default bibiographic reference (One line!)',&
                   cline,last,5,bibrefdef,dummy,'?Set adv xtdb')
 !.................................................................
-          case(17) ! not used
+          case(17) ! nit used
              continue
 !.................................................................
           case(18) ! not used
@@ -6166,9 +6166,46 @@ contains
              stop_on_error=.true.
           endif
 !------------------------------
-! debug elasticity (this is temporary)
-       CASE(3)
-          write(*,*)'Not implemented yet'
+! debug parameter structure
+       case(3) ! advanced listing of data structure
+! open file
+! negative is for write, 0 read without filter, -100 write without filter
+          write(*,*)'PMON: DEBUG case 3'
+          ztyp=-7
+          call gparfilex('Output file',cline,last,1,string,'  ',ztyp,&
+               '?Debug parameter')
+          if(string(1:1).eq.' ') then
+             string='parameter_output.DAT'
+             write(kou,*)' *** No file name given, will use: ',trim(string)
+          endif
+!             slen=len_trim(string)
+! add extention .dat if to extenstion provided
+!             if(index(string,'.').le.0) then
+!                string(slen+1:)='.DAT '
+!             endif
+! close any previous output file          
+          close(21)
+          open(21,file=string,access='sequential',status='unknown',&
+               err=990, iostat=buperr)
+          lut=21
+! select phase
+          phlistloop: do while(name1(1:1).ne.' ')
+             call gparcx('Phase: ',cline,last,1,name1,' ',&
+                  '?Set Advanced')
+             if(name1(1:1).eq.' ') exit phlistloop
+             call find_phase_by_name(name1,iph,ics)
+             if(gx%bmperr.ne.0) then
+                write(*,*)'No such phase; ',trim(name1)
+                exit phlistloop
+             endif
+             call get_phase_record(iph,lokph)
+! list parameter structure
+             call debug_phaseparameters(lokph,lut,ceq)
+! another phase
+          enddo phlistloop
+          write(lut,*)'Closing file'
+          write(kou,*)'Closing file ',trim(string)
+          close(lut)
 !----------------------------------
 ! debug species
        case(4)

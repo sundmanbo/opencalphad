@@ -20,6 +20,10 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2024.06.18 OC version 6.071: Long time no development.  Created a
+gtp3XQ.F90 so simplify work in the MQMQA model and handling
+multicomponent Kohler-Toop extrapolations.
+
 2023.12.16 OC version 6.070: Many minor changes to prepare for the
 implementation of TDB files using the XML markup language.
 
