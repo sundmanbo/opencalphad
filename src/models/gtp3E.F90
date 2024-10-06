@@ -818,6 +818,10 @@
 ! link from previous, iws(lok+1) is link to higher, iws(lok+2) is property
             iws(noi)=lok
             noi=lok
+! Any Toop/Kohler records must be save here ...
+            if(associated(intrec%tooprec)) then
+               write(*,*)'3E 20240731: Toop/Kohler records not saved'
+            endif
 ! interaction property, link from nop
             proprec=>intrec%propointer
             nop=lok+2
@@ -3497,16 +3501,16 @@
    integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv,rewindx,nend
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx,idum,jdum
    logical onlyfun,nophase,ionliq,notent,mqmqa,ferroref
-   integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
+   integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt,bmabbr
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics,ndisph
 ! disparttc and dispartph to handle phases with disordered parts
    integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never,always
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
 !   character*24 disph(20)
    integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz,dismag
-   integer enteredpar,loop,emodel,manylonglines,zp
+   integer enteredpar,loop,emodel,manylonglines,zp,noparref
    type(gtp_phase_add), pointer :: addrec
-   logical warning,only_typedefs
+   logical tdbwarning,only_typedefs
 ! this is used for reading encrypted FUNCTION and PARAMETER part of a TDB file
 !   integer encrypted   ---- replaced by globaldata%encrypted
 !   character encryptline*128
@@ -3516,7 +3520,7 @@
 ! to prevent any output
    logical silent,thisphaserejected
 !  mmyfr noofph
-! if warning is true at the end pause before listing bibliography
+! if tdbwarning is true at the end pause before listing bibliography
 #ifdef encrypopt
    write(*,*)'3E compiled with option to read encrypted files',&
         globaldata%encrypted
@@ -3524,9 +3528,11 @@
 !   write(*,*)'3E in readtdb 1:',allocated(seltdbph),nselph
    emodel=0
    nsl=0
+   bmabbr=0
+   noparref=0
 ! dbcheck made global
 !   dbcheck=.FALSE.
-   warning=.FALSE.
+   tdbwarning=.FALSE.
    silent=.FALSE.
 !   grobaldata%encrypted=0
 ! this was Ting request to have ferromanetic reference state for alloys
@@ -3588,7 +3594,8 @@
    endif
 #else
 ! ======================================================
-   if(.not.silent) write(*,*)'3E reading database file: ',trim(filename)
+   if(.not.silent) write(*,19)trim(filename)
+19 format('3E reading database file: ',a)
 !
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')
@@ -3683,14 +3690,19 @@
 ! do not give this warning when reading disordered phases ...
 ! This message came also during reading only_typedfs ...
             write(*,122)nl,trim(line)
-122         format(/'3E *** Warning, ignoring line ',i5,' with "',a,'"'/)
+122         format('3E *** Warning, ignoring line ',i5,' with "',a,'"'/)
          endif
       endif
    endif
    if(keyw.eq.0) then
       ip=1
       if(.not.eolch(line,ip)) then
-         if(ocv()) write(*,*)'3E Ignoring line: ',nl,ip,trim(line)
+! why error here??
+         if(ocv()) write(*,1230)nl,ip,trim(line)
+1230     format('3E Ignoring line: ',i5,i7,' with "',a,'"'/)
+!         write(*,1230)nl,ip,trim(line)
+!         tdbwarning=.true.
+!         write(*,*)'3E tdbwarning set true 1'
       endif
       goto 100
    elseif(onlyfun) then
@@ -3706,7 +3718,8 @@
    if(.not.nophase .and. keyw.ne.4) then
 ! after a PHASE keyword one should have a CONSTITUENT
       if(.not.silent) write(kou,*)'WARNING expeciting CONSTITUENT: ',line(1:30)
-      warning=.TRUE.
+      tdbwarning=.TRUE.
+!      write(*,*)'3E tdbwarning set true 2'
    endif
 ! check there is a ! in line, otherwise read until we find an exclamation mark
    ip=1
@@ -3837,7 +3850,8 @@
       if(eolch(longline,ip)) then
          if(.not.silent) write(kou,*)'WARNING No stoichiometry for species: ',&
               trim(name1)
-         warning=.TRUE.
+         tdbwarning=.TRUE.
+!         write(*,*)'3E tdbwarning set true 3'
          goto 100
       endif
       stoiline=longline(ip:)
@@ -4052,7 +4066,8 @@
       if(eolch(longline,jp)) then
          if(.not.silent) &
               write(kou,*)'3E WARNING no phase typecode: ',trim(name1)
-         warning=.TRUE.
+         tdbwarning=.TRUE.
+!         write(*,*)'3E tdbwarning set true 4'
       endif
       jp=jp-1
 ! WE MUST CHECK IF TYPE_DEFS appear after phases have been entered!!
@@ -4082,7 +4097,8 @@
          write(kou,313)trim(name1),ch1
 313      format(' *** WARNING: phase ',a,' has unknown TYPE_DEF: ',a/&
               ' *** Move all TYPE_DEFS before used in any phase!')
-         warning=.TRUE.
+         tdbwarning=.TRUE.
+!         write(*,*)'3E tdbwarning set true 5'
          goto 310
 320      continue
          if(typedefaction(jt).eq.99) then
@@ -4200,8 +4216,10 @@
          knr(1)=mqmqa_data%nconst
 !         write(*,*)'3E enter_p: ',trim(name1),' ',knr(1),stoik(1),' ',phtype
          name2='MQMQA '
-         call enter_phase(name1,1,knr,const,stoik,name2,phtype,warning,emodel)
+         call enter_phase(name1,1,knr,const,stoik,name2,phtype,&
+              tdbwarning,emodel)
 !         write(*,*)'3E back from entering phase',gx%bmperr
+!         if(tdbwarning) write(*,*)'3E tdbwarning set true 6'
          if(gx%bmperr.ne.0) then
             write(*,*)'3E failed to enter the MQMQA phase',gx%bmperr
          endif
@@ -4320,7 +4338,8 @@
 ! NOTE THE ORDERED PHASE MAY NOT BE ENTERED DUE TO COMPONENTS!!
             if(.not.silent) write(kou,396)trim(ordpartph(thisdis))
 396         format('3E and disordered part ',a,' has not been selected')
-            warning=.TRUE.
+            tdbwarning=.TRUE.
+!            write(*,*)'3E tdbwarning set true 7'
             gx%bmperr=0
             goto 100
          else
@@ -4332,7 +4351,8 @@
                lokph=phases(iph)
                nullify(addrec)
                addrec=>phlista(lokph)%additions
-               write(*,*)'3E check if ordered phase has  magnetic model'
+               write(*,1221)
+1221           format('3E checking if ordered phase has  magnetic model')
 !   type(gtp_phase_add), pointer :: addrec
                do while(associated(addrec))
 !               write(*,*)'3E addrec: ',addrec%type,INDENMAGNETIC,XIONGMAGNETIC
@@ -4405,7 +4425,9 @@
       else
 !         write(*,*)'3E enter phase: ',name1
 !         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
-         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype,warning,emodel)
+         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype,&
+              tdbwarning,emodel)
+!         if(tdbwarning) write(*,*)'3E tdbwarning set true 8'
 ! no error entering an I2SL liuqid with empty first sublattice ... suck
 ! It is just not entered ....
 !         write(*,*)'3E readtdb 9A: error?',gx%bmperr
@@ -4551,8 +4573,14 @@
 !         write(*,*)'psym1: ',trim(name1)
 ! HANDLE THE ABBREVIATION BM to be accepted as BMAG         
          if(name1(1:3).eq.'BM ') then
-            write(kou,*)&
-                 ' The parameter identifier "BM" assumed to be "BMAG", line',nl
+            if(bmabbr.eq.0) then 
+               write(kou,1210)
+1210           format('3E *** Tdbwarning, the parameter identifier "BM"',&
+                    ' assumed to be "BMAG"'/)
+            endif
+            tdbwarning=.TRUE.
+!            write(*,*)'3E tdbwarning set true 9'
+            bmabbr=bmabbr+1
             name1='BMAG'
          endif
 !         call get_parameter_typty(name1,lokph,typty,fractyp)
@@ -4575,7 +4603,8 @@
                  trim(name1),'" on line: ',nl
 618         continue
             gx%bmperr=0; typty=0
-            warning=.TRUE.
+            tdbwarning=.TRUE.
+!            write(*,*)'3E tdbwarning set true 10'
          endif
 !         write(*,*)'psym2: ',typty,fractyp
       endif
@@ -4651,7 +4680,8 @@
             write(*,*)'3E funname: ',trim(funname(lp2+1:))
             write(*,*)'3E longline: ',trim(longline)
          endif
-         warning=.TRUE.
+         tdbwarning=.TRUE.
+!         write(*,*)'3E tdbwarning set true 11'
 !         notusedpar=notusedpar+1
 !         goto 100
          reason=3
@@ -4830,7 +4860,9 @@
                   write(*,409)gx%bmperr,nl
 409               format('3E Warning: Parameter reference missing ',i6,&
                        ', around line:',i7,' continuing')
-                  warning=.TRUE.
+                  noparref=noparref+1
+                  tdbwarning=.TRUE.
+!                  write(*,*)'3E tdbwarning set true 12'
                endif
             else
 ! Other errors than 4096, 4066 and 4154 are fatal
@@ -5013,7 +5045,8 @@
                   if(.not.silent) &
                        write(kou,87)nl,longline(1:min(78,len_trim(longline)))
 87                format('3E WARNING ignoring TYPE_DEF on line ',i5,':'/a)
-                  warning=.TRUE.
+                  tdbwarning=.TRUE.
+!                  write(*,*)'3E tdbwarning set true 13'
 !               write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
                endif liq2state
             endif dispart
@@ -5255,7 +5288,8 @@
 ! Function entered and referenced, check if duplicate!
                write(*,828)trim(name1),nl,rewindx
 828            format('3E WARNING duplicate function ',a,' at line: ',2i5)
-               warning=.TRUE.
+               tdbwarning=.TRUE.
+!               write(*,*)'3E tdbwarning set true 14'
             endif
          endif
       else
@@ -5284,9 +5318,11 @@
 !   write(*,1111)totalpar,enteredpar,notusedpar
    if(manylonglines.gt.0) &
         write(*,*)'3E Number of lines exceeding 80 characters: ',manylonglines
+   if(noparref.gt.0) write(*,1117)noparref
+1117 format('There are ',i7,' parameters with no reference')
    write(*,1111)totalpar,enteredpar
 1111 format(/'Out of ',i5,' model parameters ',i5,' have been entered'/)
-   if(warning) then
+   if(tdbwarning) then
 1001  continue
       write(*,*)
 ! if silent set ignore warnings
@@ -5307,6 +5343,7 @@
 !            goto 1001
 !         endif
       endif
+      
    endif
 !   write(*,*)'3E At label 1000'
    if(buperr.ne.0 .or. gx%bmperr.ne.0) then
@@ -5342,10 +5379,10 @@
           'state variable functions, references, additions: ',&
           3(i4,'/',i4,1x)/)
 ! a special warning message as it may be scrolled away by all references
-!   write(*,*)'Any warnings?',warning
+!   write(*,*)'Any warnings?',tdbwarning
 ! nonzero multiuse will prompt a warning in the monitor
    firsteq%multiuse=0
-   if(gx%bmperr.eq.0 .and. warning) firsteq%multiuse=-1
+   if(gx%bmperr.eq.0 .and. tdbwarning) firsteq%multiuse=-1
    return
 !--------------------------------------------------------------------------
 ! errors and rewinds
@@ -5367,8 +5404,8 @@
    endif
    rewindfile: if(dodis.eq.0 .and. disparttc.gt.0) then
 ! rewind to read disordred parts
-      if(.not.silent) &
-           write(kou,*)'3E Rewinding to read disordered part of phases'
+      if(.not.silent) write(kou,1220)
+1220  format('3E Rewinding to read disordered part of phases')
       rewind(21)
       dodis=1
       nl=0
@@ -5415,7 +5452,7 @@
 ! check if there are any unentered functions
       call list_unentered_funs(kou,nr)
       if(nr.gt.0) then
-         if(.not.silent) write(kou,*)'Number of missing function: ',nr
+         if(.not.silent) write(kou,*)'3E Number of missing function: ',nr
          gx%bmperr=4186
       endif
 ! check if any function not entered

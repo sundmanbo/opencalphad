@@ -10,7 +10,7 @@ r t ./AlC-OC
 
 
 @$
-@$ There are warnings because LNTH and G2 parameters has no model
+@$ There are warnings above because LNTH and G2 parameters has no model
 @$ This will be amended with a new database format.
 @$ At present the models are set below as commands.
 

@@ -143,6 +143,8 @@ n .4 1530 .8 0 y
 
 text n .1 1850 .8 0 y
 
+text n .36 1650 .8 0 n
+R
 
 @&
 @$ Change to greek phase names
@@ -152,7 +154,7 @@ plot
 title map 5 fig 5
 text
 y 
-3
+4
 {/Symbol s}
 
 
@@ -160,7 +162,7 @@ y
 
 text
 y
-2
+3
 {/Symbol m}
 
 

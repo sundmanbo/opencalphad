@@ -179,7 +179,7 @@ plot
 w%(c)
 T
 Title step-tzero Fig 2
-append tzero-noG-nucleation
+append ./tzero-noG-nucleation
 scale Y N
 700
 1200
@@ -197,7 +197,7 @@ w%(c)
 T
 Title step-tzero Fig 3
 text .4 930 1 -30 T-zero
-text n .4 870 1 -30 T-zero plus nucleation barrier
+text n .4 870 1 -27 T-zero plus nucleation barrier
 
 
 @$ In this figure the curves are labelled

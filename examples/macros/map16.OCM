@@ -58,7 +58,7 @@ RESULTS
 set ax 1 w%(c)
 0
 2
-
+.02
 
 set ax 2 t 800 1800 ,,
 
@@ -99,10 +99,22 @@ T
 Title Map 16 Fig 2
 
 
-@$ This diagram is strange as we have 2 potential axis in a ternary system
-@$ The one and two-phase regions are areas
-@$ but the 3-phase regions are lines (the line FCC+M7C+M23C!!)
-@$ and the invariant equilibrium is a point
+@$ This diagram a bit strange as we have 2 potential axis in a ternary system
+@$ Along all lines there is a phase fix and and one or 2 more phases stable.
+@$ The single phase and two-phase regions are areas
+@$ but the 3-phase regions are also lines (the line FCC+M7C+M23C!!)
+@$ The invariant equilibrium with 4 stable phases is just a point
+@$ All according to Gibbs phase rule.
+
+@&
+
+plot
+x(c)
+HM
+title map 16, Fig 3, composition vs enthalpy, the invariant is clearly visible
+
+
+@$ In this diagram the invariant looks like  a road crossing. 
 
 set inter
 

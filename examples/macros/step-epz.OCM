@@ -287,3 +287,6 @@ app ./epzpdpara
 @$ This diagran gives some indication of possible transitions
 @$ because carbon can diffuse rapidly even at low T
 
+
+set inter
+

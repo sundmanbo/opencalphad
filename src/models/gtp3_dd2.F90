@@ -886,6 +886,10 @@
 !\end{verbatim}
 !==========================================
 !\begin{verbatim}
+! In the data structure the gtp_xxx_version must be updated at any change
+! It is saves together with the record data at unformatted save in gtp3E.F90
+! and tested on reading to avoid reading incompatible saved files
+! ==========================================
 ! this constant must be incremented whenever a change is made in gtp_element
   INTEGER, parameter :: gtp_element_version=1
   TYPE gtp_element
@@ -1034,7 +1038,9 @@
 ! using this list of ternaries indicated by this list, see the documentation.
 ! const1, const2 and const3 are the constituents in alphabetical order
 ! (which is also the numerical order). 
-! toop is 0 if Kohler extrapolation, if 1, 2 or 3 it indicates the Toop element 
+! toop is 0 if Kohler extrapolation, 
+! if toop=1, 2 or 3 it indicates the Toop element, negative if Toop/Muggianu
+! if abs(toop)>10 means 2 or more Toop elements
 ! extra is used when listing data
 ! uniqid is a unique identification of the record, used for debugging
      integer toop,const1,const2,const3,extra,uniqid

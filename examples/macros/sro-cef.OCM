@@ -1,0 +1,294 @@
+new Y
+@$ ====================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ FCC prototype ordering using CEF SRO model
+@$ The data interactively and
+@$ a phase diagram for FCC prototype ordering is calculated
+@$ using partition and permutations
+@$
+@$ NOTE in this case we use the option to set FCC_PERMUTATIONS
+@$ so each unique parameters is entered only once (compare with map4.OCM)
+@$
+@$ =========================================================================
+@&
+
+set echo Y
+
+@$ Enter the elements and their reference states
+enter element A A FCC 55. 0 0 
+
+enter element B B FCC 58 0 0
+
+@$  the bond energy is -100*R at T=100 K, enter it as T dependent
+enter tp-sym UAB fun 1 -100*R; ,,,,
+
+@$ These functions describe the end-member energies at A3B1, A2B2 and A1B3
+enter tp-sym GA3B1 fun 1 3*UAB; ,,,,
+enter tp-sym GA2B2 fun 1 4*UAB; ,,,,
+enter tp-sym GA1B3 fun 1 3*UAB; ,,,,
+ 
+@$ We set a regular solution parameter to avoid the F' phase
+@$ It also forces the ordered phases to be perfectly ordered at T=0
+enter tp-sym L0 fun 1 200; ,,,,,
+
+@$ The SRO contribution is UAB
+enter tp-sym GSRO fun 1 UAB; ,,,,,
+
+@$ Using the partitioned model the contribition from the ordered parameters
+@$ will cancel when the phase is disordered.  If we want them to contribute
+@$ we must add them to the disordered part
+enter tp-sym LD0 fun 1 -0.25*UAB; ,,,,
+enter tp-sym LD1 fun 1 0; ,,,,
+enter tp-sym LD2 fun 1 0.25*UAB; ,,,,
+
+@$ ==================================================
+@$ This is an fcc phase with lro but no explicit sro
+@$ described with the sublattice model
+
+enter phase FCC_4SL
+CEF
+4 .25 A B; .25 A B; .25 A B; .25 A B;
+
+@$ we must set that this has FCC permutations before entering parameters
+amend phase fcc-4sl
+?
+fcc-perm
+
+@&
+
+@$ we must add disordered set before entering parameters
+amend phase fcc-4sl dis 4
+NO
+
+@&
+
+@$ enter the parameter, note permutations taken into account
+enter param G(FCC_4SL,A:A:A:B) 1 GA3B1; 6000 N test
+enter param G(FCC_4SL,A:B:B:B) 1 GA1B3; 6000 N test
+enter param G(FCC_4SL,A:A:B:B) 1 GA2B2; 6000 N test
+
+enter param G(FCC_4SL,A,B:A,B:*:*) 1 GSRO; 6000 N test
+
+amend biblio test prototype FCC ordering;
+
+@$ The disordered paramaters has a suffix D (This may be changed!!)
+@$ This is the SRO parameter for the disordered FCC_4SL
+enter param GD(FCC_4SL,A,B;0) 1 L0+LD0; 6000 N test
+enter param GD(FCC_4SL,A,B;2) 1 LD2; 6000 N test
+
+
+list data ,,
+
+
+@&
+
+@$ We have to help the mapping in OC, it is not very good
+@$ Here 3 composition sets are added for the two L1_2 and the L1_0 ordering
+
+@$ this default constitution is A3B_L12
+amend phase fcc_4sl comp-set y , ,
+<.2 >.5
+>.2 <.5
+>.2 <.5
+>.5 <.2
+
+@$ this default constitution is AB_L10
+amend phase fcc_4sl comp-set y , ,
+<.2 >.5
+<.2 >.5
+>.5 <.2
+>.5 <.2
+
+@$ this default constitution is AB3_L12
+amend phase fcc_4sl comp-set y , ,
+<.2 >.5
+<.2 >.5
+<.2 >.5
+>.5 <.2
+
+@$ However, the L12 can have max B or A on any sublattice, there is no
+@$ check that it is always the first or last sublattice with the highest
+@$ fraction of the minor element.  This should be arranged in todo_after ...
+
+
+l sh a
+
+set c t=70 p=1e5 n=1 x(b)=.37
+
+c e
+
+l , 2
+
+
+@&
+
+set ax 1 x(b) 0 .5 0.01
+
+set ax 2 t 1 100 2
+
+
+map
+
+
+@&
+
+plot
+
+
+title Fig 1, SRO-CEF fcc prototype phase diagram
+
+
+@$ Sometimes parts are missing, one may have to add a second start point
+@$ although that can be complicated to find.
+@&
+
+@$ Calculate and plot Cp and y at the equiatomic composition with T axis
+@$ The L1_0 ordered phase not stable above 92.23 K
+
+set ax 2 none
+set ax 1 t 1 200 1
+
+set c x(b)=.5
+
+c e
+
+step
+
+
+enter sym cp=hm.t;
+
+plot
+t
+cp
+title Fig 2, SRO-CEF heat capacity at equiatomic composition
+
+@$ Note the peak of the heat capacity is above the order/disorder T
+@$ when the ordered phase is actually metatsble
+
+@&
+
+@$ Plot also the constitution
+
+plot
+t
+y(fcc#2,*)
+title Fig 3, SRO-CEF constituent fractions
+
+
+@$ 
+
+@&
+
+@$ Calculate at 50 K how the G, S and H varies with the composition
+@$ 
+
+set c t=50
+set c x(b)=.4
+
+c e
+
+l ,,,
+
+@$ Normally this calculation just gives the F' phase with two
+@$ sublattices with mainly A, one mainly B and one intermediate
+@$ Fix that by using calculate phase!
+
+c ph fcc
+1
+N
+.99
+.99
+.01
+.01
+
+
+@$ Then calculate without gridminimizer
+
+c n
+
+l ,,,
+
+
+@$ and simsalabim, we should now have a two-phase equilibrium with
+@$ L12 and L10 phases with lower Gibbs energy than the previous F' phase
+@$ OC has a rather primitive gridminimizer
+
+@&
+
+@$ now vary the composition from 0 to 0.5
+
+set ax 1 x(b)
+0
+.5
+.005
+
+step sep
+Y
+
+plot
+x(b)
+gm(*)
+title Fig 4, SRO-CEF Gibbs energy for A1,L12 and L10 at T=50
+
+@$ The Gibbs energy curves for the A1, L12 and L10 phases acress the
+@$ composition range
+@&
+
+pl
+x(b)
+sm(*)
+title Fig 5, SRO-CEF Entropy curves for A1,L12 and L10 at T=50
+
+
+@$ The entropy curves for the A1, L12 and L10 phases acress the
+@$ composition range
+
+@$ Note the entropy is zero at the ideal ordering composition.
+@&
+
+pl
+x(b)
+hm(*)
+title Fig 6, SRO CEF Entropy curves for A1,L12 and L10 at T=50
+
+
+@$ The enthalpy curves for the A1, L12 and L10 phases acress the
+@$ composition range
+@&
+
+pl
+x(b)
+y(fcc#3,*)
+title Fig 7, SRO-CEF fraction curves for one of the phases at T=50
+
+
+@$ One can also plot the individual phase fractions and figure out
+@$ which composition set is A1, L12 or L10
+@&
+
+
+enter symbol
+cp1
+hm(fcc#1).T;
+
+pl
+
+cp1
+title Fig 8, Heat capacity for L1_2 including metastable ranges
+
+@$ This is the heat capacity of the L1_2 phase.  It remains metatsble
+@$ up to 50% B but disorder to A1 arount 10% B (also as metastable)
+@$ There is a small peak of the heat capacity at x(b)=0.25, the ideal ordering
+
+set inter
+

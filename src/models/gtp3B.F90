@@ -707,7 +707,7 @@
 ! FCC tetrahedron model without LRO (ABBB, AABA, ABAA and BAAA same)
       cvmtfs=.TRUE.
    elseif(model(1:7).eq.'CVMTFL ') then
-! FCC tetrahedrom model with LRO (max 2 elements)
+! FCC tetrahedron model with LRO (max 2 elements)
       cvmtfl=.TRUE.
    endif
    externalchargebalance=.false.

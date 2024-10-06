@@ -36,7 +36,7 @@
         'Element          ',&
         'Einstein         ',&
         'HigherOrderSystem',&
-        'KohlerModel      ',&
+        'KohlerModel      ',& !Bad: Use TernaryXpol
         'Liquid2state     ',&
         'Magnetic         ',&
         'Models           ',&
@@ -47,7 +47,7 @@
         'Sublattices      ',& ! Using Sites not accepted
         'Species          ',& 
         'TernarySystem    ',&
-        'ToopModel        ',& !25 was 28
+        'ToopModel        ',& !25 was 28 Bad Use TernaryXpol
         'TPfun            ',& !26 was 29 used in gtp3E.F90
         'Trange           ',& 
         'UnarySystem      ',&
@@ -120,7 +120,7 @@
   character (len=8),dimension(mxml15), parameter :: xmlhosat=&
        ['System  ','Bibref  ']
 !        12345678---12345678...12345678
-! 16 Kohler attributes
+! 16 Kohler attributes <<<<<<<<<<<<<<<<<<<< TernaryXpol
   character (len=8),dimension(mxml16), parameter :: xmlkmat=&
        ['Phase   ','System  ','Bibref  ']
 !        12345678---12345678...12345678
@@ -164,6 +164,7 @@
   character (len=12),dimension(mxml25), parameter :: xmltsat=&
        ['System  ','Bibref  ']
 ! 26 Toop attributes.  The Toop constituent should be the first one!
+!  <<<<<<<<<<<<<<<<<<<< TernaryXpol
   character (len=8),dimension(mxml26), parameter :: xmltmat=&
        ['Phase   ','System  ','Bibref  ']
 !        12345678---12345678...12345678---12345678---12345678
