@@ -3,7 +3,7 @@ name: Build and Release OC6P (MSYS2 only)
 on:
   push:
     branches:
-      - main
+      - github-actions
     tags:
       - 'v*.*.*'
   workflow_dispatch:
