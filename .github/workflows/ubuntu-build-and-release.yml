@@ -39,6 +39,14 @@ jobs:
           cmake -G "MinGW Makefiles" ../
           mingw32-make -j4
 
+      - name: Prepare Release Folder
+        shell: bash
+        run: |
+          mkdir -p release/bin
+          cp build/oc6p.exe release/bin/
+          deps=$(ldd ./build/oc6p.exe | awk '{if (match($3,/mingw64/)) print $3}')
+          cp -L -n $deps ./release/bin/
+
       - name: Install NSIS
         run: |
           choco install nsis -y
@@ -62,14 +70,19 @@ jobs:
           
           Section "Install"
             SetOutPath "$INSTDIR"
-            File "build\oc6p.exe"
+            File /r "release\*.*"
             WriteUninstaller "$INSTDIR\uninstall.exe"
+            
+            CreateDirectory "$SMPROGRAMS\OC6P"
+            CreateShortcut "$SMPROGRAMS\OC6P\OC6P.lnk" "$INSTDIR\bin\oc6p.exe"
+            CreateShortcut "$SMPROGRAMS\OC6P\Uninstall.lnk" "$INSTDIR\uninstall.exe"
           SectionEnd
           
           Section "Uninstall"
-            Delete "$INSTDIR\oc6p.exe"
-            Delete "$INSTDIR\uninstall.exe"
-            RMDir "$INSTDIR"
+            RMDir /r "$INSTDIR"
+            Delete "$SMPROGRAMS\OC6P\OC6P.lnk"
+            Delete "$SMPROGRAMS\OC6P\Uninstall.lnk"
+            RMDir "$SMPROGRAMS\OC6P"
           SectionEnd
           ' > installer.nsi
 
