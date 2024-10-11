@@ -23,8 +23,11 @@ set(LIBOPENCALPHAD_SOURCES
     src/numlib/ocnum.F90
     src/numlib/minpack1.F90
     src/utilities/metlib4.F90
-    examples/TQ4lib/Cpp/liboctq.F90
-    examples/TQ4lib/Cpp/Scheil/liboctqisoc.F90
+    src/models/ocparam.F90
+    # examples/TQ4lib/Cpp/liboctq.F90
+    # examples/TQ4lib/Cpp/TestBinding/liboctqisoc.F90
+    OCisoCbinding/liboctq.F90
+    OCisoCbinding/liboctqisoc.F90
 )
 
 # Create libopencalphad
@@ -34,22 +37,49 @@ set_target_properties(opencalphad PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # Add compiler flags for internal BLAS/LAPACK implementation
 target_compile_options(opencalphad PRIVATE -fno-underscoring -fno-second-underscore)
 
+# # scheil
+# add_executable(test_binding 
+#     examples/TQ4lib/Cpp/TestBinding/main.cpp 
+#     examples/TQ4lib/Cpp/TestBinding/liboctqcpp.cpp)
+
+# target_link_libraries(test_binding PRIVATE 
+#     opencalphad
+#     OpenMP::OpenMP_CXX
+#     ${CMAKE_DL_LIBS}
+# )
+
+# # Ensure proper linking order
+# set_target_properties(test_binding PROPERTIES LINK_FLAGS "-Wl,--start-group")
+
+# target_include_directories(test_binding PRIVATE 
+#     ${CMAKE_BINARY_DIR}/examples/TQ4lib/Cpp
+#     ${CMAKE_BINARY_DIR}/examples/TQ4lib/Cpp/Scheil
+#     ${CMAKE_CURRENT_SOURCE_DIR}/src
+# )
+
+# # Ensure Fortran modules are generated before compiling C++ code
+# add_dependencies(test_binding opencalphad)
+
 # scheil
-add_executable(scheil examples/TQ4lib/Cpp/Scheil/Example_OCASI.cpp)
-target_link_libraries(scheil PRIVATE 
+add_executable(test_binding 
+    OCisoCbinding/testing/Example_OCASI.cpp 
+)
+
+target_link_libraries(test_binding PRIVATE 
     opencalphad
     OpenMP::OpenMP_CXX
     ${CMAKE_DL_LIBS}
 )
 
 # Ensure proper linking order
-set_target_properties(scheil PROPERTIES LINK_FLAGS "-Wl,--start-group")
+set_target_properties(test_binding PROPERTIES LINK_FLAGS "-Wl,--start-group")
 
-target_include_directories(scheil PRIVATE 
+target_include_directories(test_binding PRIVATE 
     ${CMAKE_BINARY_DIR}/examples/TQ4lib/Cpp
     ${CMAKE_BINARY_DIR}/examples/TQ4lib/Cpp/Scheil
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 # Ensure Fortran modules are generated before compiling C++ code
-add_dependencies(scheil opencalphad)
+add_dependencies(test_binding opencalphad)
+
