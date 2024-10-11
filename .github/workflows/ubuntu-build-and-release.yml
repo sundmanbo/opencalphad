@@ -1,55 +1,95 @@
 name: Build and Release OC6P
 
-# Trigger the workflow on push to main or when a new tag is created
 on:
   push:
     branches:
       - github-actions
     tags:
-      - 'v*.*.*'  # Semantic versioning tags like v1.0.0
-  workflow_dispatch:  # Allows manual triggering
+      - 'v*.*.*'
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]  # Linux and Windows runners
 
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up CMake
-      - name: Install CMake
-        uses: jwlawson/actions-setup-cmake@v1
+      # Build for Linux (Ubuntu)
+      - name: Build on Linux
+        if: runner.os == 'Linux'
+        steps:
+          - name: Install CMake
+            uses: jwlawson/actions-setup-cmake@v1
+            with:
+              cmake-version: '3.25.0'
+
+          - name: Install GCC, G++, and GFortran
+            run: |
+              sudo apt-get update
+              sudo apt-get install -y build-essential gfortran
+
+          - name: Build with CMake
+            run: |
+              mkdir build
+              cd build
+              cmake ../
+              make -j$(nproc)
+
+          - name: Prepare Linux Artifact
+            run: |
+              mkdir -p artifacts
+              cp build/bin/oc6p artifacts/
+
+          - name: Upload Linux Build Artifact
+            uses: actions/upload-artifact@v3
+            with:
+              name: oc6p-linux
+              path: artifacts/oc6p
+
+      # Build for Windows (MSYS2 with Ninja)
+      - name: Install MSYS2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
         with:
-          cmake-version: '3.25.0'  # Specify the CMake version you need
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gfortran
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
 
-      # Step 3: Set up GCC, G++, GFortran
-      - name: Install GCC, G++, and GFortran
+      - name: Add MSYS2 to Path
+        if: runner.os == 'Windows'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential gfortran
+          echo "C:/msys64/usr/bin" >> $GITHUB_PATH
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
 
-      # Step 4: Build the project
-      - name: Build with CMake
+      - name: Build with CMake and Ninja (MSYS2)
+        if: runner.os == 'Windows'
         run: |
           mkdir build
           cd build
-          cmake ../
-          make -j$(nproc)
+          cmake -G "Ninja" ../
+          ninja -j$(nproc)
 
-      # Step 5: Prepare the artifact
-      - name: Prepare Artifact
+      - name: Prepare Windows Artifact
+        if: runner.os == 'Windows'
         run: |
           mkdir -p artifacts
-          cp build/oc6p artifacts/
+          cp build/bin/oc6p.exe artifacts/
 
-      # Step 6: Upload Artifact (optional, for debugging)
-      - name: Upload Build Artifact
+      - name: Upload Windows Build Artifact
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v3
         with:
-          name: oc6p
-          path: artifacts/oc6p
+          name: oc6p-windows
+          path: artifacts/oc6p.exe
 
   release:
     needs: build
@@ -57,18 +97,24 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Download the build artifact
-      - name: Download Build Artifact
+      - name: Print GitHub Ref
+        run: echo "GITHUB REF: ${{ github.ref }}"
+
+      - name: Download Linux Build Artifact
         uses: actions/download-artifact@v3
         with:
-          name: oc6p
-          path: artifacts
+          name: oc6p-linux
+          path: artifacts/linux
 
-      # Step 3: Create GitHub Release
+      - name: Download Windows Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: oc6p-windows
+          path: artifacts/windows
+
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -80,13 +126,22 @@ jobs:
           draft: false
           prerelease: false
 
-      # Step 4: Upload Release Asset
-      - name: Upload Release Asset
+      - name: Upload Linux Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/oc6p
-          asset_name: oc6p
+          asset_path: ./artifacts/linux/oc6p
+          asset_name: oc6p-linux
+          asset_content_type: application/octet-stream
+
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/windows/oc6p.exe
+          asset_name: oc6p-windows
           asset_content_type: application/octet-stream
