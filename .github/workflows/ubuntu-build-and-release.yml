@@ -6,7 +6,7 @@ on:
     branches:
       - github-actions
     tags:
-      - 'test_v*.*.*'  # Semantic versioning tags like v1.0.0
+      - 'v*.*.*'  # Semantic versioning tags like v1.0.0
   workflow_dispatch:  # Allows manual triggering
 
 jobs:
