@@ -32,12 +32,12 @@ jobs:
           echo "C:/msys64/usr/bin" >> $GITHUB_PATH
           echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
 
-      - name: Build with CMake and Ninja (MSYS2)
+      - name: Build with CMake and MinGW Makefiles (MSYS2)
         run: |
           mkdir build
           cd build
-          cmake -G "Ninja" ../
-          ninja -j$(nproc)
+          cmake -G "MinGW Makefiles" ../
+          mingw32-make -j$(nproc)
 
       - name: Prepare Windows Artifact
         run: |
