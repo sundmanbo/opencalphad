@@ -1,87 +1,90 @@
-name: Build and Release OC6P with MSYS2
+name: Build and Release OC6P (MSYS2 only)
 
 on:
   push:
     branches:
-      - github-actions
-  pull_request:
-    branches:
-      - github-actions
-  release:
-    types: [published]
+      - main
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout source code
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up MSYS2
+      - name: Install MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: |
+            base-devel
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gfortran
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+
+      - name: Add MSYS2 to Path
         run: |
-          echo "::set-output name=MSYS2_ROOT::$(cygpath -u "C:\\msys64")"
-          choco install msys2 --version 20220524.0.0
+          echo "C:/msys64/usr/bin" >> $GITHUB_PATH
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
 
-      - name: Install dependencies
+      - name: Build with CMake and Ninja (MSYS2)
         run: |
-          pacman -Sy --noconfirm mingw-w64-x86_64-toolchain
+          mkdir build
+          cd build
+          cmake -G "Ninja" ../
+          ninja -j$(nproc)
 
-      - name: Create build directory
-        run: mkdir build
-
-      - name: Configure project
+      - name: Prepare Windows Artifact
         run: |
-          C:\msys64\mingw64\bin\cmake.exe -B build -S .
+          mkdir -p artifacts
+          cp build/oc6p.exe artifacts/
 
-      - name: Build project
-        run: |
-          C:\msys64\mingw64\bin\cmake.exe --build build --config Release
-
-      - name: Upload build artifact (optional)
+      - name: Upload Windows Build Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: oc6p
-          path: build/oc6p  # Updated path for the oc6p binary
+          name: oc6p-windows
+          path: artifacts/oc6p.exe
 
   release:
-    runs-on: windows-latest
     needs: build
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-      - name: Checkout source code
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up MSYS2
-        run: |
-          echo "::set-output name=MSYS2_ROOT::$(cygpath -u "C:\\msys64")"
-          choco install msys2 --version 20220524.0.0
+      - name: Print GitHub Ref
+        run: echo "GITHUB REF: ${{ github.ref }}"
 
-      - name: Install dependencies
-        run: |
-          pacman -Sy --noconfirm mingw-w64-x86_64-toolchain
-
-      - name: Create build directory
-        run: mkdir build
-
-      - name: Configure project
-        run: |
-          C:\msys64\mingw64\bin\cmake.exe -B build -S .
-
-      - name: Build project
-        run: |
-          C:\msys64\mingw64\bin\cmake.exe --build build --config Release
-
-      - name: Package release
-        run: |
-          mkdir -p release
-          cp build/oc6p release/
-          tar -czf oc6p.tar.gz -C release .
-
-      - name: Upload release asset
-        uses: actions/upload-release-asset@v1
+      - name: Download Windows Build Artifact
+        uses: actions/download-artifact@v3
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./oc6p.tar.gz
-          asset_name: oc6p.tar.gz
-          asset_content_type: application/gzip
+          name: oc6p-windows
+          path: artifacts
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/oc6p.exe
+          asset_name: oc6p-windows
+          asset_content_type: application/octet-stream
