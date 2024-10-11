@@ -1,0 +1,92 @@
+name: Build and Release OC6P
+
+# Trigger the workflow on push to main or when a new tag is created
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'test_v*.*.*'  # Semantic versioning tags like v1.0.0
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up CMake
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v1
+        with:
+          cmake-version: '3.25.0'  # Specify the CMake version you need
+
+      # Step 3: Set up GCC, G++, GFortran
+      - name: Install GCC, G++, and GFortran
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gfortran
+
+      # Step 4: Build the project
+      - name: Build with CMake
+        run: |
+          mkdir build
+          cd build
+          cmake ../
+          make -j$(nproc)
+
+      # Step 5: Prepare the artifact
+      - name: Prepare Artifact
+        run: |
+          mkdir -p artifacts
+          cp build/bin/oc6p artifacts/
+
+      # Step 6: Upload Artifact (optional, for debugging)
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: oc6p
+          path: artifacts/oc6p
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Download the build artifact
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: oc6p
+          path: artifacts
+
+      # Step 3: Create GitHub Release
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      # Step 4: Upload Release Asset
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/oc6p
+          asset_name: oc6p
+          asset_content_type: application/octet-stream
