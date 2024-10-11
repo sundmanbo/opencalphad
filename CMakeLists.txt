@@ -53,7 +53,7 @@ if (USE_CXX_BINDING)
 endif()
 
 # option for including the oc6P executable
-option(BUILDING_OC "Building oc6P executable" OFF)
+option(BUILDING_OC "Building oc6P executable" ON)
 if (BUILDING_OC)
     # add executable for oc6P: src/pmain1.F90 stepmapplot/smp2.F90 stepmapplot/smp2A.F90 stepmapplot/smp2B.F90 userif/userif.F90
     add_executable(oc6P src/pmain1.F90
