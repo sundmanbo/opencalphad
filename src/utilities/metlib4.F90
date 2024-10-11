@@ -35,12 +35,12 @@ MODULE METLIB
 !--------------------------------------------------------------------------
 #ifdef lixed
 ! LINUX: For character by character input allowing emacs editing
-!   use M_getkey
+  use M_getkey
 #endif
 !
 #ifdef tinyfd
 ! use tinyfiledialogs to browse for files
-!   use ftinyopen
+  use ftinyopen
 #endif
 
 ! ocparam is in models/ocparam.F90

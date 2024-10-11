@@ -1,7 +1,7 @@
 # CMakeLists.txt for a mixed Fortran/C++ project
 
 cmake_minimum_required(VERSION 3.12)
-project(YourProjectName LANGUAGES C CXX Fortran)
+project(OpenCalphad LANGUAGES C CXX Fortran)
 
 # Set the Fortran compiler
 set(CMAKE_Fortran_COMPILER gfortran)
@@ -24,8 +24,7 @@ set(LIBOPENCALPHAD_SOURCES
     src/numlib/minpack1.F90
     src/utilities/metlib4.F90
     src/models/ocparam.F90
-    # examples/TQ4lib/Cpp/liboctq.F90
-    # examples/TQ4lib/Cpp/TestBinding/liboctqisoc.F90
+
     OCisoCbinding/liboctq.F90
     OCisoCbinding/liboctqisoc.F90
 )
@@ -37,49 +36,26 @@ set_target_properties(opencalphad PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # Add compiler flags for internal BLAS/LAPACK implementation
 target_compile_options(opencalphad PRIVATE -fno-underscoring -fno-second-underscore)
 
-# # scheil
-# add_executable(test_binding 
-#     examples/TQ4lib/Cpp/TestBinding/main.cpp 
-#     examples/TQ4lib/Cpp/TestBinding/liboctqcpp.cpp)
+option(USE_EXTERNAL_LAPACK "Use external LAPACK library" OFF)
 
-# target_link_libraries(test_binding PRIVATE 
-#     opencalphad
-#     OpenMP::OpenMP_CXX
-#     ${CMAKE_DL_LIBS}
-# )
+if (USE_EXTERNAL_LAPACK)
+    # If LAPACK is external, do not define NOLAPACK
+    target_compile_definitions(opencalphad PUBLIC -DLAPACK)
+else()
+    # If LAPACK is not external, define NOLAPACK
+    target_compile_definitions(opencalphad PUBLIC -DNOLAPACK)
+endif()
 
-# # Ensure proper linking order
-# set_target_properties(test_binding PROPERTIES LINK_FLAGS "-Wl,--start-group")
+# option for including the C++ binding
+option(USE_CXX_BINDING "Use C++ binding" OFF)
+if (USE_CXX_BINDING)
+    add_subdirectory(OCisoCbinding/cxx)
+endif()
 
-# target_include_directories(test_binding PRIVATE 
-#     ${CMAKE_BINARY_DIR}/examples/TQ4lib/Cpp
-#     ${CMAKE_BINARY_DIR}/examples/TQ4lib/Cpp/Scheil
-#     ${CMAKE_CURRENT_SOURCE_DIR}/src
-# )
-
-# # Ensure Fortran modules are generated before compiling C++ code
-# add_dependencies(test_binding opencalphad)
-
-# scheil
-add_executable(test_binding 
-    OCisoCbinding/testing/Example_OCASI.cpp 
-)
-
-target_link_libraries(test_binding PRIVATE 
-    opencalphad
-    OpenMP::OpenMP_CXX
-    ${CMAKE_DL_LIBS}
-)
-
-# Ensure proper linking order
-set_target_properties(test_binding PROPERTIES LINK_FLAGS "-Wl,--start-group")
-
-target_include_directories(test_binding PRIVATE 
-    ${CMAKE_BINARY_DIR}/examples/TQ4lib/Cpp
-    ${CMAKE_BINARY_DIR}/examples/TQ4lib/Cpp/Scheil
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-
-# Ensure Fortran modules are generated before compiling C++ code
-add_dependencies(test_binding opencalphad)
-
+# option for including the oc6P executable
+option(BUILDING_OC "Building oc6P executable" OFF)
+if (BUILDING_OC)
+    # add executable for oc6P: src/pmain1.F90 stepmapplot/smp2.F90 stepmapplot/smp2A.F90 stepmapplot/smp2B.F90 userif/userif.F90
+    add_executable(oc6P src/pmain1.F90 stepmapplot/smp2.F90 stepmapplot/smp2A.F90 stepmapplot/smp2B.F90 userif/userif.F90)
+    target_link_libraries(oc6P PRIVATE opencalphad)
+endif()

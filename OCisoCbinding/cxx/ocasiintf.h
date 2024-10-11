@@ -14,7 +14,7 @@
 
 
 
-#include "octqc.h"
+#include "../octqc.h"
 #include <string>
 #include <stdlib.h>
 #include <math.h>

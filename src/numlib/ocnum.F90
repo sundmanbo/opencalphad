@@ -41,10 +41,10 @@ MODULE OCNUM
 ! it is not optimized for any hardware.  If you have a full LAPACK+BLAS
 ! library for your hardware you should use that.
 !
-! #ifdef NOLAPACK
+#ifdef NOLAPACK
 use oclablas
 ! compile with -DLAPACK if LAPCK not extermal
-! #endif
+#endif
 !
 ! COMPILER WARNING ABOUT UNINITIALIZED ZERO, DSMIN, DSMAX, DMAX, DMIN, UNITY
   double precision, private, parameter :: DSMIN=1.0D-18,DSMAX=1.0D+18,&
