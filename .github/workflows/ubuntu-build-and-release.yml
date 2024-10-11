@@ -22,10 +22,10 @@ jobs:
           update: true
           install: |
             base-devel
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-gcc-fortran
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gcc-fortran
 
       - name: Add MSYS2 to Path
         run: |
