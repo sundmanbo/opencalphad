@@ -69,18 +69,27 @@ jobs:
           !insertmacro MUI_LANGUAGE "English"
           
           Section "Install"
+
+          	FileOpen $0 "$INSTDIR\env.bat" w
+            FileWrite $0 "@echo off$\r$\n"
+            FileWrite $0 "echo Welcome to use OC!$\r$\n"
+            FileWrite $0 "echo visit https://github.com/sundmanbo/opencalphad for more information$\r$\n"
+            FileWrite $0 "set PATH="$INSTDIR";%PATH%$\r$\n"
+            FileClose $0
+
             SetOutPath "$INSTDIR"
             File /r "release\*.*"
             WriteUninstaller "$INSTDIR\uninstall.exe"
             
             CreateDirectory "$SMPROGRAMS\OC6P"
-            CreateShortcut "$SMPROGRAMS\OC6P\OC6P.lnk" "$INSTDIR\bin\oc6p.exe"
+            # CreateShortcut "$SMPROGRAMS\OC6P\OC6P.lnk" "$INSTDIR\bin\oc6p.exe"
+            CreateShortCut "$DESKTOP\OC6P.lnk" "$INSTDIR\bin\oc6p.exe"
             CreateShortcut "$SMPROGRAMS\OC6P\Uninstall.lnk" "$INSTDIR\uninstall.exe"
           SectionEnd
           
           Section "Uninstall"
             RMDir /r "$INSTDIR"
-            Delete "$SMPROGRAMS\OC6P\OC6P.lnk"
+            Delete "$DESKTOP\OC6P.lnk"
             Delete "$SMPROGRAMS\OC6P\Uninstall.lnk"
             RMDir "$SMPROGRAMS\OC6P"
           SectionEnd
