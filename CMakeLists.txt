@@ -59,5 +59,5 @@ if (BUILDING_OC)
     add_executable(oc6p src/pmain1.F90
         src/stepmapplot/smp2.F90
         src/userif/pmon6.F90)
-    target_link_libraries(oc6P PRIVATE opencalphad)
+    target_link_libraries(oc6p PRIVATE opencalphad)
 endif()
