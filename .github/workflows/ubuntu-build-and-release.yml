@@ -37,7 +37,7 @@ jobs:
           mkdir build
           cd build
           cmake -G "MinGW Makefiles" ../
-          mingw32-make -j$(nproc)
+          mingw32-make -j4
 
       - name: Prepare Windows Artifact
         run: |
