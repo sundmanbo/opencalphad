@@ -59,9 +59,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Print GitHub Ref
-        run: echo "GITHUB REF: ${{ github.ref }}"
-
       - name: Download Windows Build Artifact
         uses: actions/download-artifact@v3
         with:
