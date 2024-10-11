@@ -56,7 +56,7 @@ endif()
 option(BUILDING_OC "Building oc6P executable" ON)
 if (BUILDING_OC)
     # add executable for oc6P: src/pmain1.F90 stepmapplot/smp2.F90 stepmapplot/smp2A.F90 stepmapplot/smp2B.F90 userif/userif.F90
-    add_executable(oc6P src/pmain1.F90
+    add_executable(oc6p src/pmain1.F90
         src/stepmapplot/smp2.F90
         src/userif/pmon6.F90)
     target_link_libraries(oc6P PRIVATE opencalphad)
