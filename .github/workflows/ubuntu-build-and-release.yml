@@ -1,4 +1,4 @@
-name: Build and Release OC6P (MSYS2 only)
+name: Build and Release OC6P (MSYS2 and NSIS)
 
 on:
   push:
@@ -39,16 +39,48 @@ jobs:
           cmake -G "MinGW Makefiles" ../
           mingw32-make -j4
 
-      - name: Prepare Windows Artifact
+      - name: Install NSIS
         run: |
-          mkdir -p artifacts
-          cp build/oc6p.exe artifacts/
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
 
-      - name: Upload Windows Build Artifact
+      - name: Create NSIS Installer Script
+        run: |
+          echo '
+          !include "MUI2.nsh"
+          Name "OC6P"
+          OutFile "OC6P_Installer.exe"
+          InstallDir "$PROGRAMFILES\OC6P"
+          
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          
+          !insertmacro MUI_UNPAGE_CONFIRM
+          !insertmacro MUI_UNPAGE_INSTFILES
+          
+          !insertmacro MUI_LANGUAGE "English"
+          
+          Section "Install"
+            SetOutPath "$INSTDIR"
+            File "build\oc6p.exe"
+            WriteUninstaller "$INSTDIR\uninstall.exe"
+          SectionEnd
+          
+          Section "Uninstall"
+            Delete "$INSTDIR\oc6p.exe"
+            Delete "$INSTDIR\uninstall.exe"
+            RMDir "$INSTDIR"
+          SectionEnd
+          ' > installer.nsi
+
+      - name: Build NSIS Installer
+        run: makensis installer.nsi
+
+      - name: Upload Installer Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: oc6p-windows
-          path: artifacts/oc6p.exe
+          name: oc6p-installer
+          path: OC6P_Installer.exe
 
   release:
     needs: build
@@ -59,10 +91,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Download Windows Build Artifact
+      - name: Download Installer Artifact
         uses: actions/download-artifact@v3
         with:
-          name: oc6p-windows
+          name: oc6p-installer
           path: artifacts
 
       - name: Create GitHub Release
@@ -76,12 +108,12 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload Windows Release Asset
+      - name: Upload Installer as Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/oc6p.exe
-          asset_name: oc6p-windows
-          asset_content_type: application/octet-stream
+          asset_path: ./artifacts/OC6P_Installer.exe
+          asset_name: OC6P_Installer.exe
+          asset_content_type: application/vnd.microsoft.portable-executable
