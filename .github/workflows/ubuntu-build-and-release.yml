@@ -42,7 +42,7 @@ jobs:
       - name: Prepare Artifact
         run: |
           mkdir -p artifacts
-          cp build/bin/oc6p artifacts/
+          cp build/oc6p artifacts/
 
       # Step 6: Upload Artifact (optional, for debugging)
       - name: Upload Build Artifact
