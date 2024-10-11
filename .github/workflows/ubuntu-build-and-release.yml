@@ -1,149 +1,87 @@
-name: Build and Release OC6P
+name: Build and Release OC6P with MSYS2
 
 on:
   push:
     branches:
-      - main
-    tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+      - github-actions
+  pull_request:
+    branches:
+      - github-actions
+  release:
+    types: [published]
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]  # Linux and Windows runners
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout source code
         uses: actions/checkout@v3
 
-      # Build for Linux (Ubuntu)
-      - name: Install CMake on Linux
-        if: runner.os == 'Linux'
-        uses: jwlawson/actions-setup-cmake@v1
-        with:
-          cmake-version: '3.25.0'
-
-      - name: Install GCC, G++, and GFortran on Linux
-        if: runner.os == 'Linux'
+      - name: Set up MSYS2
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential gfortran
+          echo "::set-output name=MSYS2_ROOT::$(cygpath -u "C:\\msys64")"
+          choco install msys2 --version 20220524.0.0
 
-      - name: Build with CMake on Linux
-        if: runner.os == 'Linux'
+      - name: Install dependencies
         run: |
-          mkdir build
-          cd build
-          cmake ../
-          make -j$(nproc)
+          pacman -Sy --noconfirm mingw-w64-x86_64-toolchain
 
-      - name: Prepare Linux Artifact
-        if: runner.os == 'Linux'
+      - name: Create build directory
+        run: mkdir build
+
+      - name: Configure project
         run: |
-          mkdir -p artifacts
-          cp build/bin/oc6p artifacts/
+          C:\msys64\mingw64\bin\cmake.exe -B build -S .
 
-      - name: Upload Linux Build Artifact
-        if: runner.os == 'Linux'
+      - name: Build project
+        run: |
+          C:\msys64\mingw64\bin\cmake.exe --build build --config Release
+
+      - name: Upload build artifact (optional)
         uses: actions/upload-artifact@v3
         with:
-          name: oc6p-linux
-          path: artifacts/oc6p
-
-      # Build for Windows (MSYS2 with Ninja)
-      - name: Install MSYS2
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: |
-            base-devel
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-gfortran
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-
-      - name: Add MSYS2 to Path
-        if: runner.os == 'Windows'
-        run: |
-          echo "C:/msys64/usr/bin" >> $GITHUB_PATH
-          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
-
-      - name: Build with CMake and Ninja (MSYS2)
-        if: runner.os == 'Windows'
-        run: |
-          mkdir build
-          cd build
-          cmake -G "Ninja" ../
-          ninja -j$(nproc)
-
-      - name: Prepare Windows Artifact
-        if: runner.os == 'Windows'
-        run: |
-          mkdir -p artifacts
-          cp build/bin/oc6p.exe artifacts/
-
-      - name: Upload Windows Build Artifact
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v3
-        with:
-          name: oc6p-windows
-          path: artifacts/oc6p.exe
+          name: oc6p
+          path: build/oc6p  # Updated path for the oc6p binary
 
   release:
+    runs-on: windows-latest
     needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout source code
         uses: actions/checkout@v3
 
-      - name: Print GitHub Ref
-        run: echo "GITHUB REF: ${{ github.ref }}"
+      - name: Set up MSYS2
+        run: |
+          echo "::set-output name=MSYS2_ROOT::$(cygpath -u "C:\\msys64")"
+          choco install msys2 --version 20220524.0.0
 
-      - name: Download Linux Build Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: oc6p-linux
-          path: artifacts/linux
+      - name: Install dependencies
+        run: |
+          pacman -Sy --noconfirm mingw-w64-x86_64-toolchain
 
-      - name: Download Windows Build Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: oc6p-windows
-          path: artifacts/windows
+      - name: Create build directory
+        run: mkdir build
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+      - name: Configure project
+        run: |
+          C:\msys64\mingw64\bin\cmake.exe -B build -S .
 
-      - name: Upload Linux Release Asset
+      - name: Build project
+        run: |
+          C:\msys64\mingw64\bin\cmake.exe --build build --config Release
+
+      - name: Package release
+        run: |
+          mkdir -p release
+          cp build/oc6p release/
+          tar -czf oc6p.tar.gz -C release .
+
+      - name: Upload release asset
         uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/linux/oc6p
-          asset_name: oc6p-linux
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/windows/oc6p.exe
-          asset_name: oc6p-windows
-          asset_content_type: application/octet-stream
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./oc6p.tar.gz
+          asset_name: oc6p.tar.gz
+          asset_content_type: application/gzip
