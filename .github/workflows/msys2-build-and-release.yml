@@ -46,6 +46,7 @@ jobs:
           cp build/oc6p.exe release/bin/
           deps=$(ldd ./build/oc6p.exe | awk '{if (match($3,/mingw64/)) print $3}')
           cp -L -n $deps ./release/bin/
+          cp OC_logo_black_transparent.ico release/favicon.ico
 
       - name: Install NSIS
         run: |
@@ -76,7 +77,7 @@ jobs:
             
             CreateDirectory "$SMPROGRAMS\OC6P"
             # CreateShortcut "$SMPROGRAMS\OC6P\OC6P.lnk" "$INSTDIR\bin\oc6p.exe"
-            CreateShortCut "$DESKTOP\OC6P.lnk" "$INSTDIR\bin\oc6p.exe"
+            CreateShortCut "$DESKTOP\OC6P.lnk" "$INSTDIR\bin\oc6p.exe" "" "$INSTDIR\favicon.ico"
             CreateShortcut "$SMPROGRAMS\OC6P\Uninstall.lnk" "$INSTDIR\uninstall.exe"
           SectionEnd
           
