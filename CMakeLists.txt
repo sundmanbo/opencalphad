@@ -1,82 +1,102 @@
-# CMakeLists.txt for a mixed Fortran/C++ project
-
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.10)
 project(OpenCalphad LANGUAGES C CXX Fortran)
 
-# Set the Fortran compiler
-set(CMAKE_Fortran_COMPILER gfortran)
-# Make sure that Fortran version is 90 or later
-set(CMAKE_Fortran_STANDARD 90)
-
-# Set C++ standard (adjust as needed)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
 
 set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
 
-# find openmp for C++ only
-find_package(OpenMP REQUIRED COMPONENTS CXX)
+# Set the default Fortran flags
+find_package(OpenMP)
 
-# Fortran library sources
-set(LIBOPENCALPHAD_SOURCES
-    src/minimizer/matsmin.F90
-    src/models/gtp3.F90
-    src/numlib/oclablas.F90
-    src/numlib/ocnum.F90
-    src/numlib/minpack1.F90
-    src/utilities/metlib4.F90
-    src/models/ocparam.F90
+set(CMAKE_Fortran_FLAGS "-Dnotwin ${OPENMP_Fortran_FLAGS}")
+
+# Options for building components
+option(WITH_OCHELP "Build with OC Help" OFF)
+option(WITH_OCPLOT "Build with OC Plot" OFF)
+option(WITH_LAPACK "Use LAPACK" OFF)
+option(WITH_C_BINDINGS "Export C Bindings" ON)
+option(WITH_OC_EXAMPLES "Building Examples" ON)
+
+# Define source directories
+set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
+set(MODELS_DIR "${SRC_DIR}/models")
+set(NUMLIB_DIR "${SRC_DIR}/numlib")
+set(STEPMAP_DIR "${SRC_DIR}/stepmapplot")
+set(UTILITIES_DIR "${SRC_DIR}/utilities")
+set(MINIMIZER_DIR "${SRC_DIR}/minimizer")
+set(USERIF_DIR "${SRC_DIR}/userif")
+set(OCISOCBINDING_DIR "${CMAKE_SOURCE_DIR}/OCisoCbinding")
+
+# Add sources for libOC library
+set(LIBOC_SOURCES
+    ${MODELS_DIR}/ocparam.F90
+    ${UTILITIES_DIR}/metlib4.F90
+    ${NUMLIB_DIR}/ocnum.F90
+    ${NUMLIB_DIR}/minpack1.F90
+    ${MODELS_DIR}/gtp3.F90
+    ${MINIMIZER_DIR}/matsmin.F90
 )
 
-# Create libopencalphad
-add_library(opencalphad ${LIBOPENCALPHAD_SOURCES})
-set_target_properties(opencalphad PROPERTIES 
-    POSITION_INDEPENDENT_CODE ON
-    Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}
-)
+# Add conditional sources and flags
+if(WITH_OCHELP)
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Dlixed -Dtinyfd -Dlixhlp")
+endif()
 
-# Add compiler flags for internal BLAS/LAPACK implementation
-target_compile_options(opencalphad PRIVATE -fno-underscoring -fno-second-underscore)
+if(WITH_OCPLOT)
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Dx11")
+endif()
 
-option(USE_EXTERNAL_LAPACK "Use external LAPACK library" OFF)
-
-if (USE_EXTERNAL_LAPACK)
-    # If LAPACK is external, do not define NOLAPACK
-    target_compile_definitions(opencalphad PUBLIC -DLAPACK)
+if(WITH_LAPACK)
+    set(LAPACK_LIBRARIES "-llapack -lblas")
 else()
-    # If LAPACK is not external, define NOLAPACK
-    target_compile_definitions(opencalphad PUBLIC -DNOLAPACK)
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -DNOLAPACK")
+    # list(APPEND LIBOC_SOURCES ${NUMLIB_DIR}/oclablas.F90)
 endif()
 
-add_library(oc_binding
-    OCisoCbinding/liboctq.F90
-    OCisoCbinding/liboctqisoc.F90
+# Ensure correct dependency and module generation
+if(NOT WITH_LAPACK)
+    add_library(oc_lablas STATIC ${NUMLIB_DIR}/oclablas.F90)
+    list(APPEND LIBOC_SOURCES ${NUMLIB_DIR}/ocnum.F90)
+    add_library(oc_essentials STATIC ${LIBOC_SOURCES})
+    target_link_libraries(oc_essentials oc_lablas ${OPENMP_Fortran_LIBRARIES})
+else()
+    add_library(oc_essentials STATIC ${LIBOC_SOURCES} ${NUMLIB_DIR}/ocnum.F90)
+    target_link_libraries(oc_essentials ${LAPACK_LIBRARIES} ${OPENMP_Fortran_LIBRARIES})
+endif()
+
+# Add sources for the OC executable
+set(OC_SOURCES
+    ${STEPMAP_DIR}/smp2.F90
+    ${USERIF_DIR}/pmon6.F90
+    ${SRC_DIR}/pmain1.F90
 )
 
-set_target_properties(oc_binding PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# Create the OC executable
+add_executable(OC ${OC_SOURCES})
+target_link_libraries(OC oc_essentials ${LAPACK_LIBRARIES} ${OPENMP_Fortran_LIBRARIES})
 
-target_link_libraries(oc_binding PUBLIC opencalphad)
-
-# option for including the C++ binding
-option(USE_CXX_BINDING "Use C++ binding" OFF)
-if (USE_CXX_BINDING)
-    add_subdirectory(OCisoCbinding/cxx)
+if(WITH_C_BINDINGS)
+    add_subdirectory(OCisoCbinding)
 endif()
 
-# option for including the oc6P executable
-option(BUILDING_OC "Building oc6P executable" ON)
-if (BUILDING_OC)
-    # add executable for oc6P: src/pmain1.F90 stepmapplot/smp2.F90 stepmapplot/smp2A.F90 stepmapplot/smp2B.F90 userif/userif.F90
-    add_executable(oc6p src/pmain1.F90
-        src/stepmapplot/smp2.F90
-        src/userif/pmon6.F90)
-    target_link_libraries(oc6p PRIVATE opencalphad)
+# Install libraries
+install(TARGETS OC RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+install(TARGETS oc_essentials ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+if(NOT WITH_LAPACK)
+    install(TARGETS oc_lablas ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-option(BUILDING_OC_EXAMPLES "Building Examples" ON)
-if (BUILDING_OC_EXAMPLES)
-    add_subdirectory(examples/TQ4lib/F90/octqa)
-    add_subdirectory(examples/TQ4lib/F90/crfe)
-    add_subdirectory(examples/TQ4lib/F90/feni)
-    add_subdirectory(examples/TQ4lib/F90/parallel-alnipt)
+# Install extra files
+install(FILES ${OCISOCBINDING_DIR}/octqc.h DESTINATION share/include)
+
+# Install documentation
+install(FILES
+    ${CMAKE_SOURCE_DIR}/doc/manual/ochelp.html
+    ${CMAKE_SOURCE_DIR}/doc/manual/ochelp.pdf
+    DESTINATION share/doc)
+
+if (WITH_OC_EXAMPLES)
+    add_subdirectory(examples/TQ4lib)
 endif()
