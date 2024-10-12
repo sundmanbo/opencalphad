@@ -12,6 +12,8 @@ set(CMAKE_Fortran_STANDARD 90)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
+
 # find openmp for C++ only
 find_package(OpenMP REQUIRED COMPONENTS CXX)
 
@@ -24,14 +26,14 @@ set(LIBOPENCALPHAD_SOURCES
     src/numlib/minpack1.F90
     src/utilities/metlib4.F90
     src/models/ocparam.F90
-
-    OCisoCbinding/liboctq.F90
-    OCisoCbinding/liboctqisoc.F90
 )
 
 # Create libopencalphad
 add_library(opencalphad ${LIBOPENCALPHAD_SOURCES})
-set_target_properties(opencalphad PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(opencalphad PROPERTIES 
+    POSITION_INDEPENDENT_CODE ON
+    Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}
+)
 
 # Add compiler flags for internal BLAS/LAPACK implementation
 target_compile_options(opencalphad PRIVATE -fno-underscoring -fno-second-underscore)
@@ -45,6 +47,15 @@ else()
     # If LAPACK is not external, define NOLAPACK
     target_compile_definitions(opencalphad PUBLIC -DNOLAPACK)
 endif()
+
+add_library(oc_binding
+    OCisoCbinding/liboctq.F90
+    OCisoCbinding/liboctqisoc.F90
+)
+
+set_target_properties(oc_binding PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+target_link_libraries(oc_binding PUBLIC opencalphad)
 
 # option for including the C++ binding
 option(USE_CXX_BINDING "Use C++ binding" OFF)
@@ -60,4 +71,12 @@ if (BUILDING_OC)
         src/stepmapplot/smp2.F90
         src/userif/pmon6.F90)
     target_link_libraries(oc6p PRIVATE opencalphad)
+endif()
+
+option(BUILDING_OC_EXAMPLES "Building Examples" ON)
+if (BUILDING_OC_EXAMPLES)
+    add_subdirectory(examples/TQ4lib/F90/octqa)
+    add_subdirectory(examples/TQ4lib/F90/crfe)
+    add_subdirectory(examples/TQ4lib/F90/feni)
+    add_subdirectory(examples/TQ4lib/F90/parallel-alnipt)
 endif()
