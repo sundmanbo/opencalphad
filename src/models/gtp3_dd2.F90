@@ -1,4 +1,3 @@
-!
 !***************************************************************
 ! General Thermodynamic Package (GTP)
 ! for thermodynamic modelling and calculations
@@ -1014,6 +1013,7 @@
 ! propointer: link to properties for this parameter
 ! nextlink: link to interaction on same level (replace interaction)
 ! highlink: link to interaction on higher level (include this interaction)
+! tooprec: if the interaction involved in TOOP or KOHLER extrapolation
 ! sublattice: (array of) sublattices with interaction fraction
 ! fraclink: (array of) index of fraction to be multiplied with this parameter
 ! noofip: (array of) number of permutations, see above.
@@ -1031,28 +1031,28 @@
 ! this constant must be incremented when a change is made in gtp_phasetuple
   INTEGER, parameter :: gtp_tooprec_version=1
   TYPE gtp_tooprec
-! this indicates that an binary interaction parameter has Kohler/Toop model
-! and which constituents involved.  A binary interaction can have a list of
-! several gtp_tooprec records for each ternary system this record is involed.
-! The binary fractions multiplied with the parameters will be calculated
-! using this list of ternaries indicated by this list, see the documentation.
-! const1, const2 and const3 are the constituents in alphabetical order
-! (which is also the numerical order). 
-! toop is 0 if Kohler extrapolation, 
-! if toop=1, 2 or 3 it indicates the Toop element, negative if Toop/Muggianu
-! if abs(toop)>10 means 2 or more Toop elements
-! extra is used when listing data
-! uniqid is a unique identification of the record, used for debugging
-     integer toop,const1,const2,const3,extra,uniqid
-! Each gtp_tooprec is part of 3 lists for binary interactions
-! indicated by the 3 constituents in the gtp_tooprec record.
-! next12 is the next link for the 2 (alphaetically) first constituents,
-! next13 is the next link for first and third constituents
-! next23 is the next link for the second and third constituents
-! seq is a sequential link in the order the records created (try to fix bug)
-     type(gtp_tooprec), pointer :: next12,next13,next23,seq
-! this is very useful to obtain information in the calc_toop subroutine
+! This is used for a binary interaction parameter in Kohler/Toop ternaries
+! to specify the third constituents involved in extrapolations
+! These records form a linear list for each phase and are also
+! inked from the binary A-B interaction record (and has a link to it).
+! link to next tooprec needed for search and listing
+     type(gtp_tooprec), pointer :: nexttoop
+! link to binint to know the binay constituents involved
+     type(gtp_interaction), pointer :: binint
+! The Toop1 array has constituent indices of all ternaries with A as Toop
+! The Toop2 array has constituent indices of all ternaries with B as Toop
+! The Kohler array has constituent indices of all ternary where A-B is Kohler
+! An array element zero menas it is ignored
+     integer :: free,toopid
+     integer, allocatable, dimension(:) :: Toop1
+     integer, allocatable, dimension(:) :: Toop2
+     integer, allocatable, dimension(:) :: Kohler
+! the phase_varres link is set during calculations in gtp3XQ.F90
+! it is assigned in gtp3X, calcg_internal and used in calc_toop
      type(gtp_phase_varres), pointer :: phres
+! For listing we need to save the input specification ... ???
+! If tkmode empty ignore it
+     character (len=:), allocatable :: amend
   end type gtp_tooprec
 !\end{verbatim}
 !-----------------------------------------------------------------
@@ -1331,6 +1331,11 @@
 ! disordered: link to endmember list for disordered fractions (if any)
      TYPE(gtp_phase_add), pointer :: additions
      TYPE(gtp_endmember), pointer :: ordered,disordered
+! The Toop/Kohler record for each phase with such ternary extrapolation
+! This is a link connecting all Toop/Kohler records for a phase.
+!     TYPE(gtp_tooprec), pointer :: tooplist
+!     integer lasttoopid
+!     TYPE(gtp_tooprec), pointer :: tooprec,tooplist
 ! To allow parallel processing of endmembers, store a pointer to each here
      integer noemr,ndemr
      TYPE(endmemrecarray), dimension(:), allocatable :: oendmemarr,dendmemarr
@@ -1339,7 +1344,7 @@
 ! linktocs: array with indices to phase_varres records
 ! nooffr: array with number of constituents in each sublattice 
 ! Note that sites are stored in phase_varres as they may vary with the
-! constitution for ionic liquid)
+! constitution (for ionic liquid)
      integer noofsubl,tnooffr
      integer, dimension(9) :: linktocs
      integer, dimension(:), allocatable :: nooffr
@@ -1349,6 +1354,10 @@
 ! used in ionic liquid:
 ! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)
      integer, dimension(2) :: i2slx
+! Needed to list all Toop/Kohler ternary models
+! The one used for calculations is the pointer in gtp_intrec (toprec)
+     TYPE(gtp_tooprec), pointer :: tooplast,toopfirst
+     integer :: lasttoopid
 ! allocated in init_gtp.
   END TYPE gtp_phaserecord
 ! NOTE phase with index 0 is the reference phase for the elements
@@ -1995,7 +2004,8 @@
   logical :: dbcheck=.FALSE.
 ! this is set zero by new_gtp and incremented each time a Toop record
 ! is created in any phase
-   integer uniqid
+! REMOVED as global variable 241012/BoS Now local for each phase
+!   integer uniqid
 ! this is to allow select_phases from database files
    integer nselph
    character (len=24), allocatable, dimension(:) :: seltdbph

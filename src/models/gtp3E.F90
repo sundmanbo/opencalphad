@@ -3484,11 +3484,13 @@
    integer nel
    character filename*(*),selel(*)*2
 !\end{verbatim} %+
-   integer, parameter :: maxrejph=30,maxorddis=10,maxtypedefs=40
+   integer, parameter :: maxrejph=30,maxorddis=10,maxtypedefs=100,mtxp=100
    character line*128,elsym*2,name1*24,name2*24,elsyms(10)*2,stoiline*72
 !   character longline*10000,reftext*512
 ! to read references in MatCalc TDB files
    character longline*40000,reftext*512
+! to handle ternary_extrapolation lines
+   character ternaryxpol(mtxp)*500
    character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60
    character refx*16,more*4
    character (len=1), dimension(maxtypedefs) :: typedefchar
@@ -3503,6 +3505,7 @@
    logical onlyfun,nophase,ionliq,notent,mqmqa,ferroref
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt,bmabbr
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics,ndisph
+   integer ntxp,ctxp
 ! disparttc and dispartph to handle phases with disordered parts
    integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never,always
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
@@ -3518,8 +3521,7 @@
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
 ! to prevent any output
-   logical silent,thisphaserejected
-!  mmyfr noofph
+   logical silent,thisphaserejected,addternaryxpol
 ! if tdbwarning is true at the end pause before listing bibliography
 #ifdef encrypopt
    write(*,*)'3E compiled with option to read encrypted files',&
@@ -3534,6 +3536,7 @@
 !   dbcheck=.FALSE.
    tdbwarning=.FALSE.
    silent=.FALSE.
+   addternaryxpol=.FALSE.
 !   grobaldata%encrypted=0
 ! this was Ting request to have ferromanetic reference state for alloys
    ferroref=.FALSE.
@@ -3543,6 +3546,8 @@
    notusedpar=0
    enteredpar=0
    manylonglines=0
+   ntxp=0
+   ctxp=0
 ! this counts number of undefined/unused model-parameter-identifiers
    nundefmpi=0
    if(btest(globaldata%status,GSSILENT)) then
@@ -4110,8 +4115,8 @@
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
          elseif(abs(typedefaction(jt)).ge.25 .and. &
-! ferroref replaced by negative typedefaction ...
               abs(typedefaction(jt)).le.37) then
+! ferroref replaced by negative typedefaction ...
 ! Qing-Xiong magnetic addition
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
@@ -4123,6 +4128,17 @@
 ! Liquid 2-state model
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
+         elseif(typedefaction(jt).eq.777) then
+! ternary extrapolations, these should be executed at the end of reading
+! some of the elements involved may not be selected.
+            TDthisphase=TDthisphase+1
+            addphasetypedef(TDthisphase)=typedefaction(jt)
+            ctxp=ctxp+1
+            ternaryxpol(ctxp)=trim(name1)//' '//ternaryxpol(ctxp)
+            write(*,'(a,i4,": ",a)')'3E ternary around line 4137: ',&
+                 ctxp,trim(ternaryxpol(ctxp))
+! this ignores the type letter, just assignes in same order as phases entered
+! Or one must enforce that the TYPE_DEF for ternary is right after the phase?
          elseif(.not.(typedefaction(jt).eq.100.or.typedefaction(jt).eq.0)) then
 ! give an alert if typedefaction is not 100
             write(*,*)'3E Unknown typedefaction: ',typedefaction(jt)
@@ -4488,6 +4504,10 @@
 !                  write(*,*)'3E more: "',more,'" and ',ferroref
                   call add_addrecord(lokph,more,xiongmagnetic)
 !                  call add_addrecord(lokph,'N ',xiongmagnetic)
+               elseif(abs(addphasetypedef(jt)).eq.777) then
+! ternary extrapolations should be handled after all parameters entered
+! The phase name addedwe just need to add the phase name here.
+                  addternaryxpol=.true.
                else
                   write(*,13)lokph,addphasetypedef(jt)
 13                format(78('*')/'3E unknown addition: ',2i7/78('*'))
@@ -4944,7 +4964,7 @@
                gx%bmperr=buperr; goto 1000
             endif
             if(xxx.eq.zero) then
-! this is Qing-Xion magnetic model, next number is 0.37 for BCC or 0.25
+! this is Qing-Xiong magnetic model, next number is 0.37 for BCC or 0.25
                call getrel(longline,ip,xxx)
                if(buperr.ne.0) then
                   gx%bmperr=buperr; goto 1000
@@ -5040,14 +5060,33 @@
 !------------------------------------------- TYPE_DEF liquid 2-state model
                   typedefaction(nytypedef)=491
                else
+!---------------------------------------------- TYPE-DEF TERNATY_EXTRAPOL
+!                  write(*,*)'3E typedef: ',trim(longline)
+                  km=index(longline,' TERNARY')
+                  ternaryxp: if(km.gt.0) then
+                     typedefaction(nytypedef)=777
+                     ntxp=ntxp+1
+                     write(*,86)nytypedef,ntxp,trim(longline)
+86                   format('3E Found ternary extrapolation',2i4/a)
+! we need to save the line!!
+                     if(ntxp.gt.mtxp) then
+                        write(*,*)'3E Error, ternary_extrapolations max',mtxp
+                        gx%bmperr=4399; goto 1000
+                     endif
+! skip from km to first space and compress multiple spaces to a single one
+                     zp=index(longline(km+1:),' ')
+                     ternaryxpol(ntxp)=longline(km+zp:)
+!                     call merge_spaces(longline(km+zp:))
+                  else
 !---------------------------------------------- unknown TYPE-DEF
-                  typedefaction(nytypedef)=99
-                  if(.not.silent) &
-                       write(kou,87)nl,longline(1:min(78,len_trim(longline)))
-87                format('3E WARNING ignoring TYPE_DEF on line ',i5,':'/a)
-                  tdbwarning=.TRUE.
-!                  write(*,*)'3E tdbwarning set true 13'
-!               write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
+                     typedefaction(nytypedef)=99
+                     if(.not.silent) &
+                          write(kou,87)nl,longline(1:min(78,len_trim(longline)))
+87                   format('3E WARNING ignoring TYPE_DEF on line ',i5,':'/a)
+                     tdbwarning=.TRUE.
+!                     write(*,*)'3E tdbwarning set true 13'
+!                     write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
+                  endif ternaryxp
                endif liq2state
             endif dispart
          endif magnetic
@@ -5360,6 +5399,18 @@
 !         goto 100
 !      endif
    endif
+!000000000000000000000000000000000000000000000000000000
+! After entering all parameters we should take care of ternary_extrapolations 
+   if(addternaryxpol) then
+      write(*,'(a)')'3E Adding extrapolation methods',ntxp
+      do zp=1,ntxp
+!         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
+         call set_database_ternary(ternaryxpol(zp))
+      enddo
+   else
+      write(*,*)'3E no ternary extrapolations'
+   endif
+!000000000000000000000000000000000000000000000000000000
 ! no more read(21 ...
    close(21)
 ! read numbers, value after / is maximum
@@ -7618,3 +7669,16 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine merge_spaces
+!\begin{verbatim}
+! subroutine merge_spaces(text)
+ subroutine merge_spaces(text)
+! merge multiple spaces to a single one in text
+   implicit none
+   character text(*)
+!\end{verbatim}
+1000 continue
+   return
+ end subroutine merge_spaces
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!

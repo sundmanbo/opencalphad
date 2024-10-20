@@ -3865,38 +3865,110 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_database_ternary
+!\begin{verbatim}
+ subroutine set_database_ternary(line)
+! separate a database line to parts to add a ternary extrapolation method
+   implicit none
+   character line*(*)
+! transform a database line with one or more ternary extrapolation methods
+! text is "phase-name species1 species2 species3 mode (mabe several)
+!\end{verbatim}
+   integer lokph,ip,jp,iph,lcs
+   character phase*24,species(3)*24,tkmode*6
+!   write(*,'(a,a,a)')'3H in set_database_ternary: "',trim(line),'"'
+! split line in individual parts, phase, species, tkmode
+   ip=index(line,' ')
+   phase=line(1:ip)
+   call find_phase_by_name(phase,iph,lcs)
+   if(gx%bmperr.ne.0) then
+      write(*,*)'3H bad phase name ',trim(phase),' for ternary extrapolation'
+      goto 1000
+   endif
+   lokph=phases(iph)
+   do while(line(ip:ip).eq.' ')
+      ip=ip+1
+   enddo
+100 continue
+! only one space between constituents
+   jp=index(line(ip:),' ')
+   species(1)=line(ip:ip+jp-1)
+   ip=ip+jp
+!   write(*,*)'3H after species 1: "',trim(line(ip:)),'"'
+   jp=index(line(ip:),' ')
+   species(2)=line(ip:ip+jp-1)
+   ip=ip+jp
+!   write(*,*)'3H after species 2: "',trim(line(ip:)),'"'
+   jp=index(line(ip:),' ')
+   species(3)=line(ip:ip+jp-1)
+   ip=ip+jp
+!   write(*,*)'3H after species 3: "',trim(line(ip:)),'"'
+   jp=index(line(ip:),' ')
+   tkmode=line(ip:ip+jp-1)
+! possibly there is a ; after the tkmode, remove it.
+   lcs=index(tkmode,';')
+   if(lcs.gt.0) then
+      tkmode(lcs:)=' '
+   endif
+!   write(*,*)'3H tkmode "',tkmode,'"'
+!   write(*,77)lokph,trim(species(1)),trim(species(2)),trim(species(3)),tkmode
+77 format('3H call add_ternary: ',i4,1x,a,1x,a,1x,a,1x,a)
+   call add_ternary_extrapol_method(lokph,tkmode,species)
+! there can be several ternary mode in line ...
+   write(*,*)'3H back from add_ternary'
+   ip=ip+jp
+   jp=len_trim(line)
+   if(jp.gt.ip) then
+! skip spaces
+      do while(line(ip:ip).eq.' ')
+         ip=ip+1
+      enddo
+      if(line(ip:ip).ne.'!') then
+         write(*,*)'3H one more ternary: "',trim(line(ip:)),'"'
+         goto 100
+      endif
+   endif
+!
+1000 continue
+   return
+ end subroutine set_database_ternary
+ 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine add_ternary_extrapol_method
 !\begin{verbatim}
- subroutine add_ternary_extrapol_method(kou,lokph,typ,toophead,species)
+! subroutine add_ternary_extrapol_method(lokph,tkmode,species)
+ subroutine add_ternary_extrapol_method(lokph,tkmode,species)
 ! add a Toop or Kohler extrapolation method for a ternary subsystem to a phase
 ! interactive or from database
-! if kou>0 then the command is given interactivly and questions can be asked
    implicit none
-   integer kou,lokph
-   character typ*1,species(3)*24
-! VERY DIFFICULT TO FIX: I must use an external sequental list for all tooprec
-! and allocate the "seq" pointer
-! oterwise the allocated tooprecord were destroyed in an arbitrary way ..
-   type(gtp_tooprec) :: toophead
+   integer lokph
+   character tkmode*(*)
+! mode is KKK, TiTiK, TiTjTk etc. with i j k integers 1, 2 or 3, TKM as captial 
+! Complicated ...
 !\end{verbatim}
-   integer jj,kk,loksp,tint(3),toop,done,conix
+! conx is the constituent index in the phase
+   integer jj,kk,loksp,conx(3),done,conix,uniqid
    type(gtp_endmember), pointer :: endmem
    type(gtp_interaction),pointer :: intrec12,intrec13,intrec23,intrec
    type(gtp_interaction),pointer :: intrec1,intrec2
-   type(gtp_tooprec), allocatable, target :: newrec
-!   type(gtp_tooprec), pointer :: method,duplicate
-   type(gtp_tooprec), pointer :: duplicate,next
-   type(gtp_tooprec), pointer :: method
-   character dummy*24
-   logical checkdup
+!   type(gtp_tooprec), allocatable, target :: newtoop
+   type(gtp_tooprec), pointer :: newtoop
+   character dummy*24,xmode(3)*1,ch1*1,species(3)*24
+   character amend*128
+! ktorg has : element order, fraction index, Took/Koler spec
+! (1
+!
+   integer xter3(3),toopcon(3),conind(3)
+   logical checkdup,saveamend,onlym
 ! for debugging
    integer nextmethod
    integer aheremethod12, aheremethod13,aheremethod23
 ! this is incremented by 1 each time a record is created in any phase
 !   integer, save ::uniqid=0
 !
-!   write(*,8)lokph,typ,trim(species(1)),trim(species(2)),trim(species(3))
-8  format('3H Add_ternary_extrapol_method ',i3,2x,a,': ',a,'-',a,'-',a)
+   write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),tkmode,lokph
+8  format(/'3H in add_ternary_extrapol "',a,'" "',a,'" "',a,'" "',a,'"',i4)
    if(phlista(lokph)%noofsubl.gt.1) then
       write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
       gx%bmperr=4399; goto 1000
@@ -3905,59 +3977,191 @@
       write(*,*)'3H Kohler/Toop not allowed for phases with disordered set'
       gx%bmperr=4399; goto 1000
    endif
-   if(.not.(typ.eq.'K' .or. typ.eq.'T')) then
-      write(*,*)'3H illegal extrapolation method: ',typ
-      gx%bmperr=4399; goto 1000
+! Note, the order of species will chenged below
+! this amend text will be saved in one of the tooprec records for output
+   amend=trim(phlista(lokph)%name)//' TERNARY_EXTRAPOL '//&
+        ' '//trim(species(1))//' '//trim(species(2))//&
+        ' '//trim(species(3))//' '//tkmode//' !'
+   write(*,*)'3H executing amend ',trim(amend)!
+!
+!----------------------------------- to be considered   
+! The extrapolation method is given in the order of binaries A-B, A-C and B-C
+! by 3 letters T, K or M.  
+! The letter T must be followed by a number 1ndicating which of the 3
+! constituents that is the Toop element, for example T1T1K
+! means the first constituent is Toop when extrapolating A-B and A-C whereas
+! the binary A-B extrapolates is Kohler.  Examples:
+! T1T1K means A-B and A-C is Toop with A as Toop and B-C is Kohler
+! KKK means Kohler by all
+! T1KT1 is illegal as A is not part of the BC binary.
+! T2KT2 means A-B and B-C is Toop with B as toop and B-C is Kohler
+! T3T3K is wrong as A-B cannot have C as Toop element
+! T1KT1 is wrong as B-C cannot have A as Toop element
+! T1T3T2 has A as Toop in A-B, C as Toop in A-C and B as Toop in B-C
+! The information is stored locally for each binary A-B, A-C and B-C
+! 
+! For each binary the constituent indices are stored, indicating in the
+! and if any of them is a Toop element and if the third elemt is Kohler
+! A constituent can be Toop or Kohler in different ternaries
+!
+   xter3=0; toopcon=0; jj=1; onlym=.TRUE.
+!---------------------------------------------------------------
+   tkmodel: do kk=1,3
+! Check only Ti, K and M in tkmode, to simplfy indexing copy to xmode(3)*1
+! For a Toop constituent save index in toopcon
+! The code here is messy because I have had different ideas some redundant code
+      xmode(kk)=tkmode(jj:jj)
+      jj=jj+1
+      if(.not.(xmode(kk).eq.'T' .or. xmode(kk).eq.'K' .or. &
+           xmode(kk).eq.'M')) then
+         write(*,*)'3H only letters T, K or M allowed for extrapolations: ',&
+              tkmode
+         gx%bmperr=4399; goto 1000
+      endif
+      if(xmode(kk).eq.'T') then
+! this converts ascii value to integer, subtract ascii value of character 0
+         toopcon(kk)=ichar(tkmode(jj:jj))-ichar('0')
+         jj=jj+1
+         if(toopcon(kk).le.0 .or. toopcon(kk).gt.3) then
+            write(*,*)'3H extrapolation T must be followed by intger 1, 2 or 3'
+            gx%bmperr=4399; goto 1000
+         endif
+!          binary   jj=1        j=2          jj=3
+! if kk=1: A-B      A is Toop;  B is Toop;   illegal
+!    kk=2: A-C      A is Toop;  illegal      C is Toop 
+!    kk=3; B-C      illegal     B is Toop    C is Toop         
+         if(kk.eq.1 .and. toopcon(kk).eq.3) then
+            write(*,*)'3H illegal Toop constituent',kk,toopcon(kk)
+            gx%bmperr=4399; goto 1000
+         elseif(kk.eq.2 .and. toopcon(kk).eq.2) then
+            write(*,*)'3H illegal Toop constituent',kk,toopcon(kk)
+            gx%bmperr=4399; goto 1000
+         elseif(kk.eq.3 .and. toopcon(kk).eq.1) then
+            write(*,*)'3H illegal Toop constituent',kk,toopcon(kk)
+            gx%bmperr=4399; goto 1000
+         endif
+! Set that for ternary kk the Toop element is toopcon(kk)
+         xter3(kk)=toopcon(kk)
+         onlym=.FALSE.
+      elseif(xmode(kk).eq.'K') then
+! the binary kk has Kohler method for 3rd element, save its negative value
+         onlym=.FALSE.
+         if(kk.eq.1) then
+! binary A-B has 3rd element as Kohler
+            xter3(kk)=-3
+         elseif(kk.eq.2) then
+! binary A-C has 2nd element as Kohler
+            xter3(kk)=-2
+         else
+! binary B-C has 1st element as Kohler
+            xter3(kk)=-1
+         endif
+! there is no 'else'
+! else
+      endif
+   enddo tkmodel
+!----------------------
+   if(onlym) then
+      write(*,'(a)')'3H All species have Muggianu extrapolation, default'
+      goto 1000
    endif
-! find the 3 constituents in the same sublattice in the phase
-! they can be in any order
+!----------------------------
+! find the 3 constituents, store their constituent index in conind
+   conx=0
+!   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H looking for constituents: ',conx,&
+!        xter3,xmode
    all3: do jj=1,3
       call find_species_record_noabbr(species(jj),loksp)
+      if(gx%bmperr.ne.0) then
+! needed for mqmqma model ... they have a number -Qij which may vary
+         write(*,*)'3H Testing seach allowing abbreviations'
+         gx%bmperr=0
+         call find_species_record(species(jj),loksp)
+      endif
       if(gx%bmperr.ne.0) goto 1000
-! check if it is a constituent
+! check if species a constituent and save constinuent index in ktorder
       isconst: do kk=1,size(phlista(lokph)%constitlist)
 !         write(*,'(a,5i5)')'3H constituent?',jj,kk,&
 !              phlista(lokph)%constitlist(kk),loksp
          if(loksp.eq.phlista(lokph)%constitlist(kk)) then
-! I should check they are in the same sublattice ... but we have just one
-            tint(jj)=kk; cycle all3
+! element jj in the ternary has constituent index kk
+            conx(jj)=kk
+! we found the constituent, take nest one
+            cycle all3
          endif
       enddo isconst
-! a constituent not found
+! the loop for constituents did not find the element
       write(*,*)'3H no such constituent: ',jj,species(jj)
       gx%bmperr=4399; goto 1000
    enddo all3
-!   write(*,'(a,3i4)')'3H found constituents: ',tint
-   if(tint(1).eq.tint(2) .or. tint(1).eq.tint(3) .or. tint(2).eq.tint(3)) then
+!
+   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H found all 3 constituents: ',conx,&
+        xter3,xmode
+   if(conx(1).eq.conx(2) .or. conx(1).eq.conx(3) .or. conx(2).eq.conx(3)) then
       write(*,*)'3H Same element twice, not a ternary!'
       gx%bmperr=4399; goto 1000
    endif
-! sort constituents in numerical order (clumsy but not time-critical)
-   toop=0
-   if(typ.eq.'T') toop=1
+! Replace any Koher extrapolation with its constituent index
+   Kohler: do kk=1,3
+      if(xter3(kk).lt.0) xter3(kk)=-conx(-xter3(kk))
+   enddo Kohler
+! Replace any Toop constituents with its constiuent incex .... does not work
+   Toop: do kk=1,3
+      if(xter3(kk).gt.0) xter3(kk)=conx(xter3(kk))
+   enddo Toop
+!
+   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H Replaced by const index:  ',conx,&
+        xter3,xmode
+!
+! sort constituents in constituent order
+! xter3 here is either the toopcon or the Kohler constituent index
+! according to the original order the elements were entered
 ! if 1>2 change order
-   if(tint(1).gt.tint(2)) then
-      jj=tint(1); tint(1)=tint(2); tint(2)=jj
-      dummy=species(1); species(1)=species(2); species(2)=dummy
-      if(toop.eq.1) toop=2
+   if(conx(1).gt.conx(2)) then
+      jj=conx(1); conx(1)=conx(2); conx(2)=jj
+! no need to sort the specoes names, not used below
+! But this change means the order of the binaries changes from/to
+! A B C
+! B A C      
+      jj=xter3(1); xter3(1)=xter3(2); xter3(2)=jj
+      ch1=xmode(1); xmode(1)=xmode(2); xmode(2)=ch1
+!      dummy=species(1); species(1)=species(2); species(2)=dummy
    endif
-! now 1 < 2, check if 2>3?
-   if(tint(2).gt.tint(3)) then
-      jj=tint(2); tint(2)=tint(3); tint(3)=jj
-      dummy=species(2); species(2)=species(3); species(3)=dummy
-      if(toop.eq.2) toop=3
+! check if 2>3
+   if(conx(2).gt.conx(3)) then
+      jj=conx(2); conx(2)=conx(3); conx(3)=jj
+! B A C
+! B C A
+      jj=xter3(2); xter3(2)=xter3(3); xter3(3)=jj
+      ch1=xmode(2); xmode(2)=xmode(3); xmode(3)=ch1
+!      dummy=species(2); species(2)=species(3); species(3)=dummy
    endif
 ! now 3 > (1,2) check again if 1>2
-   if(tint(1).gt.tint(2)) then
-      jj=tint(1); tint(1)=tint(2); tint(2)=jj
-      dummy=species(1); species(1)=species(2); species(2)=dummy
-      if(toop.eq.1) toop=2
+   if(conx(1).gt.conx(2)) then
+      jj=conx(1); conx(1)=conx(2); conx(2)=jj
+! B C A
+ ! C B A
+      jj=xter3(1); xter3(1)=xter3(2); xter3(2)=jj
+      ch1=xmode(1); xmode(1)=xmode(2); xmode(2)=ch1
+!      dummy=species(1); species(1)=species(2); species(2)=dummy
    endif
-! now 1 < 2 < 3 and species in same order
-!   write(*,'(a,3i3)')'3H tint:',tint
-! now we have to find the interaction records ... suck
+! The conx order is the (alphabetical) order of the constituents
+! The endmembers are in that order.  The interactions are not ordered
+! xter3 is the original input order, conx is in alphabetical order
+! Replace any Koher extrapolation with its constituent index
+!   Kohler2: do kk=1,3
+!      if(xter3(kk).lt.0) xter3(kk)=-conx(-xter3(kk))
+!   enddo Kohler2
+! Replace any Toop constituents with its constiuent incex .... does not work
+!   Toop2: do kk=1,3
+!      if(xter3(kk).gt.0) xter3(kk)=conx(xter3(kk))
+!   enddo Toop2
+   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H Sorted xter3 and conx:    ',conx,&
+        xter3,xmode
+!---------------------------------------------------------
+! now we have to find the interaction records
 ! Some binary parameter in the ternary may not have an interaction record.   
-! there must be a check if this ternary is not a duplicate
+! there should be a check if this ternary is a duplicate ...!!!
 ! disordered fraction set not allowed
 ! Try to give reasonable error messages
    endmem=>phlista(lokph)%ordered
@@ -3968,369 +4172,367 @@
 ! nullify pointers from binary interactions
    nullify(intrec1); nullify(intrec2)
    nullify(intrec12); nullify(intrec13); nullify(intrec23)
+!
 ! look for endmember with lowest constituent index (they are ordered that way)
 ! REMEMBER we have a substitutional model, no sublattices
 ! one may add a second sublattice with same constituent in all 3 endmembers
-   start: do conix=1,2
-!      write(*,'(a,3i3)')'3H endmem1: ',conix,endmem%fraclinks(1,1),tint(conix)
-      findem: do while(endmem%fraclinks(1,1).lt.tint(conix))
-!      write(*,'(a,3i3)')'3H endmem2: ',conix,endmem%fraclinks(1,1),tint(conix)
+   findexcess: do conix=1,2
+!      write(*,'(a,3i3)')'3H endmem1: ',conix,endmem%fraclinks(1,1),conx(conix)
+      findem: do while(endmem%fraclinks(1,1).lt.conx(conix))
+!      write(*,'(a,3i3)')'3H endmem2: ',conix,endmem%fraclinks(1,1),conx(conix)
          endmem=>endmem%nextem;
          if(associated(endmem)) then
             cycle findem
          elseif(associated(intrec1) .or. associated(intrec2)) then
-            exit start
+            exit findexcess
          else
             write(*,*)'3H no binary model parameters for this ternary!'
             gx%bmperr=4399; goto 1000
          endif
       enddo findem
-      if(.not.associated(endmem)) exit start
-!      write(*,'(a,3i3)')'3H endmem3: ',conix,endmem%fraclinks(1,1),tint(conix)
-! we have found an endmember >=tint(conix)
-      if(endmem%fraclinks(1,1).eq.tint(conix)) then
+      if(.not.associated(endmem)) exit findexcess
+!      write(*,'(a,3i3)')'3H endmem3: ',conix,endmem%fraclinks(1,1),conx(conix)
+! we have found an endmember >=conx(conix)
+      if(endmem%fraclinks(1,1).eq.conx(conix)) then
 !         write(*,*)'3H Found endmember for ',species(conix)
          if(conix.eq.1) then
 ! interaction AB and AC are in same list of interactions, separate later
-            write(*,*)'3H interaction list 1-2 and 1-3 found'
+!            write(*,*)'3H Found binaries excess 1-2 and 1-3'
             intrec1=>endmem%intpointer
 !            if(associated(intrec1%tooprec)) write(*,'(a,4i3)')'3H link 1 id:',&
-!                 intrec1%fraclink(1),intrec1%tooprec%uniqid
+!                 intrec1%fraclink(1),intrec1%tooprec%toopid
          else
-            write(*,*)'3H interaction list 2-3 found'
+!            write(*,*)'3H Found binary excess 2-3'
             intrec2=>endmem%intpointer
 !            if(associated(intrec2%tooprec)) write(*,'(a,4i3)')'3H link 2 id:',&
-!                 intrec1%fraclink(1),intrec1%tooprec%uniqid
+!                 intrec1%fraclink(1),intrec1%tooprec%toopid
          endif
       else
          write(*,*)'3H No endmember for constituent:',trim(species(conix))
       endif
-   enddo start
+   enddo findexcess
    if(.not.associated(intrec1) .and. .not.associated(intrec2)) then
-      write(*,*)'3H Ignoring extrapolation method as no binary interactions'
+      write(*,*)'3H Ignoring ternary method as no binary interactions'
       gx%bmperr=4399; goto 1000
    endif
-!   if(associated(intrec1%tooprec)) write(*,'(a,4i3)')'3H link 3 id:',&
-!        intrec1%fraclink(1),intrec1%tooprec%uniqid
-!   if(associated(intrec2%tooprec)) write(*,'(a,4i3)')'3H link 4 id:',&
-!        intrec2%fraclink(1),intrec2%tooprec%uniqid
-! We have set intrec1 to first interaction record of A and B
-! Look for interaction record AB, AC and BC in these interaction lists
+!------------------------------------------------------------
+! check values of xter3
+   do kk=1,3
+      write(*,44)trim(species(kk)),xter3(kk),conx(kk)
+44    format('3H constituent ',a,' xter3: ',i2,i5)
+   enddo
 !--------------------------------------
-! we have a link to an interaction record for tint(1) or tint(2)
+! we have a link to an interaction record for conx(1) or conx(2)
 100 continue
 ! there is no order of the interaction constituent
 ! one or two binary interaction parameter can be missing but not all three!!
-! Remember: there is only a single set of sites
-!   checkdup=.TRUE.
-! skip check for duplicates
-!   checkdup=.FALSE.
-! We look for interaction records 1-2, 1-3 and 1-3
-   write(*,*)'3H intrec: ',associated(intrec1),associated(intrec2)
+! Remember: this phase has a single set of sites
+   checkdup=.FALSE.
+! We look for interaction records 1-2, 1-3 and 2-3
+!   write(*,*)'3H intrec: ',associated(intrec1),associated(intrec2)
    intrec=>intrec1
-   done=tint(1)
+   done=conx(1)
 !   if(associated(intrec%tooprec)) write(*,'(a,4i3)')'3H link 5 id:',&
-!        intrec%fraclink(1),intrec%tooprec%uniqid
+!        intrec%fraclink(1),intrec%tooprec%toopid
 ! Jump back here for next interaction list. note intrec13 set from intrec1
 200 continue
+   write(*,*)'3H We are at label 200 in add_ternary_extraol_method'
    intwith1: do while(associated(intrec))
+!      write(*,*)' in intwith1 loop, label 200  around line 4146'
 !      if(associated(intrec%tooprec)) write(*,'(a,4i3)')'3H link 6 id:',&
-!           done,intrec%fraclink(1),intrec%tooprec%uniqid
-! The endmember record is either tint(1) or tint(2)
-      if(intrec%fraclink(1).eq.tint(2)) then
-! In this case the endmember record must be tint(1)
+!           done,intrec%fraclink(1),intrec%tooprec%toopid
+! The endmember record is either conx(1) or conx(2)
+      if(intrec%fraclink(1).eq.conx(2)) then
+! In this case the endmember record must be conx(1)
          intrec12=>intrec
-         write(*,*)'3H Found interaction 1-2: ',trim(species(1)),'-',&
-              trim(species(2)),associated(intrec12%tooprec)
-      elseif(intrec%fraclink(1).eq.tint(3)) then
-! The endmember record can be tint(1) or tint(2)
-         if(done.eq.tint(1)) then
+!         write(*,*)'3H Found interaction 1-2: ',trim(species(1)),'-',&
+!              trim(species(2)),associated(intrec12%tooprec)
+      elseif(intrec%fraclink(1).eq.conx(3)) then
+! The endmember record can be conx(1) or conx(2)
+         if(done.eq.conx(1)) then
             intrec13=>intrec
-            write(*,*)'3H Found interaction 1-3: ',trim(species(1)),'-',&
-                 trim(species(3)),associated(intrec13%tooprec)
+!            write(*,*)'3H Found interaction 1-3: ',trim(species(1)),'-',&
+!                 trim(species(3)),associated(intrec13%tooprec)
          else
             intrec23=>intrec
-            write(*,*)'3H Found interaction 2-3: ',trim(species(2)),'-',&
-                 trim(species(3)),associated(intrec23%tooprec)
+!            write(*,*)'3H Found interaction 2-3: ',trim(species(2)),'-',&
+!                 trim(species(3)),associated(intrec23%tooprec)
             exit intwith1
          endif
       endif
       intrec=>intrec%nextlink
    enddo intwith1
-   if(done.eq.tint(1)) then
+!   write(*,*)'3H finished intwith1 loop',conx(1),conx(2),conx(3)
+!   if(associated(intrec12) .and. associated(intrec13) .and. &
+!        associated(intrec23)) then
+!      write(*,*)'3H we have pointers to intrec12, intrec13 and intrec2'
+!   endif
+   if(done.eq.conx(1)) then
  ! we have searched the whole ternary list from intrec12 and intrec13?
-     done=tint(2); intrec=>intrec2; goto 200
+     done=conx(2); intrec=>intrec2; goto 200
    endif
-!--------------------------------------------------------------
-! This seems to work: have a global list of tooprecords and allocate the 
-! toophead%seq record to use when linking together the ternaries.
-! This sequential list of tooprecord is not used for anything.
-! We have not really linked the method yet, only found the binaries where we
-! should find the records to set the links to the tooprecord.
-! we have now links from the 3 binary interaction records (same may be null)
-! Link the new record from these and copy the previos method records to
-! the new method record.
-   allocate(toophead%seq)
-   method=>toophead%seq
-   method%toop=toop
-   method%const1=tint(1)
-   method%const2=tint(2)
-   method%const3=tint(3)
-   nullify(method%next12); nullify(method%next13); nullify(method%next23)
-   method%extra=0
-   uniqid=uniqid+1
-   method%uniqid=uniqid
-! problem to insert this record in the structure ...
-! seach the end of all lists of methods to add the new one
-!   write(*,97)uniqid,toop,tint,(trim(species(jj)),jj=1,3),&
-!        associated(intrec12),associated(intrec13),associated(intrec23)
-97 format('3H created method record: ',2i3,2x,3i3," : ",a,1x,a,1x,a,2x,3l2)
-!=====================================================================
-! search for the last tooprec for each binary and check for duplicates
-! if no tooprec records then link from intrec12%tooprec
-! New method A-B-C, we have found interaction records (if null no binary param)
-! intrec12: a list with methods A-B-X, A-X-B or X-A-B. Duplicate if A-B-C exist
-!               next links can be A-B-X, A-X-B or X-A-B 
-! intrec13: a list with methods A-C-X or A-X-C
-! intrec23: a list with methods B-C-X and B-X-C
+! end loop 200
+!=================== here we create the tooprec recotds =====================
+! In  gtp_phaserecord pointers toopfirst, tooplast include all tooprec records
+! It is needed to list the ternary extrapolation.  It also has lasttoopid
+! The gtp_intrec has a tooprec pointer with tooprec data for that interaction
+! Each ternary AMEND TERNARY will be saved in one of the tooprec records 
+   if(.not.associated(phlista(lokph)%tooplast)) then
+! the phase ternary extrapolation record needed for listing only
+      allocate(phlista(lokph)%toopfirst)
+      phlista(lokph)%tooplast=>phlista(lokph)%toopfirst
+      phlista(lokph)%lasttoopid=0
+! nullify the nexttoop pointer in toopfirst
+      nullify(phlista(lokph)%toopfirst%nexttoop)
+      phlista(lokph)%toopfirst%amend=' '
+   endif
+! phase record has pointers toopfirst and tooplast and integer lasttoopid
+! interaction record has pointer tooprec needed for calculations
+! the tooprec record are linked by nexttoop with a sequantial index toopid
+! Each original AMEND command is saved in one tooprec
+   saveamend=.TRUE.
+!------------------------ create a tooprec for binary 1-2
+! Check if intrec12 already has a tooprec, (nullified when intrec created)
    if(.not.associated(intrec12)) then
-! There is no binary interaction record, no place to store a link
-!      write(*,103)trim(species(1)),trim(species(2))
-103   format('3H No interaction record',a,'-',a)
+      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(2))))
+220   format('3H the system ',a,'-,',a,' has no binary excess')
+   elseif(.not.associated(intrec12%tooprec)) then
+! we must create a tooprec for this binary interaction
+!      write(*,*)'3H creating tooprec for ',trim(species(1)),'-',&
+!           trim(species(2))
+      allocate(newtoop)
+! add the new tooprec in the list from phlista(lokph)%tooplast and add uniqeid
+      newtoop%nexttoop=>phlista(lokph)%tooplast
+      phlista(lokph)%tooplast=>newtoop
+      phlista(lokph)%lasttoopid=phlista(lokph)%lasttoopid+1
+      newtoop%toopid=phlista(lokph)%lasttoopid
+! link the tooprecord from intrec12%tooprec
+      intrec12%tooprec=>newtoop
+! Allocate space for data, this binary may have several ternary extrapolations
+      allocate(newtoop%Toop1(3))
+      allocate(newtoop%Toop2(3))
+      allocate(newtoop%Kohler(3))
+! zero all values
+      newtoop%Toop1=0
+      newtoop%Toop2=0
+      newtoop%Kohler=0
+! when accessing unassigned Toop1, Toop2 and Kohler I got segmentation error
+!      write(*,*)'3H created tooprec for 1-2'
+      jj=1
+      newtoop%free=jj
+      newtoop%amend=' '
+! set crosslinks with interaction record
+      newtoop%binint=>intrec12
+      intrec12%tooprec=>newtoop
    else
-!---------------------------------------------------------------- A-B
-! Linking from binary A-B
-      duplicate=>intrec12%tooprec
-      nextmethod=0
-!      write(*,105)' 1-2 ',associated(duplicate),nextmethod,&
-!           trim(species(1)),trim(species(2))
-105   format('3H linking ',a,l2,i2,': ',a,'-',a)
-      if(associated(duplicate)) then
-! The constituents in each method records are always ordered alphabetically
-! %const1<%const2<%const3 X<Y<Z and tint(1)<tint(2)<tint(3), A<B<C
-! X can be %const1 or %const2 and Y can be %const2 or %const3
-! Check also for duplicates
-         next12: do while(associated(duplicate))
-! save link to duplicate
-            next=>duplicate
-!            write(*,107)'3H The intrec12 list: ',trim(species(1)),&
-!                 trim(species(2)),trim(species(3)),duplicate%uniqid,&
-!                 tint(1),tint(2),&
-!                 duplicate%const1,duplicate%const2,duplicate%const3,next%uniqid
-107         format(a,a,'-',a,' with ',a,i3,3x,2i3,2x,3i3,5x,i3)
-! In this method A<B can be any combination of %const1<%const2<%const3
-! BUT THE THEY ARE ALL IN INCREASING ORDER 
-! %const1 can be less than tint(1) but if so %const2 must be equal to tint(1)
-! we also have to check if the new is a duplicate and which next link to follow
-            if(duplicate%const1.eq.tint(1)) then
-! When %const1=tint(1) then tint(2) can be %const2 or %const3
-               if(duplicate%const2.eq.tint(2)) then
-! Method A-B-X, Check if this is a duplicate
-                  if(duplicate%const3.eq.tint(3)) then
-                     write(*,*)'3H found duplicate 1'; goto 1100
-                  endif
-! The A-B is the first binay, use the first link, %cont3 is not tint(3)
-                  nextmethod=1
-                  duplicate=>duplicate%next12
-               elseif(duplicate%const3.eq.tint(2)) then
-! Method A-X-B with A-B as the second binary, X cannot be tint(3) as higher
-                  nextmethod=2
-                  duplicate=>duplicate%next13
-               else
-! ERROR as no binary A-B in this method 
-                  write(*,*)'3H exit 1'
-                  goto 1200
-                  exit next12
-               endif
-            elseif(duplicate%const2.eq.tint(1) .and.&
-                 duplicate%const3.eq.tint(2)) then
-! Metod X-A-B with A-B as the third binary, X cannot be tint(3)
-               nextmethod=3
-               duplicate=>duplicate%next23
-!               write(*,*)'3H take next23 link ',associated(duplicate)
-            else
-!               write(*,130)duplicate%uniqid,&
-!                    duplicate%const2,tint(2),duplicate%const3,tint(3)
-130            format('3H not found? ',i3,5x,2i4,2x,2i4)
-! ERROR as no binary A-B in this method 
-               write(*,*)'3H exit 2'
-               goto 1200
-               exit next12
-            endif
-            write(*,*)'3H loop duplicate: ',associated(next),nextmethod
-         enddo next12
+! there is already a ternary extrapolation record for this binary
+      newtoop=>intrec12%tooprec
+      jj=size(newtoop%Toop1)
+      if(newtoop%free.eq.jj) then
+         write(*,*)'3H extending tooprecord for 1-2',newtoop%toopid,jj
+! This should dynamically expand the arrays keeping old content
+         newtoop%Toop1 = [ newtoop%Toop1, ( 0, kk=1,jj+5 ) ]
+         newtoop%Toop2 = [ newtoop%Toop2, ( 0, kk=1,jj+5 ) ]
+         newtoop%Kohler = [ newtoop%Kohler, ( 0, kk=1,jj+5 ) ]
+         write(*,'(a,10i4)')'3H extended: ',newtoop%Toop1
       endif
-! we come here at the end of the list of methods including the A-B binary
-! This is the first method for the binary A-B, note duplicate is null!
-      if(nextmethod.eq.0) then
-         intrec12%tooprec=>method
-!         write(*,120)trim(species(1)),trim(species(2))
-120      format('3H New method linked from interacion: ',a,'-'a)
-      else
-! insert the correct link, note duplicate is null !!
-         if(nextmethod.eq.1) next%next12=>method
-         if(nextmethod.eq.2) next%next13=>method
-         if(nextmethod.eq.3) next%next23=>method
-!         write(*,121)next%uniqid,nextmethod,next%const1,next%const2,next%const3
-121      format('3H New method linked 1B:',i3,2x,i3,2x,3i3)
+      jj=newtoop%free+1
+      newtoop%free=jj
+   endif
+! finally enter the data for 1-2 extrapolation
+! if A is Toop the fraction index of A is in xter3(1)
+! if B is Toop the fraction index of B is in xter3(2)
+!   if(xter3(1).gt.0 .and. xter3(1).ne.conx(1)) newtoop%Toop1(jj)=xter3(1)
+!   if(xter3(2).gt.0 .and. xter3(2).ne.conx(2)) newtoop%Toop2(jj)=xter3(2)
+! if C is Kohler the negative fraction index of C is in xter3(1)
+   if(xter3(1).lt.0) then
+      newtoop%Kohler(jj)=xter3(1)
+   else
+! VERY uncertain here ....
+      if(xter3(1).ne.conx(1)) then
+         newtoop%Toop1(jj)=xter3(1)
+      elseif(xter3(1).ne.conx(2)) then
+         newtoop%Toop1(jj)=xter3(1)
       endif
    endif
-!   write(*,*)'3H linked method for 1-2'
-!----------------------------------------------- A-C, tint(1)-tint(3)
-! A method here X<Y<Z can have A-C as any binary
+! extract the elements from the interaction record
+   write(*,600)trim(species(1)),trim(species(2)),trim(species(3)),xter3,&
+        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+! xter3 refers to the binary 1, 2 or 3
+! conx is constituent index
+!   
+!-------------------------------------------------------------------
+   if(saveamend .and. len(newtoop%amend).le.1) then
+! we can only save 1 amend command in each topec record ...
+      newtoop%amend=trim(amend)
+      saveamend=.FALSE.
+      write(*,*)'3H saved amend: ',newtoop%amend
+   endif
+   write(*,*)'3H Finished storing data for tooprec 1-2'
+!------------ repeat (almost) the same thing for binary 1-3 -------------
+! Check if intrec12 exist and already has a tooprec
    if(.not.associated(intrec13)) then
-!      write(*,103)trim(species(1)),trim(species(3))
+      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(3))))
+   elseif(.not.associated(intrec13%tooprec)) then
+! we must create a tooprec for this binary interaction
+      write(*,*)'3H creating tooprec for ',trim(species(1)),'-',trim(species(3))
+      allocate(newtoop)
+! add the new tooprec in the list from phlista(lokph)%tooplast and add uniqeid
+      newtoop%nexttoop=>phlista(lokph)%tooplast
+      phlista(lokph)%tooplast=>newtoop
+      phlista(lokph)%lasttoopid=phlista(lokph)%lasttoopid+1
+      newtoop%toopid=phlista(lokph)%lasttoopid
+! link the tooprecord from intrec13%tooprec
+      intrec13%tooprec=>newtoop
+! Allocate space for data, this binary may have several ternary extrapolations
+      allocate(newtoop%Toop1(3))
+      allocate(newtoop%Toop2(3))
+      allocate(newtoop%Kohler(3))
+      newtoop%Toop1=0
+      newtoop%Toop2=0
+      newtoop%Kohler=0
+!      write(*,*)'3H created tooprec for 1-3'
+      jj=1
+      newtoop%free=jj
+      newtoop%amend=' '
+! set crosslinks with interaction record
+      newtoop%binint=>intrec13
+      intrec13%tooprec=>newtoop
    else
-      duplicate=>intrec13%tooprec
-      nextmethod=0
-!      write(*,105)' 1-3 ',associated(duplicate),nextmethod,&
-!           trim(species(1)),trim(species(3))
-      if(associated(duplicate)) then
-! The constituents in each method records are always ordered alphabetically
-! %const1<%const2<%const3 X<Y<Z and tint(1)<tint(2)<tint(3), A<B<C
-! X can be %const1 or %const2 and Y can be %const2 or %const3
-! Check also for duplicates
-         next13: do while(associated(duplicate))
-            next=>duplicate
-!            write(*,107)'3H The intrec13 list: ',trim(species(1)),&
-!                 trim(species(2)),trim(species(3)),duplicate%uniqid
-! In this method A<B can be any combination of %const1<%const2<%const3
-! BUT THE THEY ARE ALL IN INCREASING ORDER 
-! %const1 can be less than tint(1) but if so %const2 must be equal to tint(1)
-! we also have to check if this is duplicate or which next link to follow
-            if(tint(1).eq.duplicate%const1) then
-! When %const1=tint(1) tint(3) must be %cont3
-               if(duplicate%const2.eq.tint(3)) then
-! Method A-C-X, no duplicate as tint(2)<tint(3) 
-!                  if(duplicate%const3.eq.tint(3)) write(*,*)'3H duplicate 1'
-!                  if(tint(2).eq.duplicate%const3) goto 1100
-! The A-C is the first binary, use the first link
-                  nextmethod=1
-                  duplicate=>duplicate%next12
-               elseif(duplicate%const3.eq.tint(3)) then
-! Method A-X-C, no duplicate possible
-                  nextmethod=2
-                  duplicate=>duplicate%next13
-               else
-! Error as there is no A-C binary
-                  write(*,*)'3H exit 3'  
-                  goto 1200
-                  exit next13
-               endif
-            elseif(duplicate%const2.eq.tint(1) .and.&
-                 duplicate%const3.eq.tint(2)) then
-               nextmethod=3
-               duplicate=>duplicate%next23
-            else
-! No A-C in this method, it does no fit in this list!
-               write(*,*)'3H exit 4'
-               goto 1200
-               exit next13
-            endif
-         enddo next13
+! there is already a ternary extrapolation record for this binary
+      newtoop=>intrec13%tooprec
+      jj=size(newtoop%Toop1)
+      if(newtoop%free.eq.jj) then
+         write(*,*)'3H extending tooprecord for 1-2',newtoop%toopid,jj
+! This should dynamically expand the arrays keeping old content
+         newtoop%Toop1 = [ newtoop%Toop1, ( 0, kk=1,jj+5 ) ]
+         newtoop%Toop2 = [ newtoop%Toop2, ( 0, kk=1,jj+5 ) ]
+         newtoop%Kohler = [ newtoop%Kohler, ( 0, kk=1,jj+5 ) ]
+         write(*,'(a,10i4)')'3H extended: ',newtoop%Toop1
       endif
-! we come here at the end of the list of methods including the A-B binary
-! This is the first method for the binary A-B
-      if(nextmethod.eq.0) then
-         intrec13%tooprec=>method
-!         write(*,120)trim(species(1)),trim(species(3))
-      else
-! insert the correct link
-         if(nextmethod.eq.1) next%next12=>method
-         if(nextmethod.eq.2) next%next13=>method
-         if(nextmethod.eq.3) next%next23=>method
-!         write(*,121)next%uniqid,nextmethod,next%const1,next%const2,next%const3
+      jj=newtoop%free+1
+      newtoop%free=jj
+   endif
+! enter the data for 1-3 extrapolation A-C-B    ... does not exist in OC
+! if A is Toop the fraction index of A shoule be in extrapolatio(1)
+! if C is Toop the fraction index of B should be in extrapolatio(3)
+!   if(xter3(1).gt.0 .and. xter3(1).ne.conx(2)) newtoop%Toop1(jj)=xter3(2)
+!   if(xter3(3).gt.0 .and. xter3(2).ne.conx(2)) newtoop%Toop2(jj)=xter3(2)
+! if B is Kohler the negative fraction index of C shoule be in extrapolatio(2)
+   if(xter3(2).lt.0) then
+      newtoop%Kohler(jj)=xter3(2)
+   else
+      if(xter3(2).ne.conx(2)) then
+         newtoop%Toop1(jj)=xter3(2)
+      elseif(xter3(2).ne.conx(2)) then
+         newtoop%Toop1(jj)=xter3(2)
       endif
    endif
-!   write(*,*)'3H linked method for 1-3'
-!----------------------------------------------- B-C list
+!
+   write(*,600)trim(species(1)),trim(species(3)),trim(species(2)),xter3,&
+        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+! we may not have managed to save the amend?
+   if(saveamend .and. len(newtoop%amend).le.1) then
+! we can only save one amend command in each toprec record ...
+! I am not sure if it has to be allocated or have fixed length ...
+      newtoop%amend=trim(amend)
+      saveamend=.FALSE.
+      write(*,*)'3H saved amend: ',newtoop%amend
+   endif
+!   write(*,*)'3H Finished storing data for tooprec 1-3'
+!------------ repeat (almost) the same thing for binary 2-3 -------------
+! Check if intrec12 exist and already has a tooprec
    if(.not.associated(intrec23)) then
-!      write(*,103)trim(species(2)),trim(species(3))
+      write(*,220)trim(species(abs(conx(2)))),trim(species(abs(conx(3))))
+   elseif(.not.associated(intrec23%tooprec)) then
+! we must create a tooprec for this binary interaction
+      write(*,*)'3H creating tooprec for ',trim(species(2)),'-',trim(species(3))
+      allocate(newtoop)
+! add the new tooprec in the list from phlista(lokph)%tooplast and add uniqeid
+      newtoop%nexttoop=>phlista(lokph)%tooplast
+      phlista(lokph)%tooplast=>newtoop
+      phlista(lokph)%lasttoopid=phlista(lokph)%lasttoopid+1
+      newtoop%toopid=phlista(lokph)%lasttoopid
+! link the tooprecord from intrec13%tooprec
+      intrec23%tooprec=>newtoop
+! Allocate space for data, this binary may have several ternary extrapolations
+      allocate(newtoop%Toop1(3))
+      allocate(newtoop%Toop2(3))
+      allocate(newtoop%Kohler(3))
+      newtoop%Toop1=0
+      newtoop%Toop2=0
+      newtoop%Kohler=0
+!      write(*,*)'3H created tooprec for 2-3'
+      jj=1
+      newtoop%free=jj
+      newtoop%amend=' '
+! set crosslinks with interaction record
+      newtoop%binint=>intrec23
+      intrec23%tooprec=>newtoop
    else
-      duplicate=>intrec23%tooprec
-      nextmethod=0
-!      write(*,105)' 2-3 ',associated(duplicate),nextmethod,&
-!           trim(species(2)),trim(species(3))
-      if(associated(duplicate)) then
-! The constituents in each method records are always ordered alphabetically
-! %const1<%const2<%const3 X<Y<Z and tint(1)<tint(2)<tint(3), A<B<C
-! X can be %const1 or %const2 and Y can be %const2 or %const3
-! Check also for duplicates
-         next23: do while(associated(duplicate))
-            next=>duplicate
-!            write(*,107)'3H The intrec23 list: ',trim(species(1)),&
-!                 trim(species(2)),trim(species(3)),duplicate%uniqid
-! In this method A<B can be any combination of %const1<%const2<%const3
-! BUT THE THEY ARE ALL IN INCREASING ORDER 
-! %const1 can be less than tint(1) but if so %const2 must be equal to tint(1)
-! we also have to check if this is duplicate or which next link to follow
-            if(duplicate%const1.eq.tint(1)) then
-               if(duplicate%const2.eq.tint(2)) then
-! Method A-C-X, Check if this is a duplicate is redundant 
-                  if(duplicate%const3.eq.tint(3)) write(*,*)'3H duplicate 2'
-                  if(tint(3).eq.duplicate%const3) goto 1100
-! The A-C is the first binay, use the first link
-                  nextmethod=1
-                  duplicate=>duplicate%next12
-               elseif(tint(3).eq.duplicate%const3) then
-! Method B-X-C Check for duplicate is redundant as tint(2)<tint(3)=%const3
-!               if(tint(2).eq.duplicate%const3) goto 1100
-! The A-C is the second binary, use the second link
-                  nextmethod=2
-                  duplicate=>duplicate%next13
-               else
-                  write(*,*)'3H exit 5'
-                  goto 1200
-                  exit next23
-               endif
-            elseif(tint(1).eq.duplicate%const2 .and.&
-                 tint(2).eq.duplicate%const3) then
-! Method X-A-C, duplicate check probably redundant
-               if(duplicate%const1.eq.tint(1)) write(*,*)'3H duplicate 3'
-               if(tint(1).eq.duplicate%const1) goto 1100
-               nextmethod=3
-               duplicate=>duplicate%next23
-            else
-! No A-C in this method does no fit in this list!
-               write(*,*)'3H exit 6'
-               goto 1200
-               exit next23
-            endif
-         enddo next23
+! there is already a ternary extrapolation record for this binary
+      newtoop=>intrec23%tooprec
+      jj=size(newtoop%Toop1)
+      if(newtoop%free.eq.jj) then
+         write(*,*)'3H extending tooprecord for 1-2',newtoop%toopid,jj
+! This should dynamically expand the arrays keeping old content
+         newtoop%Toop1 = [ newtoop%Toop1, ( 0, kk=1,jj+5 ) ]
+         newtoop%Toop2 = [ newtoop%Toop2, ( 0, kk=1,jj+5 ) ]
+         newtoop%Kohler = [ newtoop%Kohler, ( 0, kk=1,jj+5 ) ]
+         write(*,'(a,10i4)')'3H extended: ',newtoop%Toop1
       endif
-! we come here at the end of the list of methods including the A-B binary
-! This is the first method for the binary A-B
-      if(nextmethod.eq.0) then
-         intrec23%tooprec=>method
-!         write(*,120)trim(species(2)),trim(species(3))
-      else
-! insert the correct link
-         if(nextmethod.eq.1) next%next12=>method
-         if(nextmethod.eq.2) next%next13=>method
-         if(nextmethod.eq.3) next%next23=>method
-!         write(*,121)next%uniqid,nextmethod,next%const1,next%const2,next%const3
+      jj=newtoop%free+1
+      newtoop%free=jj
+   endif
+! enter the data for 2-3 extrapolation B-C-A
+! enter the data for 1-3 extrapolation A-C-B
+! if B is Toop the fraction index of B shoule be in extrapolatio(2)
+! if C is Toop the fraction index of C should be in extrapolatio(3)
+! if A is Kohler the negative fraction index of A shoule be in extrapolatio(1)
+! A negative value in Toop1 or Toop2 is ignored as well as a positive in Kohler
+!   if(xter3(3).gt.0 .and. xter3(3).ne.toopcon(3)) newtoop%Toop1(jj)=toopcon(3)
+!   if(xter3(3).gt.0 .and. xter3(3).ne.toopcon(3)) newtoop%Toop2(jj)=toopcon(3)
+   if(xter3(3).lt.0) then
+      newtoop%Kohler(jj)=xter3(3)
+   else
+      if(xter3(3).ne.conx(3)) then
+         newtoop%Toop1(jj)=xter3(3)
+      elseif(xter3(2).ne.conx(2)) then
+         newtoop%Toop1(jj)=xter3(3)
       endif
    endif
-!   write(*,*)'3H linked method for 2-3'
+!
+   write(*,600)trim(species(2)),trim(species(3)),trim(species(1)),xter3,&
+        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+600 format('3H Binary ',a,'-',a,' extrapolerad to ',a,': ',4(3i3,2x))
+! same problem unsolved ------------- In OC a ternary B-C-A does not exist
+   if(saveamend .and. len(newtoop%amend).le.1) then
+! we can only save one amend command in each toprec record ...
+! But each amend command creates 3 tooprec records ...
+      newtoop%amend=trim(amend)
+      saveamend=.FALSE.
+      write(*,*)'3H saved amend: ',newtoop%amend
+   else
+      write(*,*)'3H Filed to save: ',trim(amend)
+   endif
+   write(*,*)'3H Finished storing data for tooprec 2-3'
 !===================================================================
 ! Puuuuuuuuuuuuuuuuuhhhhhhhhhhhhhhhhhhhh
-!   write(*,510)'3H Toop/Kohler record:',method%uniqid,method%toop,&
-!        method%const1,method%const2,method%const3,method%extra,&
-!        associated(method%next12),associated(method%next13),&
-!        associated(method%next23)
-510 format(a,6i4,3L2)
 1000 continue
    return
 ! Error: Found duplicate method
 1100 continue
-   write(*,1110)duplicate%uniqid,duplicate%const1,duplicate%const2,&
-        duplicate%const3,tint(1),tint(2),tint(3)
-1110 format('3H Error found duplicate method ',i3,5x,3i3,5x,3i3)
+!   write(*,1110)duplicate%uniqid,duplicate%const1,duplicate%const2,&
+!        duplicate%const3,conx(1),conx(2),conx(3)
+!   write(*,1110)duplicate%uniqid,trim(species(1)),trim(species(2)),&
+!        trim(species(3)),conx(1),conx(2),conx(3)
+1110 format('3H Error: The ternary ',a,1x,a,1x,a,1x,' &
+          already has a ternary extrapolation',3i3)
    gx%bmperr=4399; goto 1000
 ! Error: Trying to enter a method with wrong set of constituents
 1200 continue
-   write(*,1210)trim(species(1)),trim(species(2)),trim(species(3)),tint,&
-        duplicate%const1,duplicate%const2,duplicate%const3
+!   write(*,1210)trim(species(1)),trim(species(2)),trim(species(3)),conx,&
+!        duplicate%const1,duplicate%const2,duplicate%const3
 1210 format('3H Error: ternary system with ',a,'-',a,'-',a,': ',3i3,&
           ' does not fit method: ',3i3)
  end subroutine add_ternary_extrapol_method

@@ -2,7 +2,7 @@
 ! gtp3XQ for for MQMQA
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
-!>     15. Section: calculate G and other things
+!>     15. Section: calculate G and other things for MQMQA and Toop/Kohler
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
@@ -1579,7 +1579,6 @@
                else
                   b2iXY(s1)=fff2
                endif
-331         format('3Xq n(',a2,'): ',3i3,2i3,4F7.4,2x,a)
 ! equivalent site fraction, each mixing element will be counted twice
 ! for quadrupole with 4 pairs fffy=0.25; otherwice 0.5
 ! >>>>>>>>>>>>>>>>>>> ................ EQUATION B17 part 2
@@ -2658,28 +2657,35 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !\addtotable subroutine calc_toop
-! called from subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
+! called from cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
 !\begin{verbatim}
  subroutine calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
-! Handle a binary interaction that is in a Toop or Kohler model
-! toop is the link to the kohler-Toop record
-! We come here only if the parameter is composition dependent using RK series
+! This routine replaces all calculations inside cgint for Toop/Kohler excess
+! Handle a binary interaction parameter with Toop or Kohler extrapolation
+! toopx is the link to the kohler-Toop record
+! toopx%binint is pointer back to calling subroutine
+! A single composition dependent binary parameter is calculated
+! But in the Toop/Kohler we can have additional fraction variables
    implicit none
    integer moded,lokph
    TYPE(gtp_property), pointer :: lokpty
    TYPE(gtp_parcalc) :: gz
    double precision vals(6),dvals(3,gz%nofc)
    double precision d2vals(gz%nofc*(gz%nofc+1)/2)
-   TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_tooprec), pointer :: toopx
+   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-! we need to save this pointer from toopx
+! we use this to save the pointer from toopx
    TYPE(gtp_phase_varres), pointer :: phres
 ! fraction values to be used in RK series
    double precision x12,x21,sigma,dxrk
    integer, allocatable, dimension(:) :: dsigma, dx12, dx21
 ! ternary fraction index
    integer jj(3),j1,j2,j3,link,count,toopconst,limit,jdeg,lfun,nyfr,tkdeb
+! loop veriables 
+   integer qz,nt,ic,cc
+! to indicate if there are no constituents in toop1, toop2 or kohler arrays
+   logical not1,not2,nok
 ! for the RK calculation with Toop/Kohler fractions!
    double precision valtp(6)
    double precision dx,dx0,dx1,dx2,dxi,dxj,fff,rtg
@@ -2687,16 +2693,28 @@
 ! the gz record has information which elements involved
 ! gz%iq(1) and gz%iq(2) are index of the binary constituents
 ! We must also handle first and second derivatives wrt all fractions.
-! we come here from a binary interaction recird but we may have to follow
-! links to several other toopx records with other third elements.
+!    as the binary fractions are modified by adding or subtractions
+! we come here from a binary interaction record will only deal with this
+! These are arrays with additional fractions for to calculate derivatives
+   integer toop1(5),toop2(5),kohler(10),ntp1,ntp2,nkh
+!
 ! Use the phres passed on via toopx%phres if there are more toopx records
-   phres=>toopx%phres
+! this link to phres is copied to toopx%phres before the call
+! in gtp3X, subroutine calcg_internal around line 858
+   write(*,*)'3XQ we are in calc_toop'
+   if(associated(toopx%phres)) then
+      phres=>toopx%phres
+!      write(*,*)'3QX phres pointer is assigned'
+   else
+      write(*,*)'3QX phres pointer is not assigned entering calc_toop'
+      gx%bmperr=4399; goto 1000
+   endif
 ! debug level 0 nothing, 1 minimum, 2 Toop, 3 all
-   tkdeb=0
+   tkdeb=1
 !
    if(tkdeb.gt.0) write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
-10 format('3X in calc_toop & Kohler with binary; degree:',2i3,'; ',i2)
-! note vals, dvals and d2vals hare zero here
+10 format('3XQ in calc_toop & Kohler with binary;',2i3,' degree; ',i2)
+! NOTE vals, dvals and d2vals set to zero before calling this routine
    rtg=gz%rgast
    if(lokpty%degree.eq.0) then
 ! quick exit if no composition dependence
@@ -2706,149 +2724,104 @@
       if(lokpty%proptype.eq.1) then
          valtp=valtp/rtg
       endif
-! this is multiplied with y_i y_j (and derivatives) at the return
+! this is multiplied with y_i y_j (and their derivatives) at the return
       vals=vals+valtp
       goto 1000
    endif
-! We have to calculate the reduced fractions
+! We have to calculate the reduced fractions, it can involve many fractions
    nyfr=size(phres%yfr)
    allocate(dsigma(nyfr))
    allocate(dx12(nyfr))
    allocate(dx21(nyfr))
-! max number of binaries ...
-   limit=nyfr*(nyfr-1)
+   dsigma=zero
+   dx12=zero
+   dx21=zero
 ! initially dsigma is set to 1, i.e. derivatives with respect to all
-! constituents.  Those subtracted will be set to zero
-   dsigma=one; dx12=0; dx21=0
+! constituents.
    sigma=one
    x12=phres%yfr(gz%iq(1))
    x21=phres%yfr(gz%iq(2))
-   dx12(gz%iq(1))=1
-   dx21(gz%iq(2))=1
-! This is the RK Muggianu fraction difference
-   dxrk=x12-x21
-   count=0
-!-----------------------------------------------------------------
-! See gtp documentation, Appendix A for the algorithm used here
-!-----------------------------------------------------------------
-   method: do while(associated(toopx))
-! we may have several Toop/Kohler ternary methods for this binary
-      count=count+1
-      if(count.gt.limit) then
-! something wrong in the data structure, eternal loop!
-         write(*,*)'3X data structure error 1 in calc_toop',count
-         gx%bmperr=4399; goto 1000
-      endif
-! in the toopx record there are indices of the fractions needed   
-!     integer toop,const1,const2,const3,extra,uniqid
-! Note const1 < const2 < const3; toop is 1, 2 or 3
-      jj(1)=toopx%const1
-      jj(2)=toopx%const2
-      jj(3)=toopx%const3
-      toopconst=0
-      if(toopx%toop.gt.0) toopconst=jj(toopx%toop)
-      if(tkdeb.gt.2) write(*,30)count,toopconst,jj,toopx%uniqid
-30    format('3X Ternary method record:',i2,', T/K: ',i1,5x,3i3,', ID: ',i2)
-! we have to figure out which constituent is neither gx%iq(1) or iq(2)
-! and we have find the idex for thr next toopx record (if any).
-! The toopx record is linked from all 3 binaries and there can be links from
-! this record that must be followed.  The constituents are in increasing order 
-! Could this be simplified using select case ??
-      ett: if(jj(1).eq.gz%iq(1)) then
-         tva: if(jj(2).eq.gz%iq(2)) then
-!---------------------------------------------------------------
-! we are dealing with the binary: 1-2, any link to next is next12
-!            link=1
-            toopx=>toopx%next12
-            if(toopconst.eq.0) then
-! the binary 1-2 is a Kohler extrapolation ftom 3
-! There is no derivative in dsigma with respect to this constituent
-               sigma=sigma-phres%yfr(jj(3))
-               dsigma(jj(3))=0
-            elseif(toopconst.eq.jj(1)) then
-! constituent 1 is a Toop element in 1-2-3
-               x21=x21+phres%yfr(jj(3))
-               dx21(jj(3))=1
-            elseif(toopconst.eq.jj(2)) then
-! constituent 2 is a Toop element in 1-2-3
-               x12=x12+phres%yfr(jj(3))
-               dx12(jj(3))=1
-            endif
-! if toopconst.eq.jj(3) do nothing
-         elseif(jj(3).eq.gz%iq(2)) then
-!---------------------------------------------------------------
-! we are dealing with the binary: 1-3, any link to next is next13
-!            link=2
-            toopx=>toopx%next13
-            if(toopconst.eq.0) then
-! the binary 1-3 is a Kohler extrapolation ftom 2
-! There is no derivative in dsigma with respect to this constituent
-               sigma=sigma-phres%yfr(jj(2))
-               dsigma(jj(2))=0
-            elseif(toopconst.eq.jj(1)) then
-! constituent 1 is a Toop element in 1-2-3
-               x21=x21+phres%yfr(jj(2))
-               dx21(jj(2))=1
-            elseif(toopconst.eq.jj(3)) then
-! constituent 2 is a Toop element in 1-2-3
-               x12=x12+phres%yfr(jj(2))
-               dx12(jj(2))=1
-            endif
-! if toopconst.eq.jj(2) do nothing
-         else
-! something is wrong in the data structure
-            write(*,*)'3X data structure error 2 in calc_toop'
-            gx%bmperr=4399; exit method
-         endif tva
-      elseif(jj(2).eq.gz%iq(1)) then
-!---------------------------------------------------------------
-! we are dealing with the binary: 2-3, any link is next23
-!         link=3
-         toopx=>toopx%next23
-         if(toopconst.eq.0) then
-! the binary 2-3 is a Kohler extrapolation ftom 1
-! There is no derivative in dsigma with respect to this constituent
-            sigma=sigma-phres%yfr(jj(1))
-            dsigma(jj(1))=0
-         elseif(toopconst.eq.jj(2)) then
-! constituent 2 is a Toop element in 1-2-3
-            x21=x21+phres%yfr(jj(1))
-            dx21(jj(1))=1
-         elseif(toopconst.eq.jj(3)) then
-! constituent 3 is a Toop element in 1-2-3
-            x12=x12+phres%yfr(jj(1))
-            dx12(jj(1))=1
-         endif
-! if toopconst.eq.jj(1) do nothing
-      else
-! something wrong in the data structure
-         write(*,*)'3X data structure error 3 in calc_toop'
-         gx%bmperr=4399; exit method
-      endif ett
-!-----------------------------------------------------
-! if toopx associated here extract information from that ternary method
-! if toopx not associated exit here
-   enddo method
-! when we come here when we calculated x12, x21 and sigma
-   if(tkdeb.gt.0) then
-      write(*,50)'3X yfr:    ',phres%yfr
-      if(tkdeb.ge.1) write(*,50)'3X x12, x21 mm: ',&
-           x12,x21,sigma,(x12-x21)/sigma,dxrk
-50    format(a,9F8.4)
-      if(tkdeb.gt.2) then
-         write(*,51)'3X dsigma: ',dsigma
-         write(*,51)'3X dx12:   ',dx12
-         write(*,51)'3X dx21:   ',dx21
-51       format(a,9i8)
-      endif
+   if(tkdeb.gt.2) write(*,15)x12,x21,gz%iq(1),gz%iq(2),nyfr
+15 format('3XQ fractions: ',2f8.4,2i5,i7)
+! We have a binary excess parameter which depend on x_A and x_B
+! and a Redlich-Kister polynom (x_A -x_B)/sigma
+! When the data for the system was entered some ternaries were
+! specified as Toop or Kohler and the toopx record created with the
+! information needed for the calculations below
+! For all ternaries A-B-K where the composition of B is constant (Toop)
+! the fraction of K should be added to A, i.e. x12
+!   nt=size(toopx%toop1)
+! crash maybe accessing unassigned values of toopx%top1 YES! ??
+   nt=toopx%free
+   not1=.TRUE.
+   if(tkdeb.gt.2) then
+      write(*,*)'3XQ checking toopx%toop1: ',nt,toopx%free
+      write(*,*)'3XQ size: ',size(phres%yfr)
+      write(*,12)phres%yfr
+12    format('3XQ yfr: ',20F6.4)
    endif
-! Now we use (x12-x21)/sigma in the RK series ...   
-! derivatives of fractions in dx12, dx21 and dsigma
-   dx0=(x12-x21)/sigma
-   rtg=globaldata%rgas*ceq%tpval(1)
-   dx=one
-   dx1=zero
-   dx2=zero
+   do ic=1,nt
+! cc is fraction index of another Toop constituent
+!===================================================================
+! !!!!!!!!!!!!!! CRASH if one access unassigned values of toopx%toop1/2/Kohler
+!===================================================================
+! But setting nt to last assigned rather than size works
+      cc=toopx%toop1(ic)
+      if(cc.gt.0) then
+         x12=x12+phres%yfr(cc); dx12(cc)=one; not1=.FALSE.
+      endif
+   enddo
+! For all ternaries A-B-K where the composition of A is constant (Toop)
+! the fraction of K should be added to B
+   not2=.TRUE.
+   if(tkdeb.gt.2) write(*,*)'3XQ checking toopx%toop2',nt
+   do ic=1,nt
+! cc is fraction index of another Toop constituent in i-j-k
+      cc=toopx%toop2(ic)
+      if(cc.gt.0) then
+         x21=x21+phres%yfr(cc); dx21(cc)=one; not2=.FALSE.
+      endif
+   enddo
+! For all ternaries A-B-K where for which the Kohler method should be used
+! the composition of K should be subtracted from sigma
+   nok=.TRUE.
+   if(tkdeb.gt.2) write(*,*)'3XQ checking toopx%kohler',nt
+   do ic=1,nt
+! cc is fraction index of another Toop constituent
+      cc=toopx%toop1(ic)
+      if(cc.gt.0) then
+         sigma=sigma-phres%yfr(cc); dsigma(cc)=-one; nok=.FALSE.
+      endif
+   enddo
+   if(tkdeb.gt.2) then
+      write(*,17)'3XQ x12:  ',x12,',   dx12:   ',dx12
+      write(*,17)'3XQ x21:  ',x21,',   dx21:   ',dx21
+      write(*,17)'3XQ sigma:',sigma,', dsigma: ',dsigma
+17    format(a,F8.6,a,10F6.3)!
+   endif
+!-----------------------------------------------------------------
+! No documentation of code below (at present), see paper by Pelton 2001
+!-----------------------------------------------------------------
+! in tooprec there are 3 arrays
+! toop1 with toop constitunents to be added to iq(1)
+! toop2 with toop constitunents to be added to iq(2)
+! Kohler with constitunents to be subtracted from sigma
+! Calculate the corrected the binary fractions x12 and x21 and sigma
+! No fractions should be negative!!
+!   if(dx12.le.zero .or. dx21.le.zero .or. sigma.le.zero) then
+   if(sigma.lt.zero) then
+      write(*,*)'3XQ Error: negative sigma in Toop/Kohler extrapolation!'
+      gx%bmperr=4399; goto 1000
+   endif
+! This is the RK fraction difference, sigma is the Kohler divisor
+   dxrk=(x12-x21)/sigma
+!
+   if(tkdeb.gt.0) write(*,20)x12,x21,sigma,dxrk
+20 format('3XQ fractions: ',2F8.4,' sigma,dxrk: ',2F8.4)
+! gz%iq(1) is first constitution, gz%iq(2) in interaction
+   dx12(gz%iq(1))=one/sigma
+   dx21(gz%iq(2))=-one/sigma
+! calculate the RK terms one by one together with derivatives
    RK: do jdeg=0,lokpty%degree
       lfun=lokpty%degreelink(jdeg)
       call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
@@ -2856,50 +2829,23 @@
       if(lokpty%proptype.eq.1) then
          valtp=valtp/rtg
       endif
-! the integral property values
-      vals=vals+dx*valtp
-      if(tkdeb.gt.1) write(*,71)'3X toop: ',&
-           jdeg,gz%iq(1),gz%iq(2),nyfr,vals(1),dx,valtp(1)
-71    format(a,4i2,6(1pe12.4))
-      dercal1:if(moded.gt.0) then
-         if(jdeg.gt.0) then
-            ktloop1: do j1=1,nyfr
-! derivatives with respect to all constituents!!
-! dxij, dxji and dsigma non-zero for the relevant constituents!
-! This must be exact!!!
-               fff=(dx12(j1)-dx21(j1)-dx0*dsigma(j1)/sigma)
-               if(tkdeb.gt.2) write(*,8)'3X fff1:',&
-                    j1,dx12(j1),dx12(j1),dsigma(j1),dx0,dx1,dx2
-8              format(a,4i3,3(1pe12.4))
-               dvals(1,j1)=dvals(1,j1)+fff*dx1*valtp(1)
-               dvals(2,j1)=dvals(2,j1)+fff*dx1*valtp(2)
-               dvals(3,j1)=dvals(3,j1)+fff*dx1*valtp(3)
-               dercal2: if(moded.gt.1) then
-                  ktloop2: do j2=j1,nyfr
-! 2nd derivatives wrt j1 and j2 using dx12(), dx21() and dsigma()
-! This need only to be approximate ...
-                     fff=dsigma(j1)*(-dx12(j2)+dx21(j2)+dx0*dsigma(j2))/sigma**2
-                     if(tkdeb.gt.2) write(*,8)'3X fff2:',j1,j2,0,0,fff
-                     d2vals(ixsym(j1,j2))=d2vals(ixsym(j1,j2))+fff*dx2*valtp(1)
-                  enddo ktloop2
-               endif dercal2
-            enddo ktloop1
-         endif
-      endif dercal1
-      dx2=(jdeg+1)*dx1
-      dx1=(jdeg+1)*dx0
-      dx=dx*dx0
-      if(tkdeb.gt.2) write(*,'(a,i2,4(1pe12.4))')'3X dx etc:',&
-           jdeg,dx0,dx,dx1,dx2
+      vals=vals+dxrk*valtp
+      noder5: if(moded.gt.0) then
+! moded=0 no derivative, =1 first, =2 second; gz%iq(1) is 
+         do qz=1,3
+            dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+dx12(gz%iq(1))*valtp(qz)
+            dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))-dx21(gz%iq(2))*valtp(qz)
+         enddo
+! derivatives wrt Toop1 constintuents, use dx12, dx21 and dsigma
+         
+      endif noder5
    enddo RK
-!      
+!---------------- now the derivatives
+!---------VERY unfinished
 1000 continue
-   if(tkdeb.ge.2) write(*,1001)vals,(dvals(1,j1),j1=1,nyfr),d2vals
-1001 format('3X KT: ',6(1pe11.3)/7x,6(1pe11.3)/7x,6(1pe11.3))
-! Normally only derivatives wrt gz%iq(1) and gz%gq(2) but with Kohler/Toop
-! there can be derivatives wrt any constituent in the same sublattice
+! this is the whole x_A x_B \sum_i (\xi_A - \xi_B)/sigma_AB)^i iL_AB
    return
  end subroutine calc_toop
-
+    
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 

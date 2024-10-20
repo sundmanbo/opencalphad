@@ -590,6 +590,7 @@
 ! THING TO FIX: an I2SL phase with no cations should be accepted but
 ! as a regular solution with 1 site for neutrals, no anions allowed!
 ! When reading the database the first sublattice will be empty
+! Added nullifying toptoop
    implicit none
    character name*(*),model*(*),phtype*(*)
    integer nsl,emodel
@@ -1263,10 +1264,12 @@
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHSROT)
       write(*,*)'3B PHSROT bit set'
    endif
-! nullify links
+! nullify links, added tooprec 241012/BoS
    nullify(phlista(nyfas)%additions)
    nullify(phlista(nyfas)%ordered)
    nullify(phlista(nyfas)%disordered)
+   nullify(phlista(nyfas)%toopfirst)
+   nullify(phlista(nyfas)%tooplast)
 ! initiate phcs, the phase composition set counter for nyfas redundant ??
 ! (not for reference phase 0) 
 !   if(nyfas.gt.0) phcs(nyfas)=1
@@ -7695,6 +7698,7 @@
 ! check we have all necessary quadrupoles
 ! pairs:
    s1=ncon1*ncon2
+   write(*,*)'3B ncon1,ncon2: ',ncon1,ncon2,s1
    if(s1-pair.ne.0) write(*,*)'3B wrong number of endmembers: ',s1,pair
 ! binara SNN:  ncon1*(ncon1-1)/2*ncon2 (in both sublattices): 
 !              (3)(2) means (3*2/2)*(2) + (3)*(2*1/2) =  6+3 = 9

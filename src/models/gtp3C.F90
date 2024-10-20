@@ -1874,7 +1874,8 @@
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon,ftyp,prplink,topline,warning_endmzero
-   character text*3000,phname*24,prop*32,funexpr*1024,toopsp(3)*24,ch1*1
+   integer con1,con2,con3
+   character text*3000,phname*24,prop*32,funexpr*1024,ternex(3)*24,ch1*1
    character special*4,modelid*24
 !   integer, dimension(2,3) :: lint
 ! ?? increased dimension of lint ??
@@ -1888,16 +1889,7 @@
 ! special reference state for MQMQA liquids
    logical mqmqa
 !--------------
-! save all Kohler/Toop ternary records in a pointer array
-! a smart way to have an array of pointers
-   integer, parameter :: maxtoop=50
-! this all tooprecords, tooptop will be initiated to 0 for each phase
-   integer tooptop,tooplink,tooplast,tooplevel
-   TYPE tooprecs
-! this is an array with a pointer to each tooprecords
-      type(gtp_tooprec), pointer :: p1
-   end TYPE tooprecs
-   type(tooprecs), dimension(maxtoop) :: tooparray
+! used to list Toop/Kohler extrapolations
    type(gtp_tooprec), pointer :: tooprec
 !---------------
 ! a smart way to have an array of pointers
@@ -1913,8 +1905,6 @@
    TYPE(gtp_phase_add), pointer :: addrec
 !
 !   write(*,*)'3C in list_phase_data',iph
-! toop/kohler methods
-   tooptop=0
 ! modelid should be used to identify the model
    modelid=' '
    mqmqa=.FALSE.
@@ -2291,70 +2281,8 @@
             write(*,*)'3C overflow in intrecstack 1'
             gx%bmperr=4399; goto 1000
          endif
+! removed Toop/Kohler listing here, done at the end
          intrecstack(nint)%p1=>intrec
-         toop: if(associated(intrec%tooprec)) then
-! Here we collect all Toop/Kohler tooprec and list them after the phase
-!            write(*,*)'3C Found tooprecord',intrec%tooprec%uniqid
-!            exit toop
-            tooprec=>intrec%tooprec
-! tooplast is last tooprec that have had all links searched
-            tooplast=tooptop
-            tooplink=1
-107         continue
-!            write(*,210)'3C found toop record:',tooplink,tooptop,&
-!                 tooprec%uniqid,&
-!                 tooprec%toop,tooprec%const1,tooprec%const2,tooprec%const3,&
-!                 tooprec%extra,associated(tooprec%next12),&
-!                 associated(tooprec%next13),associated(tooprec%next23)
-210         format(a,4i4,2x,3i3,2x,i5,' links: ',3l2)
-! check if already found
-            do kk=1,tooptop
-               if(tooparray(kk)%p1%uniqid.eq.tooprec%uniqid) then
-!                  write(*,*)'3C already found ',tooprec%uniqid
-                  tooplink=tooplink+1
-                  goto 108
-               endif
-            enddo
-! a new tooprec, store it
-            tooptop=tooptop+1
-            tooparray(tooptop)%p1=>tooprec
-!          write(*,*)'3C Adding a tooprec',tooptop,tooparray(tooptop)%p1%uniqid
-            tooplevel=0
-! There are 3 links from each tooprecord, exact all records from these
-! when empty go back one step of the stored tooprecord
-! We do not have to go back further than tooplast.
-108         continue
-!            write(*,*)'3C tooprec links',tooplink,tooprec%uniqid
-            if(tooplink.eq.1) then
-               if(associated(tooprec%next12)) then
-                  tooprec=>tooprec%next12; goto 107
-               else
-                  tooplink=2
-               endif
-            endif
-            if(tooplink.eq.2) then
-               if(associated(tooprec%next13)) then
-                  tooprec=>tooprec%next13; goto 107
-               else
-                  tooplink=3
-               endif
-            endif
-            if(tooplink.eq.3 .and. associated(tooprec%next23)) then
-               tooprec=>tooprec%next23; goto 107
-            endif
-! we have exhausted all links of this tooprec, go back to previous stored
-! until we read tooplast
-!            write(*,*)'3C no nextlinks: ',tooptop,tooplast,tooplevel
-            tooplevel=tooplevel+1
-            if(tooptop-tooplevel.gt.tooplast) then
-!               write(*,*)'3C decreasing to ',tooptop-tooplevel,tooplast
-               tooprec=>tooparray(tooptop-tooplevel)%p1
-               tooplink=1
-               goto 108
-            endif
-! We have checked all tooprecords linked from this binary
-! Back to listing of parameters
-         endif toop
          lint(1,nint)=intrec%sublattice(1)
          kkk=intrec%fraclink(1)
          if(parlist.eq.2) then
@@ -2534,43 +2462,23 @@
       goto 100
    endif
 ! Check if there are toop/kohler ternaries
-   if(tooptop.gt.0) then
-      write(*,'(a)')'3C Some ternaries have Toop/Kohler extrapolation methods.'
-!      goto 1000
-!      write(*,*)'3C Beware, the Toop/Kohler implementation is fragile.'
-      tooploop: do tooplink=1,tooptop
-         tooprec=>tooparray(tooplink)%p1
-!         write(*,*)'3C constitlist: ',(phlista(lokph)%constitlist(kk),kk=1,4)
-!         write(*,210)'3C all toop records:',tooplink,tooprec%uniqid,&
-!              tooprec%toop,&
-!              tooprec%const1,tooprec%const2,tooprec%const3,tooprec%extra,&
-!              associated(tooprec%next12),&
-!              associated(tooprec%next13),associated(tooprec%next23)
-         kk=phlista(lokph)%constitlist(tooprec%const1)
-         toopsp(1)=splista(kk)%symbol
-         kk=phlista(lokph)%constitlist(tooprec%const2)
-         toopsp(2)=splista(kk)%symbol
-         kk=phlista(lokph)%constitlist(tooprec%const3)
-         toopsp(3)=splista(kk)%symbol
-         ch1='K'
-         if(tooprec%toop.gt.1) then
-! For toop ch1 should be T and first constituent the Toop constituent
-            ch1='T'
-            prop=toopsp(1)
-            toopsp(1)=toopsp(tooprec%toop)
-            toopsp(tooprec%toop)=prop
-         endif
-         if(ch1.eq.'K') then
-            write(lut,820)trim(phname),'Kohler',(trim(toopsp(kk)),kk=1,3),&
-                 tooprec%uniqid
-820         format('AMEND PHASE ',a,' TERNARY_EXTRAPOL ',a,3(1x,a),' ! ',i5)
-         else
-            write(lut,820)trim(phname),'Toop',(trim(toopsp(kk)),kk=1,3),&
-                 tooprec%uniqid
-         endif
-            
-      enddo tooploop
-   endif
+   tooprec=>phlista(lokph)%tooplast
+   if(associated(tooprec)) &
+        write(*,'(a)')'3C Some ternaries have Toop/Kohler extrapolations'
+   nsl=1
+   tkloop: do while(associated(tooprec))
+! listing of Toop/Kohler extrapolations taken from tooprec%amend
+! loop through all records, the extrapolations are some of the reconds.
+      if(len(tooprec%amend).gt.1) then
+! ignore records without the amend text
+         write(*,820)tooprec%amend,nsl,tooprec%toopid
+820      format('3C AMEND PHASE ',a,2i5)
+         nsl=nsl+1
+!      else
+!         write(*,*)'3C nothing in record ',nsl,tooprec%toopid
+      endif
+      tooprec=>tooprec%nexttoop
+   enddo tkloop
 !   write(*,*)'3C listing by list_phase_data'
 1000 continue
    return

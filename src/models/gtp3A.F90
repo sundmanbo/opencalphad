@@ -802,7 +802,7 @@
    globaldata%sysparam=0
 !   write(*,*)'3E globaldata%encrypted: ',globaldata%encrypted
 ! initiate Toop/Kohler record counter
-   uniqid=0
+!   uniqid=0
 !
 1000 continue
    return

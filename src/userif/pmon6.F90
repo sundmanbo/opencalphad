@@ -88,7 +88,8 @@ contains
 ! estimated chemical potentials after a grid minimization and TP for ref states
     double precision cmu(maxel),tpa(2)
 ! the beginning of a sequential list of all ternary methods
-    type(gtp_tooprec), allocatable :: toop
+! the tooprec link is separate for each phase, phlista(phase)%tooprec
+!    type(gtp_tooprec), allocatable :: toop
 ! cpu time measurements
     double precision ending,starting
 !>>>> has to be reorganized ------------------------------------
@@ -99,7 +100,7 @@ contains
     type(graphics_options) :: graphopt
     integer grunit
 ! species for ternary extrapolation method
-    character xspecies(3)*24
+    character xspecies(3)*24,tkmode*6
 ! path to start directory declared inside metlib!!
 !    character macropath*128
 ! plot texts
@@ -1210,46 +1211,69 @@ contains
 ! to change default constitution of any composition set give #comp.set.
              call ask_default_constitution(cline,last,iph,ics,ceq)
 !....................................................
-          case(7) ! TERNARY-EXTRAPOL
-             dummy='Kohler'
-! this command is illegal for ionic liquid and if phase has permutations 
+          case(7) ! TERNARY_EXTRAPOL
+! this command is illegal for phases with sublattices (or permutations? ...)
              call get_sublattice_number(iph,ndl,ceq)
              if(gx%bmperr.ne.0) goto 990
              if(ndl.gt.1) then
-                write(*,*)'Toop/Kohler method not allowed with sublattices'
+                write(*,*)'Toop/Kohler extrapolation not allowed ',&
+                     'for phases with 2 or more sublattices'
                 goto 100
              endif
              write(kou,677)
-677 format('Adding a ternary extrapolation method is fragile and',/&
-         'only limited tests made for duplicate entries or other errors.')
-             do while(.true.)
-                call gparcdx('Ternary extrapolation (K, T or Q to quit)',&
+677          format('Adding a ternary extrapolation method is fragile and',/&
+                  'only limited tests has been made')
+             tkloop: do while(.true.)
+                call gparcx('Constituent 1: ',cline,last,1,&
+                     xspecies(1),' ','?Amend phase ternary extrapol')
+                call gparcx('Constituent 2: ',cline,last,1,&
+                     xspecies(2),' ','?Amend phase ternary extrapol')
+                call gparcx('Constituent 3: ',cline,last,1,&
+                     xspecies(3),' ','?Amend phase ternary extrapol')
+                call gparcx('Extrapolations (TiKTi, KKK etc): ',&
+                     cline,last,1,tkmode,' ','?Amend phase ternary extrapol')
+                call capson(tkmode)
+! letters K, M or T allowed in tkmode, T followed by integer, checked inside add
+                call add_ternary_extrapol_method(lokph,tkmode,xspecies)
+                if(gx%bmperr.ne.0) goto 990
+                dummy='N'
+        call gparcdx('Another special ternary extrapolation for this phase?',&
                      cline,last,1,ch1,dummy,'?Amend phase ternary extrapol')
-                dummy='Q'
-                call capson(ch1)
-                if(ch1.eq.'Q') then
-                   goto 100
-                elseif(.not.(ch1.eq.'K' .or. ch1.eq.'T')) then
-                   write(kou,*)'Use K for Kohler or T for Toop or Q to Quit'
-                else
-                   if(ch1.eq.'T') then
-                      call gparcx('Toop constituent: ',cline,last,1,&
-                           xspecies(1),' ','?Amend phase ternary extrapol')
-                   else
-                      call gparcx('First constituent: ',cline,last,1,&
-                           xspecies(1),' ','?Amend phase ternary extrapol')
-                   endif
-                   call gparcx('Second constituent: ',cline,last,1,&
-                        xspecies(2),' ','?Amend phase ternary extrapol')
-                   call gparcx('Third constituent: ',cline,last,1,&
-                        xspecies(3),' ','?Amend phase ternary extrapol')
+             call capson(ch1)
+                if(ch1.ne.'Y') exit tkloop
+             enddo tkloop
+!             
+! redundant code below
+!             do while(.true.)
+!                call gparcdx('Ternary extrapolation (K, T or Q to quit)',&
+!                     cline,last,1,ch1,dummy,'?Amend phase ternary extrapol')
+!                dummy='Q'
+!                call capson(ch1)
+!                if(ch1.eq.'Q') then
+!                   goto 100
+!                elseif(.not.(ch1.eq.'K' .or. ch1.eq.'T')) then
+!                   write(kou,*)'Use K for Kohler or T for Toop or Q to Quit'
+!                else
+!                   if(ch1.eq.'T') then
+!                      call gparcx('Toop constituent: ',cline,last,1,&
+!                           xspecies(1),' ','?Amend phase ternary extrapol')
+!                   else
+!                      call gparcx('First constituent: ',cline,last,1,&
+!                           xspecies(1),' ','?Amend phase ternary extrapol')
+!                   endif
+!                   call gparcx('Second constituent: ',cline,last,1,&
+!                        xspecies(2),' ','?Amend phase ternary extrapol')
+!                   call gparcx('Third constituent: ',cline,last,1,&
+!                        xspecies(3),' ','?Amend phase ternary extrapol')
 ! lokph is index of phase record, some error checks inside subroutine
 ! the routine is in gtp3H.F90.  toop argument to handle strange bug ...
-                   if(.not.allocated(toop)) allocate(toop)
-                   call add_ternary_extrapol_method(kou,lokph,ch1,toop,xspecies)
-                   if(gx%bmperr.ne.0) goto 990
-                endif
-             enddo
+!                   if(.not.allocated(toop)) allocate(toop)
+!                  call add_ternary_extrapol_method(kou,lokph,ch1,toop,xspecies)
+!                   if(gx%bmperr.ne.0) goto 990
+!                endif
+!             enddo
+! end redundant code
+!
 !....................................................
 !\hypertarget{Amend FCC-permutations}{}
           case(8) ! amend phase ... FCC_PERMUTATIONS

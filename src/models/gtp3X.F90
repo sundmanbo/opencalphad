@@ -1277,22 +1277,26 @@
                            enddo iloop4
                         endif
      toop7: if(associated(tooprec)) then
-! this iloop3 is for all components "id".  Normally binay interactions depend
-! only on the constituents gz%iq(1) and gz%iq(2) but Toop/Kohler method depend
-! also on other constituents!  That is taken care of inside this IF
-! debugging Toop/Kohler
+! this is part of iloop3 is for all components "id", starting 30 lines above  
+! Normally binay interactions depend only on the constituents gz%iq(1) 
+! and gz%iq(2) but Toop/Kohler method depend also on other constituents! 
+! Thus dvals may not be correctly updated but that is taken care here
 !        write(*,'(a,i3,5(1pe12.4))')'3X toop dvals',&
 !             id,pyq,dvals(1,id),phres%dgval(1,id,ipy)+pyq*dvals(1,id),&
 !             (phres%dgval(1,id,ipy)-pyq*dvals(1,id))*gz%rgast
+! For those who forget dgval1,j,1) is derivative of G wrt constituent j
+! dgval(2,j,1) is derivative of G wrt constituent j and T
+! dgval(3,j,1) is derivative of G wrt constituent j and P. 
+! Third index is for other properties
         do itp=1,3
            phres%dgval(itp,id,ipy)=phres%dgval(itp,id,ipy)-pyq*dvals(itp,id)
         enddo
 ! ignore contribution to the second derivatives phres%d2gval
+! iloop3  ends just a few lines below
      endif toop7
                         do itp=1,3
                            phres%dgval(itp,id,ipy)=&
-                                phres%dgval(itp,id,ipy)+ &
-                                dpyq(id)*vals(itp)
+                                phres%dgval(itp,id,ipy)+dpyq(id)*vals(itp)
                         enddo
                      enddo iloop3
 !                     write(*,211)'3X Interactions: ',gz%iq,jonva
@@ -2092,14 +2096,15 @@
    double precision ycat0,dcat1,dcat2,dyvan1,dyvan2
    double precision, parameter :: onethird=one/3.0D0,two=2.0D0
    logical ionicliq,iliqva,iliqneut,iliq3cat
-   TYPE(gtp_tooprec), pointer :: toopx
 ! zeroing 5 iq, and vals, dvals and d2vals
 !   write(*,*)'3X cgint 1:',gz%iq(1),gz%iq(2),gz%iq(3)
 ! why zero qz%iq, it has been set before calling ...
    gz%iq=0
+! these 3 arrays are in the call and may already have some stored values 
 !   vals=zero
 !   dvals=zero
 !   d2vals=zero
+!-------------
    rtg=gz%rgast
 ! to avoid warnings from -Wmaybe-uninitiated
    icat=0
@@ -2110,8 +2115,6 @@
    if(lokpty%degree.eq.0) then
 !----------------------------------------------------------------------
 ! Easy: no composition dependence.  This applies also to Toop/Kohler parameters
-!      if(associated(tooprec)) &
-!           write(*,*)'3X Toop/Kohler binary parameter constant'
       lfun=lokpty%degreelink(0)
       call eval_tpfun(lfun,gz%tpv,vals,ceq%eq_tpres)
       if(gx%bmperr.ne.0) goto 1000
@@ -2174,13 +2177,9 @@
       if(associated(tooprec)) then
 ! This is a Kohler-Toop method parameter
 ! only for binary interaction parameters with Kohler or Toop models
-! copy tooprec as we must not change tooprec inside calc_toop
-! Toop/Kohler require recalculating the binary compostion used to
-! describe the composition dependence of the parameter.  If it is 
 ! not composition dependent we never come here as we exit 50 lines above
-         toopx=>tooprec
-! copy tooprec to toopx as toopx will be changed inside calc_toop
-         call calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
+         call calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,tooprec,ceq)
+! we have calculated all, skip the rest of this subroutine
          goto 1000
       endif
 ! endmember fraction minus interaction fraction

@@ -2276,14 +2276,6 @@
    integer, parameter :: maxstack=20
    TYPE(intrecarray), dimension(maxstack) :: intrecstack
    TYPE(gtp_fraction_set), pointer :: disfrap
-! this all tooprecords, tooptop will be initiated to 0 for each phase
-   integer, parameter :: maxtoop=50
-   integer tooptop,tooplink,tooplast,tooplevel
-   TYPE tooprecs
-! this is an array with a pointer to each tooprecords
-      type(gtp_tooprec), pointer :: p1
-   end TYPE tooprecs
-   type(tooprecs), dimension(maxtoop) :: tooparray
    type(gtp_tooprec), pointer :: tooprec
 !
 !--------------------------------------------------
@@ -2293,7 +2285,7 @@
    phname=phlista(lokph)%name
    parlist=1
    ics=1
-   tooptop=0
+!   tooptop=0
    mqmqa=.FALSE.
 100 continue
 ! parlist changed below for disordered fraction set
@@ -2525,14 +2517,16 @@
             gx%bmperr=4399; goto 1000
          endif
          intrecstack(nint)%p1=>intrec
-         toop: if(associated(intrec%tooprec)) then
+!--------------------------------------------------
+! redunant code
+!         toop: if(associated(intrec%tooprec)) then
 ! Here we collect all Toop/Kohler tooprec and list them after the phase
 !            write(*,*)'3E Found tooprecord',intrec%tooprec%uniqid
 !            exit toop
-            tooprec=>intrec%tooprec
+!            tooprec=>intrec%tooprec
 ! tooplast is last tooprec that have had all links searched
-            tooplast=tooptop
-            tooplink=1
+!            tooplast=tooptop
+!            tooplink=1
 107         continue
 !            write(*,210)'3E found toop record:',tooplink,tooptop,&
 !                 tooprec%uniqid,&
@@ -2541,53 +2535,54 @@
 !                 associated(tooprec%next13),associated(tooprec%next23)
 210         format(a,4i4,2x,3i3,2x,i5,' links: ',3l2)
 ! check if already found
-            do kk=1,tooptop
-               if(tooparray(kk)%p1%uniqid.eq.tooprec%uniqid) then
+!            do kk=1,tooptop
+!               if(tooparray(kk)%p1%uniqid.eq.tooprec%uniqid) then
 !                  write(*,*)'3E already found ',tooprec%uniqid
-                  tooplink=tooplink+1
-                  goto 108
-               endif
-            enddo
+!                  tooplink=tooplink+1
+!                  goto 108
+!               endif
+!            enddo
 ! a new tooprec, store it
-            tooptop=tooptop+1
-            tooparray(tooptop)%p1=>tooprec
+!            tooptop=tooptop+1
+!            tooparray(tooptop)%p1=>tooprec
 !          write(*,*)'3E Adding a tooprec',tooptop,tooparray(tooptop)%p1%uniqid
-            tooplevel=0
+!            tooplevel=0
 ! There are 3 links from each tooprecord, exact all records from these
 ! when empty go back one step of the stored tooprecord
 ! We do not have to go back further than tooplast.
 108         continue
 !            write(*,*)'3E tooprec links',tooplink,tooprec%uniqid
-            if(tooplink.eq.1) then
-               if(associated(tooprec%next12)) then
-                  tooprec=>tooprec%next12; goto 107
-               else
-                  tooplink=2
-               endif
-            endif
-            if(tooplink.eq.2) then
-               if(associated(tooprec%next13)) then
-                  tooprec=>tooprec%next13; goto 107
-               else
-                  tooplink=3
-               endif
-            endif
-            if(tooplink.eq.3 .and. associated(tooprec%next23)) then
-               tooprec=>tooprec%next23; goto 107
-            endif
+!            if(tooplink.eq.1) then
+!               if(associated(tooprec%next12)) then
+!                  tooprec=>tooprec%next12; goto 107
+!               else
+!                  tooplink=2
+!               endif
+!            endif
+!            if(tooplink.eq.2) then
+!               if(associated(tooprec%next13)) then
+!                  tooprec=>tooprec%next13; goto 107
+!               else
+!                  tooplink=3
+!               endif
+!            endif
+!            if(tooplink.eq.3 .and. associated(tooprec%next23)) then
+!               tooprec=>tooprec%next23; goto 107
+!            endif
 ! we have exhausted all links of this tooprec, go back to previous stored
 ! until we read tooplast
 !            write(*,*)'3E no nextlinks: ',tooptop,tooplast,tooplevel
-            tooplevel=tooplevel+1
-            if(tooptop-tooplevel.gt.tooplast) then
+!            tooplevel=tooplevel+1
+!            if(tooptop-tooplevel.gt.tooplast) then
 !               write(*,*)'3E decreasing to ',tooptop-tooplevel,tooplast
-               tooprec=>tooparray(tooptop-tooplevel)%p1
-               tooplink=1
-               goto 108
-            endif
+!               tooprec=>tooparray(tooptop-tooplevel)%p1
+!               tooplink=1
+!               goto 108
+!            endif
 ! We have checked all tooprecords linked from this binary
 ! Back to listing of parameters
-         endif toop
+!         endif toop
+!--------------------------------------------------
          lint(1,nint)=intrec%sublattice(1)
          kkk=intrec%fraclink(1)
          if(parlist.eq.2) then
@@ -2785,42 +2780,10 @@
       goto 100
    endif
 ! Check if there are toop/kohler ternaries
-   if(tooptop.gt.0) then
-      write(*,'(a)')'3E Some ternaries have Toop/Kohler extrapolation methods.'
-!      goto 1000
-!      write(*,*)'3E Beware, the Toop/Kohler implementation is fragile.'
-      tooploop: do tooplink=1,tooptop
-         tooprec=>tooparray(tooplink)%p1
-!         write(*,*)'3E constitlist: ',(phlista(lokph)%constitlist(kk),kk=1,4)
-!         write(*,210)'3E all toop records:',tooplink,tooprec%uniqid,&
-!              tooprec%toop,&
-!              tooprec%const1,tooprec%const2,tooprec%const3,tooprec%extra,&
-!              associated(tooprec%next12),&
-!              associated(tooprec%next13),associated(tooprec%next23)
-         kk=phlista(lokph)%constitlist(tooprec%const1)
-         toopsp(1)=splista(kk)%symbol
-         kk=phlista(lokph)%constitlist(tooprec%const2)
-         toopsp(2)=splista(kk)%symbol
-         kk=phlista(lokph)%constitlist(tooprec%const3)
-         toopsp(3)=splista(kk)%symbol
-         ch1='K'
-         if(tooprec%toop.gt.1) then
-! For toop ch1 should be T and first constituent the Toop constituent
-            ch1='T'
-            prop=toopsp(1)
-            toopsp(1)=toopsp(tooprec%toop)
-            toopsp(tooprec%toop)=prop
-         endif
-         if(ch1.eq.'K') then
-            write(lut,820)trim(phname),'Kohler',(trim(toopsp(kk)),kk=1,3),&
-                 tooprec%uniqid
-820         format('AMEND PHASE ',a,' TERNARY_EXTRAPOL ',a,3(1x,a),' ! ',i5)
-         else
-            write(lut,820)trim(phname),'Toop',(trim(toopsp(kk)),kk=1,3),&
-                 tooprec%uniqid
-         endif
-         
-      enddo tooploop
+   tooprec=>phlista(lokph)%tooplast
+   if(associated(tooprec)) then
+      write(*,*)'3EX there are Toop/Kohler extrapolations'
+      write(*,*)'There is some code in gtp3C.F90 to handle this'
    endif
 !   write(lut,*)'<!-- exit write_parameters -->'
 !   write(*,*)'3E listing by write_parameters
