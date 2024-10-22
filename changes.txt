@@ -20,21 +20,25 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2024.10.22 version 6.074 A number of bugfixes and cleanups.  Using the
+MQMQA or new ternary extrapolation methods may still generate a lot of
+information useful for debugging.
+
 2024.10.20 version 6.073 The implementation of the MQMQA model and the
 Toop/Kohler ternary extrapolation method has progressed somewhat.
 Time to save an intermedeate state.
 
-2024.10.04 Cleaned up some code in ges5E.F90.  Added an example
-sro-cef.OVM to calculate the prototype FCC phase diagram.
+2024.10.04 version 6.073 Cleaned up some code in ges5E.F90.  Added an
+example sro-cef.OVM to calculate the prototype FCC phase diagram.
 
-2024.06.30 The subroutine calc_toop moved to the gtp3XQ.F90 file as it
-is closely associated with the MQMQA model even if Toop and Kohler
-ternary extrapolation methods can be used in any phase.  I had
-forgotten this subroutine evidently written in 2020.  It uses records
-of the TYPE gtp_tooprec to identify a ternary with Toop or Kohler
-extrapolation.  Most probably the more elabore Toop/Kohler/Muggianu
-extrapolations described in Peltion's paper from 2001 are not
-included.  The routine has not been properly debugged.
+2024.06.30 version 6.072 The subroutine calc_toop moved to the
+gtp3XQ.F90 file as it is closely associated with the MQMQA model even
+if Toop and Kohler ternary extrapolation methods can be used in any
+phase.  I had forgotten this subroutine evidently written in 2020.  It
+uses records of the TYPE gtp_tooprec to identify a ternary with Toop
+or Kohler extrapolation.  Most probably the more elabore
+Toop/Kohler/Muggianu extrapolations described in Peltion's paper from
+2001 are not included.  The routine has not been properly debugged.
 
 2024.06.18 OC version 6.071: Long time no development.  Created a
 gtp3XQ.F90 so simplify work in the MQMQA model and handling

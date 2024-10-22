@@ -2670,6 +2670,7 @@
    integer moded,lokph
    TYPE(gtp_property), pointer :: lokpty
    TYPE(gtp_parcalc) :: gz
+! all fraction variable can be involved in derivatives of vals ...
    double precision vals(6),dvals(3,gz%nofc)
    double precision d2vals(gz%nofc*(gz%nofc+1)/2)
    TYPE(gtp_tooprec), pointer :: toopx
@@ -2678,12 +2679,12 @@
 ! we use this to save the pointer from toopx
    TYPE(gtp_phase_varres), pointer :: phres
 ! fraction values to be used in RK series
-   double precision x12,x21,sigma,dxrk
-   integer, allocatable, dimension(:) :: dsigma, dx12, dx21
+   double precision x12,x21,sigma,dxrk,dxrk0
+   double precision, allocatable, dimension(:) :: dsigma, dx12, dx21
 ! ternary fraction index
    integer jj(3),j1,j2,j3,link,count,toopconst,limit,jdeg,lfun,nyfr,tkdeb
 ! loop veriables 
-   integer qz,nt,ic,cc
+   integer qz,ic,cc
 ! to indicate if there are no constituents in toop1, toop2 or kohler arrays
    logical not1,not2,nok
 ! for the RK calculation with Toop/Kohler fractions!
@@ -2701,18 +2702,16 @@
 ! Use the phres passed on via toopx%phres if there are more toopx records
 ! this link to phres is copied to toopx%phres before the call
 ! in gtp3X, subroutine calcg_internal around line 858
-   write(*,*)'3XQ we are in calc_toop'
    if(associated(toopx%phres)) then
       phres=>toopx%phres
-!      write(*,*)'3QX phres pointer is assigned'
    else
       write(*,*)'3QX phres pointer is not assigned entering calc_toop'
       gx%bmperr=4399; goto 1000
    endif
 ! debug level 0 nothing, 1 minimum, 2 Toop, 3 all
-   tkdeb=1
-!
+   tkdeb=0
    if(tkdeb.gt.0) write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
+!
 10 format('3XQ in calc_toop & Kohler with binary;',2i3,' degree; ',i2)
 ! NOTE vals, dvals and d2vals set to zero before calling this routine
    rtg=gz%rgast
@@ -2733,16 +2732,17 @@
    allocate(dsigma(nyfr))
    allocate(dx12(nyfr))
    allocate(dx21(nyfr))
-   dsigma=zero
    dx12=zero
    dx21=zero
 ! initially dsigma is set to 1, i.e. derivatives with respect to all
 ! constituents.
    sigma=one
-   x12=phres%yfr(gz%iq(1))
-   x21=phres%yfr(gz%iq(2))
-   if(tkdeb.gt.2) write(*,15)x12,x21,gz%iq(1),gz%iq(2),nyfr
-15 format('3XQ fractions: ',2f8.4,2i5,i7)
+   dsigma=zero
+! constituents are ordered alphabetically, x12 is the first in the endmember
+   x12=gz%yfrem(gz%intlat(1))
+   x21=gz%yfrint(1)
+   if(tkdeb.gt.2) write(*,15)x12,x21,gz%iq(1),gz%iq(2)
+15 format('3XQ fractions: ',2f8.4,2i5)
 ! We have a binary excess parameter which depend on x_A and x_B
 ! and a Redlich-Kister polynom (x_A -x_B)/sigma
 ! When the data for the system was entered some ternaries were
@@ -2750,53 +2750,53 @@
 ! information needed for the calculations below
 ! For all ternaries A-B-K where the composition of B is constant (Toop)
 ! the fraction of K should be added to A, i.e. x12
-!   nt=size(toopx%toop1)
 ! crash maybe accessing unassigned values of toopx%top1 YES! ??
-   nt=toopx%free
    not1=.TRUE.
    if(tkdeb.gt.2) then
-      write(*,*)'3XQ checking toopx%toop1: ',nt,toopx%free
-      write(*,*)'3XQ size: ',size(phres%yfr)
+      write(*,8)toopx%free,nyfr
+8     format('3XQ Number of Toop/Kohler ternaries: ',i3,&
+           ' Total number of fractions: ',i3)
       write(*,12)phres%yfr
-12    format('3XQ yfr: ',20F6.4)
+12    format('3XQ yfr: ',20F7.4)
    endif
-   do ic=1,nt
-! cc is fraction index of another Toop constituent
-!===================================================================
-! !!!!!!!!!!!!!! CRASH if one access unassigned values of toopx%toop1/2/Kohler
-!===================================================================
-! But setting nt to last assigned rather than size works
+! toopx%free is last used index in %Toop1, %Toop2 and %Kohler
+   not1=.TRUE.;    not2=.TRUE.;    nok=.TRUE.
+   do ic=1,toopx%free
+      if(tkdeb.gt.2) &
+           write(*,33)ic,toopx%toop1(ic),toopx%toop2(ic),toopx%kohler(ic)
+33    format('3XQ looking for Toop/Kohler constituents: ',i2,2x,3i4)
       cc=toopx%toop1(ic)
       if(cc.gt.0) then
+! In this ternary i-j-k the composition of i is constant (Toop)
          x12=x12+phres%yfr(cc); dx12(cc)=one; not1=.FALSE.
       endif
-   enddo
-! For all ternaries A-B-K where the composition of A is constant (Toop)
-! the fraction of K should be added to B
-   not2=.TRUE.
-   if(tkdeb.gt.2) write(*,*)'3XQ checking toopx%toop2',nt
-   do ic=1,nt
-! cc is fraction index of another Toop constituent in i-j-k
       cc=toopx%toop2(ic)
       if(cc.gt.0) then
+! In this ternary i-j-k the composition of j is constant (Toop)
          x21=x21+phres%yfr(cc); dx21(cc)=one; not2=.FALSE.
       endif
-   enddo
-! For all ternaries A-B-K where for which the Kohler method should be used
-! the composition of K should be subtracted from sigma
-   nok=.TRUE.
-   if(tkdeb.gt.2) write(*,*)'3XQ checking toopx%kohler',nt
-   do ic=1,nt
-! cc is fraction index of another Toop constituent
-      cc=toopx%toop1(ic)
-      if(cc.gt.0) then
-         sigma=sigma-phres%yfr(cc); dsigma(cc)=-one; nok=.FALSE.
+      cc=toopx%Kohler(ic)
+      if(cc.lt.0) then
+! In this ternary i-j-k the i-j extrapolates as Kohler
+         sigma=sigma-phres%yfr(-cc); dsigma(-cc)=-one; nok=.FALSE.
+         if(tkdeb.gt.1) write(*,'(a,i3,2F8.4,10F6.3)')'3XQ sigma: ',&
+              cc,sigma,phres%yfr(-cc),dsigma
+         dsigma(-cc)=-one
       endif
    enddo
-   if(tkdeb.gt.2) then
-      write(*,17)'3XQ x12:  ',x12,',   dx12:   ',dx12
-      write(*,17)'3XQ x21:  ',x21,',   dx21:   ',dx21
-      write(*,17)'3XQ sigma:',sigma,', dsigma: ',dsigma
+   if(sigma.lt.zero) then
+      write(*,*)'3XQ Error: negative sigma in Toop/Kohler extrapolation!'
+      gx%bmperr=4399; goto 1000
+   endif
+! For all ternaries A-B-K where for which the Kohler method should be used
+! the composition of K should be subtracted from sigma
+! This is the RK fraction difference, sigma is the Kohler divisor
+   dxrk0=(x12-x21)/sigma
+   dxrk=one
+   if(tkdeb.gt.1) then
+      write(*,17)'3XQ x12:   ', x12,',   dx12:   ',dx12,dxrk0
+      write(*,17)'3XQ x21:   ', x21,',   dx21:   ',dx21
+      write(*,17)'3XQ sigma: ', sigma,', dsigma:   ',dsigma
 17    format(a,F8.6,a,10F6.3)!
    endif
 !-----------------------------------------------------------------
@@ -2809,18 +2809,12 @@
 ! Calculate the corrected the binary fractions x12 and x21 and sigma
 ! No fractions should be negative!!
 !   if(dx12.le.zero .or. dx21.le.zero .or. sigma.le.zero) then
-   if(sigma.lt.zero) then
-      write(*,*)'3XQ Error: negative sigma in Toop/Kohler extrapolation!'
-      gx%bmperr=4399; goto 1000
-   endif
-! This is the RK fraction difference, sigma is the Kohler divisor
-   dxrk=(x12-x21)/sigma
 !
    if(tkdeb.gt.0) write(*,20)x12,x21,sigma,dxrk
 20 format('3XQ fractions: ',2F8.4,' sigma,dxrk: ',2F8.4)
 ! gz%iq(1) is first constitution, gz%iq(2) in interaction
    dx12(gz%iq(1))=one/sigma
-   dx21(gz%iq(2))=-one/sigma
+   dx21(gz%iq(2))=one/sigma
 ! calculate the RK terms one by one together with derivatives
    RK: do jdeg=0,lokpty%degree
       lfun=lokpty%degreelink(jdeg)
@@ -2837,13 +2831,25 @@
             dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))-dx21(gz%iq(2))*valtp(qz)
          enddo
 ! derivatives wrt Toop1 constintuents, use dx12, dx21 and dsigma
-         
+! all approximate ....... negative sign of dx21 taken care of when "added"
+! NOTE dx12, dx21 and sihma are arrays as any constituent can be involved
+         dx12(gz%iq(1))=(jdeg+1)*dxrk
+         dx21(gz%iq(2))=(jdeg+1)*dxrk
+! derivatives with respect to additional fractions in x12, x21 and sigma
+! not taken care of ...
+! All second derivatives of sigma are zero
+         dsigma=zero
+! dsrk has one more power for nrxt term         
+         dxrk=dxrk*dxrk0
       endif noder5
    enddo RK
-!---------------- now the derivatives
 !---------VERY unfinished
 1000 continue
 ! this is the whole x_A x_B \sum_i (\xi_A - \xi_B)/sigma_AB)^i iL_AB
+   if(tkdeb.gt.0) write(*,'(a,2i3,F12.4)')'3XQ RT*vals: ',&
+        gz%iq(1),gz%iq(2),rtg*vals(1)
+!  if(tkdeb.gt.0) write(*,'(a,i3,2x,5F8.5)')'3XQ dxrk mm:',&
+!       jdeg,rtg*vals(1),dxrk0,dxrk
    return
  end subroutine calc_toop
     

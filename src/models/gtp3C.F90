@@ -1874,9 +1874,9 @@
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon,ftyp,prplink,topline,warning_endmzero
-   integer con1,con2,con3
+!   integer con1,con2,con3
    character text*3000,phname*24,prop*32,funexpr*1024,ternex(3)*24,ch1*1
-   character special*4,modelid*24
+   character special*4,modelid*24,typedefchar*1
 !   integer, dimension(2,3) :: lint
 ! ?? increased dimension of lint ??
    integer, dimension(2,5) :: lint
@@ -1904,7 +1904,7 @@
    TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_phase_add), pointer :: addrec
 !
-!   write(*,*)'3C in list_phase_data',iph
+   write(*,*)'3C in list_phase_data',iph
 ! modelid should be used to identify the model
    modelid=' '
    mqmqa=.FALSE.
@@ -1956,8 +1956,8 @@
    elseif(btest(phlista(lokph)%status1,PHCVMCE)) then
       special(1:1)='K'; modelid='CVMCE'
       topline=2
-   elseif(btest(phlista(lokph)%status1,PHTISR)) then
-      special(1:1)='E'; modelid='TISR'
+!   elseif(btest(phlista(lokph)%status1,PHTISR)) then
+!      special(1:1)='E'; modelid='TISR'
    elseif(btest(phlista(lokph)%status1,PHSROT)) then
       special(1:1)='E'; modelid='SROT'
       topline=2
@@ -1981,6 +1981,9 @@
 ! this indicates if ordered part should be subtracted as ordered
       special(kkk:kkk)='S'; kkk=kkk+1
    endif
+!   if(associated(phlista(lokph)%tooplast)) then
+!   no attemp to include TYPE:DEF here
+!   endif
 ! special is max 4 characters
 ! This subroutine is independent of current equilibrium, use firsteq
 !   write(lut,10)phname,phlista(lokph)%status1,special,&
@@ -2148,7 +2151,7 @@
 !                     if(linkcon.gt.disfrap%nooffr(1)) ll=2
                      prop=prop(1:len_trim(prop))//'&'&
                           //splista(linkcon)%symbol
-!                     write(*,*)'3C We are here',linkcon,disfrap%nooffr(1),ll
+                     write(*,*)'3C We are here',linkcon,disfrap%nooffr(1),ll
                      prop=prop(1:len_trim(prop))
 !                     goto 120
                      goto 121
@@ -2281,7 +2284,6 @@
             write(*,*)'3C overflow in intrecstack 1'
             gx%bmperr=4399; goto 1000
          endif
-! removed Toop/Kohler listing here, done at the end
          intrecstack(nint)%p1=>intrec
          lint(1,nint)=intrec%sublattice(1)
          kkk=intrec%fraclink(1)
@@ -2465,17 +2467,19 @@
    tooprec=>phlista(lokph)%tooplast
    if(associated(tooprec)) &
         write(*,'(a)')'3C Some ternaries have Toop/Kohler extrapolations'
-   nsl=1
+   nsl=0
+   kk=0
    tkloop: do while(associated(tooprec))
 ! listing of Toop/Kohler extrapolations taken from tooprec%amend
 ! loop through all records, the extrapolations are some of the reconds.
+! on TDB files the subrouine list_tdb_formats is used
+      text=' '
       if(len(tooprec%amend).gt.1) then
-! ignore records without the amend text
-         write(*,820)tooprec%amend,nsl,tooprec%toopid
-820      format('3C AMEND PHASE ',a,2i5)
          nsl=nsl+1
-!      else
-!         write(*,*)'3C nothing in record ',nsl,tooprec%toopid
+         write(*,*)'3C AMEND PHASE ',tooprec%amend
+! This text is written by the commands list data and list phase xxx data
+! Output from "save tdb" is written by list_phase_data2
+         kk=len_trim(text)
       endif
       tooprec=>tooprec%nexttoop
    enddo tkloop
@@ -2489,6 +2493,9 @@
 !\addtotable subroutine list_phase_data2
 !\begin{verbatim} %-
  subroutine list_phase_data2(iph,ftyp,CHTD,lut)
+!
+! this subroutine is USED by the command SAVE TDB
+!
 ! list parameter data for a phase on unit lut in ftyp format, ftyp=2 is TDB
    implicit none
    integer iph,lut,ftyp
@@ -2499,14 +2506,12 @@
    integer intpq,linkcon
    character text*1024,phname*24,prop*32,funexpr*1024
    character special*8
+   character,save :: ctop*1='K'
    integer, dimension(2,3) :: lint
    integer, dimension(maxsubl) :: endm,ilist
    logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap
 ! a smart way to have an array of pointers
-!
-! this subroutine is not used ....
-!
    TYPE intrecarray 
       type(gtp_interaction), pointer :: p1
    end TYPE intrecarray
@@ -2517,6 +2522,7 @@
    type(gtp_endmember), pointer :: endmemrec
    TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_phase_add), pointer :: addrec
+   TYPE(gtp_tooprec), pointer :: tooprec
 ! an empty line first
    write(lut,*)
 ! for type definitions
@@ -2575,7 +2581,9 @@
 53       format('Disordered fraction sets need manual editing',&
               ' to be used by Thermo-Calc')
       endif
-      write(lut,55)CHTD,phname(1:len_trim(phname)),phname(1:len_trim(phname))
+! wow, written before I learned to use trim(character) ...
+!      write(lut,55)CHTD,phname(1:len_trim(phname)),phname(1:len_trim(phname))
+      write(lut,55)CHTD,trim(phname),trim(phname)
 55    format('$ *** Warning: disordered fraction sets need manual editing!'/&
            ' TYPE_DEFINITION ',a,' GES A_P_D ',a,' DIS_PART DIS_',a,' !')
    endif
@@ -2598,13 +2606,22 @@
 !        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
 !   write(*,*)'3C phase: ',phname,special
    lokcs=phlista(lokph)%linktocs(ics)
-   write(lut,10,advance='no')phname(1:len_trim(phname)),special(1:isp),&
-        nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
+   if(associated(phlista(lokph)%tooplast)) then
+      isp=isp+1
+! this is to refer to the ternary_extrapolations later
+      special(isp:isp)=ctop
+!
+      write(lut,10,advance='no')phname(1:len_trim(phname)),special(1:isp),&
+           nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
+   else
+      write(lut,10,advance='no')phname(1:len_trim(phname)),special(1:isp),&
+           nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
+   endif
 10  format(' PHASE ',A,1x,a,1x,I2,10(1x,F7.3))
    write(lut,11)
 11 format('!')
    nk=0
-   text='   CONSTITUENT '//phname(1:len_trim(phname))//' :'
+   text='CONSTITUENT '//phname(1:len_trim(phname))//' :'
    ip=len_trim(text)+1
    sublatloop: do ll=1,nsl
       constloop: do ik=1,phlista(lokph)%nooffr(ll)
@@ -3004,6 +3021,27 @@
       goto 100
    endif
 1000 continue
+! add ternary extrapolations as commands, not TYPE_DEF
+! This listing is not for TDB files
+   tooprec=>phlista(lokph)%tooplast
+   if(associated(tooprec)) then
+! this is writing a TDB database file
+      write(lut,1090)ctop
+1090  format('TYPE_DEFINITION ',a,' GES TERNARY_EXTRAPOL  ')
+! increment ctop for nrxt phase ...
+      ctop=char(ichar(ctop)+1)
+      do while(associated(tooprec))
+         if(len(tooprec%amend).gt.1) then
+! remove phase and "TERNARY_EXTRAPOL" as alredy set
+            ij=index(tooprec%amend,'_EXTRAPOL')
+! ij will be position of "_", add 9 ??
+            write(lut,1100)tooprec%amend(ij+9:)
+1100        format(a)
+         endif
+         tooprec=>tooprec%nexttoop
+      enddo
+      write(lut,1100)'  !'
+   endif
 !   write(*,*)'3C listing by list_phase_data2'
    return
  END subroutine list_phase_data2

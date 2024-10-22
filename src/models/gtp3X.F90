@@ -850,7 +850,7 @@
 !                       associated(intrec%tooprec),chkperm,gz%intlevel
                   tooprec=>intrec%tooprec
                   if(chkperm) then
-                     write(*,*)'3X Toop/Kohler and permutations illegal'
+                     write(*,*)'3X Toop/Kohler and permutations is illegal'
                      gx%bmperr=4399; goto 1000
                   endif
 ! we need this additional information inside calc_toop
@@ -1281,7 +1281,7 @@
 ! Normally binay interactions depend only on the constituents gz%iq(1) 
 ! and gz%iq(2) but Toop/Kohler method depend also on other constituents! 
 ! Thus dvals may not be correctly updated but that is taken care here
-!        write(*,'(a,i3,5(1pe12.4))')'3X toop dvals',&
+!        write(*,'(a,i3,5(1pe12.4))')'3X toop7: ',&
 !             id,pyq,dvals(1,id),phres%dgval(1,id,ipy)+pyq*dvals(1,id),&
 !             (phres%dgval(1,id,ipy)-pyq*dvals(1,id))*gz%rgast
 ! For those who forget dgval1,j,1) is derivative of G wrt constituent j
@@ -1291,6 +1291,7 @@
         do itp=1,3
            phres%dgval(itp,id,ipy)=phres%dgval(itp,id,ipy)-pyq*dvals(itp,id)
         enddo
+! I AM NOT SURE THIS IS CORRECT/BoS
 ! ignore contribution to the second derivatives phres%d2gval
 ! iloop3  ends just a few lines below
      endif toop7
@@ -2079,6 +2080,7 @@
 ! gz%yfrem are the site fractions in the end member record
 ! gz%yfrint are the site fractions in the interaction record(s)
 ! lokpty is the property index, lokph is the phase record
+! vals, dvals, d2vals multiplied by endmember and interaction fractions outside
 ! moded=0 means only G, =1 G and dG/dy, =2 all
    implicit none
    integer moded,lokph
@@ -2198,7 +2200,7 @@
 65          format(a,2i3,6(1pe12.4))
          elseif(iliqneut) then
 ! interaction between vacancy and neutral in second sublattice
-! we must know the cation
+! we must know the cation (if only neutrals set to one)
             icat=gz%endcon(1)
             ycat0=gz%yfrem(1)
 ! the fraction difference is between (y_cation * y_Va - y_neutral)
@@ -2305,7 +2307,7 @@
             endif
             dx=dx*dx0
          else
-! normal CEF model
+! normal CEF model.  Note negative sign taken care of when "added"
             dx2=(jdeg+1)*dx1
             dx1=(jdeg+1)*dx
             dx=dx*dx0
@@ -2364,6 +2366,7 @@
 ! other ternary parameters in ionic liquid OK, no extra vacancy fraction
       endif
 !................................................................
+300 continue
 ! ternary composition dependent interaction
       ternary: if(gz%intlat(1).eq.gz%intlat(2)) then
 ! Ternary composition dependent interaction in same sublattice, Hillert form.

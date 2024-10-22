@@ -88,8 +88,6 @@ contains
 ! estimated chemical potentials after a grid minimization and TP for ref states
     double precision cmu(maxel),tpa(2)
 ! the beginning of a sequential list of all ternary methods
-! the tooprec link is separate for each phase, phlista(phase)%tooprec
-!    type(gtp_tooprec), allocatable :: toop
 ! cpu time measurements
     double precision ending,starting
 !>>>> has to be reorganized ------------------------------------

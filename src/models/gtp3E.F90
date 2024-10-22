@@ -4135,8 +4135,8 @@
             addphasetypedef(TDthisphase)=typedefaction(jt)
             ctxp=ctxp+1
             ternaryxpol(ctxp)=trim(name1)//' '//ternaryxpol(ctxp)
-            write(*,'(a,i4,": ",a)')'3E ternary around line 4137: ',&
-                 ctxp,trim(ternaryxpol(ctxp))
+!            write(*,'(a,i4,": ",a)')'3E ternary around line 4137: ',&
+!                 ctxp,trim(ternaryxpol(ctxp))
 ! this ignores the type letter, just assignes in same order as phases entered
 ! Or one must enforce that the TYPE_DEF for ternary is right after the phase?
          elseif(.not.(typedefaction(jt).eq.100.or.typedefaction(jt).eq.0)) then
@@ -4308,7 +4308,8 @@
       if(ch1.ne.'!') goto 380
 ! when an ! found the list of constutents is finished.  But we
 ! should have found a : before the !
-      if(.not.silent) write(kou,*)'Found "!" before terminating ":"'
+      if(.not.silent) &
+           write(kou,*)'3E Found "!" before terminating ":" around line',nl
       gx%bmperr=4310; goto 1000
 !      write(*,*)'Species terminator error: ',ch1,nl
 !      gx%bmperr=4157; goto 1000
@@ -5406,6 +5407,7 @@
       do zp=1,ntxp
 !         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
          call set_database_ternary(ternaryxpol(zp))
+! this is in gtp3H.F90
       enddo
    else
       write(*,*)'3E no ternary extrapolations'

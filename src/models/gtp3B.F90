@@ -950,6 +950,9 @@
    firsteq%phase_varres(lokcs)%phlink=nyfas
    firsteq%phase_varres(lokcs)%prefix=' '
    firsteq%phase_varres(lokcs)%suffix=' '
+! nullify toopfirst and tooplast, set if there are ternary Toop/Kohler models
+   nullify(phlista(nyfas)%tooplast)
+   nullify(phlista(nyfas)%toopfirst)
 ! Initiated to total number of sites, will be updated in set_condition
    firsteq%phase_varres(lokcs)%abnorm(1)=formalunits
 ! ncc no longer part of this record

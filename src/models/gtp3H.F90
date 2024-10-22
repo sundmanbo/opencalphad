@@ -3910,12 +3910,17 @@
    if(lcs.gt.0) then
       tkmode(lcs:)=' '
    endif
-!   write(*,*)'3H tkmode "',tkmode,'"'
-!   write(*,77)lokph,trim(species(1)),trim(species(2)),trim(species(3)),tkmode
-77 format('3H call add_ternary: ',i4,1x,a,1x,a,1x,a,1x,a)
+!   write(*,*)'3H TernaryXpol tkmode "',tkmode,'"'
+!   write(*,77)trim(phlista(lokph)%name),trim(species(1)),trim(species(2)),&
+!        trim(species(3)),tkmode
+77 format('3H call add_ternary: ',a,1x,a,1x,a,1x,a,1x,a)
    call add_ternary_extrapol_method(lokph,tkmode,species)
 ! there can be several ternary mode in line ...
-   write(*,*)'3H back from add_ternary'
+!   write(*,*)'3H back from add_ternary_extrapolation_method'
+   if(gx%bmperr.eq.4051) then
+      write(*,*)'3H Ternary extrapolation ignored as a constituent not present'
+      gx%bmperr=0
+   endif
    ip=ip+jp
    jp=len_trim(line)
    if(jp.gt.ip) then
@@ -3967,7 +3972,7 @@
 ! this is incremented by 1 each time a record is created in any phase
 !   integer, save ::uniqid=0
 !
-   write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),tkmode,lokph
+!   write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),tkmode,lokph
 8  format(/'3H in add_ternary_extrapol "',a,'" "',a,'" "',a,'" "',a,'"',i4)
    if(phlista(lokph)%noofsubl.gt.1) then
       write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
@@ -3981,8 +3986,9 @@
 ! this amend text will be saved in one of the tooprec records for output
    amend=trim(phlista(lokph)%name)//' TERNARY_EXTRAPOL '//&
         ' '//trim(species(1))//' '//trim(species(2))//&
-        ' '//trim(species(3))//' '//tkmode//' !'
-   write(*,*)'3H executing amend ',trim(amend)!
+        ' '//trim(species(3))//' '//tkmode//' '
+! removed the ! as list on TDB file may include several extrapol
+!   write(*,*)'3H Executing; amend ',trim(amend)!
 !
 !----------------------------------- to be considered   
 ! The extrapolation method is given in the order of binaries A-B, A-C and B-C
@@ -4074,7 +4080,7 @@
       call find_species_record_noabbr(species(jj),loksp)
       if(gx%bmperr.ne.0) then
 ! needed for mqmqma model ... they have a number -Qij which may vary
-         write(*,*)'3H Testing seach allowing abbreviations'
+!         write(*,*)'3H Constituent search allowing abbreviations'
          gx%bmperr=0
          call find_species_record(species(jj),loksp)
       endif
@@ -4095,8 +4101,8 @@
       gx%bmperr=4399; goto 1000
    enddo all3
 !
-   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H found all 3 constituents: ',conx,&
-        xter3,xmode
+!   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H found all 3 constituents: ',conx,&
+!        xter3,xmode
    if(conx(1).eq.conx(2) .or. conx(1).eq.conx(3) .or. conx(2).eq.conx(3)) then
       write(*,*)'3H Same element twice, not a ternary!'
       gx%bmperr=4399; goto 1000
@@ -4105,13 +4111,13 @@
    Kohler: do kk=1,3
       if(xter3(kk).lt.0) xter3(kk)=-conx(-xter3(kk))
    enddo Kohler
-! Replace any Toop constituents with its constiuent incex .... does not work
+! Replace any Toop constituents with its constiuent incex
    Toop: do kk=1,3
       if(xter3(kk).gt.0) xter3(kk)=conx(xter3(kk))
    enddo Toop
 !
-   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H Replaced by const index:  ',conx,&
-        xter3,xmode
+!   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H Replaced by const index:  ',conx,&
+!        xter3,xmode
 !
 ! sort constituents in constituent order
 ! xter3 here is either the toopcon or the Kohler constituent index
@@ -4156,8 +4162,8 @@
 !   Toop2: do kk=1,3
 !      if(xter3(kk).gt.0) xter3(kk)=conx(xter3(kk))
 !   enddo Toop2
-   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H Sorted xter3 and conx:    ',conx,&
-        xter3,xmode
+!   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H Sorted xter3 and conx:    ',conx,&
+!        xter3,xmode
 !---------------------------------------------------------
 ! now we have to find the interaction records
 ! Some binary parameter in the ternary may not have an interaction record.   
@@ -4217,10 +4223,10 @@
    endif
 !------------------------------------------------------------
 ! check values of xter3
-   do kk=1,3
-      write(*,44)trim(species(kk)),xter3(kk),conx(kk)
-44    format('3H constituent ',a,' xter3: ',i2,i5)
-   enddo
+!   do kk=1,3
+!      write(*,44)trim(species(kk)),xter3(kk),conx(kk)
+!44    format('3H constituent ',a,' xter3: ',i2,i5)
+!   enddo
 !--------------------------------------
 ! we have a link to an interaction record for conx(1) or conx(2)
 100 continue
@@ -4236,7 +4242,7 @@
 !        intrec%fraclink(1),intrec%tooprec%toopid
 ! Jump back here for next interaction list. note intrec13 set from intrec1
 200 continue
-   write(*,*)'3H We are at label 200 in add_ternary_extraol_method'
+!   write(*,*)'3H We are at label 200 in add_ternary_extraol_method'
    intwith1: do while(associated(intrec))
 !      write(*,*)' in intwith1 loop, label 200  around line 4146'
 !      if(associated(intrec%tooprec)) write(*,'(a,4i3)')'3H link 6 id:',&
@@ -4294,8 +4300,9 @@
 !------------------------ create a tooprec for binary 1-2
 ! Check if intrec12 already has a tooprec, (nullified when intrec created)
    if(.not.associated(intrec12)) then
-      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(2))))
+!      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(2))))
 220   format('3H the system ',a,'-,',a,' has no binary excess')
+      goto 300
    elseif(.not.associated(intrec12%tooprec)) then
 ! we must create a tooprec for this binary interaction
 !      write(*,*)'3H creating tooprec for ',trim(species(1)),'-',&
@@ -4345,10 +4352,12 @@
 !   if(xter3(1).gt.0 .and. xter3(1).ne.conx(1)) newtoop%Toop1(jj)=xter3(1)
 !   if(xter3(2).gt.0 .and. xter3(2).ne.conx(2)) newtoop%Toop2(jj)=xter3(2)
 ! if C is Kohler the negative fraction index of C is in xter3(1)
+! if no newtoop record created it crashes here
    if(xter3(1).lt.0) then
       newtoop%Kohler(jj)=xter3(1)
    else
-! VERY uncertain here ....
+! This is the 1-2 binary, if xter3
+! xter3(1) is the Toop element of the A-B system
       if(xter3(1).ne.conx(1)) then
          newtoop%Toop1(jj)=xter3(1)
       elseif(xter3(1).ne.conx(2)) then
@@ -4356,8 +4365,8 @@
       endif
    endif
 ! extract the elements from the interaction record
-   write(*,600)trim(species(1)),trim(species(2)),trim(species(3)),xter3,&
-        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+!   write(*,600)trim(species(1)),trim(species(2)),trim(species(3)),xter3,&
+!        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
 ! xter3 refers to the binary 1, 2 or 3
 ! conx is constituent index
 !   
@@ -4366,16 +4375,19 @@
 ! we can only save 1 amend command in each topec record ...
       newtoop%amend=trim(amend)
       saveamend=.FALSE.
-      write(*,*)'3H saved amend: ',newtoop%amend
+!      write(*,*)'3H Executing amend: ',newtoop%amend
    endif
-   write(*,*)'3H Finished storing data for tooprec 1-2'
+!   write(*,*)'3H Finished storing data for tooprec 1-2'
 !------------ repeat (almost) the same thing for binary 1-3 -------------
+! jump here if no intrec12 existed
+300 continue
 ! Check if intrec12 exist and already has a tooprec
    if(.not.associated(intrec13)) then
-      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(3))))
+!      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(3))))
+      goto 400
    elseif(.not.associated(intrec13%tooprec)) then
 ! we must create a tooprec for this binary interaction
-      write(*,*)'3H creating tooprec for ',trim(species(1)),'-',trim(species(3))
+!     write(*,*)'3H creating tooprec for ',trim(species(1)),'-',trim(species(3))
       allocate(newtoop)
 ! add the new tooprec in the list from phlista(lokph)%tooplast and add uniqeid
       newtoop%nexttoop=>phlista(lokph)%tooplast
@@ -4429,8 +4441,8 @@
       endif
    endif
 !
-   write(*,600)trim(species(1)),trim(species(3)),trim(species(2)),xter3,&
-        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+!   write(*,600)trim(species(1)),trim(species(3)),trim(species(2)),xter3,&
+!        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
 ! we may not have managed to save the amend?
    if(saveamend .and. len(newtoop%amend).le.1) then
 ! we can only save one amend command in each toprec record ...
@@ -4441,12 +4453,15 @@
    endif
 !   write(*,*)'3H Finished storing data for tooprec 1-3'
 !------------ repeat (almost) the same thing for binary 2-3 -------------
+! jump here if no intrec13 existed
+400 continue
 ! Check if intrec12 exist and already has a tooprec
    if(.not.associated(intrec23)) then
       write(*,220)trim(species(abs(conx(2)))),trim(species(abs(conx(3))))
+      goto 500
    elseif(.not.associated(intrec23%tooprec)) then
 ! we must create a tooprec for this binary interaction
-      write(*,*)'3H creating tooprec for ',trim(species(2)),'-',trim(species(3))
+!     write(*,*)'3H creating tooprec for ',trim(species(2)),'-',trim(species(3))
       allocate(newtoop)
 ! add the new tooprec in the list from phlista(lokph)%tooplast and add uniqeid
       newtoop%nexttoop=>phlista(lokph)%tooplast
@@ -4502,8 +4517,8 @@
       endif
    endif
 !
-   write(*,600)trim(species(2)),trim(species(3)),trim(species(1)),xter3,&
-        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+!   write(*,600)trim(species(2)),trim(species(3)),trim(species(1)),xter3,&
+!        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
 600 format('3H Binary ',a,'-',a,' extrapolerad to ',a,': ',4(3i3,2x))
 ! same problem unsolved ------------- In OC a ternary B-C-A does not exist
    if(saveamend .and. len(newtoop%amend).le.1) then
@@ -4511,11 +4526,18 @@
 ! But each amend command creates 3 tooprec records ...
       newtoop%amend=trim(amend)
       saveamend=.FALSE.
-      write(*,*)'3H saved amend: ',newtoop%amend
-   else
-      write(*,*)'3H Filed to save: ',trim(amend)
+!      write(*,*)'3H saved amend: ',newtoop%amend
+!   else
+!      write(*,*)'3H Filed to save: ',trim(amend)
    endif
-   write(*,*)'3H Finished storing data for tooprec 2-3'
+!   write(*,*)'3H Finished storing data for tooprec 2-3'
+!---------------------------------------------
+! jump here if no intrec13 existed
+500 continue
+   if(.not.associated(newtoop)) then
+      write(*,*)'3H there are no interaction parameters to extrapolate'
+      goto 1000
+   endif
 !===================================================================
 ! Puuuuuuuuuuuuuuuuuhhhhhhhhhhhhhhhhhhhh
 1000 continue
