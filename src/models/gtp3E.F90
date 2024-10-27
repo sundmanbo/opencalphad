@@ -2256,6 +2256,9 @@
       phlista(jph)%alphaindex=iws(lok+displace+1)
       phlista(jph)%noofcs=iws(lok+displace+2)
       phlista(jph)%nooffs=iws(lok+displace+3)
+! emergy fix for Kohler/Toop records
+      nullify(phlista(jph)%toopfirst)
+      nullify(phlista(jph)%tooplast)
 !   read(lin)jph,phlista(jph)%name,&
 !        phlista(jph)%models,phlista(jph)%phletter,phlista(jph)%status1,&
 !        phlista(jph)%alphaindex,phlista(jph)%noofcs,phlista(jph)%nooffs
@@ -2325,6 +2328,8 @@
 !>>>>> 9A: first interaction record
             call readintrec(lokint,iws,level,emrec%intpointer)
             intrec=>emrec%intpointer
+! emergy fix for Kohler/Toop records
+            nullify(intrec%tooprec)
 300         continue
 ! push before going to higher
             level=level+1
@@ -3993,8 +3998,18 @@
       thisphaserejected=.false.
 !      write(*,*)'3E nophase set to false, phase: ',name1
       ip=ip+1
-      jp=ip
+!      jp=ip
+! CCI
+      jp=index(longline,'%')
+!      if(jp.eq.0) then
+! evidently name2 is just the % sign ...
+!         write(*,*)'3E missing % after phase name, continuing'
+!         jp=ip+1
+!      endif
+! I am no longer sure what name2 is used for ....
       name2=longline(ip:jp)
+!      write(*,302)trim(name2),ip,jp,trim(longline)
+!302   format('3E Debug: name2: ',a,2i5/a)
       thisdis=0
       phdis: if(dodis.eq.1) then
 ! special when reading disordered parts, check phase name equail
@@ -5407,10 +5422,10 @@
       do zp=1,ntxp
 !         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
          call set_database_ternary(ternaryxpol(zp))
-! this is in gtp3H.F90
+! this subroutine is in gtp3H.F90
       enddo
-   else
-      write(*,*)'3E no ternary extrapolations'
+!   else
+!      write(*,*)'3E No ternary extrapolations'
    endif
 !000000000000000000000000000000000000000000000000000000
 ! no more read(21 ...

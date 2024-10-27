@@ -212,7 +212,7 @@
 ! 4050
        'No such phase                                                   ',&
        'Unknown or ambiguous species name                               ',&
-       'No such component                                               ',&
+       'No such constituent                                             ',&
        'Phase name must start with letter A-Z                           ',&
        'Phase already entered                                           ',&
        'Model not implemented yet                                       ',&
@@ -1043,7 +1043,8 @@
 ! The Toop2 array has constituent indices of all ternaries with B as Toop
 ! The Kohler array has constituent indices of all ternary where A-B is Kohler
 ! An array element zero menas it is ignored
-     integer :: free,toopid
+! free is last used index in toop1 etc. endmemel is fraction in endmember
+     integer :: free,endmemel,toopid
      integer, allocatable, dimension(:) :: Toop1
      integer, allocatable, dimension(:) :: Toop2
      integer, allocatable, dimension(:) :: Kohler

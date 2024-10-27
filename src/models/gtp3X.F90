@@ -240,8 +240,7 @@
 ! OK when using c ph .... , problem with arguments
 !      write(*,222)moded,lokph,phlista(lokph)%tnooffr,phres%yfr(1),gz%tpv(1)
 222   format('3X call mqmqa entropy: ',3i3,2(1pe12.4))
-!      call config_entropy_mqmqa(moded,phlista(lokph)%tnooffr,phres,&
-!           lokph,gz%tpv(1))
+! in gtp3_XQ
       call config_entropy_mqmqa1(phres,moded,lokph,gz%tpv(1))
 ! attempt to simplify the call .... 
 ! when we come back mqmqaf should have some arrays allocated ....

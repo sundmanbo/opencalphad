@@ -413,7 +413,7 @@ contains
          ['FREE_LISTS      ','STOP_ON_ERROR   ','PARAMETER_STRUCT',&
           'SPECIES         ','TPFUN           ','BROWSER         ',&
           'TRACE           ','SYMBOL_VALUE    ','MAP_STARTPOINTS ',&
-          'GRID            ','MQMQA_QUADS     ','BOMBMATTA       ']
+          'GRID            ','TERNARY_MQMQA   ','BOMBMATTA       ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -1220,7 +1220,8 @@ contains
              endif
              write(kou,677)
 677          format('Adding a ternary extrapolation method is fragile and',/&
-                  'only limited tests has been made')
+                  'only limited tests has been made.'/&
+                  'Warning *** there is no check for duplicate entries.')
              tkloop: do while(.true.)
                 call gparcx('Constituent 1: ',cline,last,1,&
                      xspecies(1),' ','?Amend phase ternary extrapol')
@@ -6378,7 +6379,7 @@ contains
        case(10)
           call check_all_phases(0,ceq)
 !..................................
-! DEBUG MQMQA_QUADS constituent test
+! DEBUG Kohler/Toop and MQMQA_QUADS constituent test
        case(11)
 ! specifying which sublattice each element belong to
 !          jp=0
@@ -6393,8 +6394,14 @@ contains
 ! finished by an empty line, then replace species by endmembers
 !          call mqmqa_rearrange(const)
 !..................................
+! add list ternary extrapolation methods
+          write(kou,1682)
+1682      format(/'Data for ternary extrapolation methods')
+          call list_ternary_extrapol_data(kou)
+          write(kou,'("no more")')
+!
           if(.not.allocated(mqmqa_data%contyp)) then
-             write(*,*)'Sorry, no MQMQA data entered'
+             write(*,*)'No MQMQA data entered'
              goto 100
           endif
           call gparcx('Phase name: ',cline,last,1,name1,'LIQUID ',&

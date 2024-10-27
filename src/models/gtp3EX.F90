@@ -1947,7 +1947,7 @@
 ! convert expr to TPfun/Parameter and Trange and write lines on unit lut
 ! tag is TPfun or Parameter and the first part of expr is the Id followd
 ! by the expression
-   integer lut
+   integer lut,nl
    character expr*(*),tag*(*)
 !
    integer ip,jp,kp

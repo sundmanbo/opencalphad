@@ -957,6 +957,8 @@ CONTAINS
     ENDIF
     CH=SVAR(LAST:LAST)
     continue
+! CCI
+    HEL=ZERO
     nodot: IF(CH.NE.'.') THEN
        JERR=GPN(SVAR,LAST,HEL)
        IF(JERR.NE.0) THEN

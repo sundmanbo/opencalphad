@@ -20,6 +20,10 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
+2024.10.22 version 6.075 The data structure for Kohler/Toop ternary
+extrapolation structure revised but still not implemented for
+calculations.
+
 2024.10.22 version 6.074 A number of bugfixes and cleanups.  Using the
 MQMQA or new ternary extrapolation methods may still generate a lot of
 information useful for debugging.
