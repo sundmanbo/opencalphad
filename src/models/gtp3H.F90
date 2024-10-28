@@ -3975,7 +3975,7 @@
 !
    write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),tkmode,&
         trim(phlista(lokph)%name)
-8  format(/'3H add_ternary_extrapol "',a,'" "',a,'" "',a,'" "',a,'"',' in ',a)
+8  format('3H add_ternary_extrapol ',a,' ',a,' ',a,' using ',a,' in ',a)
    if(phlista(lokph)%noofsubl.gt.1) then
       write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
       gx%bmperr=4399; goto 1000
@@ -3989,7 +3989,7 @@
    amend=trim(phlista(lokph)%name)//' TERNARY_EXTRAPOL '//&
         ' '//trim(species(1))//' '//trim(species(2))//&
         ' '//trim(species(3))//' '//tkmode//' '
-! removed the ! as list on TDB file may include several extrapol
+! rno final ! as list on TDB file may include several extrapol
 !   write(*,*)'3H Executing; amend ',trim(amend)!
 !
 !----------------------------------- to be considered   
@@ -4006,7 +4006,8 @@
 ! T3T3K is wrong as A-B cannot have C as Toop element
 ! T1KT1 is wrong as B-C cannot have A as Toop element
 ! T1T3T2 has A as Toop in A-B, C as Toop in A-C and B as Toop in B-C
-! The information is stored locally for each binary A-B, A-C and B-C
+! T1MM has Toop for A-B and ;uggianu for A-C and B-C
+! The relevant information is stored locally for each binary A-B, A-C and B-C
 ! 
 ! For each binary the constituent indices are stored, indicating in the
 ! and if any of them is a Toop element and if the third elemt is Kohler
@@ -4276,10 +4277,10 @@
       nullify(phlista(lokph)%toopfirst%binint)
       phlista(lokph)%toopfirst%amend=' '
       kk=size(phlista(lokph)%constitlist)
-! Hm, in a 4 component systems there are only 2 extraplations?.  But the
+! Hm, in a 4 component systems there are only 2 extrapolations?.  But the
 ! tooprec for a binary is involved in the extrapolations for other binaries
       nobin=kk*(kk-1)/2
-      write(*,'(a,i3)')'3H allocating special binary extrapolations ',nobin
+!      write(*,'(a,i3)')'3H allocating special binary extrapolations ',nobin
       phlista(lokph)%toopfirst%free=nobin
    else
       nobin=phlista(lokph)%toopfirst%free
@@ -4290,88 +4291,59 @@
 ! the tooprec record are linked by nexttoop with a sequantial index toopid
 ! Each original AMEND command is saved in one tooprec
    saveamend=.TRUE.
+! this is to indicate that a tooprec has been added
+! at the first calculation some checka are made to avoid duplicates
+! and it is set to zero
+   phlista(lokph)%toopfirst%endmemel=-1
 ! total number of binaries
 !------------------------ create a tooprec for binary 1-2
 ! Check if intrec12 already has a tooprec, (nullified when intrec created)
 ! conx(1) is the endmember fraction index
+!   write(*,*)'3H creating tooprecords',associated(intrec12)
    if(.not.associated(intrec12)) then
 !      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(2))))
 220   format('3H the system ',a,'-,',a,' has no binary excess')
       goto 300
-   elseif(.not.associated(intrec12%tooprec)) then
-! we must create a tooprec for this binary interaction
-!      write(*,*)'3H creating tooprec for ',trim(species(1)),'-',&
-!           trim(species(2))
-      allocate(newtoop)
-! add the new tooprec in the list from phlista(lokph)%tooplast and add uniqeid
-      newtoop%nexttoop=>phlista(lokph)%tooplast
-      phlista(lokph)%tooplast=>newtoop
-      phlista(lokph)%lasttoopid=phlista(lokph)%lasttoopid+1
-      newtoop%toopid=phlista(lokph)%lasttoopid
-! link the tooprecord from intrec12%tooprec and save endmember fraction index
-      intrec12%tooprec=>newtoop
-      newtoop%endmemel=conx(1)
-! Allocate space for data, this binary may have several ternary extrapolations
-      allocate(newtoop%Toop1(nobin))
-      allocate(newtoop%Toop2(nobin))
-      allocate(newtoop%Kohler(nobin))
-! zero all values
-      newtoop%Toop1=0
-      newtoop%Toop2=0
-      newtoop%Kohler=0
-! when accessing unassigned Toop1, Toop2 and Kohler I got segmentation error
-!      write(*,*)'3H created tooprec for 1-2'
-      jj=1
-      newtoop%free=jj
-      newtoop%amend=' '
-! set crosslinks with interaction record
-      newtoop%binint=>intrec12
-      intrec12%tooprec=>newtoop
+!   elseif(.not.associated(intrec12%tooprec)) then
    else
-! there is already a ternary extrapolation record for this binary
+! this routine returns with a new or old newtoop record
+!      write(*,*)'3H calling create_toop_record for 1-2'
+      call  create_toop_record(lokph,intrec12,conx(1),nobin)
       newtoop=>intrec12%tooprec
-      jj=size(newtoop%Toop1)
-!      write(*,*)'3H extend 1-2 arrays?',newtoop%toopid,jj,newtoop%free
-      if(newtoop%free.eq.jj) then
-         write(*,*)'3H extending tooprecord for 1-2',newtoop%toopid,jj
-! This should dynamically expand the arrays keeping old content
-         newtoop%Toop1 = [ newtoop%Toop1, ( 0, kk=1,jj+5 ) ]
-         newtoop%Toop2 = [ newtoop%Toop2, ( 0, kk=1,jj+5 ) ]
-         newtoop%Kohler = [ newtoop%Kohler, ( 0, kk=1,jj+5 ) ]
-      endif
-      jj=newtoop%free+1
-      newtoop%free=jj
-!      done=jj+4
-! we use jj below, do not destroy!
-!      write(*,'(a,10i4)')'3H extended1: ',size(newtoop%Toop1),newtoop%free
-!      write(*,'(a,10i4)')'3H extended2: ',newtoop%Toop1,done
-!      do kk=jj,done
-!         newtoop%Toop1(kk) = 0
-!      enddo
-!      write(*,'(a,10i4)')'3H extended3: ',(newtoop%Toop1(kk),jj=1,done)
-!      write(*,'(a)')'3H extended4 OK?'
+      jj=newtoop%free
+!      kk=newtoop%free
+!      write(*,*)'3H data in newtoop: ',newtoop%free,kk
+!      kk=size(intrec12%tooprec%toop1)
+!      write(*,221)'Toop1: ',(newtoop%toop1(kk),jj=1,kk)
+!      write(*,221)'Toop2: ',(newtoop%toop2(kk),jj=1,kk)
+!      write(*,221)'Kohler:',(newtoop%kohler(kk),jj=1,kk)
+!221   format('3H arrays: ',a,10i3)
+!      jj=newtoop%free
    endif
-! finally enter the data for 1-2 extrapolation
-! if A is Toop the fraction index of A is in xter3(1)
-! if B is Toop the fraction index of B is in xter3(2)
-! if C is Kohler the negative fraction index of C is in xter3(1)
+! save Kohler constituent fraction (or zeo if none)
+!   write(*,'(a,3i3,2x,3i3)')'3H xter3, toopcon: ',xter3,toopcon
    if(xter3(1).lt.0)  newtoop%Kohler(jj)=xter3(1)
    if(toopcon(1).gt.0) then
 !------------------------------------------------------------
 ! This is the 1-2 binary of 1-2-3 with a Toop constituent 1, 2 or 3
 !------------------------------------------------------------
 ! If toopcon(1)>0 it represents a Toop constituent
+! Then one should add the fraction of conx(3) to the NON-toopcon
 ! if conx(1) is equal to toopcon(1) then Toop2(jj)=toopcon(1)
 ! if conx(2) is equal to toopcon(1) then Toop1(jj)=toopcon(1)
 ! otherwise toopcon(1) can be ignored as toopcon is not part of the binary
-!      write(*,'(a,5i3)')'3H Toop 1-2: ',toopcon(1),conx
+      write(*,'(a,3i3,2x,3i3)')'3H Toop 1-2: ',toopcon,conx
       if(toopcon(1).eq.conx(1)) then
-! toopcon(1) is the first constituent in 1-2, add toopcon(1) to second fraction
-         newtoop%Toop2(jj)=toopcon(1)
+! toopcon(1) is the first constituent in 1-2, add conx(3) to second fraction
+         newtoop%Toop2(jj)=conx(3)
       elseif(toopcon(1).eq.conx(2)) then
-         newtoop%Toop1(jj)=toopcon(1)
+         newtoop%Toop1(jj)=conx(3)
       endif
    endif
+!   write(*,'(a,i3,2x,3i3,2x,3i3)')'3H newtoop 1-2: ',jj,&
+!        newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj),&
+!        intrec12%tooprec%toop1(jj),intrec12%tooprec%toop2(jj),&
+!        intrec12%tooprec%kohler(jj)
 ! extract the elements from the interaction record
 !   write(*,600)trim(species(1)),trim(species(2)),trim(species(3)),xter3,&
 !        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
@@ -4389,51 +4361,16 @@
 !------------ repeat (almost) the same thing for binary 1-3 -------------
 ! jump here if no intrec12 existed
 300 continue
-! Check if intrec12 exist and already has a tooprec
+! Check if intrec3 exist and already has a tooprec
    if(.not.associated(intrec13)) then
 !      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(3))))
       goto 400
-   elseif(.not.associated(intrec13%tooprec)) then
-! we must create a tooprec for this binary interaction
-!     write(*,*)'3H creating tooprec for ',trim(species(1)),'-',trim(species(3))
-      allocate(newtoop)
-! add the new tooprec in the list from phlista(lokph)%tooplast and add uniqeid
-      newtoop%nexttoop=>phlista(lokph)%tooplast
-      phlista(lokph)%tooplast=>newtoop
-      phlista(lokph)%lasttoopid=phlista(lokph)%lasttoopid+1
-      newtoop%toopid=phlista(lokph)%lasttoopid
-! link the tooprecord from intrec13%tooprec and endmember fraction index
-      intrec13%tooprec=>newtoop
-      newtoop%endmemel=conx(1)
-! Allocate space for data, this binary may have several ternary extrapolations
-      allocate(newtoop%Toop1(nobin))
-      allocate(newtoop%Toop2(nobin))
-      allocate(newtoop%Kohler(nobin))
-      newtoop%Toop1=0
-      newtoop%Toop2=0
-      newtoop%Kohler=0
-!      write(*,*)'3H created tooprec for 1-3'
-      jj=1
-      newtoop%free=jj
-      newtoop%amend=' '
-! set crosslinks with interaction record
-      newtoop%binint=>intrec13
-      intrec13%tooprec=>newtoop
    else
-! there is already a ternary extrapolation record for this binary
+!      write(*,*)'3H calling create_toop_record for 1-3'
+      call  create_toop_record(lokph,intrec13,conx(1),nobin)
       newtoop=>intrec13%tooprec
-      jj=size(newtoop%Toop1)
-!      write(*,*)'3H extend 1-3 arrays?',newtoop%toopid,jj,newtoop%free
-      if(newtoop%free.eq.jj) then
-         write(*,*)'3H extending tooprecord for 1-3',newtoop%toopid,jj
-! This should dynamically expand the arrays keeping old content
-         newtoop%Toop1 = [ newtoop%Toop1, ( 0, kk=1,jj+5 ) ]
-         newtoop%Toop2 = [ newtoop%Toop2, ( 0, kk=1,jj+5 ) ]
-         newtoop%Kohler = [ newtoop%Kohler, ( 0, kk=1,jj+5 ) ]
-         write(*,'(a,10i4)')'3H extended: ',newtoop%Toop1
-      endif
-      jj=newtoop%free+1
-      newtoop%free=jj
+      jj=newtoop%free
+!      write(*,*)'3H data in newtoop 1-3: ',newtoop%free,jj
    endif
 ! enter the data for 1-3 extrapolation A-C-B
 ! if A is Toop the fraction index of A shoule be in toopcon(1)
@@ -4445,17 +4382,23 @@
 ! This is the 1-3 binary of 1-2-3 with a Toop constituent
 !------------------------------------------------------------
 ! If toopcon(2)>0 that represent a Toop constituent
-! if conx(1) is equal to toopcon(2) then Toop2(jj)=toopcon(2)
-! if conx(3) is equal to toopcon(2) then Toop1(jj)=toopcon(2)
+! if conx(1) is equal to toopcon(2) then Toop2(jj)=conx(2)
+! if conx(3) is equal to toopcon(2) then Toop1(jj)=conx(2)
 ! otherwise toopcon(2) can be ignored as it is not part of the binary 1-3
-!      write(*,'(a,5i3)')'3H Toop 1-3: ',toopcon(2),conx
+      write(*,'(a,3i3,2x,3i3)')'3H Toop 1-3: ',toopcon,conx
       if(toopcon(2).eq.conx(1)) then
-! first element is Toop; add toop third fraction to second element
-         newtoop%Toop2(jj)=toopcon(2)
+! first element is Toop; add fraction of conx(2) to NON-toop element
+!         newtoop%Toop2(jj)=toopcon(2)
+         newtoop%Toop2(jj)=conx(2)
       elseif(toopcon(2).eq.conx(3)) then
-         newtoop%Toop1(jj)=toopcon(2)
+!         newtoop%Toop1(jj)=toopcon(2)
+         newtoop%Toop1(jj)=conx(2)
       endif
    endif
+!   write(*,'(a,i3,2x,3i3,2x,3i3)')'3H newtoop 1-3: ',jj,&
+!        newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj),&
+!        intrec12%tooprec%toop1(jj),intrec12%tooprec%toop2(jj),&
+!        intrec12%tooprec%kohler(jj)
 !
 !   write(*,600)trim(species(1)),trim(species(3)),trim(species(2)),xter3,&
 !        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
@@ -4465,58 +4408,24 @@
 ! I am not sure if it has to be allocated or have fixed length ...
       newtoop%amend=trim(amend)
       saveamend=.FALSE.
-      write(*,*)'3H saved amend: ',newtoop%amend
+ !     write(*,*)'3H saved amend: ',newtoop%amend
    endif
 !   write(*,*)'3H Finished storing data for tooprec 1-3'
 !------------ repeat (almost) the same thing for binary 2-3 -------------
 ! jump here if no intrec13 existed
 400 continue
-! Check if intrec12 exist and already has a tooprec
+! Check if intrec23 exist and already has a tooprec
    if(.not.associated(intrec23)) then
       write(*,220)trim(species(abs(conx(2)))),trim(species(abs(conx(3))))
       goto 500
-   elseif(.not.associated(intrec23%tooprec)) then
-! we must create a tooprec for this binary interaction
-!     write(*,*)'3H creating tooprec for ',trim(species(2)),'-',trim(species(3))
-      allocate(newtoop)
-! add the new tooprec in the list from phlista(lokph)%tooplast and add uniqeid
-      newtoop%nexttoop=>phlista(lokph)%tooplast
-      phlista(lokph)%tooplast=>newtoop
-      phlista(lokph)%lasttoopid=phlista(lokph)%lasttoopid+1
-      newtoop%toopid=phlista(lokph)%lasttoopid
-! link the tooprecord from intrec13%tooprec
-      intrec23%tooprec=>newtoop
-      newtoop%endmemel=conx(2)
-! Allocate space for data, this binary may have several ternary extrapolations
-      allocate(newtoop%Toop1(nobin))
-      allocate(newtoop%Toop2(nobin))
-      allocate(newtoop%Kohler(nobin))
-      newtoop%Toop1=0
-      newtoop%Toop2=0
-      newtoop%Kohler=0
-!      write(*,*)'3H created tooprec for 2-3'
-      jj=1
-      newtoop%free=jj
-      newtoop%amend=' '
-! set crosslinks with interaction record
-      newtoop%binint=>intrec23
-      intrec23%tooprec=>newtoop
    else
-! there is already a ternary extrapolation record for this binary
+!      write(*,*)'3H calling create_toop_record for 2-3'
+      call  create_toop_record(lokph,intrec23,conx(2),nobin)
       newtoop=>intrec23%tooprec
-      jj=size(newtoop%Toop1)
-!      write(*,*)'3H extend 2-3 arrays?',newtoop%toopid,jj,newtoop%free
-      if(newtoop%free.eq.jj) then
-         write(*,*)'3H extending tooprecord for 2-3',newtoop%toopid,jj
-! This should dynamically expand the arrays keeping old content
-         newtoop%Toop1 = [ newtoop%Toop1, ( 0, kk=1,jj+5 ) ]
-         newtoop%Toop2 = [ newtoop%Toop2, ( 0, kk=1,jj+5 ) ]
-         newtoop%Kohler = [ newtoop%Kohler, ( 0, kk=1,jj+5 ) ]
-         write(*,'(a,10i4)')'3H extended: ',newtoop%Toop1
-      endif
-      jj=newtoop%free+1
-      newtoop%free=jj
+      jj=newtoop%free
+!      write(*,*)'3H data in newtoop 2-3: ',newtoop%free
    endif
+411 continue   
 ! enter the data for 2-3 extrapolation B-C-A
 ! enter the data for 1-3 extrapolation A-C-B
 ! if B is Toop the fraction index of B shoule be in extrapolatio(2)
@@ -4530,36 +4439,39 @@
 !------------------------------------------------------------
 ! This is the 2-3 binary of 1-2-3 with a Toop constituent
 !------------------------------------------------------------
-! If toopcon(2)>0 that represent a Toop constituent
-! if conx(2) is equal to toopcon(3) then Toop2(jj)=toopcon(3)
-! if conx(3) is equal to toopcon(3) then Toop1(jj)=toopcon(3)
+! If toopcon(3)>0 it represent a Toop constituent
+! if conx(2) is equal to toopcon(3) then add conx(1) to the NON-toop element
+! if conx(3) is equal to toopcon(3) then the same
 ! otherwise toopcon(3) can be ignored as it is not part of the binary! 
-!      write(*,'(a,5i3)')'3H Toop 2-3: ',toopcon(3),conx
+      write(*,'(a,3i3,2x,3i3)')'3H Toop 2-3: ',toopcon,conx
       if(toopcon(3).eq.conx(2)) then
 ! toopcon(3) is the first constituent in 2-3
-         newtoop%Toop2(jj)=toopcon(3)
+!         newtoop%Toop2(jj)=toopcon(3)
+         newtoop%Toop2(jj)=conx(1)
       elseif(toopcon(3).eq.conx(3)) then
-         newtoop%Toop1(jj)=toopcon(3)
+!         newtoop%Toop1(jj)=toopcon(3)
+         newtoop%Toop1(jj)=conx(1)
       endif
    endif
+!   write(*,'(a,i3,2x,3i3,2x,3i3)')'3H newtoop 2-3: ',jj,&
+!        newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj),&
+!        intrec12%tooprec%toop1(jj),intrec12%tooprec%toop2(jj),&
+!        intrec12%tooprec%kohler(jj)
 !
 !*************  furure check ****************
 ! if any of Toop1, Toop2 and Kohler arrays have the same fraction index 
 ! more than once one should add/subract only once.  I think it can happen
 ! for real cases, maybe one can eliminate duplicate indices when calculating
+! Added check in zeroth tooprec in %free set to -1 when adding ternary
 !----------------------------------------------------
 !   write(*,600)trim(species(2)),trim(species(3)),trim(species(1)),xter3,&
 !        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
 600 format('3H Binary ',a,'-',a,' extrapolerad to ',a,': ',4(3i3,2x))
-! same problem unsolved ------------- In OC a ternary B-C-A does not exist
    if(saveamend .and. len(newtoop%amend).le.1) then
 ! we can only save one amend command in each toprec record ...
-! But each amend command creates 3 tooprec records ...
+! But each amend command uses 3 tooprec records ...
       newtoop%amend=trim(amend)
       saveamend=.FALSE.
-!      write(*,*)'3H saved amend: ',newtoop%amend
-!   else
-!      write(*,*)'3H Filed to save: ',trim(amend)
    endif
 !   write(*,*)'3H Finished storing data for tooprec 2-3'
 !---------------------------------------------
@@ -4637,6 +4549,72 @@
 1000 continue
    return
  end subroutine list_ternary_extrapol_data
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine create_toop_record
+!\begin{verbatim}
+! subroutine create_toop_record
+ subroutine create_toop_record(lokph,intrec,endmem,nobin)
+! this can replace a 3 times repeated part of add_ternary_extrapol_method
+   implicit none
+   type(gtp_interaction), pointer :: intrec
+! lokph is phase index, endmem is fraction index for endmember, nobin is size
+   integer lokph,endmem,nobin
+!\end{verbatim}
+   type(gtp_tooprec), pointer :: newtoop
+   integer jj,kk
+! we come here if we have to create or extend a tooprecord
+! for storing a new ternary parameter with Toop/Kohler extrapolation
+!   write(*,'(a,3i3)')'3H creating tooprec with endmember ',endmem
+   if(.not.associated(intrec%tooprec)) then
+!      write(*,*)'3H creating intrec%tooprec'
+      allocate(newtoop)
+      intrec%tooprec=>newtoop
+!      write(*,*)'3H created intrec%tooprec'
+! add the new tooprec in the list from phlista(lokph)%tooplast and add uniqeid
+      newtoop%nexttoop=>phlista(lokph)%tooplast
+      phlista(lokph)%tooplast=>newtoop
+      phlista(lokph)%lasttoopid=phlista(lokph)%lasttoopid+1
+      newtoop%toopid=phlista(lokph)%lasttoopid
+! link the tooprecord from intrec13%tooprec and endmember fraction index
+      intrec%tooprec=>newtoop
+!      newtoop%endmemel=conx(1)
+      newtoop%endmemel=endmem
+! Allocate space for data, this binary may have several ternary extrapolations
+      allocate(newtoop%Toop1(nobin))
+      allocate(newtoop%Toop2(nobin))
+      allocate(newtoop%Kohler(nobin))
+      newtoop%Toop1=0
+      newtoop%Toop2=0
+      newtoop%Kohler=0
+      jj=1
+      newtoop%free=jj
+      newtoop%amend=' '
+! set crosslinks with interaction record
+      newtoop%binint=>intrec
+      intrec%tooprec=>newtoop
+   else
+! there is already a ternary extrapolation record, find place to store data
+      newtoop=>intrec%tooprec
+      jj=size(newtoop%Toop1)
+      if(newtoop%free.eq.jj) then
+         write(*,*)'3H extending tooprecord for ',newtoop%toopid,jj,newtoop%free
+! This should dynamically expand the arrays keeping old content
+         newtoop%Toop1 = [ newtoop%Toop1, ( 0, kk=1,jj+5 ) ]
+         newtoop%Toop2 = [ newtoop%Toop2, ( 0, kk=1,jj+5 ) ]
+         newtoop%Kohler = [ newtoop%Kohler, ( 0, kk=1,jj+5 ) ]
+         write(*,'(a,10i4)')'3H extended: ',newtoop%Toop1
+      endif
+! newtoop% free is the place to store new data in the arrays
+      jj=newtoop%free+1
+      newtoop%free=jj
+   endif
+!   write(*,*)'3H data in newtoop: ',newtoop%free
+! reurn to enter data in intrec, newtoop%free is place to store new data
+1000 continue
+   return
+ end subroutine create_toop_record
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

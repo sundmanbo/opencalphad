@@ -20,7 +20,11 @@ time to answer such questions.
 
 In the list below the most recent changes come first.
 
-2024.10.22 version 6.075 The data structure for Kohler/Toop ternary
+2024.10.28 version 6.076 A preliminary code for calculating
+Toop/Kohler extrapolations has been added.  This is still debugged and
+very tentative.  If you want to test any feedback is appreciated.
+
+2024.10.26 version 6.075 The data structure for Kohler/Toop ternary
 extrapolation structure revised but still not implemented for
 calculations.
 

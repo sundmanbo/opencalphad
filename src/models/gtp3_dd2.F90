@@ -1044,6 +1044,11 @@
 ! The Kohler array has constituent indices of all ternary where A-B is Kohler
 ! An array element zero menas it is ignored
 ! free is last used index in toop1 etc. endmemel is fraction in endmember
+! toopid is zero in the first record created (linked from phlista()%toopfirst)
+! This record is empty excpt for toopid and a nullified nexttoop
+! except endmemel is set to -1 whenever a new extrapolation record entered
+! and endmemel is zeroed after the first calculation.  At this first
+! any duplicate additions/subrractions are removed from the tooprec
      integer :: free,endmemel,toopid
      integer, allocatable, dimension(:) :: Toop1
      integer, allocatable, dimension(:) :: Toop2

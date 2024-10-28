@@ -1537,7 +1537,7 @@
 !\begin{verbatim}
  subroutine calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,toopx,ceq)
 ! This routine replaces all calculations inside cgint for Toop/Kohler excess
-! Handle a binary interaction parameter with Toop or Kohler extrapolation
+! binary interaction parameter with Toop or Kohler extrapolation
 ! toopx is the link to the kohler-Toop record
 ! toopx%binint is pointer back to calling subroutine
 ! A single composition dependent binary parameter is calculated
@@ -1561,7 +1561,7 @@
    integer jj(3),j1,j2,j3,link,count,toopconst,limit,jdeg,lfun,nyfr,tkdeb
 ! loop veriables 
    integer qz,ic,cc
-! to indicate if there are no constituents in toop1, toop2 or kohler arrays
+! to avoid calculating derivatives if no constituents in toop1, toop2 or kohler
    logical not1,not2,nok
 ! for the RK calculation with Toop/Kohler fractions!
    double precision valtp(6)
@@ -1576,19 +1576,17 @@
    integer toop1(5),toop2(5),kohler(10),ntp1,ntp2,nkh
 !
 ! Use the phres passed on via toopx%phres if there are more toopx records
-! this link to phres is copied to toopx%phres before the call
-! in gtp3X, subroutine calcg_internal around line 858
+! this link to phres is copied to toopx%phres before the call.
+! In gtp3X, subroutine calcg_internal around line 858.
+! This makes it possible to have several composition sets (I hope)
    if(associated(toopx%phres)) then
       phres=>toopx%phres
    else
       write(*,*)'3QX phres pointer is not assigned entering calc_toop'
       gx%bmperr=4399; goto 1000
    endif
-! debug level 0 nothing, 1 minimum, 2 Toop, 3 all
-   tkdeb=0
-   if(tkdeb.gt.0) write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
-!
-10 format('3XQ in calc_toop & Kohler with binary;',2i3,' degree; ',i2)
+! debug level 0 nothing, 1 minimum, 2 Toop, 5 all
+   tkdeb=2
 ! NOTE vals, dvals and d2vals set to zero before calling this routine
    rtg=gz%rgast
    if(lokpty%degree.eq.0) then
@@ -1603,22 +1601,27 @@
       vals=vals+valtp
       goto 1000
    endif
+! we come here if there are RK terms >0
+   if(tkdeb.gt.0) then
+      write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
+10    format(/'3XQ in calc_toop & Kohler with binary;',2i3,' degrees: ',i2)
+   endif
 ! We have to calculate the reduced fractions, it can involve many fractions
    nyfr=size(phres%yfr)
    allocate(dsigma(nyfr))
    allocate(dx12(nyfr))
    allocate(dx21(nyfr))
+! default value of sigma is unity
+   sigma=one
+! these are default zero, i.e. derivatives with respect to no extra fractions
    dx12=zero
    dx21=zero
-! initially dsigma is set to 1, i.e. derivatives with respect to all
-! constituents.
-   sigma=one
    dsigma=zero
 ! constituents are ordered alphabetically, x12 is the first in the endmember
    x12=gz%yfrem(gz%intlat(1))
    x21=gz%yfrint(1)
-   if(tkdeb.gt.2) write(*,15)x12,x21,gz%iq(1),gz%iq(2)
-15 format('3XQ fractions: ',2f8.4,2i5)
+   if(tkdeb.ge.2) write(*,15)x12,x21,gz%iq(1),gz%iq(2)
+15 format('3XQ initial fractions: ',2f8.4,2i5)
 ! We have a binary excess parameter which depend on x_A and x_B
 ! and a Redlich-Kister polynom (x_A -x_B)/sigma
 ! When the data for the system was entered some ternaries were
@@ -1626,40 +1629,53 @@
 ! information needed for the calculations below
 ! For all ternaries A-B-K where the composition of B is constant (Toop)
 ! the fraction of K should be added to A, i.e. x12
-! crash maybe accessing unassigned values of toopx%top1 YES! ??
+! CHECK FOR DUPLICATE FRACTION INDICES, each add ternary may add same fraction!!
+! if phlista(lokph)%firsttoop%free=-1 check and remove redundant fractions!!
+! Not yet implemented <<<<<<<<<<<<<<<<<<<<
+   if(tkdeb.ge.4) write(*,16)phlista(lokph)%toopfirst%endmemel
+16 format('3XQ Checking phlista(lokph)%toopfirst%endmemel:',i2)
+! The check made only once, this value is zeroed in calcg
    not1=.TRUE.
-   if(tkdeb.gt.2) then
+   if(tkdeb.ge.2) then
       write(*,8)toopx%free,nyfr
 8     format('3XQ Number of Toop/Kohler ternaries: ',i3,&
            ' Total number of fractions: ',i3)
       write(*,12)phres%yfr
-12    format('3XQ yfr: ',20F7.4)
+12    format('3XQ All yfr: ',20F7.4)
    endif
 ! toopx%free is last used index in %Toop1, %Toop2 and %Kohler
    not1=.TRUE.;    not2=.TRUE.;    nok=.TRUE.
-   do ic=1,toopx%free
-      if(tkdeb.gt.2) &
+   allcorr: do ic=1,toopx%free
+      if(tkdeb.ge.2) &
            write(*,33)ic,toopx%toop1(ic),toopx%toop2(ic),toopx%kohler(ic)
-33    format('3XQ looking for Toop/Kohler constituents: ',i2,2x,3i4)
+33    format('3XQ List of Toop/Kohler constituents: ',i2,2x,3i3)
+!------------ Toop1
       cc=toopx%toop1(ic)
       if(cc.gt.0) then
-! In this ternary i-j-k the composition of i is constant (Toop)
+! In this binary i-j with ternary k the i (endmember) is constant (Toop)
          x12=x12+phres%yfr(cc); dx12(cc)=one; not1=.FALSE.
+         if(tkdeb.ge.2) &
+              write(*,34)'x12   ',ic,cc,toopx%toop1(ic),phres%yfr(cc),x12
+34       format('3XQ Added fraction: ',a,3i3,2E15.7)
       endif
+!------------ Toop2
       cc=toopx%toop2(ic)
       if(cc.gt.0) then
 ! In this ternary i-j-k the composition of j is constant (Toop)
          x21=x21+phres%yfr(cc); dx21(cc)=one; not2=.FALSE.
+         if(tkdeb.ge.2) &
+              write(*,34)'x21   ',ic,cc,toopx%toop2(ic),phres%yfr(cc),x21
       endif
+!------------ Kohler
       cc=toopx%Kohler(ic)
       if(cc.lt.0) then
 ! In this ternary i-j-k the i-j extrapolates as Kohler
          sigma=sigma-phres%yfr(-cc); dsigma(-cc)=-one; nok=.FALSE.
-         if(tkdeb.gt.1) write(*,'(a,i3,2F8.4,10F6.3)')'3XQ sigma: ',&
-              cc,sigma,phres%yfr(-cc),dsigma
+         if(tkdeb.ge.2) write(*,35)ic,cc,toopx%kohler(ic),phres%yfr(-cc),sigma
+35       format('3XQ sigma ',3i3,2E15.7)
          dsigma(-cc)=-one
       endif
-   enddo
+   enddo allcorr
    if(sigma.lt.zero) then
       write(*,*)'3XQ Error: negative sigma in Toop/Kohler extrapolation!'
       gx%bmperr=4399; goto 1000
@@ -1669,11 +1685,11 @@
 ! This is the RK fraction difference, sigma is the Kohler divisor
    dxrk0=(x12-x21)/sigma
    dxrk=one
-   if(tkdeb.gt.1) then
+   if(tkdeb.ge.2) then
       write(*,17)'3XQ x12:   ', x12,',   dx12:   ',dx12,dxrk0
       write(*,17)'3XQ x21:   ', x21,',   dx21:   ',dx21
       write(*,17)'3XQ sigma: ', sigma,', dsigma:   ',dsigma
-17    format(a,F8.6,a,10F6.3)!
+17    format(a,F8.6,a,10F7.3)!
    endif
 !-----------------------------------------------------------------
 ! No documentation of code below (at present), see paper by Pelton 2001
@@ -1686,8 +1702,8 @@
 ! No fractions should be negative!!
 !   if(dx12.le.zero .or. dx21.le.zero .or. sigma.le.zero) then
 !
-   if(tkdeb.gt.0) write(*,20)x12,x21,sigma,dxrk
-20 format('3XQ fractions: ',2F8.4,' sigma,dxrk: ',2F8.4)
+   if(tkdeb.gt.0) write(*,20)x12,x21,sigma,dxrk,moded
+20 format('3XQ fractions: ',2F8.4,' sigma,dxrk: ',2F8.4,' moded: ',i1)
 ! gz%iq(1) is first constitution, gz%iq(2) in interaction
    dx12(gz%iq(1))=one/sigma
    dx21(gz%iq(2))=one/sigma
@@ -1700,6 +1716,9 @@
          valtp=valtp/rtg
       endif
       vals=vals+dxrk*valtp
+      if(tkdeb.ge.2) write(*,9)'3XQ vals1: ',jdeg,dxrk,valtp(1),rtg*valtp(1),&
+           vals(1),rtg*vals(1)
+9     format(a,i2,5(1PE13.5))
       noder5: if(moded.gt.0) then
 ! moded=0 no derivative, =1 first, =2 second; gz%iq(1) is 
          do qz=1,3
@@ -1715,19 +1734,23 @@
 ! not taken care of ...
 ! All second derivatives of sigma are zero
          dsigma=zero
-! dsrk has one more power for nrxt term         
+! dxrk has one more power for next term         
          dxrk=dxrk*dxrk0
       endif noder5
    enddo RK
 !---------VERY unfinished
+   if(tkdeb.ge.1) write(*,30)'3XQ vals2: ',vals(1),rtg*vals(1),&
+        gz%iq(1),gz%iq(2),rtg*dvals(1,gz%iq(1)),rtg*dvals(1,gz%iq(2))
+30 format(a,2F12.4,2i2,2F12.4)
 1000 continue
-! this is the whole x_A x_B \sum_i (\xi_A - \xi_B)/sigma_AB)^i iL_AB
+! this is the whole\sum_i (\xi_A - \xi_B)/sigma_AB)^i iL_AB
+! The fractions x_A'x_B are mulitiplied with the calling routine
    if(tkdeb.gt.0) write(*,'(a,2i3,F12.4)')'3XQ RT*vals: ',&
         gz%iq(1),gz%iq(2),rtg*vals(1)
 !  if(tkdeb.gt.0) write(*,'(a,i3,2x,5F8.5)')'3XQ dxrk mm:',&
 !       jdeg,rtg*vals(1),dxrk0,dxrk
    return
  end subroutine calc_toop
-    
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 

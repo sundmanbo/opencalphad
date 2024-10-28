@@ -70,6 +70,9 @@
 17 format(a,2i4,1pe15.6)
    call calcg_internal(lokph,moded,ceq%phase_varres(lokres),ceq)
 1000 continue
+! if phlista(lokph)%toopfirst then set phlista(lokph)%toopfirst%endmemel to 0
+! to indicate that redundant toop/Kohler fraction indices
+   if(associated(phlista(lokph)%toopfirst)) phlista(lokph)%toopfirst%endmemel=0
 !   write(*,*)'3X back from calcg_internal'
    return
  end subroutine calcg
