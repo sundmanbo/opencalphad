@@ -1043,11 +1043,14 @@
 ! The Toop2 array has constituent indices of all ternaries with B as Toop
 ! The Kohler array has constituent indices of all ternary where A-B is Kohler
 ! An array element zero menas it is ignored
-! free is last used index in toop1 etc. endmemel is fraction in endmember
+! free is last used index in toop1 etc. except in the first (otherwise unused
+!    record it is the default allocated dimesion of toop1/toop2/kohler.
+! endmemel is fraction in endmember, except in first record endmem1 is
+!    the used indicate if calc_toop should check for duplicates
 ! toopid is zero in the first record created (linked from phlista()%toopfirst)
 ! This record is empty excpt for toopid and a nullified nexttoop
 ! except endmemel is set to -1 whenever a new extrapolation record entered
-! and endmemel is zeroed after the first calculation.  At this first
+! and endmemel is zeroed after the first calculation.  At this first call
 ! any duplicate additions/subrractions are removed from the tooprec
      integer :: free,endmemel,toopid
      integer, allocatable, dimension(:) :: Toop1
@@ -1056,8 +1059,7 @@
 ! the phase_varres link is set during calculations in gtp3XQ.F90
 ! it is assigned in gtp3X, calcg_internal and used in calc_toop
      type(gtp_phase_varres), pointer :: phres
-! For listing we need to save the input specification ... ???
-! If tkmode empty ignore it
+! For listing we need to save the input ternary specification in the amend
      character (len=:), allocatable :: amend
   end type gtp_tooprec
 !\end{verbatim}

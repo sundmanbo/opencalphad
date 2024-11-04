@@ -1219,9 +1219,8 @@ contains
                 goto 100
              endif
              write(kou,677)
-677          format('Adding a ternary extrapolation method is fragile and',/&
-                  'only limited tests has been made.'/&
-                  'Warning *** there is no check for duplicate entries.')
+677          format('The ternary extrapolation method is fragile',&
+                  ' and only limited tests have been made.')
              tkloop: do while(.true.)
                 call gparcx('Constituent 1: ',cline,last,1,&
                      xspecies(1),' ','?Amend phase ternary extrapol')
@@ -1241,38 +1240,6 @@ contains
              call capson(ch1)
                 if(ch1.ne.'Y') exit tkloop
              enddo tkloop
-!             
-! redundant code below
-!             do while(.true.)
-!                call gparcdx('Ternary extrapolation (K, T or Q to quit)',&
-!                     cline,last,1,ch1,dummy,'?Amend phase ternary extrapol')
-!                dummy='Q'
-!                call capson(ch1)
-!                if(ch1.eq.'Q') then
-!                   goto 100
-!                elseif(.not.(ch1.eq.'K' .or. ch1.eq.'T')) then
-!                   write(kou,*)'Use K for Kohler or T for Toop or Q to Quit'
-!                else
-!                   if(ch1.eq.'T') then
-!                      call gparcx('Toop constituent: ',cline,last,1,&
-!                           xspecies(1),' ','?Amend phase ternary extrapol')
-!                   else
-!                      call gparcx('First constituent: ',cline,last,1,&
-!                           xspecies(1),' ','?Amend phase ternary extrapol')
-!                   endif
-!                   call gparcx('Second constituent: ',cline,last,1,&
-!                        xspecies(2),' ','?Amend phase ternary extrapol')
-!                   call gparcx('Third constituent: ',cline,last,1,&
-!                        xspecies(3),' ','?Amend phase ternary extrapol')
-! lokph is index of phase record, some error checks inside subroutine
-! the routine is in gtp3H.F90.  toop argument to handle strange bug ...
-!                   if(.not.allocated(toop)) allocate(toop)
-!                  call add_ternary_extrapol_method(kou,lokph,ch1,toop,xspecies)
-!                   if(gx%bmperr.ne.0) goto 990
-!                endif
-!             enddo
-! end redundant code
-!
 !....................................................
 !\hypertarget{Amend FCC-permutations}{}
           case(8) ! amend phase ... FCC_PERMUTATIONS

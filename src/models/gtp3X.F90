@@ -1278,7 +1278,7 @@
 251                           format(a,3i3,4(1pe12.4))
                            enddo iloop4
                         endif
-     toop7: if(associated(tooprec)) then
+!     toop7: if(associated(tooprec)) then
 ! this is part of iloop3 is for all components "id", starting 30 lines above  
 ! Normally binay interactions depend only on the constituents gz%iq(1) 
 ! and gz%iq(2) but Toop/Kohler method depend also on other constituents! 
@@ -1286,17 +1286,20 @@
 !        write(*,'(a,i3,5(1pe12.4))')'3X toop7: ',&
 !             id,pyq,dvals(1,id),phres%dgval(1,id,ipy)+pyq*dvals(1,id),&
 !             (phres%dgval(1,id,ipy)-pyq*dvals(1,id))*gz%rgast
-! For those who forget dgval1,j,1) is derivative of G wrt constituent j
+! For those like me who forget:
+! dgval)1,j,1) is derivative of G wrt constituent j
 ! dgval(2,j,1) is derivative of G wrt constituent j and T
 ! dgval(3,j,1) is derivative of G wrt constituent j and P. 
-! Third index is for other properties
-        do itp=1,3
-           phres%dgval(itp,id,ipy)=phres%dgval(itp,id,ipy)-pyq*dvals(itp,id)
-        enddo
-! I AM NOT SURE THIS IS CORRECT/BoS
+! Third index is for other properties such as TC, BMAGN etc
+!        write(*,'("3X Toop: ",i3,1pe12.4,2x,3(1pe12.4))')id,pyq,&
+!             dvals(1,id),dvals(2,id),dvals(3,id)
+!        do itp=1,3
+!           phres%dgval(itp,id,ipy)=phres%dgval(itp,id,ipy)-pyq*dvals(itp,id)
+!        enddo
+! I think this is already taken into account in calc_toop
 ! ignore contribution to the second derivatives phres%d2gval
 ! iloop3  ends just a few lines below
-     endif toop7
+!     endif toop7
                         do itp=1,3
                            phres%dgval(itp,id,ipy)=&
                                 phres%dgval(itp,id,ipy)+dpyq(id)*vals(itp)

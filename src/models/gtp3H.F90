@@ -3984,12 +3984,12 @@
       write(*,*)'3H Kohler/Toop not allowed for phases with disordered set'
       gx%bmperr=4399; goto 1000
    endif
-! Note, the order of species will chenged below
-! this amend text will be saved in one of the tooprec records for output
+! Note, the order of species will changed below but the
+! original amend text will be saved in one of the tooprec records for output
    amend=trim(phlista(lokph)%name)//' TERNARY_EXTRAPOL '//&
         ' '//trim(species(1))//' '//trim(species(2))//&
         ' '//trim(species(3))//' '//tkmode//' '
-! rno final ! as list on TDB file may include several extrapol
+! no final ! as list on TDB file may include several extrapol
 !   write(*,*)'3H Executing; amend ',trim(amend)!
 !
 !----------------------------------- to be considered   
@@ -4280,6 +4280,7 @@
 ! Hm, in a 4 component systems there are only 2 extrapolations?.  But the
 ! tooprec for a binary is involved in the extrapolations for other binaries
       nobin=kk*(kk-1)/2
+!      nobin=1               this was used for testing extending allocation
 !      write(*,'(a,i3)')'3H allocating special binary extrapolations ',nobin
       phlista(lokph)%toopfirst%free=nobin
    else
@@ -4332,7 +4333,7 @@
 ! if conx(1) is equal to toopcon(1) then Toop2(jj)=toopcon(1)
 ! if conx(2) is equal to toopcon(1) then Toop1(jj)=toopcon(1)
 ! otherwise toopcon(1) can be ignored as toopcon is not part of the binary
-      write(*,'(a,3i3,2x,3i3)')'3H Toop 1-2: ',toopcon,conx
+!      write(*,'(a,3i3,2x,3i3)')'3H Toop 1-2: ',toopcon,conx
       if(toopcon(1).eq.conx(1)) then
 ! toopcon(1) is the first constituent in 1-2, add conx(3) to second fraction
          newtoop%Toop2(jj)=conx(3)
@@ -4385,7 +4386,7 @@
 ! if conx(1) is equal to toopcon(2) then Toop2(jj)=conx(2)
 ! if conx(3) is equal to toopcon(2) then Toop1(jj)=conx(2)
 ! otherwise toopcon(2) can be ignored as it is not part of the binary 1-3
-      write(*,'(a,3i3,2x,3i3)')'3H Toop 1-3: ',toopcon,conx
+!      write(*,'(a,3i3,2x,3i3)')'3H Toop 1-3: ',toopcon,conx
       if(toopcon(2).eq.conx(1)) then
 ! first element is Toop; add fraction of conx(2) to NON-toop element
 !         newtoop%Toop2(jj)=toopcon(2)
@@ -4443,7 +4444,7 @@
 ! if conx(2) is equal to toopcon(3) then add conx(1) to the NON-toop element
 ! if conx(3) is equal to toopcon(3) then the same
 ! otherwise toopcon(3) can be ignored as it is not part of the binary! 
-      write(*,'(a,3i3,2x,3i3)')'3H Toop 2-3: ',toopcon,conx
+!      write(*,'(a,3i3,2x,3i3)')'3H Toop 2-3: ',toopcon,conx
       if(toopcon(3).eq.conx(2)) then
 ! toopcon(3) is the first constituent in 2-3
 !         newtoop%Toop2(jj)=toopcon(3)
@@ -4530,18 +4531,19 @@
             i1=tooprec%endmemel
             i2=tooprec%binint%fraclink(1)
             nz=tooprec%free
-! change for species names later
 ! phlista(lookph)%constitlist(i1) is index to species list
             species(1)=splista((phlista(lokph)%constitlist(i1)))%symbol
             species(2)=splista((phlista(lokph)%constitlist(i2)))%symbol
-            write(lut,100)trim(species(1)),trim(species(2)),tooprec%toopid
-100         format(3x,'Binary ',a,'-',a,' has Toop/Kohler extraplations:' ,i3)
-!            write(lut,100)i1,i2,tooprec%toopid,nz,size(tooprec%toop1)
-!100        format(3x,'Binary ',i2,'-',i2,' has Toop/Kohler extraplations:',5i3)
+            write(lut,100)i1,i2,trim(species(1)),trim(species(2)),tooprec%toopid
+100         format(3x,'Binary ',i2,'-',i2,' (',a,'-',a,&
+                 ') has Toop/Kohler extraplations:' ,i3)
             write(lut,110)'Toop1:  ',(tooprec%toop1(i1),i1=1,nz)
             write(lut,110)'Toop2:  ',(tooprec%toop2(i1),i1=1,nz)
             write(lut,110)'Kohler: ',(tooprec%kohler(i1),i1=1,nz)
-110         format(3x,a,10i3)
+110         format(6x,a,10i3)
+! if there is an amend command list it
+            if(len(tooprec%amend).gt.1) write(lut,120) tooprec%amend
+120         format(6x,'There is an amend command: ',a)
          endif
          tooprec=>tooprec%nexttoop
       enddo loop2
@@ -4599,12 +4601,16 @@
       newtoop=>intrec%tooprec
       jj=size(newtoop%Toop1)
       if(newtoop%free.eq.jj) then
-         write(*,*)'3H extending tooprecord for ',newtoop%toopid,jj,newtoop%free
-! This should dynamically expand the arrays keeping old content
+! Tested that it works to extend.  Already stored values kept
+         write(*,90)trim(phlista(lokph)%name),newtoop%toopid,jj,newtoop%free
+90       format('3H extending tooprecord for ',a,5i5)
+! This should dynamically expand the arrays, the old content is kept
          newtoop%Toop1 = [ newtoop%Toop1, ( 0, kk=1,jj+5 ) ]
          newtoop%Toop2 = [ newtoop%Toop2, ( 0, kk=1,jj+5 ) ]
          newtoop%Kohler = [ newtoop%Kohler, ( 0, kk=1,jj+5 ) ]
-         write(*,'(a,10i4)')'3H extended: ',newtoop%Toop1
+!         write(*,'(a,i5)')'3H extended size: ',size(newtoop%Toop1)
+! save the new dimension in phlista(lokph)%toopfirst%free))
+         phlista(lokph)%toopfirst%free=jj+5
       endif
 ! newtoop% free is the place to store new data in the arrays
       jj=newtoop%free+1

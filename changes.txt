@@ -10,15 +10,26 @@ examples with macro files and some small databases.  For graphics the
 free GNUPLOT software must be installed separately from Sourceforge or
 a similar website.
 
-On Linux, MacOS and other OS the installation requires some general
-knowledge about compiling and linking of software.  There is an
-installation manual (and an old mainly redundant video on You Tube)
-but if you are not familiar with such procedures please ask a local
-guru for help.  Installation problems depend on your local
+A recent Fortran compiler is needed, OC uses features from the new
+Fortran 2018 standard.  On Linux, MacOS and other OS the installation
+requires some general knowledge about compiling and linking of
+software.
+
+There is an installation manual (and an old mainly redundant video on
+You Tube) and if you are not familiar with such procedures please ask
+a local guru for help.  Installation problems depend on your local
 envirionment and we who provide this software for free do not have the
-time to answer such questions.
+time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
+
+2024.11.04 version 6.077 Some more testing of calculations using
+different ternary extrapolations and code added to eliminate duplicate
+adding/subtracting of fractions.  There is no check when entering
+ternary extrapolations but at the first calculations any duplicate
+fractions (to be added or sbtracted) are eliminated.  The example with
+multiple extrapolations in the paper by Pelton 2001 correctly
+reproduced.
 
 2024.10.28 version 6.076 A preliminary code for calculating
 Toop/Kohler extrapolations has been added.  This is still debugged and
@@ -37,16 +48,16 @@ Toop/Kohler ternary extrapolation method has progressed somewhat.
 Time to save an intermedeate state.
 
 2024.10.04 version 6.073 Cleaned up some code in ges5E.F90.  Added an
-example sro-cef.OVM to calculate the prototype FCC phase diagram.
+example sro-cef.OCM to calculate the prototype FCC phase diagram.
 
 2024.06.30 version 6.072 The subroutine calc_toop moved to the
 gtp3XQ.F90 file as it is closely associated with the MQMQA model even
 if Toop and Kohler ternary extrapolation methods can be used in any
-phase.  I had forgotten this subroutine evidently written in 2020.  It
-uses records of the TYPE gtp_tooprec to identify a ternary with Toop
-or Kohler extrapolation.  Most probably the more elabore
-Toop/Kohler/Muggianu extrapolations described in Peltion's paper from
-2001 are not included.  The routine has not been properly debugged.
+phase (without sublattices).  I had forgotten this subroutine
+evidently written in 2020.  It uses records of the TYPE gtp_tooprec to
+identify a ternary with Toop or Kohler extrapolation.  Most probably
+the more elabore Toop/Kohler/Muggianu extrapolations described in
+Peltion's paper from 2001 are not included.
 
 2024.06.18 OC version 6.071: Long time no development.  Created a
 gtp3XQ.F90 so simplify work in the MQMQA model and handling
@@ -65,15 +76,15 @@ GEIN function by using LN(THETA) for the parameter.
 
 Last update also included a macro to calculate the Al-C system with
 the new unary.  But I forgot the explain how one can handle the Gibbs
-energy for unaries with multiple Einstein THETA, for example C as
-graphite.  In the database for the Al-C system you can see for example
-the graphite phase, which has been assessed using 5 THETA, the
-parameters are:
+energy for unaries with multiple Einstein THETA, for example carbon,
+C, in graphite or diamond.  In the database for the Al-C system you
+can see for example the carbon phases, which has been assessed using 5
+THETA, the parameters are:
 
  PARAMETER G(GRAPHITE,C)    10 +GHSERCC; 6000 N 20HE !
  PARAMETER LNTH(GRAPHITE,C) 10 LN(1953); 6000 N 20HE !
 
-where the function GHSERCC is split on several functions:
+where the function GHSERCC use several Einstein functions:
 
  FUNCTION GHSERCC   10 -17752.213 +GEGRACC +GTSERCC; 6000 N !
  FUNCTION GEGRACC 10 -0.5159523*GEIN(1953) +0.121519*GEIN(448)
@@ -81,19 +92,19 @@ where the function GHSERCC is split on several functions:
  FUNCTION GTSERCC   10 -2.9531332E-04*T**2-3.3998492E-16*T**5; 6000 N !
 
 The sum of the coefficients for the GEIN functions in GEGRACC must be
-unity.  As one of the Einstein THETA, equal to 1953, is used also in
-the LNTH parameter this represents a coefficient equal to unity.  Thus
-the coefficient of the GEIN function for the same THETA, 1953, in
-GEGRACC must be negative.  Note that the GTSERCC has no linear T term
-and no T*LN(T) term as the heat capacity and entropy must be zero at
-T=0K.  A minor spelling error is also fixed.
+unity.  The major Einstein THETA, equal to 1953, is used also in the
+LNTH parameter and this has a coefficient equal to unity.  Thus the
+coefficient of the GEIN(1953) function in GEGRACC must be negative.
+Note that the GTSERCC has no linear T term (thus entropy at zero
+Kelvin is zero) and no T*LN(T) term (thus the heat capacity at zero
+Kelvin is zero).  A minor spelling error is also fixed.
 
 2023.10.27 OC version 6.068: A new example added using the new unary
 models.  The Al-C system assessed in 2021 by Zingtang He et al.  The
-new usnary is implemented in the software but there is still no way to
-specify these in the TDB file which is one of the reasons for the
-project to develop a new XML based format.  Anyway I added an example
-showing one can now calculate heat capacities down to a few K.
+new unary models are implemented in the software but there is still no
+way to specify these in the TDB file which is one of the reasons for
+the project to develop a new XML based format.  Anyway I added an
+example showing one can now calculate heat capacities down to a few K.
 
 2023.10.23 OC version 6.067: A rather serious bug in handling
 expressions for TP functions and parameters has been discovered.  This
