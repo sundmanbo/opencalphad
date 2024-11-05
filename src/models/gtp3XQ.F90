@@ -1591,7 +1591,7 @@
    endif
 ! debug level 0 nothing, 1 minimum, 2 Toop, 5 all
    tkdeb=2
-! NOTE vals, dvals and d2vals set to zero before calling this routine
+! NOTE vals, dvals and d2vals set to zero in calcg before calling this routine
    rtg=gz%rgast
    if(lokpty%degree.eq.0) then
 ! quick exit if no composition dependence
@@ -1830,15 +1830,15 @@
             lkohler: if(.not.nok) then
 ! there is a fraction subtracted from sigma, fraction -index in toopx%kohler(ic)
                if(cc.lt.0) then
-                  if(tkdeb.ge.2) write(*,54)cc,jdeg,dvals(1,cc),&
+                  if(tkdeb.ge.2) write(*,54)cc,jdeg,dvals(1,-cc),&
                        (jdeg+1)*dxrk*valtp(1)*(x12-x21)/sigma**2,&
                        dxrk,valtp(1),(x12-x21),sigma
-54  format('3XQ Kohler derivative: ',2i2,2(1pe12.4)/4(1pe12.4))
+54  format('3XQ Kohler derivative: ',2i2,2(1pe12.4)/4x,4(1pe12.4))
                   do qz=1,3
 ! dxrk**n * valtp is the Redlich-Kister term, valtp is the parameter
 ! n*dxrk**((n-1)*valtp*[ dx12/sigma -dx21/sigma -(x12-x21)*dsigma/sigma**2 ]
 ! dsigma is unity here but divide with sigma**2
-                     dvals(qz,cc)=dvals(qz,cc)-&
+                     dvals(qz,-cc)=dvals(qz,-cc)-&
                           (jdeg+1)*dxrk*valtp(qz)*(x12-x21)/sigma**2
                   enddo
 ! Any second derivatives ignored (it may slow down convergence)

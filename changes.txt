@@ -23,6 +23,9 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2024.11.05 version 6.078 Fixed some bugs and modified somewhat the
+database format for entering Toop/Kohler extrapolations.
+
 2024.11.04 version 6.077 Some more testing of calculations using
 different ternary extrapolations and code added to eliminate duplicate
 adding/subtracting of fractions.  There is no check when entering

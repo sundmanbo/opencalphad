@@ -3876,7 +3876,7 @@
 !\end{verbatim}
    integer lokph,ip,jp,iph,lcs
    character phase*24,species(3)*24,tkmode*6
-!   write(*,'(a,a,a)')'3H in set_database_ternary: "',trim(line),'"'
+   write(*,'(a,a,a)')'3H in set_database_ternary: "',trim(line),'"'
 ! split line in individual parts, phase, species, tkmode
    ip=index(line,' ')
    phase=line(1:ip)
@@ -3973,8 +3973,8 @@
 ! this is incremented by 1 each time a record is created in any phase
 !   integer, save ::uniqid=0
 !
-   write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),tkmode,&
-        trim(phlista(lokph)%name)
+!   write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),tkmode,&
+!        trim(phlista(lokph)%name)
 8  format('3H add_ternary_extrapol ',a,' ',a,' ',a,' using ',a,' in ',a)
    if(phlista(lokph)%noofsubl.gt.1) then
       write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
@@ -3986,7 +3986,7 @@
    endif
 ! Note, the order of species will changed below but the
 ! original amend text will be saved in one of the tooprec records for output
-   amend=trim(phlista(lokph)%name)//' TERNARY_EXTRAPOL '//&
+   amend=trim(phlista(lokph)%name)//' TERNARY_EXTRA '//&
         ' '//trim(species(1))//' '//trim(species(2))//&
         ' '//trim(species(3))//' '//tkmode//' '
 ! no final ! as list on TDB file may include several extrapol
@@ -4173,6 +4173,7 @@
 !      write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 3:  ',conx,&
 !           xter3,toopcon,xmode
    endif
+!   write(*,'("3H The constituents in alphabetical order: ",3i3)')conx
 ! The conx order is the (alphabetical) order of the constituents
 ! The endmembers are in that order.  The interactions are not ordered
 ! xter3 is the original input order, conx is in alphabetical order
@@ -4203,7 +4204,9 @@
    nullify(intrec12); nullify(intrec13); nullify(intrec23)
 !
 ! look for endmember with lowest constituent index (they are ordered that way)
-!   write(*,'(a,3i3)')'3H first endmem: ',conx(1),endmem%fraclinks(1,1)
+!   write(*,'(a,3i3)')'3H first endmem: ',conx(1)
+!   write(*,'(a,10I4)')'3H endmemfraclinks: ',endmem%fraclinks(1,1)
+!   write(*,*)'3H where is line with 5 numbers written?'
    conix=1
    findem: do while(associated(endmem))
 !      write(*,'(a,3i3)')'3H endmem2: ',conix,endmem%fraclinks(1,1),conx(conix)
@@ -4233,7 +4236,8 @@
                   exit findem
                endif
             endif
-!         write(*,*)'3H loop intrec: ',endmem%fraclinks(1,1),intrec%fraclink(1)
+!            write(*,*)'3H loop intrec: ',&
+!                 endmem%fraclinks(1,1),intrec%fraclink(1)
             intrec=>intrec%nextlink
          enddo findexcess
 ! when we come here we have found 1-2 and 1-3 and look for 2-3
@@ -4254,14 +4258,14 @@
 ! we come here when we found or not found intrec12, intrec13 and intrec23
 !------------------------------------------------------------
 ! check values of xter3
-!   do kk=1,3
+   do kk=1,3
 !      write(*,44)trim(species(kk)),xter3(kk),conx(kk)
-!44    format('3H constituent ',a,' xter3: ',i2,i5)
-!   enddo
+44    format('3H constituent ',a,' xter3: ',i2,i5)
+   enddo
 !--------------------------------------
 !   write(*,111)conx(1),conx(2),conx(1),conx(3),conx(2),conx(3),&
 !        associated(intrec12),associated(intrec13),associated(intrec23)
-111 format('3H Found binary interaction records for ',3(i2,'-',i2),3x,3l)
+111 format('3H Found binary interaction records for ',3(i2,'-',i2),3x,3l2)
 !=================== now we create the tooprec recotds =====================
 ! In  gtp_phaserecord pointers toopfirst, tooplast include all tooprec records
 ! It is needed to list the ternary extrapolation.  It also has lasttoopid
@@ -4275,7 +4279,9 @@
 ! nullify the nexttoop pointer in toopfirst
       nullify(phlista(lokph)%toopfirst%nexttoop)
       nullify(phlista(lokph)%toopfirst%binint)
-      phlista(lokph)%toopfirst%amend=' '
+      phlista(lokph)%toopfirst%amend1=' '
+      phlista(lokph)%toopfirst%amend2=' '
+      phlista(lokph)%toopfirst%amend3=' '
       kk=size(phlista(lokph)%constitlist)
 ! Hm, in a 4 component systems there are only 2 extrapolations?.  But the
 ! tooprec for a binary is involved in the extrapolations for other binaries
@@ -4302,8 +4308,10 @@
 ! conx(1) is the endmember fraction index
 !   write(*,*)'3H creating tooprecords',associated(intrec12)
    if(.not.associated(intrec12)) then
-!      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(2))))
-220   format('3H the system ',a,'-,',a,' has no binary excess')
+      write(*,220)conx(1),conx(2),&
+           trim(species(abs(conx(1)))),trim(species(abs(conx(2))))
+220   format('3H the system ',i3,'-',i3,' with species: ',a,'-,',a,&
+           ' has no binary excess')
       goto 300
 !   elseif(.not.associated(intrec12%tooprec)) then
    else
@@ -4352,11 +4360,22 @@
 ! conx is constituent index
 !   
 !-------------------------------------------------------------------
-   if(saveamend .and. len(newtoop%amend).le.1) then
+   if(saveamend) then
+      if(len(newtoop%amend1).le.1) then
 ! we can only save 1 amend command in each topec record ...
-      newtoop%amend=trim(amend)
-      saveamend=.FALSE.
-!      write(*,*)'3H Executing amend: ',newtoop%amend
+! This can be a probem if elements are ordered alphabetically
+! one may run of of binaries to store A-B-X, A-B-Y etc
+         newtoop%amend1=trim(amend)
+         saveamend=.FALSE.
+!        write(*,*)'3H Executing amend: ',newtoop%amend
+      elseif(len(newtoop%amend2).le.1) then
+         newtoop%amend2=trim(amend)
+         saveamend=.FALSE.
+      elseif(len(newtoop%amend3).le.1) then
+         newtoop%amend3=trim(amend)
+         saveamend=.FALSE.
+      endif
+! if all were full hopefully there is another binary where it can be saved!!!
    endif
 !   write(*,*)'3H Finished storing data for tooprec 1-2'
 !------------ repeat (almost) the same thing for binary 1-3 -------------
@@ -4364,7 +4383,8 @@
 300 continue
 ! Check if intrec3 exist and already has a tooprec
    if(.not.associated(intrec13)) then
-!      write(*,220)trim(species(abs(conx(1)))),trim(species(abs(conx(3))))
+      write(*,220)conx(1),conx(3),&
+           trim(species(abs(conx(1)))),trim(species(abs(conx(3))))
       goto 400
    else
 !      write(*,*)'3H calling create_toop_record for 1-3'
@@ -4404,12 +4424,17 @@
 !   write(*,600)trim(species(1)),trim(species(3)),trim(species(2)),xter3,&
 !        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
 ! we may not have managed to save the amend?
-   if(saveamend .and. len(newtoop%amend).le.1) then
-! we can only save one amend command in each toprec record ...
-! I am not sure if it has to be allocated or have fixed length ...
-      newtoop%amend=trim(amend)
-      saveamend=.FALSE.
- !     write(*,*)'3H saved amend: ',newtoop%amend
+   if(saveamend) then
+      if(len(newtoop%amend1).le.1) then
+         newtoop%amend1=trim(amend)
+         saveamend=.FALSE.
+      elseif(len(newtoop%amend2).le.1) then
+         newtoop%amend2=trim(amend)
+         saveamend=.FALSE.
+      elseif(len(newtoop%amend3).le.1) then
+         newtoop%amend3=trim(amend)
+         saveamend=.FALSE.
+      endif
    endif
 !   write(*,*)'3H Finished storing data for tooprec 1-3'
 !------------ repeat (almost) the same thing for binary 2-3 -------------
@@ -4417,7 +4442,8 @@
 400 continue
 ! Check if intrec23 exist and already has a tooprec
    if(.not.associated(intrec23)) then
-      write(*,220)trim(species(abs(conx(2)))),trim(species(abs(conx(3))))
+      write(*,220)conx(2),conx(3),&
+           trim(species(abs(conx(2)))),trim(species(abs(conx(3))))
       goto 500
    else
 !      write(*,*)'3H calling create_toop_record for 2-3'
@@ -4468,11 +4494,21 @@
 !   write(*,600)trim(species(2)),trim(species(3)),trim(species(1)),xter3,&
 !        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
 600 format('3H Binary ',a,'-',a,' extrapolerad to ',a,': ',4(3i3,2x))
-   if(saveamend .and. len(newtoop%amend).le.1) then
-! we can only save one amend command in each toprec record ...
-! But each amend command uses 3 tooprec records ...
-      newtoop%amend=trim(amend)
-      saveamend=.FALSE.
+   if(saveamend) then
+      if(len(newtoop%amend1).le.1) then
+         newtoop%amend1=trim(amend)
+         saveamend=.FALSE.
+      elseif(len(newtoop%amend2).le.1) then
+         newtoop%amend2=trim(amend)
+         saveamend=.FALSE.
+      elseif(len(newtoop%amend3).le.1) then
+         newtoop%amend3=trim(amend)
+         saveamend=.FALSE.
+      else
+         write(*,603)trim(amend)
+603      format('3XQ WARNING *** failed to save amend ternary command:'/a/&
+              ' maybe try to order constituents differently')
+      endif
    endif
 !   write(*,*)'3H Finished storing data for tooprec 2-3'
 !---------------------------------------------
@@ -4482,6 +4518,7 @@
       write(*,*)'3H there are no interaction parameters to extrapolate'
       goto 1000
    endif
+
 !===================================================================
 ! Puuuuuuuuuuuuuuuuuhhhhhhhhhhhhhhhhhhhh
 1000 continue
@@ -4542,7 +4579,9 @@
             write(lut,110)'Kohler: ',(tooprec%kohler(i1),i1=1,nz)
 110         format(6x,a,10i3)
 ! if there is an amend command list it
-            if(len(tooprec%amend).gt.1) write(lut,120) tooprec%amend
+            if(len(tooprec%amend1).gt.1) write(lut,120) tooprec%amend1
+            if(len(tooprec%amend2).gt.1) write(lut,120) tooprec%amend2
+            if(len(tooprec%amend3).gt.1) write(lut,120) tooprec%amend3
 120         format(6x,'There is an amend command: ',a)
          endif
          tooprec=>tooprec%nexttoop
@@ -4592,7 +4631,9 @@
       newtoop%Kohler=0
       jj=1
       newtoop%free=jj
-      newtoop%amend=' '
+      newtoop%amend1=' '
+      newtoop%amend2=' '
+      newtoop%amend3=' '
 ! set crosslinks with interaction record
       newtoop%binint=>intrec
       intrec%tooprec=>newtoop

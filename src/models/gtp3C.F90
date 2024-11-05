@@ -1904,7 +1904,7 @@
    TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_phase_add), pointer :: addrec
 !
-   write(*,*)'3C in list_phase_data',iph
+!   write(*,*)'3C in list_phase_data',iph
 ! modelid should be used to identify the model
    modelid=' '
    mqmqa=.FALSE.
@@ -2465,24 +2465,54 @@
    endif
 ! Check if there are toop/kohler ternaries
    tooprec=>phlista(lokph)%tooplast
-   if(associated(tooprec)) &
-        write(*,'(a)')'3C Some ternaries have Toop/Kohler extrapolations'
-   nsl=0
-   kk=0
-   tkloop: do while(associated(tooprec))
-! listing of Toop/Kohler extrapolations taken from tooprec%amend
+   if(associated(tooprec)) then
+      write(*,'(a)')'3C Some ternaries have Toop/Kohler extrapolations'
+      text=' '
+      kk=1
+      nsl=0
+      tkloop: do while(associated(tooprec))
+! interacive ? listing of Toop/Kohler extrapolations taken from tooprec%amend
 ! loop through all records, the extrapolations are some of the reconds.
 ! on TDB files the subrouine list_tdb_formats is used
-      text=' '
-      if(len(tooprec%amend).gt.1) then
-         nsl=nsl+1
-         write(*,*)'3C AMEND PHASE ',tooprec%amend
+         if(len(tooprec%amend1).gt.1) then
+            if(nsl.eq.0) then
+               text(kk:)=' AMEND '//tooprec%amend1
+               nsl=1
+            else
+! remove phase name and TERNARY_EXTRA            
+               ij=index(tooprec%amend1,'_EXTRA')
+               text(kk:)=tooprec%amend1(ij+7:)
+            endif
+            kk=len_trim(text)+2
+!         write(*,997)1,text(1:kk),kk
+997         format('3C ternary: ',i1,' "',a,'"'i4)
 ! This text is written by the commands list data and list phase xxx data
 ! Output from "save tdb" is written by list_phase_data2
-         kk=len_trim(text)
-      endif
-      tooprec=>tooprec%nexttoop
-   enddo tkloop
+         endif
+! there can be several AMEND !!!
+         if(len(tooprec%amend2).gt.1) then
+            ij=index(tooprec%amend2,'_EXTRA')
+            text(kk:)=tooprec%amend2(ij+7:)
+            kk=len_trim(text)+2
+!         write(*,997)2,text(1:kk),kk
+         endif
+         if(len(tooprec%amend3).gt.1) then
+            ij=index(tooprec%amend3,'_EXTRA')
+            text(kk:)=tooprec%amend3(ij+7:)
+            kk=len_trim(text)+2
+!         write(*,997)3,text(1:kk),kk
+         endif
+         if(kk.gt.50) then
+! This text is written by the commands list data and list phase xxx data
+! Output from "save tdb" is written by list_phase_data2
+            write(*,*)'3C ',text(1:kk)
+            text=' '
+            kk=5
+         endif
+         tooprec=>tooprec%nexttoop
+      enddo tkloop
+      if(kk.gt.6) write(*,*)'3C ',text(1:kk)
+   endif
 !   write(*,*)'3C listing by list_phase_data'
 1000 continue
    return
@@ -3022,23 +3052,49 @@
    endif
 1000 continue
 ! add ternary extrapolations as commands, not TYPE_DEF
-! This listing is not for TDB files
+! This listing is not for TDB files ??
    tooprec=>phlista(lokph)%tooplast
    if(associated(tooprec)) then
 ! this is writing a TDB database file
-      write(lut,1090)ctop
-1090  format('TYPE_DEFINITION ',a,' GES TERNARY_EXTRAPOL  ')
-! increment ctop for nrxt phase ...
+      text='TYPE_DEFINITION '//ctop//' GES A_P_D  '
+      ik=30
+! increment ctop for next phase ...
       ctop=char(ichar(ctop)+1)
+      nsl=0
       do while(associated(tooprec))
-         if(len(tooprec%amend).gt.1) then
-! remove phase and "TERNARY_EXTRAPOL" as alredy set
-            ij=index(tooprec%amend,'_EXTRAPOL')
-! ij will be position of "_", add 9 ??
-            write(lut,1100)tooprec%amend(ij+9:)
-1100        format(a)
+         if(len(tooprec%amend1).gt.1) then
+            if(nsl.eq.0) then
+! keep phase if nsl=0
+               text(ik:)=tooprec%amend1
+               ik=len_trim(text)+2
+               nsl=nsl+1
+            else
+! otherwise remove phase and "TERNARY_EXTRA" as alredy set
+               ij=index(tooprec%amend1,'_EXTRA')
+! ij will be position of "_", add 7 ??
+               text(ik:)=tooprec%amend1(ij+7:)
+               ik=len_trim(text)+2
+            endif
+         endif
+! there can be 3 amends ...
+         if(len(tooprec%amend2).gt.1) then
+            ij=index(tooprec%amend2,'_EXTRA')
+            text(ik:)=tooprec%amend2(ij+7:)
+            ik=len_trim(text)+2
+         endif
+         if(len(tooprec%amend3).gt.1) then
+            ij=index(tooprec%amend3,'_EXTRA')
+            text(ik:)=tooprec%amend3(ij+7:)
+            ik=len_trim(text)+2
+         endif
+! write if too long
+         if(ik.gt.70) then
+            write(lut,1100)text(1:ik)
+            text=' '
+            ik=1
          endif
          tooprec=>tooprec%nexttoop
+1100     format(a)
       enddo
       write(lut,1100)'  !'
    endif

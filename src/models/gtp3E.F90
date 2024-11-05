@@ -3516,7 +3516,7 @@
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
 !   character*24 disph(20)
    integer orddistyp(maxorddis),suck,notusedpar,totalpar,reason,zz,dismag
-   integer enteredpar,loop,emodel,manylonglines,zp,noparref
+   integer enteredpar,loop,emodel,manylonglines,zp,noparref,pz1,pz2
    type(gtp_phase_add), pointer :: addrec
    logical tdbwarning,only_typedefs
 ! this is used for reading encrypted FUNCTION and PARAMETER part of a TDB file
@@ -3727,7 +3727,8 @@
 !
    if(.not.nophase .and. keyw.ne.4) then
 ! after a PHASE keyword one should have a CONSTITUENT
-      if(.not.silent) write(kou,*)'WARNING expeciting CONSTITUENT: ',line(1:30)
+      if(.not.silent) write(kou,*)'3E WARNING expeciting CONSTITUENT: ',&
+           line(1:30)
       tdbwarning=.TRUE.
 !      write(*,*)'3E tdbwarning set true 2'
    endif
@@ -4144,6 +4145,7 @@
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
          elseif(typedefaction(jt).eq.777) then
+778         continue
 ! ternary extrapolations, these should be executed at the end of reading
 ! some of the elements involved may not be selected.
             TDthisphase=TDthisphase+1
@@ -4522,8 +4524,12 @@
 !                  call add_addrecord(lokph,'N ',xiongmagnetic)
                elseif(abs(addphasetypedef(jt)).eq.777) then
 ! ternary extrapolations should be handled after all parameters entered
-! The phase name addedwe just need to add the phase name here.
+! The phase name has to be added ... we just need to add the phase name here.
+! Can we have several phases with ternary extrapolation?
+!                  write(*,'("3E ternaryxpol phase ",a,2i5)')&
+!                       trim(phlista(lokph)%name),lokph,jt
                   addternaryxpol=.true.
+! we are never here!!
                else
                   write(*,13)lokph,addphasetypedef(jt)
 13                format(78('*')/'3E unknown addition: ',2i7/78('*'))
@@ -5076,23 +5082,45 @@
 !------------------------------------------- TYPE_DEF liquid 2-state model
                   typedefaction(nytypedef)=491
                else
-!---------------------------------------------- TYPE-DEF TERNATY_EXTRAPOL
+!---------------------------------------------- TYPE-DEF TERNARY_EXTRAPOL
 !                  write(*,*)'3E typedef: ',trim(longline)
                   km=index(longline,' TERNARY')
+! do we know which phase we have here?  The command should be
+!  type_def z A-P-D phase TERNARY
+! extract the phase name before TERNARY !!!  done at label 778, line 4148!!!
+! step backward to extract phase name, bypass spaces
+!                  pz2=km-1
+!                  do while(longline(pz2:pz2).eq.' ')
+!                     pz2=pz2-1
+!                  enddo
+!                  pz1=pz2
+!                  do while(longline(pz1:pz1).ne.' ')
+!                     pz1=pz1-1
+!                  enddo
+!                  write(*,'("3E phase name: ",a)')longline(pz1+1:pz2)
+! code above redundant
                   ternaryxp: if(km.gt.0) then
                      typedefaction(nytypedef)=777
                      ntxp=ntxp+1
-                     write(*,86)nytypedef,ntxp,trim(longline)
+!                     write(*,86)nytypedef,ntxp,trim(longline)
 86                   format('3E Found ternary extrapolation',2i4/a)
 ! we need to save the line!!
                      if(ntxp.gt.mtxp) then
                         write(*,*)'3E Error, ternary_extrapolations max',mtxp
                         gx%bmperr=4399; goto 1000
                      endif
+!                     write(*,'("3E line1: ",i3,a)')km,trim(longline)
 ! skip from km to first space and compress multiple spaces to a single one
                      zp=index(longline(km+1:),' ')
+!                     write(*,'("3E line2: ",i3,a)')zp,trim(longline(km+zp:))
+! we must add the phase name first!!
+! NO, that is done at label 778, line 4148 !!! double 
+!                     ternaryxpol(ntxp)=longline(pz1+1:pz2+1)//longline(km+zp:)
                      ternaryxpol(ntxp)=longline(km+zp:)
+!                    write(*,'("3E line3: ",a,i3)')trim(ternaryxpol(ntxp)),ntxp
 !                     call merge_spaces(longline(km+zp:))
+! Indicate we should execute ternaryxpol
+                     addternaryxpol=.true.
                   else
 !---------------------------------------------- unknown TYPE-DEF
                      typedefaction(nytypedef)=99

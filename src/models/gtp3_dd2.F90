@@ -1060,7 +1060,11 @@
 ! it is assigned in gtp3X, calcg_internal and used in calc_toop
      type(gtp_phase_varres), pointer :: phres
 ! For listing we need to save the input ternary specification in the amend
-     character (len=:), allocatable :: amend
+! I found that some AMEND were not saved because ordering the elements
+! alphabetically one run out of tooprec with unused amend for some binaries
+     character (len=:), allocatable :: amend1
+     character (len=:), allocatable :: amend2
+     character (len=:), allocatable :: amend3
   end type gtp_tooprec
 !\end{verbatim}
 !-----------------------------------------------------------------
