@@ -217,6 +217,8 @@
          phres%d2gval=zero
       endif
    endif
+! debugging mqmqa entropy
+   sconfmqmqa=zero
 ! copy current values of T, P and RT from gtp_phase_varres
    gz%tpv(1)=ceq%tpval(1)
    gz%tpv(2)=ceq%tpval(2)
@@ -238,12 +240,15 @@
       iliqva=.FALSE.
       jonva=0
    elseif(mqmqa) then
+      
 ! MQMQA FactSage entropy model
 ! strange error OC dies when calling this using "c g" as first command
 ! OK when using c ph .... , problem with arguments
 !      write(*,222)moded,lokph,phlista(lokph)%tnooffr,phres%yfr(1),gz%tpv(1)
 222   format('3X call mqmqa entropy: ',3i3,2(1pe12.4))
 ! in gtp3_XQ
+! attempt to extract configurational entropy, gval(2,1) id dG/dT
+      sconfmqmqa=phres%gval(2,1)
       call config_entropy_mqmqa1(phres,moded,lokph,gz%tpv(1))
 ! attempt to simplify the call .... 
 ! when we come back mqmqaf should have some arrays allocated ....
@@ -258,7 +263,10 @@
 !              mqf%dpair(mqmqj,3)
 777      format('3X pairs:',F10.6,2x,10F9.5)
 !      enddo
+! attempt to extract configurational entropy
 !      write(*,*)'3X back from config_entropy_mqmqa1 '
+      sconfmqmqa=(phres%gval(2,1)-sconfmqmqa)*rtg
+!      write(*,'("3X MQMQA dG/dT: ",1pe12.4)')sconfmqmqa
    elseif(btest(phlista(lokph)%status1,PHQCE)) then
 ! this is the corrected QC, Hillert-Selleby-Sundman model
       call config_entropy_qchillert(moded,phlista(lokph)%nooffr(1),&

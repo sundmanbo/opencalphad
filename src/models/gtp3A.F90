@@ -24,7 +24,7 @@
    integer jl,ieq,ip,lrot,npid
 !
    noofel=0; noofsp=0; noofph=0; nooftuples=0
-!   write(*,3)'In init_gtp',maxel,maxsp,maxph
+!   write(*,3)' *** init_gtp should read MPID from AppendXTDB',maxel,maxsp,maxph
 3  format(a,10i5)
 ! allocate records for elements
    allocate(ellista(-1:maxel))
@@ -566,7 +566,8 @@
 ! removed line above as that caused crash in parallel2 WHY????
 ! finished initiating
 1000 continue
-!   write(*,*)'exit from init_gtp'
+   write(*,1001)
+1001 format(/'3A unfished preparations for XTDB'/)
    return
  END subroutine init_gtp
 
@@ -874,8 +875,14 @@
    allocate(stack(5))
    nsl=phlista(lokph)%noofsubl
 !>>>>> 6:
-   deallocate(phlista(lokph)%nooffr)
-   deallocate(phlista(lokph)%constitlist)
+! when failed reading database phlista may not be allocated!
+   if(allocated(phlista)) then
+      deallocate(phlista(lokph)%nooffr)
+      deallocate(phlista(lokph)%constitlist)
+   else
+      write(*,*)'3A phlista not allocated!'
+      gx%bmperr=4399; goto 1000
+   endif
    emrec=>phlista(lokph)%ordered
    noendm=0
 !>>>>> 6: sublattice info

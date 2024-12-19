@@ -3894,6 +3894,18 @@
    jp=index(line(ip:),' ')
    species(1)=line(ip:ip+jp-1)
    ip=ip+jp
+! A special case is for setting all ternaries as Kohler.  Maybe simplest
+! to loop through all constituents and call add_ternary for each
+   if(species(1)(1:1).eq.'*') then
+      species(2)=' '
+      species(3)=' '
+      tkmode='KKK'
+      write(*,*)'3H Setting all ternaries as Kohler not yet implemented'
+! Simplest maybe to loop though all ternaries and call
+!   call add_ternary_extrapol_method(lokph,tkmode,species)
+! for each ...
+      goto 1000
+   endif
 !   write(*,*)'3H after species 1: "',trim(line(ip:)),'"'
    jp=index(line(ip:),' ')
    species(2)=line(ip:ip+jp-1)
@@ -3914,6 +3926,7 @@
 !   write(*,77)trim(phlista(lokph)%name),trim(species(1)),trim(species(2)),&
 !        trim(species(3)),tkmode
 77 format('3H call add_ternary: ',a,1x,a,1x,a,1x,a,1x,a)
+150 continue
    call add_ternary_extrapol_method(lokph,tkmode,species)
 ! there can be several ternary mode in line ...
 !   write(*,*)'3H back from add_ternary_extrapolation_method'
@@ -3958,12 +3971,10 @@
    type(gtp_endmember), pointer :: endmem
    type(gtp_interaction),pointer :: intrec12,intrec13,intrec23,intrec
    type(gtp_interaction),pointer :: intrec1,intrec2
-!   type(gtp_tooprec), allocatable, target :: newtoop
    type(gtp_tooprec), pointer :: newtoop
    character dummy*24,xmode(3)*1,ch1*1,species(3)*24
    character amend*128
 ! ktorg has : element order, fraction index, Took/Koler spec
-! (1
 !
    integer xter3(3),toopcon(3),conind(3),nobin
    logical checkdup,saveamend,onlym
@@ -3984,6 +3995,8 @@
       write(*,*)'3H Kohler/Toop not allowed for phases with disordered set'
       gx%bmperr=4399; goto 1000
    endif
+! A special case when all ternaries are set as Kohler ....
+   
 ! Note, the order of species will changed below but the
 ! original amend text will be saved in one of the tooprec records for output
    amend=trim(phlista(lokph)%name)//' TERNARY_EXTRA '//&

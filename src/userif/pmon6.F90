@@ -53,7 +53,7 @@ contains
 ! various symbols and texts, version 6
     character :: ocprompt*8='--->OC6:'
     character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort*1
-    integer, parameter :: ocmonversion=71
+    integer, parameter :: ocmonversion=73
 ! for the on-line help, at present turn off by default, if a HTML file set TRUE
     character*128 browser,latexfile,htmlfile,unformfile,xtdbdef
     logical :: htmlhelp=.FALSE.
@@ -463,10 +463,13 @@ contains
 !
 ! before we come here gtp_init has been called in the main program
 ! some defaults
+!    write(*,*)'Start of OC command line monitor'
     language=1
     logfil=0
     defcp=1
     seqxyz=0
+! ceq has no value here!!!  Moved this to gtp3A: initialize_global_parameters
+!    ceq%gmindif=default_mingridmin
 ! defaults for several step special
     stepspecial=.FALSE.
 ! save the working directory (where OC is started?)
@@ -478,14 +481,11 @@ contains
     myhistory%hpos=0
 ! defaults for optimizer, number of variable coefficients
     nvcoeff=0
-! iexit(2)=1 means listing scaled coefficients (Va05AD)
-!    iexit=0
-!    iexit(2)=1
 ! present the software
     write(kou,10)version,trim(linkdate),ocmonversion,gtpversion,hmsversion,&
          smpversion
 10  format(/'Open Calphad (OC) software version ',a,', linked ',a,/&
-         'with command line monitor version ',i2//&
+         'with command line monitor version ',i3//&
          'This program is available with a GNU General Public License.'/&
          'either version 2 of the License, or any later version.'/&
          'It includes the General Thermodynamic Package, version ',A,','/&
@@ -5462,6 +5462,7 @@ contains
        case(5) ! read XTDB 
           if(xtdbfile(1:1).ne.' ') then
              text=xtdbfile
+             write(*,*)'debug; ',trim(text)
              call gparcdx('File name: ',cline,last,1,xtdbfile,text,'?Read XTDB')
           else
 ! THESE TYPES ARE USED ALSO IN METLIB4
@@ -5472,6 +5473,7 @@ contains
                   '?Read XTDB')
           endif
 ! this call checks the file exists and returns the elements
+! It is in gtp3E and can handle the <Element keyword in XTDB files
           call checkdb2(xtdbfile,'.XTDB',jp,ellist)
           if(gx%bmperr.ne.0) then
              write(kou,*)'No XTDB database with this name'
@@ -5503,7 +5505,7 @@ contains
              write(*,8220)jp,(ellist(iel),iel=1,jp)
           endif
           name1=' '
-! This should read the XTDB files in new XML format
+! This should read the XTDB files in new XML format.  This is in gtp3EX.F90
           call read_xtdb(xtdbfile,jp,ellist)
 ! also list the bibliography
           call list_bibliography(' ',kou)
@@ -5870,6 +5872,7 @@ contains
                '?Save XTDB')
 !
           zext='XTDB'
+! this subrouine is in gtp3EX.F90
           call write_xtdbformat(xtdbfile,zext)
           if(gx%bmperr.ne.0) goto 990
        end SELECT save

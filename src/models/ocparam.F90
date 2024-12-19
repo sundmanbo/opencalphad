@@ -7,7 +7,7 @@ IMPLICIT NONE
 ! Version numbers
 !----------------------------------------------------------------------
 ! version number of GTP (not OC)
-character*8, parameter :: gtpversion='GTP-3.30'
+character*8, parameter :: gtpversion='GTP-3.31'
 ! THIS MUST BE CHANGED WHENEVER THE UNFORMATTED FILE FORMAT CHANGES!!!
 character*8, parameter :: savefile='OCF-3.20'
 !

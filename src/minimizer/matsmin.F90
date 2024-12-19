@@ -999,6 +999,8 @@ CONTAINS
     endif
 !--------------------------------------------------
 1000 continue
+! extract configurational entropy for mqmqa
+!    write(*,'("MM mqmqa entropy: ",1pe14.4)')sconfmqmqa
 !    write(*,*)'MM back from meq_phaseset'
     if(gx%bmperr.ne.0) then
 ! test if total number of models > 10; that can create converge problems
@@ -1881,6 +1883,7 @@ CONTAINS
     endif
 !    vbug=.TRUE.
     if(vbug)write(*,*)'entering meq_sameset',meqrec%nphase,irem
+!    write(*,*)'MM entering meq_sameset',meqrec%nphase,irem
     iremsave=irem
 ! this is max correction of constituent fraction for each phases
     ycormax=zero
@@ -3226,6 +3229,8 @@ if(meqrec%noofits.eq.1) then
     endif
 ! jump here if phase change
 1100 continue
+! trying to extract the configuratinal entropy of MQMQA
+!    write(*,'("MM leaving meq_sameset",1pe14.4)')sconfmqmqa
 ! DEBUG output for testing when phase change, Christines probkem
 !    write(*,*)'MM iadd and irem: ',iadd,irem
 !    if(iadd.gt.0) then
@@ -5881,8 +5886,14 @@ if(meqrec%noofits.eq.1) then
 ! It seems dxmol(element,constituent) is equal to the stoichiometry
 ! i.e. for a molecule H2O dM_H/dy_H2O=2; dM_O/dy_H2O=1, not 2/3 and 1/3
           do jk=1,nspel
-             pmi%dxmol(ielno(jk),ik)=addmol(jk)
-             pmi%xmol(ielno(jk))=pmi%xmol(ielno(jk))+addmol(jk)*yarr(ik)
+             if(ielno(jk).ne.0) then
+                pmi%dxmol(ielno(jk),ik)=addmol(jk)
+                pmi%xmol(ielno(jk))=pmi%xmol(ielno(jk))+addmol(jk)*yarr(ik)
+!             else
+! bug discovered 2024: substitutional Va means ielno(jk) is 0
+!                write(*,*)'Matsmin line 5891: Vacancies have no amount'
+!                continue
+             endif
           enddo
           ncon=ncon+1
        enddo
@@ -6781,6 +6792,11 @@ if(meqrec%noofits.eq.1) then
 806 format('MM why fix phase/set: ',i3,i2,' entered: ',i3,', new fix: ',i3,&
          1pe12.4)
     phases=' '
+! in some call iadd can be larger than its dimentsion leading to crash
+    if(iadd.gt.size(meqrec%phr)) then
+       write(*,*)'Error matsmin: calling two_stich_comp; ',iadd,mapx
+       gx%bmperr=4399; goto 1000
+    endif
     call get_phasetup_name(meqrec%phr(iadd)%curd%phtupx,phases)
     ip=len_trim(phases)
     phases(ip+2:)='and'

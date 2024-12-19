@@ -159,7 +159,7 @@ RESULTS
 2
 
 @&
-@$ Axis for thd diagram
+@$ Axis for the diagram
 set ax 1 x(al) 0 1 .01
 set ax 2 t 300 2000 25
 
@@ -271,12 +271,17 @@ plot
 
 
 append alfe-a2b2
+text .1 1100 .8 0 n
+BCC-A2
+text n
+.35 1100 .8 0 n
+BCC-B2
+text n
+.3 500 .8 0 n
+BCC-D03
 title map 17 fig 3
 
 
-@$ Surprise, all curves are dashed!
-@$ You have to edit the ocgnu.plt file to have dashed line
-@$ only for the A2/B2 line.  
 @$
 @$ Developing OC is a hobby for me,
 @$ I have no ambition to solve all your problems calculating phase diagrams ...

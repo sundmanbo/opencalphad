@@ -269,7 +269,7 @@ mac ./parallel2
 @$ Assessment using fictitious binary experimental data
 @$ *********************************************************
 
-mac ./opttest1
+@$ mac ./opttest1
 
 @&& *********************************************************
 @$ Assessment start of the Cu-Mg case study must be run by itself

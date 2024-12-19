@@ -36,8 +36,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use metlib
   use ocparam
 !
-!! overall version number
-  character (len=8), parameter :: version='  6.078 '
+!! overall OC version number
+  character (len=8), parameter :: version='  6.079 '
 !
 !
 ! data structure for non-encrypted TP functions

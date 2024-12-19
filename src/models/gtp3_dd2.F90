@@ -1082,6 +1082,7 @@
 ! refix: can be used to indicate the source of the data
 ! nextpr: link to next property record
 ! extra: TOOP and KOHLER can be implemented inside the property record
+!       this is superceeded by the TernaryXpol method ....
 ! proptype: type of propery, 1 is G, other see parameter property
 ! degree: if parameter has Redlich-Kister or similar degrees (powers)
 ! degreelink: indices of TP functions for different degrees (0-9)
@@ -1091,6 +1092,8 @@
 ! this added to avoid problems if model param id has changed between saving
 ! and reading an unformatted file
      character*4 modelparamid
+     character*8 MPIDXTDB
+     character*24 modelrecord
      TYPE(gtp_property), pointer :: nextpr
      integer proptype,degree,extra,protect,refix,antalprop
      integer, dimension(:), allocatable :: degreelink
@@ -2023,6 +2026,8 @@
    character (len=24), allocatable, dimension(:) :: seltdbph
 ! This is to indicate mobility parameters, no wildcared fractions allowed
    integer nowildcard(3)
+! trying to extract configurational entropy
+   double precision :: sconfmqmqa
 !\end{verbatim}
 
 ! undocumented debug indicator
