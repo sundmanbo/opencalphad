@@ -323,7 +323,7 @@ contains
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
     character (len=16), dimension(ncsave) :: csave=&
-        ['TDB             ','SOLGAS          ','QUIT            ',&
+        ['TDB             ','                ','QUIT            ',&
          'DIRECT          ','UNFORMATTED     ','XTDB            ']
 !-------------------
 ! subcommands to AMEND first level
@@ -350,7 +350,7 @@ contains
     character (len=16), dimension(naddph) :: caddph=&
          ['MAGNETIC_CONTRIB','QUIT            ','GADDITION       ',&
          'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALY','VOLUME_MODEL1   ',&
-         'LOWT_CP_MODEL   ','                ','                ',&
+         'LOWT_CP_MODEL   ','LIQUID_2STATE   ','                ',&
          'ELASTIC_MODEL_1 ','                ','SMOOTH_CP_STEP  ']
 !-------------------
 ! subcommands to SET
@@ -992,7 +992,7 @@ contains
 !          write(*,*)'Amend phase addition: ',kom4
 !         ['MAGNETIC_CONTRIB','QUIT            ','GADDITION      ',&
 !         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALY','VOLUME_MODEL1   ',&
-!         'LOWT_CP_MODEL   ','                ','                ',&
+!         'LOWT_CP_MODEL   ','LIQUID_2STATE   ','                ',&
 !         'ELASTIC_MODEL_A ','QUASICHEM_MODEL ','FCC_CVM_TETRAHDR']
 !
              amendphaseadd: SELECT CASE(kom4)
@@ -1063,7 +1063,7 @@ contains
                 ceq%phase_varres(lokcs)%status2=&
                      ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
 !....................................................
-             case(4) ! amend phase <name> addition twostate_liquid model
+             case(4,8) ! amend phase <name> add liquid_2state/twostate_liquid
                 write(kou,667)
 667             format('This addition require LNTH parameters for the',&
                      ' Einstein T of the amorphous state'/'and G2 parameters',&
@@ -1111,7 +1111,7 @@ contains
                    call setpermolebit(lokph,einsteincp)
                 endif
 !....................................................
-             case(8) ! not used
+!             case(8) ! same as 4
 !....................................................
              case(9) ! not used
 !....................................................
@@ -5682,7 +5682,7 @@ contains
 !=================================================================
 ! SAVE in various formats (NOT MACRO and LATEX, use LIST DATA)
 ! It is a bit inconsistent as one READ TDB but not SAVE TDB ...
-!        ['TDB             ','SOLGAS          ','QUIT            ',&
+!        ['TDB             ','                ','QUIT            ',&
 !         'DIRECT          ','UNFORMATTED     ','XTDB            ']
     CASE(9)
 ! default is 3, unformatted
@@ -5717,7 +5717,7 @@ contains
                 goto 100
              endif
 ! Bosse do not understand ???
-             filename(kl:)='.DAT '
+!             filename(kl:)='.DAT '
           endif
 ! inside list_TDB_format
           write(*,*)'PMON calling list_TDB_formats'
@@ -5729,39 +5729,8 @@ contains
              write(kou,*)'Error code ',gx%bmperr
           endif
 !-----------------------------------------------------------
-       case(2) ! SOLGAS
-          if(globaldata%encrypted.ne.0) then
-             write(kou,*)'Illegal for encrypted databases'
-             goto 100
-          endif
-! warning for bugs
-          write(*,131)
-131       format(/'WARNING: this TDB to DAT converter has bugs, if you have',&
-               ' problems'/'buy a commercial converter.',&
-               ' Press RETURN to continue, Q to quit')
-          read(*,'(a)')ch1
-          if(ch1.eq.'Q' .or. ch1.eq.'q') goto 100
-          text=' '
-! Give a warning that this must not be run on a LINUX computer
-          write(*,'(/a/)')' WARNING: Do not run on LINUX/MAC'//&
-               ' because END-OF-LINE different from Windows'
-!' WARNING: Do not run on LINUX/MAC because END-OF-LINE different from Windows'
-! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
-! negative is for write, 0 read without filter, -100 write without filter
-          ztyp=-7
-          call gparfilex('File name: ',cline,last,1,filename,text,ztyp,&
-               '?Save SOLGAS')
-          kl=max(index(filename,'.dat '),index(filename,'.DAT '))
-          if(kl.le.0) then
-             kl=len_trim(filename)+1
-             if(kl.eq.1) then
-                write(*,*)'Too short file name'
-                goto 100
-             endif
-             filename(kl:)='.DAT '
-          endif
-          kl=1
-          call save_datformat(filename,version,kl,ceq)   
+       case(2) ! used to be SOLGAS no longer available
+          continue
 !-----------------------------------------------------------
        case(3) ! save quit, do nothing
           continue

@@ -42,6 +42,7 @@
   character (len=8) :: hightdef   ='6000    '
   character (len=64) :: bibrefdef  ='U.N. Known  '
   character (len=16) :: eldef     ='VA /-'
+  character (len=52) :: ModelAppendXTDB='C:\Users\bosun\Documents\OCHOME\ModelAppendXTDB.XTDB'
   logical :: unary1991=.TRUE., includemodels=.FALSE.
   integer xtdberr
 !
@@ -69,7 +70,7 @@
         'DisorderedPart    ',& ! as TC DISORDERED_PART and/or NEVER model
         '                  ',& ! chanded Disordered_3Part to attribute
 ! 16 above end of phase tags------------------
-        'Parameter         ',& ! 
+        'Parameter         ',& ! if moved edit xmlpartag in gtp3EX.F90
         'Parameter2        ',& ! maybe never implemented in OC, need more tags
         'Bibliography      ',&
         'Bibitem           ',& ! inside Bibliography
@@ -106,13 +107,13 @@
   integer, parameter :: ndefatt=9
   character (len=18), dimension(ndefatt), parameter :: defatt=&
        ['LowT             ','HighT            ','Bibref           ',&
-        'Elements         ','DefaultModels    ','                 ',&
+        'Elements         ','DefaultModels    ','EEC              ',&
         '                 ','                 ','                 ']
 !.............
 ! DatabaseInfo 3
-  integer, parameter :: ninfoatt=2
+  integer, parameter :: ninfoatt=3
   character (len=16), dimension(ninfoatt), parameter :: infoatt=&
-       ['SoftwareInfo    ','Date            ']
+       ['Software        ','Date            ','Signature       ']
 !        123456789.123456...123456789.123456---123456789.123456
 !...........
 ! AppendXTDB 4
@@ -162,9 +163,10 @@
        ['Sublattice      ','List            ']
 !...............
 ! CrystalStructure attributes (used inside Phase element) 12
-  integer, parameter :: ncrystatt=3
+  integer, parameter :: ncrystatt=4
   character (len=16),dimension(ncrystatt), parameter :: crystatt=&
-      ['Prototype       ','PearsonSymbol   ','SpaceGroup      ']
+       ['Prototype       ','PearsonSymbol   ','SpaceGroup      ',&
+        'StructurBericht ']
 !.............
 ! AmendPhase attributes 13
   integer, parameter :: namphatt=2
@@ -228,7 +230,7 @@
 !================================================================
 ! Attributes:
 !================================================================
-! The model tag has no attributes
+! The AmedPhase model attribute has these values
 !......................
 ! Magnetic model attributes Id="IHJBCC" or IHJREST or IHJQX
   integer, parameter :: nmagatt=5
@@ -247,7 +249,7 @@
   character (len=8), dimension(nliq2att), parameter :: liq2att=&
        ['Id      ','MPID1   ','MPID2   ','Bibref  ']
 !.......................
-! Volume, ID="XGL05"
+! Volume, ID="XGL05"          not implemented in OC
   integer, parameter :: nvolatt=5
   character (len=8),dimension(nvolatt), parameter :: volattt=&
        ['Id      ','MPID1   ','MPID2   ','MPID3   ','Bibref  ']
@@ -266,17 +268,92 @@
 !....................
 !=========================================================
 !
-! Current list of MPID in OC, only few implemented
-  character (len=8), dimension(36), parameter :: mpidw=&
+! Current list of MPID in OC, related to the models
+  integer, parameter :: noofmpid=9
+  character (len=8), dimension(noofmpid), parameter :: mpidok=&
        ['G       ','TC      ','BMAG    ','CT      ','NT      ','IBM     ',&
-        'LNTH    ','V0      ','VA      ','VB      ','VC      ','VS      ',&
-        'MQ      ','MF      ','MG      ','G2      ','THT2    ','DCP2    ',&
-        'LPX     ','LPY     ','LPZ     ','LPTH    ','EC11    ','EC12    ',&
-        'RHO     ','VISC    ','LAMB    ','HMVA    ','TSCH    ','CSCH    ',&
-        '        ','        ','        ','        ','        ','        ']
+        'LNTH    ','G2      ','L       ']
+! 8      12345678---12345678...12345678---12345678---12345678---12345678
+! The L is in princple allowed only for excess G parameters but treated as G
+! IBM  was intended for element specific magneton number ....
+! model    MPID index
+! IHJBCC       2  3
+! IHJREST      2  3
+! IHJQX        3  4  5
+! GEIN         7
+! LIQUD2STATE  7  8
+! 
+! OLD list of MPID, some may have a constituent/element 
+!  character (len=8), dimension(36), parameter :: mpidw=&
+!       ['G       ','TC      ','BMAG    ','CT      ','NT      ','IBM     ',&
+!        'LNTH    ','V0      ','VA      ','VB      ','VC      ','VS      ',&
+!        'MQ      ','MF      ','MG      ','G2      ','THT2    ','DCP2    ',&
+!        'LPX     ','LPY     ','LPZ     ','LPTH    ','EC11    ','EC12    ',&
+!        'RHO     ','VISC    ','LAMB    ','HMVA    ','TSCH    ','CSCH    ',&
+!        '        ','        ','        ','        ','        ','        ']
 ! 8      12345678---12345678...12345678---12345678---12345678---12345678
 !
-! Addition  OCi? identifiers
+! The meaning of the model parameters is entered in init_gtp in gtp3A.F90
+!
+! An attempt to reconcile XTDB handling of models and additions with OC
+! Some models/additions has no parameters.  Those which has are listed below.
+! - DisorderdPart and EBEF has 2 separate sets of parameters (software)
+! - Permutations usually use wildcard parameters (with *) to reduce the
+!   number of duplicate model parameters (software)
+! - EBEF is the same as DisorderedPart
+!
+! All parameters i OC has an MPID index, The parameters for the Gibbs energy
+! G (or L) has index 1 (one)
+!------------------------------------------------
+!
+! In OC each parameter has an MPID index stored which is summed
+! independently and later used to calculate the addition.
+!
+! XTDB identifier and MPID        OC MPID index and name
+! IHJBCC and IHJREST  Inden-Hillert-Jarl magnetic model, AFF=-1 and AFF=-3
+!      TC                         2 TC     4          Curie/Neel T
+!      BMAGN                      3 BMAG   3          Bohr magneton number
+! IHJQX               Inden-Hillert-Jarl-Qing-Xiong magnetic model, AFF=0
+!      CT                         4 CTA    4          Curie T
+!      NT                         5 NTA    5          Neel T
+!      BMAGN                      3 BMAG   3          Aver. Bohr magneton num
+! GEIN                Einstein low T vibrational energy                     
+!      LNTH                       7 LNTH   2          Einstein T
+! LIQ2STATE           Merging amorphous low T phase and liguid
+!      LNTH                       7 LNTH   2          Einstein T for amorph.
+!      GD                        16 G2     6          Melting energy of amorph
+! FCC4PERM
+! BCC4PERM
+! FCC4PERM
+! FCC4PERM
+!==================================================
+! For the moment we have 9 models ...?
+  INTEGER, parameter :: gtp_xtdbcompatibility_version=1
+  type gtp_xtdbcompatibility
+     character(len=:), allocatable :: modelid
+! this character has the MPID used in the xtdb file
+     character*8, dimension(:), allocatable :: mpid
+! this character has the default MPID used by oc
+     character*8, dimension(:), allocatable :: ocmpid
+     integer, dimension(:), allocatable ::  ocix
+  end type gtp_xtdbcompatibility
+  type(gtp_xtdbcompatibility), dimension(:), allocatable :: xtdbmodel
+  integer, parameter :: nxtdbmpids=9
+!
+!-------------------------- old below
+! Models with patameters for the AmendPhase tag
+  integer, parameter ::noofmodels=5
+  character (len=16), dimension(noofmodels), parameter :: amphmodel=&
+! 8      123456789.123456---123456789.123456---123456789.123456
+       ['IHJBCC          ','IHJREST         ','IHJQX           ',&
+        'GEIN            ','LIQ2STATE       ']
+! in gtp3_xml.F90 the gtp_xtdbcompatibility has type definitions for the MPIDs
+!
+! Permutations accepted by OC in the AmendPhase tag
+  integer, parameter :: noofpermut=2
+  character (len=16), dimension(noofpermut), parameter :: amphpermut=&
+        ['FCC4PERM        ','BCC4PERM        ']
+!
 ! IHJBCC    1    Inden-Hillert-Jarl for BCC with Aff=-1
 ! IHJREST   1    Inden-Hillert-Jarl for other with Aff=-3
 ! IHJQX     2    Inden-Hillert-Jarl-Qing-Xiong with Aff=0
@@ -288,18 +365,23 @@
 ! DISORDEREDPART same as TDB file DISORDERED_PART and NEVER
 ! FCC4PERM  FCC symmetric tetrahedron permutations
 ! BCC4PERM  BCC asymmetric tetrahedron permutations
-! EEC       Equi Entropy Criterion
+! EEC       Equi Entropy Criterion is set by Delfaults
 ! EBEF      Effective Bond Energy Formalism may use "species@sublattice"
 !
+!--------------- end of old
+
+!=========================================================
 ! Predefined functions in TPfuns
   integer, parameter :: predeftpfun=5
   character*8, dimension(predeftpfun), parameter :: nottpfun= &
        ['LN      ','LOG     ','EXP     ','ERF     ','GEIN    ']
+! LN and LOG is the same thing, LOG10 is not used. 
+! TPfun have these hardcoded in xmlmake
 !
 !=========================================================   
-! There is a need to handle the Model feature of XTDB with the
-! current OC data structure for the MPID.  This data structure
-! does not have to be saved in the UNFORMATTED files
+! There is a need to handle the Model feature of XTDB with different
+! software and data structure in applocation software.  The data structures
+! here and below is for temporary use reading xtdb file
 !========================================================
 !
      type const
@@ -324,12 +406,13 @@
        character (len=:), allocatable :: crystal
 ! The model Id is the amendph
        character (len=:), allocatable :: amendph
-! this is also just the attributes from the XTDB file until used
+! this is the attributes from the XTDB file for disordered part
+! disordered phase, sublattices to sum and if subtract ordered as disordered
        character (len=:), allocatable :: dispar
     end type phnest
     type(phnest), allocatable :: phrec
 !
-! Attributes for AppendXTDB files.  The *appy indicate if todo (-1) or done 1
+! Attributes for AppendXTDB files.  The *appy indicate if todo 1 or done 0
   character*64 modelappx,parappx,tpfunappx,biblioappx,miscappx
   integer modelappy,parappy,tpfunappy,biblioappy,miscappy,allappy
 !

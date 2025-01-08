@@ -2021,7 +2021,7 @@
 ! is created in any phase
 ! REMOVED as global variable 241012/BoS Now local for each phase
 !   integer uniqid
-! this is to allow select_phases from database files
+! this is to allow to select_phases from database files
    integer nselph
    character (len=24), allocatable, dimension(:) :: seltdbph
 ! This is to indicate mobility parameters, no wildcared fractions allowed
@@ -2034,13 +2034,13 @@
    integer :: gtpdebug=0
 !====================================================
 ! This  verbatim section is an Appendix about model parameter identifiers
-! The actual models where these are used are explained later.
+! The actual models where these are used are explained elsewhere.
 !\begin{verbatim}  
 ! Model parameter identifiers entered in gtp3A.F90 and used mainly in gtp3H
 ! to calculate additions.  Used also in gtp3B when entering parameters
 ! Index Name Used in addition/model
-!  1     G    Gibbs energy for endmembers or interactions
-!  2     TC   Curie T in Inden-Hillert magnetic model
+!  1 G    Gibbs energy for endmembers or interactions
+!  2 TC   Curie T in Inden-Hillert-Jarl magnetic model
 !  3 BMAG  - -                                   1 Average Bohr magneton numb
 !  4 CTA   - P                                   2 Curie temperature
 !  5 NTA   - P                                   2 Neel temperature
@@ -2080,7 +2080,12 @@
         'LPZ ','LPTH','EC11','EC12','EC44','UQT ','RHO ','VISC','LAMB','HMVA',&
         'TSCH','CSCH','QCZ ','    ','    ','    ','    ','    ','    ','    ']
 !        1      2      3      4      5      6      7      8      9      10
+!      ['G   ','LNTH','BMAG','TC  ','NT  ','G2  ','V0  ','VA  ','VB  ','XX  ',&
+!       'VC  ','VS  ','MQ  ','MF  ','MG  ','YY  ','THT2','DCP2','LPX ','LPY ',&
+!       'LPZ ','LPTH','EC11','EC12','EC44','UQT ','RHO ','VISC','LAMB','HMVA',&
+!       'TSCH','CSCH','QCZ ','    ','    ','    ','    ','    ','    ','    ']
+!        1      2      3      4      5      6      7      8      9      10
 ! The meaning of the model parameters is entered in init_gtp in gtp3A.F90
 !\end{verbatim}  
 !==========================================
-
+! See gtp3_xml.F90 for new definition of model parameter identifiers

@@ -23,6 +23,11 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.01.08 version 6.079 Working on implementing the XTDB database
+format.  It now works to write XTDB files in the preliminary format
+except for some of the new features such as TernayXpol.  The source
+code for reading XTDB format is under development.
+
 2024.11.05 version 6.078 Fixed some bugs and modified somewhat the
 database format for entering Toop/Kohler extrapolations.
 

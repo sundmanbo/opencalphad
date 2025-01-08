@@ -3496,7 +3496,7 @@
    character longline*40000,reftext*512
 ! to handle ternary_extrapolation lines
    character ternaryxpol(mtxp)*500
-   character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60
+   character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60,chd*1
    character refx*16,more*4
    character (len=1), dimension(maxtypedefs) :: typedefchar
    integer, dimension(maxtypedefs) :: typedefaction
@@ -4410,7 +4410,7 @@
 !         write(*,*)'3E sigma18: get_phase_compset'
          call get_phase_compset(iph,1,lokph,lokcs)
          if(gx%bmperr.ne.0) goto 1000
-! ch1 is suffix for parameters, always D
+! ch1 is suffix for disordered parameters, always D
          ch1='D'
 ! jl=0 if NDM (sigma)
 ! jl=1 if phase can be totally disordered (but can have interstitials)
@@ -5683,7 +5683,7 @@
 ! It also writes 15 lines from any "DATABASE_INFO" in the file
    implicit none
    integer nel
-   character filename*(*),ext*4,selel(*)*2
+   character filename*(*),ext*(*),selel(*)*2
 !\end{verbatim}
    character line*256,ext2*4
    integer ipp,nl,kk,dbinfo
@@ -5716,7 +5716,7 @@
    rewind(21)
    nl=0
    write(*,*)'3E Database file extention is: "',ext,'"'
-   if(ext.eq.'.xtd' .or. ext.eq.'.XTD') then
+   if(ext.eq.'.xtdb' .or. ext.eq.'.XTDB') then
       write(*,*)'3E *** WOW *** Reading elements from XTDB file'
 ! extracting elements from XTDB file <Element Id="FE" etc ... />
       cl=.FALSE.

@@ -965,7 +965,7 @@
 !>>>>> 12A: delete volume addition ...
          deallocate(addlink)
       else
-         write(*,*)'3E Cannot delete unknown addition type ',addlink%type
+         write(*,'("3A Addition type ",i2," not deleted ")')addlink%type
       endif
       addlink=>nextadd
    enddo addition
