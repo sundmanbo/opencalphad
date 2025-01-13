@@ -5,7 +5,7 @@ new Y
 
 set echo Y
 
-r t ./MgNaCl
+r t ./MgNaClX
 
 
 @&
@@ -36,9 +36,8 @@ c n
 @&
 
 l , 2
-
+	      
 @&
-
 
 set ax 1 n(mg) 0 1 .01
 

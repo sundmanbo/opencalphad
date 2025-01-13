@@ -3508,7 +3508,7 @@
    integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv,rewindx,nend
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx,idum,jdum
    logical onlyfun,nophase,ionliq,notent,mqmqa,ferroref
-   integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt,bmabbr
+   integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,iq,jt,bmabbr
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics,ndisph
    integer ntxp,ctxp
 ! disparttc and dispartph to handle phases with disordered parts
@@ -3537,6 +3537,8 @@
    nsl=0
    bmabbr=0
    noparref=0
+! for mqmqa we need to initiate nend to a negative value
+   nend=-100
 ! dbcheck made global
 !   dbcheck=.FALSE.
    tdbwarning=.FALSE.
@@ -3775,6 +3777,7 @@
    endif
 !
 ! we have 13 keywords
+!   write(*,*)'3E Reading tdb: ',keyw
   select case(keyw)
    case default
       if(ocv()) write(*,*)'3E default case: ',keyw,line(1:30)
@@ -3858,6 +3861,21 @@
 !      write(*,*)'3E longline:',trim(longline),ip,jp
       name1(jp:)=' '
       ip=ip+jp
+! handle MQMQA quads ... do I need capson? maybe ...
+!      write(*,*)'3E species line 3863: ',trim(name1)
+      call capson(name1)
+      kp=index(name1,'/')
+      if(kp.gt.0 .and. &
+           name1(kp+1:kp+1).ge.'A' .and. name1(kp+1:kp+1).le.'Z') then
+! this is an MQMQA quad, an ion has /+ or /- or /digit           
+         kp=len_trim(longline)
+         if(longline(kp:kp).eq.'!') longline(kp:kp)=':'
+!         write(*,572)trim(name1),trim(longline(ip:))
+572      format('3E Call mqmqa_species: "',a,'" "',a,'" ')
+         call mqmqa_species(name1,longline(ip:),nend)
+         if(gx%bmperr.ne.0) write(*,*)'3E error creating MQMQA quad',gx%bmperr
+         goto 573
+      endif
       if(eolch(longline,ip)) then
          if(.not.silent) write(kou,*)'WARNING No stoichiometry for species: ',&
               trim(name1)
@@ -3876,6 +3894,7 @@
 ! check elements exist
       call enter_species(name1,noelx,elsyms,stoik)
 !      write(*,*)'3E: entering species error: ',gx%bmperr
+573   continue
       if(gx%bmperr.ne.0) then
 ! if element not selected just skip the species
          if(gx%bmperr.eq.4046) then
@@ -4216,11 +4235,14 @@
 !      longline(jp+1:)=' '
 ! 
       ip=index(longline,' :')+2
+! MQMQA quads entere as species, skip to label 363
+      goto 363
+!--------------------------- redundant code below
       if(mqmqa) then
 ! this is a FactSage MQMQA model for liquids
 ! entering constituents as quadrupoles
-!         write(*,'(a,a,a,2i5)')'3E mqmqa const: "',trim(longline(ip:jp)),&
-!              '"',ip,jp
+         write(*,'(a,a,a,2i5)')'3E mqmqa const: "',trim(longline(ip:jp)),&
+              '"',ip,jp
          loop=0
 ! clear any old content in const
          const=' '
@@ -4258,6 +4280,8 @@
          endif
          goto 100
       endif
+!--------------- code above redundant when MQMQA quad added as species
+363   continue
 !      write(*,*)'3E readtdb gas2: ',jp,longline(1:jp)
       ll=0
       nr=0
@@ -4269,12 +4293,12 @@
       if(ll.ge.1) then
          knr(ll)=nr
          if(nr.le.0) then
-            if(ocv()) then
+!            if(ocv()) then
                write(*,*)'3E Skipping phase due to missing constituents: ',name1
 !              write(*,378)name1,ll
 378            format('Phase ',a,' has no constituents in sublattice ',i2)
 ! Not a fatal error when elements have been selected but skip this phase
-            endif
+!            endif
             goto 100
          endif
       endif
@@ -4289,12 +4313,12 @@
       endif
       nr=nr+1
       nrr=nrr+1
-!      write(*,379)'readtdb 3EX: ',ip,nr,longline(ip:ip+10)
-379   format(a,2i4,' >',a,'< >',a,'< >',a,'<')
+!      write(*,379)'readtdb 3EA: ',ip,nr,mqmqa,longline(ip:ip+10)
+379   format(a,2i4,L2,' >',a,'< >',a,'< >',a,'<')
       call getname(longline,ip,name3,mode,ch1)
-!      write(*,379)'readtdb 3EY: ',ip,nr,longline(ip:ip+10),name3,ch1
+!      write(*,379)'readtdb 3EB: ',ip,nr,longline(ip:ip+10),name3,ch1
       if(buperr.ne.0) then
-!         write(*,381)'readtdb 3E: ',ll,nr,longline(1:ip+5),ip,name3
+         write(*,381)'3E readtdb EC: ',ll,nr,longline(1:ip+5),ip,name3
 381      format(a,2i4,' "',a,'" ',i5,1x,a,'"',a)
          gx%bmperr=buperr; goto 1000
       endif
@@ -4303,17 +4327,26 @@
 ! bypass any "major" indicator %
       if(ch1.eq.'%') ip=ip+1
       if(eolch(longline,ip)) then
-!         if(.not.silent) write(kou,*)'Error extracting constituents 2'
+         if(.not.silent) write(kou,*)'Error extracting constituents 2'
          gx%bmperr=4309; goto 1000
       endif
 ! check that const(nrr) among the selected elements ...
-!      write(*,*)'Testing constituent: ',name3,nr
-      call find_species_record_noabbr(name3,lp1)
+      if(mqmqa) then
+         iq=len_trim(name3)
+! if bot supplied in the database add -Q to quads ....
+         if(name3(iq-1:iq).ne.'-Q') name3(iq+1:iq+2)='-Q'
+      endif
+!      write(*,*)'3E Testing constituent: "',name3,'" ',nr
+!      call find_species_record_noabbr(name3,lp1)
+! the _exact variant ignores stuff after -Q for MQMQA quads
+      call find_species_record_exact(name3,lp1)
       if(gx%bmperr.ne.0) then
 ! this species is not present, not a fatal error, skip it and continue
-!         write(*,*)'Skipping constituent: ',name3
+         write(*,*)'Skipping constituent: ',name3
          gx%bmperr=0; nrr=nrr-1; nr=nr-1
       endif
+! do not remove the -Q
+!      if(mqmqa) name3(iq:)=' '
       ch1=longline(ip:ip)
       if(ch1.eq.',') then
 ! separator (not needed) between constituents
@@ -4322,6 +4355,7 @@
 ! end of constituents in a sublattice
          ip=ip+1; goto 370
       endif
+!      write(*,*)'3E we are at line 4358',gx%bmperr
       if(ch1.ne.'!') goto 380
 ! when an ! found the list of constutents is finished.  But we
 ! should have found a : before the !
@@ -4345,7 +4379,7 @@
       else
          name2='CEF-TDB-RKM? '
       endif
-      if(ocv()) write(*,*)'readtdb 9: ',name1,nsl,knr(1),knr(2),phtype
+      if(ocv()) write(*,*)'3E readtdb 9: ',name1,nsl,knr(1),knr(2),phtype
 !      write(*,*)'3E readtdb 9: ',name1,nsl,knr(1),knr(2),phtype
 395   continue
 !
@@ -4458,7 +4492,6 @@
 601      format('3E Add parameters from disordered part: ',a,5x,a,2x,2i3,F12.4)
       else
 !         write(*,*)'3E enter phase: ',name1
-!         call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
          call enter_phase(name1,nsl,knr,const,stoik,name2,phtype,&
               tdbwarning,emodel)
 !         if(tdbwarning) write(*,*)'3E tdbwarning set true 8'
@@ -4525,7 +4558,7 @@
                elseif(abs(addphasetypedef(jt)).eq.777) then
 ! ternary extrapolations should be handled after all parameters entered
 ! The phase name has to be added ... we just need to add the phase name here.
-! Can we have several phases with ternary extrapolation?
+! Can we have several phases with ternary extrapolation? YES!!
 !                  write(*,'("3E ternaryxpol phase ",a,2i5)')&
 !                       trim(phlista(lokph)%name),lokph,jt
                   addternaryxpol=.true.

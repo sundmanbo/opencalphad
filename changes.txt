@@ -23,6 +23,47 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.01.08 version 6.080 A major change have been made for entering
+constituents (quads) in the MQMQA phase.  Previously these were
+entered together with their bond data with the phase.  That made it
+impossible, or at least very complicated, to handle MQMQA quads with
+the new proposed XTDB format.  Thus a new way to enter species has
+been implemented.  Any species with a slash, "/" followed by a letter
+is considered as an MQMQA quad and one must specify the additional
+information when entering the species.  The / is used to separate
+elements on the fictive sublattices in the MQMQA phase.  See the TDB
+files MgNaClX.TDB used in the map19.OCM example and caslaf.TDB in the
+macros/examples directory.  When entering these quads as constituents
+they must have the suffix -Q.  After entering these as constituents
+the Q will have two digits appended for bookkeeping in the phase but
+the species names are without these digits.
+
+The / in a species normally means the species have an electric charge
+and is then followed by -, + or a digit.  Thus the / in the quad
+species followed by a letter A-Z will not change this.  For the quads
+the / means the separation of the constituents of the sublattices in
+the MQMQA phase.  A quad NA/CL is thus entered using
+
+SPECIES NA/CL NA/CL 6 6 2.4
+
+where the numbers represent the bonds and the 2.4 the SNN/FNN ratio in
+the MQMQA model.  The NA/CL is repreated twice, the first time is the
+actual name and the second is needed because SNN quads with 2 elements
+on one or both sublattices must be entered as
+
+SPECIES MGNA/CL MG,NA/CL 6.0 3.0 3.0
+
+where the two elements on the first sublattice, Mg and Na, must be
+separated by a comma, ",".  As already mentioned, when entering these
+as constituent of the phase they must have a suffix -Q
+
+CONSTITUENT SALT:Q : NA/CL-Q MG/CL-Q MGNA/CL-Q : !
+
+in the TDB file.  The :Q after the phase name, SALT, indicates the
+MQMQA model.  A similar syntax will be adopted for the proposed XTDB
+database format.  Sometimes modeling leads to some awkward notation.
+
+
 2025.01.08 version 6.079 Working on implementing the XTDB database
 format.  It now works to write XTDB files in the preliminary format
 except for some of the new features such as TernayXpol.  The source

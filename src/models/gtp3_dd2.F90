@@ -1396,7 +1396,7 @@
      integer, allocatable, dimension(:,:) :: contyp
 ! quady(i,j) indices of sublattice fractions  ( replaced by 11..14 in contyp)
 !     integer, allocatable :: quady(:,:)
-! for each pair, its index in in %contyp is in PINQ
+! for each pair, its index is in %contyp is in PINQ
      integer, allocatable, dimension(:,:) :: pinq(:)
 ! constoi(1..4,const) real with stoichiometry of species in quadrupole
 ! NOTE for pairs (with one constituent in each sublattice) only two values
@@ -1423,6 +1423,9 @@
 !     integer, allocatable :: ksiix(:)
 ! any more?
   end TYPE gtp_mqmqa
+! it is reset in pmon6 when a NEW command
+!  integer, private :: mqmqanend=-100
+  integer :: mqmqanend=-100
 !  TYPE(gtp_mqmqa), private :: mqmqa_data
 ! it should be made private when everything work and removed from pmon6
   TYPE(gtp_mqmqa) :: mqmqa_data

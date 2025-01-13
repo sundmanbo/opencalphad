@@ -42,9 +42,11 @@
   character (len=8) :: hightdef   ='6000    '
   character (len=64) :: bibrefdef  ='U.N. Known  '
   character (len=16) :: eldef     ='VA /-'
-  character (len=52) :: ModelAppendXTDB='C:\Users\bosun\Documents\OCHOME\ModelAppendXTDB.XTDB'
+!  character (len=52) :: ModelAppendXTDB='C:\Users\bosun\Documents\OCHOME\ModelAppendXTDB.XTDB'
+  character (len=20) :: ModelAppendXTDB='.\ModelOCAppend.XTDB'
   logical :: unary1991=.TRUE., includemodels=.FALSE.
   integer xtdberr
+  logical :: xtdbmqmqa=.true.
 !
 ! Number of XDB tags 
   integer, parameter :: nxtdbtags=36
