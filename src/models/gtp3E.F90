@@ -4293,12 +4293,12 @@
       if(ll.ge.1) then
          knr(ll)=nr
          if(nr.le.0) then
-!            if(ocv()) then
+            if(ocv()) then
                write(*,*)'3E Skipping phase due to missing constituents: ',name1
 !              write(*,378)name1,ll
 378            format('Phase ',a,' has no constituents in sublattice ',i2)
 ! Not a fatal error when elements have been selected but skip this phase
-!            endif
+            endif
             goto 100
          endif
       endif
@@ -4342,7 +4342,7 @@
       call find_species_record_exact(name3,lp1)
       if(gx%bmperr.ne.0) then
 ! this species is not present, not a fatal error, skip it and continue
-         write(*,*)'Skipping constituent: ',name3
+!         write(*,*)'3E Skipping constituent: ',name3
          gx%bmperr=0; nrr=nrr-1; nr=nr-1
       endif
 ! do not remove the -Q
@@ -4713,7 +4713,8 @@
 !         write(*,*)'Entering disordered parameter to: ',ordpartph(thisdis)
 !         write(*,*)'3E ',longline(1:len_trim(longline))
          name2=ordpartph(jl)
-         fractyp=2
+! fractyp is now detected inside enter_parameter
+!         fractyp=2
       endif dispar
 !---------------------- check phase is entered,
 ! the database may contain many phases that are not selected

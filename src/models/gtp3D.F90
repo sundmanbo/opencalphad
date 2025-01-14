@@ -366,8 +366,20 @@
       call gparcx('Parameter name: ',cline,ip,7,parname,' ','?Enter parameter')
    endif
 ! simple parameter names are like G(SIGMA,FE:CR:FE,CR;1)
+! no spaces allowed ....
    kp=index(parname,' ')
+   jp=index(parname,')')
+! check if there is ext after space
+   if(jp.eq.0) then
+      write(*,*)'A parameter name must be terminated by ), please reenter'
+      gx%bmperr=4028; goto 1000
+   elseif(kp.lt.jp) then
+      write(*,*)'No spaces allowed in a parameter name, please reenter'
+      gx%bmperr=4028; goto 1000
+   endif
+! this has been here since the beginning, keep it
    parname(kp:)=' '
+!
 ! extract symbol, normally G or L but TC and others can occur 
 ! for example a mobility like  MQ&FE+2#3 where FE+2#3 is a constinuent
 ! in sublattice 3
@@ -390,13 +402,16 @@
    endif
    kq=len_trim(name1)
 !   write(*,*)'3D: fractyp: ',kq,name1(1:kq)
-   if(name1(kq:kq).eq.'D') then
+!   if(name1(kq:kq).eq.'D') then
 ! A final "D" on the paramer symbol indicates fractyp=2
-      name1(kq:kq)=' '
-      fractyp=2
-   else
-      fractyp=1
-   endif
+! THIS FEATURE NO LONGER SUPPORTED
+!      name1(kq:kq)=' '
+!      fractyp=2
+!   else
+!      fractyp=1
+!   endif
+! the fractyp must be checked inside enter_parameter
+   fractyp=1
 ! find the property associated with this symbol
    do typty=1,ndefprop
 !      write(*,*)'Property symbol: "',propid(typty)%symbol,'"'

@@ -4,7 +4,7 @@ earlier.  This log started 2016-03-03.
 For general information please read the intro-OC7.pdf and the
 macros-OC7.pdf.
 
-There is a precompiled installation of OC for Windows on the
+There is an old precompiled installation of OC for Windows on the
 OpenCalphad web page.  It includes an introduction, on-line help and
 examples with macro files and some small databases.  For graphics the
 free GNUPLOT software must be installed separately from Sourceforge or
@@ -22,6 +22,11 @@ envirionment and we who provide this software for free do not have the
 time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
+
+2025.01.08 version 6.081 I forgot to remove a lot of debug output in
+the version 6.080, that is fixed now.  I also cleaned up the code
+handling partitioning of phases with a disordered fraction set such as
+FCC and BCC with 4 sublattices for ordering.
 
 2025.01.08 version 6.080 A major change have been made for entering
 constituents (quads) in the MQMQA phase.  Previously these were

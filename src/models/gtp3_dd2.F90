@@ -1370,7 +1370,7 @@
 ! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)
      integer, dimension(2) :: i2slx
 ! Needed to list all Toop/Kohler ternary models
-! The one used for calculations is the pointer in gtp_intrec (toprec)
+! The one used for calculations is the pointer in gtp_intrec (tooprec)
      TYPE(gtp_tooprec), pointer :: tooplast,toopfirst
      integer :: lasttoopid
 ! allocated in init_gtp.

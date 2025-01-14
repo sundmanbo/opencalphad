@@ -3215,6 +3215,7 @@
 ! enter_parameter_inter(activly) is in gtp3D for some unknown reason ...
 ! typty is the type of property, 1=G, 2=TC, ... , n*100+icon MQ&const#subl
 ! fractyp is fraction type, 1 is site fractions, 2 disordered fractions
+! FRACTYPE no longer supported, has to be determined by sublattices...
 ! nsl is number of sublattices
 ! endm has one constituent index for each sublattice
 ! constituents in endm and lint should be ordered so endm has lowest
@@ -3254,16 +3255,45 @@
       write(*,*)'3B Error ',gx%bmperr,' set calling enter_parameter, cleared!'
       gx%bmperr=0
    endif
+   fractyp=1
+   if(btest(phlista(lokph)%status1,PHMFS)) then
+! for phases with diordered set the number of sublattices can vary ....
+      if(nsl.ne.phlista(lokph)%noofsubl) fractyp=2
+! fractyp=2 has been used to indicate disordered set, that has to be fixed
+!      write(*,3)trim(phlista(lokph)%name),typty,nsl,nint,fractyp
+!3     format('Disordered fraction set error for ',a,' value ',4i4/&
+!           'Please correct or report to support')
+!      gx%bmperr=4069; goto 1000
+   endif
 !   write(*,'(a,10i5)')'3B param: ',typty,fractyp,lokph,nsl,nint,lfun
 ! listfun used when calling this routine just to list a parameter
    listfun=0
-   if(fractyp.eq.2) goto 50
+   if(nsl.ne.phlista(lokph)%noofsubl) then
+! check if the phase has a disordered fraction set
+! nothing is associated until the forst parameter added!!!
+!      write(*,7)trim(phlista(lokph)%name),nsl,&
+!           btest(phlista(lokph)%status1,PHMFS)
+7     format('3B Parameter for ',a,' with ',i2,' sublattices ',&
+           'is part of disordered fraction set: ',l2)
+      if(btest(phlista(lokph)%status1,PHMFS)) then
+         goto 50
+      else
+         write(*,8)trim(phlista(lokph)%name),nsl
+8        format('Parameter fo phase ',a,' has wrong number of sublattice ',i2)
+         gx%bmperr=4065; goto 1000
+      endif
+   endif
 ! this is for site fractions
 !   write(*,6)'enter_parameter 1: ',lokph,nsl,phlista(lokph)%noofsubl,nint,ideg
 6  format(a,10i5)
-   if(nsl.ne.phlista(lokph)%noofsubl) then
-      gx%bmperr=4065; goto 1000
-   endif
+!   if(nsl.ne.phlista(lokph)%noofsubl) then
+! parameter may belong to 
+!      if(associated(phlista(lokph)%disordered)) goto 50
+!      write(*,9)trim(phlista(lokph)%name),nsl,&
+!           associated(phlista(lokph)%disordered)
+!      gx%bmperr=4065; goto 1000
+9     format('Wrong number of sublattices in parameter for ',a,i4,l3)
+!   endif
    kkk=0
    jord=0
    sublloop: do ll=1,nsl
@@ -3339,10 +3369,11 @@
 ! there are no disordered fraction sets for this phase
       gx%bmperr=4068; goto 1000
    endif
+!   write(*,*)'3B adding disordered parameter to ',trim(phlista(lokph)%name)
    lokcs=phlista(lokph)%linktocs(1)
    disfra=firsteq%phase_varres(lokcs)%disfra
 ! number of sublattices in the disordered set
-!   write(*,*)'3B disorered ',nsl,disfra%ndd
+!   write(*,*)'3B disordered ',nsl,disfra%ndd
    if(nsl.ne.disfra%ndd) then
       gx%bmperr=4069; goto 1000
    endif
@@ -3454,7 +3485,7 @@
 !              ideg,nint,(lint(1,zz),lint(2,zz),zz=1,nint)
 97       format('pmod3B: Illegal with interaction with same constituent:'/&
               3i3,i4,2x,15(i5))
-        gx%bmperr=4266; goto 1000
+         gx%bmperr=4266; goto 1000
       elseif(jord(2,kint).lt.iord(ll)) then
 ! constituent in iord higher than that in jord, exchange jord and iord.  
          ib=iord(ll)
@@ -4007,7 +4038,7 @@
 !-------------------------------------------------------------------
 !
 !   write(*,7)lokph,nsl,nint,noperm
-7  format('3B fp0: ',4i4)
+7  format('3B In fccpermuts: ',4i4)
 !   if(nint.eq.2) then
 !      write(*,501)'3B fccpermuts1: ',jord(1,1),jord(2,1),jord(1,2),jord(2,2)
 !   endif

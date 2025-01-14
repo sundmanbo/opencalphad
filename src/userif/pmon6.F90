@@ -71,7 +71,7 @@ contains
 ! separate file names for remembering and providing a default
     character ocmfile*128,ocufile*128,tdbfile*128,xtdbfile*128
     character ocdfile*128,filename*128
-    character zext*8
+    character zext*8,mqmqass*60
 ! home for OC and default directory for databases
 !    character ochome*64,ocbase*64, change suggested by Chunhui
     character ochome*128,ocbase*128
@@ -138,6 +138,9 @@ contains
     integer iel,iph,ics,ieq,idef,iph2,tupix(2),icond
 ! for gradients in MU and interdiffusivities
     integer nend
+! for mqmqanend, a negative value needed att first call to mqmqa_species
+! it is declared in gt3_dd2.F90
+!    integer :: mqmqanend=-100
 ! dimension of mugrad for 16x16 matrix 
 !CCI
     double precision, allocatable, dimension(:) :: mugrad,mobilities
@@ -194,6 +197,8 @@ contains
 ! array with constituents in sublattices when entering a phase
 ! only used for interactive entering the mqmqa_constituent
     character, dimension(25) :: const*24
+! This is for species in the mqmqa model which may contain commas ","
+    character mqmqacon*24
 ! mqmqa quadbonds
     double precision quadbonds(4)
 ! for macro and logfile and repeating questions
@@ -585,6 +590,8 @@ contains
     tzcond=0
     eetcond=0
     parael=' '
+! initiating the equence of mqmqaquads, declared in models/gtp3_dd2.F90
+    mqmqanend=-100
 ! initiallize ploted, it is not done in reset_plotoptions
     graphopt%plotend='pause mouse'
 ! reset plot ranges and their defaults
@@ -3960,14 +3967,37 @@ contains
 !             gx%bmperr=4125
 !             goto 990
 !          endif
+!>>> There may be problems with MQMQA quads such as Fe,Mn/SI1/4O,Al2/3O
           call gparcx('Species symbol: ',cline,last,1,name1,' ',&
                '?Enter species')
-! NOTE: add check species name legal!
-          call gparcx('Species stoichiometry: ',cline,last,1,name2,' ',&
-               '?Enter species')
-          call decode_stoik(name2,noelx,ellist,stoik)
-          if(gx%bmperr.ne.0) goto 990
-          call enter_species(name1,noelx,ellist,stoik)
+! check if it is an MQMQA quad
+          name2=name1
+          call capson(name2)
+          iz=index(name2,'/')
+          if(iz.gt.0 .and. &
+               (name2(iz+1:iz+1).ge.'A' .and. name2(iz+1:iz+1).le.'Z')) then
+! A MQMQA species has a letter after the /
+! In MQMQA species, the two sublattices indicated by /
+! but we musr also separate species in same, for example: Fe,Mn/Si1/4O,Al2/3O
+             mqmqass=' '
+             call gparcx('MQMQA specification: ',cline,last,5,&
+                  mqmqass,' ','?Enter MQMQA species')
+! typically mqmqass is Na/Cl 6.0 6.0 2.4 (last values the FNN/SNN ratio
+! or Mg,Na/Cl  6.00 3.00 3.00 etc. as in Solgsmax DAT files
+! check species used before quad numbers must already be entered!
+! mqmqanend should be negative at first call
+             write(*,575)trim(name1),trim(mqmqass),mqmqanend
+575          format('Call mqmqa_species: "',a,'" "',a,'" ',i5)
+             call mqmqa_species(name1,mqmqass,mqmqanend)
+          else
+! A species with no / or an ionic / followed by + - or number
+             call gparcx('Species stoichiometry: ',cline,last,1,name2,' ',&
+                  '?Enter species')
+             call decode_stoik(name2,noelx,ellist,stoik)
+             if(gx%bmperr.ne.0) goto 990
+! all species must be entered
+             call enter_species(name1,noelx,ellist,stoik)
+          endif
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(4) ! enter phase
@@ -4867,7 +4897,7 @@ contains
 !    character (len=16), dimension(noptopt) :: optopt=&
 !        ['SHORT           ','LONG            ','COEFFICIENTS    ',&
 !         'GRAPHICS        ','DEBUG           ','MACRO           ',&
-!         'EXPERIMENTS     ','CORRELATION_MTRX','                ']
+!         'EXPERIMENTS     ','CORRELATION_MTRX','MQMQA_QUAD      ']
        case(16)
           if(.not.allocated(firstash%coeffstate)) then
              write(kou,*)'No listing as no optimizing parameters'
@@ -6307,12 +6337,13 @@ contains
              write(kou,*)'Testing symbol ',trim(name1),' value OK ++++++++'
           endif
 !..................................
-! debug map_startpoints
+! debug map_startpoints commented away
+! debug ender MQMQA species
        case(9)
-          nullify(starteqs(1)%p1)
-          starteqs(1)%p1=>ceq
-          call auto_startpoints(maptop,noofaxis,axarr,seqxyz,starteqs)
-          if(gx%bmperr.ne.0) goto 990
+!          nullify(starteqs(1)%p1)
+!          starteqs(1)%p1=>ceq
+!          call auto_startpoints(maptop,noofaxis,axarr,seqxyz,starteqs)
+!          if(gx%bmperr.ne.0) goto 990
 !..................................
 ! debug grid.  This calculates grid for phases one by one and check
        case(10)
