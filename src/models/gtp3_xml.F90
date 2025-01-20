@@ -34,10 +34,11 @@
 !
 ! Versions
 ! 2024.11.19 Begun revise previous XTDB structure using TYPE
+! 2025.01.13 Integrate with OC
 !
 ! Some default values for the XTDB file, can be changed by user or read_xtdb
 ! These are also set in pmon6 when NEW Y command
-  character (len=8), parameter :: XTDBversion='0.1.13   '
+  character (len=8), parameter :: XTDBversion='0.1.14   '
   character (len=8) :: lowtdef    ='298.15  '
   character (len=8) :: hightdef   ='6000    '
   character (len=64) :: bibrefdef  ='U.N. Known  '
@@ -46,6 +47,7 @@
   character (len=20) :: ModelAppendXTDB='.\ModelOCAppend.XTDB'
   logical :: unary1991=.TRUE., includemodels=.FALSE.
   integer xtdberr
+! this is set TRUE when MQMQA quads entered as species. If constituents .false.
   logical :: xtdbmqmqa=.true.
 !
 ! Number of XDB tags 
@@ -335,6 +337,7 @@
      character(len=:), allocatable :: modelid
 ! this character has the MPID used in the xtdb file
      character*8, dimension(:), allocatable :: mpid
+     integer nmpid
 ! this character has the default MPID used by oc
      character*8, dimension(:), allocatable :: ocmpid
      integer, dimension(:), allocatable ::  ocix
@@ -343,14 +346,12 @@
   integer, parameter :: nxtdbmpids=9
 !
 !-------------------------- old below
-! Models with patameters for the AmendPhase tag
+! Models accepted by OC in the AmendPhase tag
   integer, parameter ::noofmodels=5
   character (len=16), dimension(noofmodels), parameter :: amphmodel=&
 ! 8      123456789.123456---123456789.123456---123456789.123456
        ['IHJBCC          ','IHJREST         ','IHJQX           ',&
         'GEIN            ','LIQ2STATE       ']
-! in gtp3_xml.F90 the gtp_xtdbcompatibility has type definitions for the MPIDs
-!
 ! Permutations accepted by OC in the AmendPhase tag
   integer, parameter :: noofpermut=2
   character (len=16), dimension(noofpermut), parameter :: amphpermut=&
@@ -414,8 +415,120 @@
     end type phnest
     type(phnest), allocatable :: phrec
 !
-! Attributes for AppendXTDB files.  The *appy indicate if todo 1 or done 0
+! Attributes for AppendXTDB files.  The *appy indicate if todo (-1) or done 1
   character*64 modelappx,parappx,tpfunappx,biblioappx,miscappx
   integer modelappy,parappy,tpfunappy,biblioappy,miscappy,allappy
 !
+  
+!------------------------------------------------------------
+! global parameter copied from modile xtdblib in xtdbread.F90 itself
+!
+!
+! used positions in attpos ?? line number in current file
+  integer attpos,fline
+! maximum number of nested tags
+  integer, parameter :: maxlevels=10,commenttag=999
+! tagnest(level) is negative, -tagno, if more attributes for tagno to read 
+  integer, dimension(maxlevels) :: tagnest
+! tagnames have max length 18, the endoftag is set to '</tagname>'
+  character(len=21), dimension(maxlevels) :: endoftag
+!   
+! an expression will be concatinated from TPfun/Trange and Parameter/Trange tags
+  character(len=:), allocatable :: wholexpr
+
+  character(len=:), allocatable :: cc
+
+! set to .true. when reading subsets of the XTDB file
+  logical ignorEOT
+
+! TPfuns are used in parameters. All TPfun for entered parameters must be found
+  integer, parameter :: maxtpfun=500
+  integer ntp,missingtp,missingbib
+! alltpfun are names of all tpfuns missing or entered
+
+! the extracted data for software stored in these records
+! these integers are the last entered element, species etc.
+!  integer nselel,nselsp,nselph,nselpar,nseltp,nselbib
+! nselph already defined in gtp3
+  integer nselel,nselsp,nselpar,nseltp,nselbib
+
+  type ocelement
+     character*2 elname
+     character(len=:), allocatable :: data
+  end type ocelement
+  type(ocelement), dimension(:), allocatable :: selel
+    
+  type ocspecies
+     character*24 species
+     character(len=:), allocatable :: data
+     character*2, dimension(:), allocatable :: elnames
+     double precision, dimension(:), allocatable :: stoicc
+! electric charge
+     double precision :: charge
+! mqmqa or uniquac
+     character(len=:), allocatable :: extra
+  end type ocspecies
+  type(ocspecies), dimension(:), allocatable :: selsp
+! this array will have the selsp indices in alpahetical order
+  integer, dimension(:), allocatable :: selspord
+    
+  type ocphases
+     character*24 phasename
+     integer nsublat
+! in this array only selected constituents are entered
+     character(len=:), allocatable :: mult
+     character(len=:), allocatable :: const
+     character(len=:), allocatable :: confent
+     character(len=:), allocatable :: amendph
+     character(len=:), allocatable :: dispar
+     character(len=:), allocatable :: data
+     type(octerxpol), pointer :: terxpol
+  end type ocphases
+  type(ocphases), dimension(:), allocatable :: selph
+
+  type ocxparam
+     character*64 parname
+     character(len=:), allocatable :: data
+  end type ocxparam
+  type(ocxparam), dimension(:), allocatable :: selpar
+  
+  type octpfun
+     character*16 tpfunname
+     character(len=:), allocatable :: data
+! seltp(*)%tatus is negative if missing
+     integer status
+  end type octpfun
+  type(octpfun), dimension(:), allocatable :: seltpfun
+    
+  type ocbib
+     character*8 bibitem
+     character(len=:), allocatable :: data
+     integer status
+  end type ocbib
+  type(ocbib), dimension(:), allocatable :: selbib
+
+  character(len=:), allocatable :: defaultbib
+
+  type octerxpol
+! ternary extrapolation linked from the phase
+! The ternaryXpol tags with selected constituents are stored in these records.
+! If the phase is already selected they are added to the texpol list
+! otherwise kept in the firstxpol list until the phase is entered
+     character(len=:), allocatable :: phase
+     character(len=:), allocatable :: sps
+     character(len=:), allocatable :: xpol
+     type(octerxpol), pointer :: next
+  end type octerxpol
+  logical debug
+
+! this is the start of a linked list of ternary extrapolations
+! waiting for the phase to be selected.  Typically it contains TernaryXpol
+! what are defined inside the Phase tag itself
+  type(octerxpol), pointer :: firstxpol,lastxpol,xpol
+
+! When first phase entered we must not enter more elements/species
+    logical nomorelements
+! for dimensioning these arrays and amount used
+    integer maxtdbel, maxtdbsp, maxtdbph, maxpar, maxtp, maxbib
+
   

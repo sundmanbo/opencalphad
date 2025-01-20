@@ -5488,7 +5488,7 @@ contains
        case(4) ! read direct
           write(*,*)'Read direct not implemented yet'
 !-----------------------------------------------------------
-! the new format for Calphad databases
+! read the new XTDB format for Calphad databases
        case(5) ! read XTDB 
           if(xtdbfile(1:1).ne.' ') then
              text=xtdbfile
@@ -5502,43 +5502,62 @@ contains
              call gparfilex('File name: ',cline,last,1,xtdbfile,' ',ztyp,&
                   '?Read XTDB')
           endif
+          if(xtdbfile(1:1).eq.' ') goto 100
 ! this call checks the file exists and returns the elements
-! It is in gtp3E and can handle the <Element keyword in XTDB files
-          call checkdb2(xtdbfile,'.XTDB',jp,ellist)
+! It is in gtp3EY and can handle the <Element keyword in XTDB files
+          jp=0
+          write(*,*)'Opening: ',trim(xtdbfile)
+          call xtdbread(xtdbfile,jp,ellist)
           if(gx%bmperr.ne.0) then
              write(kou,*)'No XTDB database with this name'
              goto 990
           elseif(jp.eq.0) then
              write(Kou,*)'No elements in the database'
+             goto 100
           endif
+          name1=ellist(1)
           write(kou,8203)jp,(ellist(kl),kl=1,jp)
           write(kou,8205)
+          kl=jp
           jp=1
           selection='Select elements /all/:'
 8217      continue
           call gparcx(selection,cline,last,1,ellist(jp),' ','?Read XTDB')
+          if(cline(1:4).eq.'NONE') then
+! if user regets selection he can quit
+             write(*,*)'Quitting, nothing selected'
+             goto 100
+          endif
           if(ellist(jp).ne.'  ') then
              call capson(ellist(jp))
              jp=jp+1
-             if(jp.gt.size(ellist)) then
-                write(kou,*)'Max number of elements selected: ',size(ellist)
+             if(jp.gt.kl) then
+             write(kou,*)'Max number of elements selected: ',jp,kl,size(ellist)
+                selection='Select elements /all/:'
+                goto 8217
              else
                 selection='Select elements /no more/:'
                 goto 8217
              endif
-          else
+          elseif(index(selection,'all').gt.0) then
+! user has selected all, restore ellist(1)
+             ellist(1)=name1
              jp=jp-1
           endif
+!          write(*,*)'After first select ',jp
+8212      continue
           if(jp.eq.0) then
-             write(kou,*)'All elements selected'
+             jp=kl
+             write(kou,*)'All elements selected',jp
           else
              write(*,8220)jp,(ellist(iel),iel=1,jp)
           endif
-          name1=' '
-! This should read the XTDB files in new XML format.  This is in gtp3EX.F90
-          call read_xtdb(xtdbfile,jp,ellist)
+!          name1=' '
+! This should read the XTDB files in new XML format.  This is in gtp3EX/Y.F90
+          call xtdbread(xtdbfile,jp,ellist)
+! NOT YET WRITTEN transfer selected system from gtp3_xml.F90 to OC proper
 ! also list the bibliography
-          call list_bibliography(' ',kou)
+!          call list_bibliography(' ',kou)
           write(kou,*)
 !-----------------------------------------------------------
        case(6) ! read SELECTED_PHASES

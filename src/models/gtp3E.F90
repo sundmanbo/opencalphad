@@ -2012,6 +2012,8 @@
          allocate(splista(isp)%spextra(nspx))
          displace=displace+splista(isp)%noofel*nwpr
          call loadrn(nspx,iws(last+displace),splista(isp)%spextra)
+! new property ??
+!         if(allocated(mqmqa1) then
       endif
 ! next species
       last=iws(last)
@@ -4235,7 +4237,8 @@
 !      longline(jp+1:)=' '
 ! 
       ip=index(longline,' :')+2
-! MQMQA quads entere as species, skip to label 363
+! in TDB files MQMQA quads entered as constituents
+      if(mqmqa) write(*,*)'3E skipping redundant? code for MQMQA in readtdb'
       goto 363
 !--------------------------- redundant code below
       if(mqmqa) then

@@ -5,10 +5,10 @@
 !>     9B. Section: read and save on files using XML bases XTDB
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine read_xtdb
+!\addtotable subroutine read_xtdb_dummy
 !\begin{verbatim}
- subroutine read_xtdb(filename,nel,selel)
-! reading data from an XTFB file
+ subroutine read_xtdb_dummy(filename,nel,selel)
+! reading data from an XTFB file and list data on screen
 ! if nel<=0 then only extract elements and retutn in selel (-nel dimension)
 ! if nel>0 extract data for the the nel elements in selel
 !
@@ -121,7 +121,7 @@
 2010 continue
    write(*,'("3EX error reading file ",i7,", line ",i7)')gx%bmperr,fl
    goto 1000
- end subroutine read_xtdb
+ end subroutine read_xtdb_dummy
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
@@ -137,7 +137,9 @@
 ! these are 9 models allowed in the AmendPhase tag
 ! for the ocix values: 1=G, 2=LNTH, 3=BMAGN, 4=TC, 5=NT, 6=G2
 ! Magnetic model 1, previously AFF=-1
+!    write(*,*)'Initating xtdbmodel'
     xtdbmodel(1)%modelid='IHJBCC'
+    xtdbmodel(1)%nmpid=2
     allocate(xtdbmodel(1)%mpid(2))
     allocate(xtdbmodel(1)%ocmpid(2))
     allocate(xtdbmodel(1)%ocix(2))
@@ -145,11 +147,12 @@
     xtdbmodel(1)%mpid(2)='BMAG'
     xtdbmodel(1)%ocmpid(1)='TC'
     xtdbmodel(1)%ocmpid(2)='BMAG'
-! The ocix is the location for the parameter in the result array in GTP
+! The ocix is the location for the parameter in the result array in GTP ????
     xtdbmodel(1)%ocix(1)=4
     xtdbmodel(1)%ocix(2)=3
 ! Magnetic model 2, previously AFF=-3
     xtdbmodel(2)%modelid='IHJREST'
+    xtdbmodel(2)%nmpid=2
     allocate(xtdbmodel(2)%mpid(2))
     allocate(xtdbmodel(2)%ocmpid(2))
     allocate(xtdbmodel(2)%ocix(2))
@@ -161,6 +164,7 @@
     xtdbmodel(2)%ocix(2)=3
 ! Magnetic model 3, previously AFF=0
     xtdbmodel(3)%modelid='IHJQX'
+    xtdbmodel(3)%nmpid=3
     allocate(xtdbmodel(3)%mpid(3))
     allocate(xtdbmodel(3)%ocmpid(3))
     allocate(xtdbmodel(3)%ocix(3))
@@ -175,6 +179,7 @@
     xtdbmodel(3)%ocix(3)=3
 ! Einstein
     xtdbmodel(4)%modelid='GEIN'
+    xtdbmodel(4)%nmpid=1
     allocate(xtdbmodel(4)%mpid(1))
     allocate(xtdbmodel(4)%ocmpid(1))
     allocate(xtdbmodel(4)%ocix(1))
@@ -183,6 +188,7 @@
     xtdbmodel(4)%ocix(1)=2
 ! Liq2State
     xtdbmodel(5)%modelid='LIQ2STATE'
+    xtdbmodel(5)%nmpid=2
     allocate(xtdbmodel(5)%mpid(2))
     allocate(xtdbmodel(5)%ocmpid(2))
     allocate(xtdbmodel(5)%ocix(2))
@@ -195,9 +201,13 @@
 !
 ! These models have no model parameters
     xtdbmodel(6)%modelid='FCC4PERM'
+    xtdbmodel(6)%nmpid=0
     xtdbmodel(7)%modelid='BCC4PERM'
+    xtdbmodel(7)%nmpid=0
     xtdbmodel(8)%modelid='EEC'
+    xtdbmodel(8)%nmpid=0
     xtdbmodel(9)%modelid='EBEF'
+    xtdbmodel(9)%nmpid=0
 !
 ! The DisorderedPart is a separate tag
 !

@@ -23,6 +23,9 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.01.20 version 6.082 Preparations for reading XML based XTDB files has
+been added.  Minor bug fixes.
+
 2025.01.08 version 6.081 I forgot to remove a lot of debug output in
 the version 6.080, that is fixed now.  I also cleaned up the code
 handling partitioning of phases with a disordered fraction set such as

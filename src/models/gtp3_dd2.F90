@@ -908,6 +908,7 @@
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented whenever a change is made in gtp_species
+!  INTEGER, parameter :: gtp_species_version=3
   INTEGER, parameter :: gtp_species_version=2
   TYPE gtp_species
 ! data for each species: symbol, mass, charge, extra, status
@@ -924,6 +925,8 @@
      double precision, dimension(:), allocatable :: stoichiometry
 ! Can be used for extra species properties as in UNIQUAC models (area, volume)
      double precision, dimension(:), allocatable :: spextra
+! new property, not included in unformatted save
+     character(len=:), allocatable :: mqmqa1
   END TYPE gtp_species
 ! allocated in init_gtp
   TYPE(gtp_species), private, allocatable :: splista(:)
@@ -1397,7 +1400,8 @@
 ! quady(i,j) indices of sublattice fractions  ( replaced by 11..14 in contyp)
 !     integer, allocatable :: quady(:,:)
 ! for each pair, its index is in %contyp is in PINQ
-     integer, allocatable, dimension(:,:) :: pinq(:)
+!     integer, allocatable, dimension(:,:) :: pinq(:)
+     integer, allocatable, dimension(:) :: pinq
 ! constoi(1..4,const) real with stoichiometry of species in quadrupole
 ! NOTE for pairs (with one constituent in each sublattice) only two values
 ! are needed for the stoichiometry.  2, 3 or 4 valuse

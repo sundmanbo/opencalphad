@@ -321,6 +321,8 @@
 !           splista(noofsp)%stoichiometry(jl)
 12    format('3B species: ',2i5,F7.4)
    enddo loop2
+! mqmqa1 data character ... problem reading MQMQA as TDB or XTDB 
+   if(allocated(splista(noofsp)%mqmqa1)) deallocate(splista(noofsp)%mqmqa1)
 ! return with no error
    gx%bmperr=0
 ! add species last and rearrange
@@ -7679,8 +7681,10 @@
    save seqnum,nfnnq,nsnnq,fnnquads,snnrefs
 ! DO NOT EDIT THIS, IT WORKS BUT SPECIFICALLY WHEN ENTERING AS CONSTITUENTS
 ! TRY TO DO THE SAME IN NEXT SUBROUTINE mqmqa_species
-!   write(*,2)loop,trim(inline),nend,loop
-2  format('3B entering mqmqa_const: ',i3,' "',a,'" ',2i3)
+!  subroutine mqmqa_constituents(inline,const,nend,loop)
+! It should never be used, mqmqa_species does the same thing ....
+   write(*,2)loop,trim(inline),nend,loop
+2  format('3B entering mqmqa_constituents: ',i3,' "',a,'" ',2i3)
    if(loop.eq.0) then
 ! increased %contyp with 4 integers to indices of sublattice species
       if(.not.allocated(mqmqa_data%contyp)) then
@@ -7693,8 +7697,9 @@
 ! how much each pair is part of a quadruplet, needed for pair fractions
          if(allocated(mqmqa_data%pp)) deallocate(mqmqa_data%pp)
          allocate(mqmqa_data%pp(4,maxquads))
+         allocate(mqmqa_data%pinq(10))
       else
-         write(*,*)'3B **** ERROR: two MQMQA phases in this database!'
+         write(*,*)'3B **** ERROR: mqmqa_data%contyp already allocated'
          gx%bmperr=4399; goto 1000
       endif
       mqmqa_data%contyp=0
@@ -7726,7 +7731,7 @@
       write(*,*)'3B error reading name of quadrupole'
       buperr=0; goto 1000
    endif
-!   write(*,*)'3B quadname: ',trim(quadname),ip
+!   write(*,*)'3B quadname 1: ',trim(quadname),ip
 ! a ":" terminates list of quadrupoles
    if(quadname(1:1).eq.':') goto 900
 ! a slash / separate species in different sublattices   
@@ -8088,7 +8093,7 @@
            (mqmqa_data%contyp(kp,thiscon),kp=6,9)
       write(*,'(a,i3,10(F10.7))')'3B stoi: ',nspel,(stoi(kp),kp=1,nspel)
    endif
-!   write(*,*)'3B quadname: ',quadname
+!   write(*,*)'3B quadname 2: ',quadname
 ! remove , from quadname, keep /
 !   kp=index(quadname,',')
 !   do while(kp.gt.0)
@@ -8127,7 +8132,7 @@
       write(*,'(a,a,2l2,i5,10i5)')'3B failed to enter quad: ',trim(quadname),&
            sametwice1,sametwice2,&
            gx%bmperr,(mqmqa_data%contyp(kp,thiscon),kp=6,9)
-      write(*,'(a,i3,4(F10.6))')trim(quadname),nspel,(qstoi(kp),kp=1,4)
+      write(*,'("3B ",a,i3,4(F10.6))')trim(quadname),nspel,(qstoi(kp),kp=1,4)
       goto 1000
 !   else
 !      write(*,*)'3B found MQMQA quad: ',trim(quadname)
@@ -8223,8 +8228,9 @@
 !\addtotable subroutine mqmqa_species
 !\begin{verbatim}
  subroutine mqmqa_species(name1,inline,nend)
-! almost identical to subroutine mqmqa_species(inline,const,nend,loop)
+! almost identical to subroutine mqmqa_species(inline,const,nend,...
 ! called from readtdb in gtp3E.F90.  If nend<0 initiate to 1
+! called also from gtp3EY, OCenterspecies
 ! the species is created at the end of all is OK
 ! can take input from database file or terminal
 ! name1 is OC species name. Must contain / followd by letter
@@ -8234,7 +8240,7 @@
 ! it has to decode the list of species A, B, C or D
    implicit none
    integer nend
-!   integer nend,noelx
+!  nend inncremented for each endmember constituent, set -1 at first call
 ! name2 is the stoichiometry,dimension maxconst! check for overflow
    character*(*) name1, inline
 !   type(gtp_equilibrium_data), pointer :: ceq
@@ -8269,7 +8275,8 @@
 ! this save is probably redundant
    save seqnum,nfnnq,nsnnq,fnnquads,snnrefs
 !
-   if(nend.lt.0) then
+   if(nend.lt.0) then 
+! nend should be a global variable which can be reinitiated with NEW
       nend=0
       mqmqanend=0
    endif
@@ -8289,6 +8296,7 @@
 ! how much each pair is part of a quadruplet, needed for pair fractions
       if(allocated(mqmqa_data%pp)) deallocate(mqmqa_data%pp)
       allocate(mqmqa_data%pp(4,maxquads))
+      allocate(mqmqa_data%pinq(12))
       mqmqa_data%contyp=0
       mqmqa_data%nconst=0
       mqmqa_data%constoi=zero
@@ -8318,7 +8326,7 @@
       write(*,*)'3B error reading name of quadrupole'
       buperr=0; goto 1000
    endif
-!   write(*,*)'3B quadname: ',trim(quadname),ip
+!   write(*,*)'3B quadname 3: ',trim(quadname),ip
 ! a ":" terminates list of quadrupoles
    if(quadname(1:1).eq.':') goto 900
 ! a slash / separate species in different sublattices   
@@ -8681,12 +8689,12 @@
       quadname(kp+1:)=species(ntot)
    endif
    if(sametwice1 .or. sametwice2) then
-      write(*,*)'3B samtwice: ',sametwice1,sametwice2
+      write(*,*)'3B same twice: ',sametwice1,sametwice2
       write(*,'(a,a,2i3,5i5)')'3B ielno1: ',trim(quadname),thiscon,nspel,&
            (mqmqa_data%contyp(kp,thiscon),kp=6,9)
       write(*,'(a,i3,10(F10.7))')'3B stoi: ',nspel,(stoi(kp),kp=1,nspel)
    endif
-!   write(*,*)'3B quadname: ',quadname
+!   write(*,*)'3B quadname 4: ',quadname
 ! remove , from quadname, keep /
 !   kp=index(quadname,',')
 !   do while(kp.gt.0)
@@ -8718,6 +8726,9 @@
    call incnum(seqnum)
 !   write(*,*)'3B test seqnum 2: ',seqnum
    quadname(kp+1:)='-Q'//seqnum
+! we must return this to enter it also in selsp!!! BUT WITH THE DIGITS!
+!   kp=len_trim(quadname)
+   name1=quadname(1:kp+2)
 !   write(*,600)trim(quadname),nspel,(trim(elnames(kp)),qstoi(kp),kp=1,nspel)
 600 format('3B enter quad: ',a,i3,4(1x,a,F6.3))
    call enter_species(quadname,nspel,elnames,qstoi)
@@ -8968,9 +8979,11 @@
 !   if(.not.allocated(mqmqa_data%pinq)) then
 ! the problem with an already allocated mqmqa_data
 ! was that a TDB file had 2 MQMQA phases .... SUCK
-      allocate(mqmqa_data%pinq(pair))
-!   endif
+! mqmqa1 data character ... problem reading MQMQA as TDB or XTDB 
+! where is pinq set??
+   write(*,*)'3B pinq:',pair,pinq(1),pinq(2),pinq(3)
    do s1=1,pair
+! mqmqa_data%pinq destroyed here, where is it set?
       mqmqa_data%pinq(s1)=pinq(s1)
    enddo
 !   write(*,*)'3B pinq1: ',(mqmqa_data%pinq(s2),s2=1,mqmqa_data%npair)
@@ -9074,7 +9087,7 @@
 !----------------------------------------------------
 ! replace species in 6..9 by plink
 !      write(*,887)(mqmqa_data%contyp(s3,s1),s3=6,9),plink
-887   format('3X replacing: ',4i4,' by ',4i4)
+887   format('3B replacing: ',4i4,' by ',4i4)
       do s3=1,4
          mqmqa_data%contyp(5+s3,s1)=plink(s3)
       enddo
@@ -9301,7 +9314,7 @@
 60       continue
          call gparrdx(bline,cline,last,xxx,xxy,'?Enter Material')
          if(buperr.ne.0 .or. xxx.le.zero) then
-            write(*,*)'Illegal value for composition'
+            write(*,*)'3B Illegal value for composition'
             goto 60
          endif
          xalloy(j1)=xxx
@@ -9322,7 +9335,7 @@
       do nv=1,nel
          if(majorel.eq.selel(nv)) goto 100
       enddo
-      write(*,*)'No such element in the database'
+      write(*,*)'3B No such element in the database'
       gx%bmperr=4399
       goto 1000
 100   continue
@@ -9344,13 +9357,13 @@
       do j1=1,nel
          if(alloy(1).eq.selel(j1)) goto 200
       enddo
-      write(*,*)'No such element in database'
+      write(*,*)'3B No such element in database'
       goto 110
 !-----
 200   continue
       do j1=1,nv
          if(alloy(nv+1).eq.alloy(j1)) then
-            write(*,*)'Alloying element already entered'
+            write(*,*)'3B Alloying element already entered'
             goto 250
          endif
       enddo
@@ -9401,7 +9414,7 @@
       do j1=1,nel
          if(alloy(nv+1).eq.selel(j1)) goto 200
       enddo
-      write(*,*)'No such element in database'
+      write(*,*)'3B No such element in database'
       goto 250
 !----------------------
 ! read the database including the major element
