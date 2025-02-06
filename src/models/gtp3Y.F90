@@ -133,6 +133,11 @@
 !   write(*,*)'3Y loop for all phases',nrph,globaldata%sysreal(1)
    ggloop: do iph=1,nrph
 ! include all phases with any composition set entered (but only once!)
+! EXCLUDE the MQMQA phase
+      if(test_phase_status_bit(iph,PHMQMQA)) then
+         write(*,*)'3Y The MQMQA phase excluded from gridminimizer'
+         cycle ggloop
+      endif
       do ics=1,noofcs(iph)
 ! new: -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
 ! ignore phases whith no entered composition sets
@@ -6642,7 +6647,7 @@
       if(btest(globaldata%status,GSNOGLOB)) goto 200
 ! Problems with this calculation so global_equil_check is disabled inside ...
       write(*,3)
-3     format('Testing if any gridpoint is below the calculated equilibrium')
+3     format('3Y Testing if any gridpoint is below the calculated equilibrium')
       if(btest(globaldata%status,GSNOTELCOMP)) then
          write(*,*)'3Y Cannot test global equilibrium when these components'
          goto 1000

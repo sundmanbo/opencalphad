@@ -331,6 +331,11 @@
 !    if(mapline%problems.gt.0) then
 !       write(*,*)'problems',mapline%problems,ceq%tpval(1)
 !    endif
+! STEP/MAP with an MQMQA phase present require restoring csumx at each step
+!    if(allocated(mqmqa_data%csumx)) then
+!       write(*,*)'SMP reset csumx for MQMQA phase'
+!       mqmqa_data%csumx=.FALSE.
+!    endif
 !    write(*,*)'Calling calceq7 with T=',ceq%tpval(1),mapline%axandir
 !    write(*,*)'Calling calceq7 with meqrec%status:',meqrec%status
     call calceq7(mode,meqrec,mapfix,ceq)

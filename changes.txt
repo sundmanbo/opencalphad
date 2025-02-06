@@ -23,6 +23,21 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.01.20 version 6.083.  A major bug in the MQMQA model fixed, it
+should now be no problem to calculate with several "cations".  Tests
+using several "anions" is progressing.  However, the MQMQA model has a
+very excessive set of excess Gibbs energy parameters and only a few of
+all possible excess parameters are allowed in OC.
+
+The syntax to enter excess parameters may also deviate from what is
+used in DAT files or related input files to FactSage and other
+software which has this model implemented.  Please look at the macro
+examples using this model (the cslaf.OCM and map19.OCM) and their TDB
+files.  A similar syntax will also be available in the XTDB format.
+
+You are welcome to send me problematic databases (using the TDB
+format) using the MQMQA model.
+
 2025.01.20 version 6.082 Preparations for reading XML based XTDB files has
 been added.  Minor bug fixes.
 

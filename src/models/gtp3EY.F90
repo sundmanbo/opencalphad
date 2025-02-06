@@ -1508,7 +1508,7 @@
 ! and the toggle rewind within TPfun tags
     save rewindtp
 !-------
-! matt  tagend meaning
+    ! matt  tagend meaning
 !  0    -2     looking for <tag
 !  0    -1     end of attributes not found 
 !  1     0     end of attribues found but not end of tag, nesting

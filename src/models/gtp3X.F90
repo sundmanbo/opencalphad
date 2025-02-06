@@ -165,6 +165,11 @@
    if(btest(phlista(lokph)%status1,PHMQMQA)) then
 !      write(*,*)'3X phase has MQMQA model'
       mqmqa=.TRUE.
+! if allocated inititate all excess checks to false, not a good place ....
+!      if(allocated(mqmqa_data%csumx)) then
+!         write(*,*)'3X in calcg_internal inititate mqmqa_data%csumx'
+!         mqmqa_data%csumx=.FALSE.
+!      endif
    endif
    if(btest(phlista(lokph)%status1,PHFORD) .or. &
         btest(phlista(lokph)%status1,PHBORD)) then

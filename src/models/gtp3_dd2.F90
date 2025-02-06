@@ -624,8 +624,8 @@
 ! NORECALC do not recalculate equilibria even if global test after fails
 ! OLDMAP use old map algorithm
 ! NOAUTOSP do not generate automatic start points for mapping
-! GSYGRID extra dense grid
-! GSVIRTUAL (CCI) enables calculations with a virtual element
+! YGRID extra dense grid
+! VIRTUAL (CCI) enables calculations with a virtual element
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3,  &
@@ -1425,6 +1425,8 @@
 !     double precision, allocatable :: d2ksi1(:,:),d2ksi2(:,:)
 ! no need for indexing ksi1 and ksi2 ...???
 !     integer, allocatable :: ksiix(:)
+! Added 250205 in an attempt to handle very small fractions in excess terms
+!     logical, dimension(:), allocatable :: csumx NOT NEEDED
 ! any more?
   end TYPE gtp_mqmqa
 ! it is reset in pmon6 when a NEW command

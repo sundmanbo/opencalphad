@@ -4238,7 +4238,7 @@
 ! 
       ip=index(longline,' :')+2
 ! in TDB files MQMQA quads entered as constituents
-      if(mqmqa) write(*,*)'3E skipping redundant? code for MQMQA in readtdb'
+!      if(mqmqa) write(*,*)'3E skipping redundant? code for MQMQA in readtdb'
       goto 363
 !--------------------------- redundant code below
       if(mqmqa) then

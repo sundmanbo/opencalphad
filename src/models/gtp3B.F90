@@ -8249,10 +8249,10 @@
 !   integer, parameter :: f1=maxconst
 !   integer, parameter :: f1=200
 ! const is array of all quadruplet names, 
-! it is returned to calling enterphase or readtdb routine ????????
-   character const(4)*24
 ! mqxquads is maxium number of quads, mqq is max number of species in quads
    integer, parameter :: maxquads=99,mqq=30
+! it will be all quads
+   character const(maxquads)*24
    integer ip,lenc,jp,kp,ncat,ntot,isp(4),loksp,loksparr(4),nspel,thiscon,s1
    integer jelno(9),ielno(9),nextra,ee,nel,order1,order2,lat,nquad,ij,ik
    logical endmember,sametwice1,sametwice2,nomqmqava
@@ -8456,6 +8456,7 @@
 ! we have found all species, we have a new quadrupol
    mqmqa_data%nconst=mqmqa_data%nconst+1
    thiscon=mqmqa_data%nconst
+!   write(*,*)'3B thiscon: ',thiscon
    if(thiscon.ge.maxconst) then
       write(*,*)'3B Too many constituents in MQMQA phase: ',maxconst
       gx%bmperr=4399; goto 1000
@@ -8804,6 +8805,9 @@
 !      write(*,*)'3B MQMQA phase has no constituents!'
 !      gx%bmperr=4399
 !   endif
+! With the MQMQA ohase one cannot have composition sets (only one mqmqa_data%)
+! indicate that one cannot make gridtests after an equilibrium calculation
+!   globaldata%status=ibset(globaldata%status,GSNOAFTEREQ)
    goto 1000
 ! this is just debug output
    ik=1; ij=1
@@ -8981,7 +8985,7 @@
 ! was that a TDB file had 2 MQMQA phases .... SUCK
 ! mqmqa1 data character ... problem reading MQMQA as TDB or XTDB 
 ! where is pinq set??
-   write(*,*)'3B pinq:',pair,pinq(1),pinq(2),pinq(3)
+!   write(*,*)'3B pinq:',pair,pinq(1),pinq(2),pinq(3)
    do s1=1,pair
 ! mqmqa_data%pinq destroyed here, where is it set?
       mqmqa_data%pinq(s1)=pinq(s1)

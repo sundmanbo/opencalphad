@@ -11,6 +11,7 @@
 !\begin{verbatim}
  subroutine config_entropy_mqmqa1(phvar,moded,lokph,tval)
 ! dummy
+   implicit none
    type(gtp_phase_varres), pointer :: phvar
    integer moded,lokph
    double precision tval
@@ -100,9 +101,17 @@
    integer pq(4),pqq(4),sq1(2),sq2(2),fq1(2),fq2(2)
 ! to avoid adding quadrupols twice
    logical done,ddebug
+!
+! This is a maybe a reasonable place to initiate csumx for excess parameters?
+!   if(allocated(mqmqa_data%csumx)) then
+! this is used in calc_mqmqa to skip excess terms with very small fractions.
+!      write(*,*)'3XQ Maybe initiating csumx to FALSE'
+! initiating here leads to failed convergece, initiated now in calcg_internal
+!      mqmqa_data%csumx=.FALSE.
+!   endif
    ncon=phlista(lokph)%tnooffr
-!   ddebug=.TRUE.
    ddebug=.FALSE.
+!   ddebug=.TRUE.
    if(ddebug) write(*,*)'3X in config_entropy_mqmqa1',lokph,moded,ncon
 !   phrec=phlista(lokph)
    invnorm=phvar%abnorm(1)
@@ -140,7 +149,7 @@
    do s1=1,ncon
 ! wow, using phase constituent order to find quad name !! Keep it at present
 !      conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
-      conname=splista(phlista(lokph)%constitlist(mqmqa_data%contyp(10,s1)))%symbol
+   conname=splista(phlista(lokph)%constitlist(mqmqa_data%contyp(10,s1)))%symbol
       connames(s1)=conname
       if(ddebug) write(*,3)s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
            (mqmqa_data%constoi(s2,s1),s2=1,4),phvar%yfr(s1),trim(conname)
@@ -182,7 +191,7 @@
 14    format(a,i3,1x,4i2,1x,i3,1x,4i3,1x,i3,1x,4i3,1x,a)
 !   enddo
    mpj=mqmqa_data%npair
-!   write(*,15)'3X pinq: ',mpj,(mqmqa_data%pinq(s1),s1=1,mpj)
+   if(ddebug) write(*,15)'3X pinq: ',mpj,(mqmqa_data%pinq(s1),s1=1,mpj)
 15 format(a,i3,2x,20i4)
    nspin(1)=mqmqa_data%ncon1
    nspin(2)=mqmqa_data%ncon2
@@ -384,11 +393,11 @@
                stop
             else
 ! We have to use the correct sublattice index and coordination factor !!
-! eesub should be in mqmqa_data%contyp(10+s2,s1) ??  What is fq(s2)?
+! eesub should be in mqmqa_data%contyp(10+s2,s1) ??  What is sq1(s2)?
+               eesub=sq1(s2)
                eesub=mqmqa_data%contyp(10+s2,s1)
-!               write(*,'(a,3i3,F8.3)')'3X sublattice index: ',&
+!                    write(*,'(a,3i3,F8.3)')'3X sublattice index: ',&
 !                    eesub,sq1(s2),fq1(s2),mqmqa_data%constoi(s2,s1)
-!               eesub=sq1(s2)
 ! SAVE the sublattice location of species eesub for quad s1
                fff1=fffy*alone1/mqmqa_data%constoi(fq1(s2),s1)
                yy1(eesub)=yy1(eesub)+fff1*yfrac
@@ -1118,6 +1127,7 @@
  subroutine calc_mqmqa(lokph,phres,ceq)
 ! Called from calcg_internal, calculates G for the mqmqa phase
 ! a separate subroutine for the entropy which calculates all data in phres%mqf
+   implicit none
    integer lokph
    type(gtp_phase_varres), pointer :: phres
    type(gtp_equilibrium_data), pointer :: ceq
@@ -1131,6 +1141,8 @@
 ! for saving FNN reference energies
    double precision refg(f1,f1)
    double precision dummy1,dummy2
+! for MQMQA minimal fractions
+   double precision, parameter :: MINMQMQA=1.0D-5
    TYPE(gtp_parcalc) :: gz
    TYPE(gtp_property), pointer :: proprec
    TYPE(gtp_endmember), pointer :: endmemrec
@@ -1139,7 +1151,7 @@
    TYPE(gtp_phase_add), pointer :: addrec
    TYPE(gtp_mqmqa_var), pointer :: mqf
 ! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
-   integer ij,jd,jq,qq1,qq2,ass,mpow
+   integer ij,jd,jq,qq1,qq2,ass,mpow,isumx
    double precision ksi,sumx,dsumx
    double precision dksi(3),d2ksi(3)
    logical ddebug
@@ -1363,6 +1375,9 @@
 !---------------------------------------------------------------------
 !----- code below needed for excess parameters ONLY, all SNN FNN done above
 ! NOTE many of them may be missing
+! This is to allocate csumx for handling quads with small fractions.
+   isumx=0
+!
    mqmqj=0
    endmemrec=>phlista(lokph)%ordered
    endmemloop2: do while(associated(endmemrec))
@@ -1387,7 +1402,7 @@
 !      write(*,'(a,2i3)')'3X endmember with excess parameter:',mqmqj
 ! just excess parameters, we must calculate product of fractions
 ! BRANCH for intrec%highlink and intrec%nexlink
-!      write(*,'(a,i2,F10.6,6(1pe12.4))')'3X SNN df/dy: ',id,pyq,&
+!      write(*,'(a,i2,F10.6,6(1pe12.4))')'3XQ SNN df/dy: ',id,pyq,&
 !           (dpyq(itp),itp=1,gz%nofc)
 !-------------------------------------
 ! content of %contyp and %pinq
@@ -1425,16 +1440,18 @@
          write(*,*)'3X interaction between two endmembers illegal'
          gx%bmperr=4399; goto 1000
       endif
-!      write(*,430)'3X interaction: ',id,jd,jq,qq1,qq2,ass,&
+!      write(*,428)phres%yfr
+428   format('3XQ all yfr: ',20(1x,F8.6))
+!      write(*,430)id,jd,jq,qq1,qq2,ass,&
 !           phres%yfr(id),phres%yfr(jd),phres%yfr(jq)
-430   format(a,3i3,1x,3i3,3x,3(1pe12.4))
+430   format('3XQ interaction: ',3i3,1x,3i3,3x,3(1x,F8.6))
 !------------------------------------- extract parameter value
       proprec=>intrec%propointer
       typty=proprec%proptype
       if(typty.ne.1) stop 'illegal typty in mqmqa model'
       ipy=1
 ! several powers  we must loop here -------------- not yet done
-!      if(proprec%degree.gt.0) write(*,*)'3X degree: ',proprec%degree
+      if(proprec%degree.gt.0) write(*,*)'3X degree: ',proprec%degree
       mpow=0
 700   continue
 ! first power is in link 0
@@ -1448,7 +1465,7 @@
       if(lokfun.le.0) goto 700
       call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
       if(gx%bmperr.ne.0) goto 1000
-!      write(*,'(a,3i4,6(1Pe12.4))')'3X excess1:',lokfun,mqmqj,mpow,vals(1)
+!      write(*,'(a,3i4,6(1Pe12.4))')'3XQ excess1:',lokfun,mqmqj,mpow,vals(1)
       if(ipy.eq.1) then
 ! Nath has implemented this half in the converter
 !         vals=0.5D0*vals/rtg
@@ -1459,11 +1476,9 @@
 !----------------------- multiply with fractions
 ! the parameter should be multiplied with cluster fractions and
 ! the separate endmember qq1 fraction normalized 
+      isumx=isumx+1
       sumx=phres%yfr(qq1)+phres%yfr(qq2)+phres%yfr(ass)
       ksi=phres%yfr(qq1)/sumx
-! here the fraction product is calculated
-!      write(*,650)ass,qq1,qq2,mpow,ksi,phres%yfr(ass),pyq,vals(1)*rtg
-650   format('3X excess: ',4i3,6(1pe12.4))
       if(mpow.eq.1) then
          pyq=phres%yfr(ass)*ksi
 ! most of the derivatives of pyq is zero
@@ -1471,10 +1486,15 @@
          dsumx=-sumx**(-2)
 ! only those involving id, jd and jq are nonzero.
 ! the species qq1, qq2 and ass has one more term, qq2 is only in the sumx
-         dpyq(qq1)=pyq*dsumx+phres%yfr(ass)/sumx
-         dpyq(qq2)=pyq*dsumx
-         dpyq(ass)=pyq*dsumx+ksi
+!         dpyq(qq1)=pyq*dsumx+phres%yfr(ass)/sumx
+!         dpyq(qq2)=pyq*dsumx
+!         dpyq(ass)=pyq*dsumx+ksi
+! corrected derivatives ...
+         dpyq(qq1)=(phres%yfr(ass)-pyq)/sumx
+         dpyq(ass)=(phres%yfr(qq1)-pyq)/sumx
+         dpyq(qq2)=-pyq/sumx
       else
+! NOT CORRECTED THESE ... suck
          pyq=phres%yfr(ass)*(ksi**mpow)
          dpyq=zero
          dsumx=-mpow*sumx**(-mpow-1)
@@ -1482,6 +1502,9 @@
          dpyq(qq2)=pyq*dsumx
          dpyq(ass)=pyq*dsumx+ksi*mpow
       endif
+! here the fraction product is calculated
+!      write(*,650)ass,qq1,qq2,mpow,ksi,phres%yfr(ass),pyq,sumx,vals(1)*rtg
+650   format('3XQ excess: ',4i3,4(1x,F8.6),1pe12.4)
 !      write(*,'(a,2(1pe14.6))')'3X excess G:',pyq,pyq*vals(1)
 ! skip excess 2
 !      cycle endmemloop2
@@ -1513,6 +1536,8 @@
 ! a higher interaction ... not allowed
          write(*,*)'3X ternary MQMQA parameters not implemented',mqmqj
       endif
+! skip to here for small excess contributions
+799   continue
       intrec=>intrec%nextlink
       if(associated(intrec)) then
 ! There can be more than one interaction linked from an endmember
