@@ -116,6 +116,8 @@ contains
 ! seqxyz has initial values of seqx, seqy and seqz
 !    integer noofaxis,noofstarteq,seqxyz(3)
     integer noofaxis,seqxyz(3)
+! csv file converion
+    integer ioc,ip
 ! this should be removed
 !    TYPE(ssm_node), pointer :: resultlist
 ! for paraequilibrium meqrec is needed also here
@@ -166,6 +168,8 @@ contains
 ! used to call init_gtp for the NEW command
     integer intv(10)
     double precision dblv(10)
+! debugging mqmqma_data%const lines ... lines 5236 ff
+    integer ik,ij,kp,s1,thiscon
 !-------------------
 ! variables for lmdif
 !    integer, parameter :: lwam=2500
@@ -5230,6 +5234,25 @@ contains
 1681         format(26x,'bonds: ',4(F10.6,1x))
 !    max length         8+25+4*11=33+44=77
 ! include listing of mqmqa_data%constoi(1..4,index)
+!----------------------------------------------------------------
+! copied from gtp3B lines 8813 ff
+! this is just debug output
+!             ik=1; ij=1
+!             do thiscon=1,mqmqa_data%nconst
+!                if(qorder(thiscon).gt.0) then
+!                   write(*,603)'3B FNN: ',trim(fnnquads(ik))
+!                   ik=ik+1
+!                else
+!                   write(*,603)'3B SNN: ',(trim(snnrefs(s1,ij)),s1=1,4)
+!                   ij=ij+1
+!                endif
+!603             format(a,4(1x,a))
+!      write(*,602)thiscon,(mqmqa_data%contyp(kp,thiscon),kp=1,14),&
+!           qorder(thiscon),(mqmqa_data%constoi(kp,thiscon),kp=1,4)
+!602  format('3B contyp: ',i2,1x,4i3,1x,i3,1x,4i2,1x,i3,1x,4i2,1x,i4/30x,4F10.6)
+!             enddo
+!
+!----------------------------------------------------------------
           enddo qlista
           if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
 !------------------------------
@@ -7654,9 +7677,9 @@ contains
           write(*,*)'GNUPLOT will use: set key ',trim(graphopt%labelkey)
           goto 21100
 !-----------------------------------------------------------
-! PLOT APPEND a gnuplot file
+! PLOT APPEND a gnuplot file or csv file
        case(12)
-          write(kou,*)'Give a file name with graphics in GNUPLOT format'
+          write(kou,*)'Give a file name with graphics in GNUPLOT or csv format'
 ! append plot file, specifying extension PLT
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
@@ -7666,16 +7689,99 @@ contains
 !             call gparfilex('File name',cline,last,1,filename,text,ztyp,&
 !                  '?Plot append')
 !          else
-             ztyp=5
-             call gparfilex('File name',cline,last,1,filename,'  ',ztyp,&
-                  '?Plot append')
+          ztyp=5
+          call gparfilex('File name',cline,last,1,filename,'  ',ztyp,&
+               '?Plot append')
 !          endif
-! check it is OK and add .plt if necessary ...
+! check file exits, convert csv to plt, and add .plt if necessary ...
+          jp=max(index(filename,'.csv '),index(filename,'.CSV '))
+          write(*,*)'File extention is: ',trim(filename)
+          if(jp.gt.0) then
+! the csv file must be converted to a plt file ------------- csv special begin
+! default separator in FactSage is ";"
+             ch1=';'
+             call gparcdx('Separating character (, ; or ?)',cline,last,&
+                  1,ch1,';','?CSV separator')
+             write(*,21205)trim(filename)
+21205        format('Converting csv file: ',a,' to csvappend.plt')
+             open(23,file=filename,status='old',access='sequential',err=21300)
+! First column is x-axis, the remaining columns are y-axis
+             write(*,*)'Converting CSV file to GNUPLOT file: csvappend.plt'
+! create a new file for the GNUPLOT, overwrite any old
+             open(31,file='csvappend.plt',status='unknown',access='sequential',&
+                  err=21300)
+! write header
+! FactSage: x LiF;K-K-F-F;Li-Li-F-F;Th-Th-F-F;K-Li-F-F;K-Th-F-F;Li-Th-F-F
+! 0.02;0.027281;7.84E-05;0.33126;0.0028241;0.62185;0.016708
+! "N(LI)","Y(LIQUID,..-Q02)","Y(LIQUID,..-Q04)","Y(LIQUID,..-Q06)","Y(LIQUID,..-Q01)","Y(LIQUID,..-Q05)","Y(LIQUID,..-Q03)"
+!  2.00000E-01,  2.31701E-02,  3.51556E-02,  5.35191E-01,  1.20145E-02,  1.72251E-01,  2.22218E-01
+             read(23,21210,end=21300)string
+21210        format(a)
+             call date_and_time(optres,name1)
+             write(31,21220)trim(filename),optres(1:4),optres(5:6),&
+                  optres(7:8),name1(1:2),name1(3:4),trim(string)
+21220        format('# Converted by OC from csv file: ',a/&
+                  '# ',a4,'-',a2,'-',a2,2x,a2,'h',a2/&
+                  '# ',a//&
+                  'set terminal wxt size 840,700 font "Arial,16"'/&
+                  'set title "OpenCalphad CSV" '/&
+                  'set origin 0.0, 0.0'/&
+                  'set size   1.0, 1.0'//&
+                  '$OCCSV2502000 << EOD')
+! on the second line to the last one are values to be plotted as symbols
+             read(23,21210,end=21250)string
+!             write(*,*)'Read line 2: ',trim(string)
+             ioc=1; ip=1; jp=1
+             commas: do while(.true.)
+! ch1 should be the separating character
+                ip=index(string(ip:),ch1)
+                if(ip.le.0) exit commas
+! replace ch1 by a space
+                string(jp+ip-1:jp+ip-1)=' '
+                ioc=ioc+1
+                ip=jp+ip+1
+                jp=ip
+!                write(*,*)'CSV commas: ',ip,jp,ioc
+             enddo commas
+! there are ioc values to be plotted
+!             write(*,*)'written line 1: ',trim(string),ioc
+             do while(.true.)
+! add a space at the end of line ... GNUPLOT need that
+                write(31,'(a," ")')trim(string)
+                ip=1; jp=1
+! we have to replace ch1 with a space on every line ....
+                read(23,21210,end=21250)string
+!                write(*,*)'Read line n: ',trim(string)
+                tty17: do while(ip.gt.0)
+                   jp=ip
+                   ip=index(string(ip:),ch1)
+                   if(ip.eq.0) exit tty17
+                   ip=jp+ip-1
+                   string(ip:ip)=' '
+!                   write(*,*)'Loop ip: ',ip
+                enddo tty17
+!                write(*,'(a," ")')'written line n: ',trim(string)
+             enddo
+! end of file
+! we have read the whole csv file, close the PLT file
+21250        continue
+             close(23)
+! add the GNUPLOT ending
+             write(31,21260)ioc
+21260        format('EOD'//&
+                  'plot for [i=2:',i3,&
+                  '] $OCCSV2502000 using 1:i with points pt (i-1) notitle'/)
+             close(31)
+! set the newly created PLT file as appendfile
+             filename='csvappend.plt'
+          endif
+!------------------------ end csv special
           jp=index(filename,'.plt ')
           if(jp.le.0) then
              jp=len_trim(filename)
              filename(jp+1:)='.plt'
           endif
+! test file exists by opening and closing it
           open(23,file=filename,status='old',access='sequential',err=21300)
           close(23)
           graphopt%appendfile=filename
@@ -7684,7 +7790,7 @@ contains
 21300     continue
           if(graphopt%appendfile(1:1).ne.' ') then
              write(*,21304)trim(graphopt%appendfile)
-21304        format('Removing append file: ',a)
+21304        format('Error, removing append file: ',a)
           else
              write(kou,*)'No such file name: ',trim(filename)
           endif

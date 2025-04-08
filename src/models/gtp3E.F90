@@ -4257,7 +4257,7 @@
 ! The r3 is a FNN/SNN ratio for pairs, normally 2.4
 ! nend is set to zero at first call, then incremented for each FNN endmember
          call mqmqa_constituents(longline(ip:jp),const,nend,loop)
-!         write(*,*)'3E back from entering constituents',gx%bmperr
+         write(*,*)'3E back from entering constituents',gx%bmperr
          if(gx%bmperr.ne.0) then
             write(*,*)'3E error entering quadrupoles'
             goto 1000

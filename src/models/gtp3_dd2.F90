@@ -1432,6 +1432,9 @@
 ! it is reset in pmon6 when a NEW command
 !  integer, private :: mqmqanend=-100
   integer :: mqmqanend=-100
+! probably only one of these needed ...
+  integer, parameter :: maxmqmqa=200
+  integer, parameter :: maxquads=200
 !  TYPE(gtp_mqmqa), private :: mqmqa_data
 ! it should be made private when everything work and removed from pmon6
   TYPE(gtp_mqmqa) :: mqmqa_data

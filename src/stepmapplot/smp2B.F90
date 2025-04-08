@@ -3667,7 +3667,7 @@
     type(map_axis), dimension(*) :: axarr
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    integer jj,seqz,ip,jp
+    integer jj,seqz,ip,jp,kp
     character symbol*24
     type(gtp_condition), pointer :: pcond
     type(gtp_state_variable), pointer :: svrrec,svr2
@@ -3687,16 +3687,30 @@
        if(gx%bmperr.ne.0) goto 1000
 !       write(*,*)'PC2: ',symbol(1:ip-1),jj
        jp=index(text,symbol(1:ip-1))
+77     continue
        if(jp.gt.0) then
-          seqz=jp+index(text(jp:),'=')-1
-          ip=jp+index(text(jp:),' ')-1
-          if(jj.eq.1) then
-             text(seqz:)='=X, '//text(ip:)
+! minor error here when conditons are N(A)+N(B)=1 and N(B)=axis.  One should
+! skip matches with N(A) or N(B), not preceeded by ' ' and followd by '='
+!          write(*,*)'PC2: "',trim(text),'" ',jp
+          if(text(jp-1:jp-1).eq.' ' .and. text(jp+ip-1:jp+ip-1).eq.'=') then
+             seqz=jp+index(text(jp:),'=')-1
+             ip=jp+index(text(jp:),' ')-1
+             if(jj.eq.1) then
+                text(seqz:)='=X, '//text(ip:)
+             else
+                text(seqz:)='=Y, '//text(ip:)
+             endif
           else
-             text(seqz:)='=Y, '//text(ip:)
+! search the text following
+!             write(*,*)'PC2: "',text(jp-1:jp-1),'" "',&
+!                  text(jp+ip-1:jp+ip-1),'"'
+             kp=jp+1
+             jp=index(text(kp:),symbol(1:ip-1))
+             if(jp.gt.0) jp=kp+jp-1
+             goto 77
           endif
-!       else
-!          write(*,*)'Cannot find: ',symbol(1:ip-1),' in ',trim(text)
+       else
+          write(*,*)'Cannot find: ',symbol(1:ip-1),' in ',trim(text)
        endif
     enddo
 ! if line too long (>200) divide in middle

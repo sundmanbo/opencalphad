@@ -4003,7 +4003,7 @@
         ' '//trim(species(1))//' '//trim(species(2))//&
         ' '//trim(species(3))//' '//tkmode//' '
 ! no final ! as list on TDB file may include several extrapol
-!   write(*,*)'3H Executing; amend ',trim(amend)!
+   write(*,*)'3H Executing; amend ',trim(amend)!
 !
 !----------------------------------- to be considered   
 ! The extrapolation method is given in the order of binaries A-B, A-C and B-C
@@ -4186,6 +4186,7 @@
 !      write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 3:  ',conx,&
 !           xter3,toopcon,xmode
    endif
+!**************** after here
 !   write(*,'("3H The constituents in alphabetical order: ",3i3)')conx
 ! The conx order is the (alphabetical) order of the constituents
 ! The endmembers are in that order.  The interactions are not ordered
@@ -4221,17 +4222,21 @@
 !   write(*,'(a,10I4)')'3H endmemfraclinks: ',endmem%fraclinks(1,1)
 !   write(*,*)'3H where is line with 5 numbers written?'
    conix=1
+!*************** before or after here ?
+!   write(*,*)'3H start findem loop'
    findem: do while(associated(endmem))
 !      write(*,'(a,3i3)')'3H endmem2: ',conix,endmem%fraclinks(1,1),conx(conix)
       if(endmem%fraclinks(1,1).eq.conx(conix)) then
 ! we found the endmember with conx(conix) as constituent
 ! if comix=1 look for interaction record with conx(2) or conx(3)
+!         write(*,*)'3H endmember: ',conix,conx(conix)
          intrec=>endmem%intpointer
          findexcess: do while(associated(intrec))
+!            write(*,*)'3H loop interaction: ',2,conx(2)
             if(intrec%fraclink(1).eq.conx(2)) then
-! this must be interaction 1-2
+! this must be interaction 1-2  ?? or 2-3 ??
                intrec12=>intrec
-!               write(*,222)trim(species(1)),trim(species(2)),conix
+               write(*,222)trim(species(1)),trim(species(2)),conix
 222            format('3H Found interaction ',a,'-',a,' from endmember: ',i5)
 ! we do not know the order of interaction 1-2 and 1-3
                if(associated(intrec13)) exit findexcess
@@ -4239,13 +4244,13 @@
                if(conix.eq.1) then
 ! this must be interaction 1-3, endmember 2
                   intrec13=>intrec
-!                  write(*,222)trim(species(1)),trim(species(3)),conix
+                  write(*,222)trim(species(1)),trim(species(3)),conix
 ! we do not know the order of interaction 1-2 and 1-3
                   if(associated(intrec12)) exit findexcess
                else
 ! this must be interaction 2-3
                   intrec23=>intrec
-!                  write(*,222)trim(species(2)),trim(species(3)),conix
+                  write(*,222)trim(species(2)),trim(species(3)),conix
                   exit findem
                endif
             endif
@@ -4253,11 +4258,12 @@
 !                 endmem%fraclinks(1,1),intrec%fraclink(1)
             intrec=>intrec%nextlink
          enddo findexcess
+!         write(*,*)'3H exit findexcess',associated(intrec),conix,conx(conix)
 ! when we come here we have found 1-2 and 1-3 and look for 2-3
          if(conix.eq.1) then
-            if(.not.associated(intrec12) .or. .not.associated(intrec13)) &
-                 write(*,*)conix,conx,endmem%fraclinks(1,1)
-224         format('3H some interactions are missing',i3,2x,3i3,2x,i3)
+!            if(.not.associated(intrec12) .or. .not.associated(intrec13)) &
+!                 write(*,224)conix,conx,endmem%fraclinks(1,1)
+!224         format('3H some interactions missing',i3,2x,3i3,2x,i3)
 ! increment conix and search for endmember conx(2)
             conix=2
          else
@@ -4268,6 +4274,8 @@
       endif
       endmem=>endmem%nextem
    enddo findem
+!*************** before here
+!   write(*,*)'3H end findem loop'
 ! we come here when we found or not found intrec12, intrec13 and intrec23
 !------------------------------------------------------------
 ! check values of xter3
@@ -4321,10 +4329,11 @@
 ! conx(1) is the endmember fraction index
 !   write(*,*)'3H creating tooprecords',associated(intrec12)
    if(.not.associated(intrec12)) then
-      write(*,220)conx(1),conx(2),&
-           trim(species(abs(conx(1)))),trim(species(abs(conx(2))))
-220   format('3H the system ',i3,'-',i3,' with species: ',a,'-,',a,&
-           ' has no binary excess')
+      write(*,220)conx(1),conx(2),1,2,&
+           trim(species(1)),trim(species(2))
+!           trim(species(abs(conx(1)))),trim(species(abs(conx(2))))
+220   format('3H The binary ',i2,'-',i2,' (or ',i2,'-',i2,')',&
+           ' with species: ',a,' - ',a,' has no excess')
       goto 300
 !   elseif(.not.associated(intrec12%tooprec)) then
    else
@@ -4396,8 +4405,9 @@
 300 continue
 ! Check if intrec3 exist and already has a tooprec
    if(.not.associated(intrec13)) then
-      write(*,220)conx(1),conx(3),&
-           trim(species(abs(conx(1)))),trim(species(abs(conx(3))))
+      write(*,220)conx(1),conx(3),1,3,&
+           trim(species(1)),trim(species(3))
+!           trim(species(abs(conx(1)))),trim(species(abs(conx(3))))
       goto 400
    else
 !      write(*,*)'3H calling create_toop_record for 1-3'
@@ -4455,8 +4465,9 @@
 400 continue
 ! Check if intrec23 exist and already has a tooprec
    if(.not.associated(intrec23)) then
-      write(*,220)conx(2),conx(3),&
-           trim(species(abs(conx(2)))),trim(species(abs(conx(3))))
+      write(*,220)conx(2),conx(3),2,3,&
+           trim(species(2)),trim(species(3))
+!           trim(species(abs(conx(2)))),trim(species(abs(conx(3))))
       goto 500
    else
 !      write(*,*)'3H calling create_toop_record for 2-3'
