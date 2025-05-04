@@ -23,6 +23,8 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.04.24 version 6.083.  Installed OC in a Mac.  Testing uploading.
+
 2025.01.20 version 6.083.  A major bug in the MQMQA model fixed, it
 should now be no problem to calculate with several "cations".  Tests
 using several "anions" is progressing.  However, the MQMQA model has a
