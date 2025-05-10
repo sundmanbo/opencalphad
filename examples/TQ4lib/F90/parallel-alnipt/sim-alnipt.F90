@@ -4,7 +4,7 @@
 !
 program sim2
 !
-  use liboctq
+  use liboctqa
 !$ use omp_lib
 !
   implicit none
