@@ -191,7 +191,7 @@ l,,,,,
 @$ that it should be the same in liquid and C1
 @$ IT IS IMPORTANT TO USE THE COMPOSITION SETS THAT ARE STABLE ABOVE
 
-set c x(liquid,u)-x(c1_mo2,u)=0
+set c x(ion_liquid,u)-x(c1_mo2,u)=0
 set c x(o)=none
 l c
 
@@ -204,21 +204,6 @@ l,,,,
 debug symbol t 3139.16
 
 @&
-
-set inter
-
-@$skip the plot of the maximum
-
-plot
-
-
-scale x
-N
-.64 .68
-scale y n 3100 3150
-title map 4 fig 6
-
-
 
 @$==========================================================================
 @$ end of map4 macro
