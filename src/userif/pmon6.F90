@@ -1243,6 +1243,7 @@ contains
                      cline,last,1,tkmode,' ','?Amend phase ternary extrapol')
                 call capson(tkmode)
 ! letters K, M or T allowed in tkmode, T followed by integer, checked inside add
+! this subroutine is in gtp3H.F90 (additions)
                 call add_ternary_extrapol_method(lokph,tkmode,xspecies)
                 if(gx%bmperr.ne.0) goto 990
                 dummy='N'
@@ -7380,8 +7381,8 @@ contains
 ! added ceq in the call to make it possible to handle change of reference states
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
           if(gx%bmperr.ne.0) goto 990
+!          write(*,*)'Plot saved on file: ',trim(plotfile)
 ! always restore default plot file name and plot option to screem
-          write(*,*)'Plot saved on file: ',trim(plotfile)
           if(graphopt%gnutermsel.ne.1) &
                write(kou,*)'Restoring plot device to screen'
           graphopt%gnutermsel=1

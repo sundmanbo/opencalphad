@@ -23,15 +23,41 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.05.13 version 6.084.  First uploading from my Mac.  Many problems
+working on the Mac and many examples fails when run in sequence.
+Probably memory is not reinitiated properly, the NEW command does not
+take into account some of the new datastructures.  All the examples
+have been slightly modified and there are now several OCM files
+running just a few of them.
+
+I am not familiar with Makefiles but has created a rudimentary one
+compiling OC with -O2 and -OpenMP and a second Makefile_debug with
+several compiler checks which is much more stable.  I was quite happy
+that the TINYFILEDIALOGS works on the Mac and I also found that the
+linediting facility and the "history" feature works although one has
+to use (as in emacs) ctrl-P to call back a previous line.
+
+Fixing this is done in parallel with implementing the MQMQA model
+where the SRO entropy seems to work but the very strange way the
+excess model depends on the various quadruplet fractions is still
+problematic.  The proposed XYDB format replacing the old TDB format
+for databases is not yet finished.
+
 2025.05.04 version 6.083.  Removed 2 redundant files.  Testing uploading.
 
-2025.05.04 version 6.083.  Installed OC in a Mac.  Testing uploading.
+2025.04.24 version 6.083.  Istalled OC in a Mac.  Testing uploading.
 
 2025.01.20 version 6.083.  A major bug in the MQMQA model fixed, it
 should now be no problem to calculate with several "cations".  Tests
 using several "anions" is progressing.  However, the MQMQA model has a
 very excessive set of excess Gibbs energy parameters and only a few of
 all possible excess parameters are allowed in OC.
+
+A facility added to the PLOT command.  It is now possible to APPEND an
+excel "comma separated value" or ".csv" file to a calculated diagram.
+Such files can represent experimental data or calculated values in a
+standard excel format with values separated by a space, comma or
+semicolon.
 
 The syntax to enter excess parameters may also deviate from what is
 used in DAT files or related input files to FactSage and other

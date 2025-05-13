@@ -1,8 +1,32 @@
-@$ Testing CsLaF with reference states
-
 new Y
 
 set echo Y
+
+@$=================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ Testing CsLaF with reference states
+@$
+@$=================================================================
+
 
 r t ./cslaf-excess
 
@@ -43,5 +67,11 @@ Note fraction scale multiplied by 4, compound composition not correct
 @&
 
 @$ No more for the moment
+
+
+
+@$==========================================================================
+@$ end of cslaf-map macro
+@$==========================================================================
 
 set inter

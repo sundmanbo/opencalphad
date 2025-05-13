@@ -1,10 +1,32 @@
 @$
-@$ Calculating the NaCl-MgCl phase diagram and activity curves using MQMQA
 
 new Y
 
 set echo Y
 
+@$========================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ Calculating the NaCl-MgCl phase diagram and activity curves using MQMQA
+@$
+@$========================================================================
 r t ./MgNaClX
 
 
@@ -186,6 +208,11 @@ title map 19 Fig 5
 
 
 @$ Both activity plots together fit the Fig. 8 in the paper by Pelton 2001
+
+
+@$==========================================================================
+@$ end of map10 macro
+@$==========================================================================
 
 set inter
 

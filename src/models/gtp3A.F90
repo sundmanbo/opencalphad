@@ -6,27 +6,29 @@
 ! accessable externally
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!>                                                      size 08.05.2025
 !>     Master include file                        gtp3        3 kB
 !>     Declaration of TPfun datastructures        gtp3_dd1    5 kB
-!>     Declaration other datastructures           gtp3_dd2  114 kB
-!>     Declaration of XML datastructures          gtp3_xml   19 kB
-!>     1. Initialization and reinitiate           gtp3A     116 kB
+!>     Declaration other datastructures           gtp3_dd2  115 kB
+!>     Declaration of XML datastructures          gtp3_xml   23 kB
+!>     1. Initialization and reinitiate           gtp3A     117 kB
 !>     2. Number of things                        gtp3A     
 !>     3. Find things                             gtp3A    
 !>     4. Get things                              gtp3A    
 !>     5. Set things                              gtp3A    
-!>     6. Section: enter data                     gtp3B     312 kB
+!>     6. Section: enter data                     gtp3B     367 kB
 !>     7. List data                               gtp3C     173 kB
 !>     8. Interactive things                      gtp3D      93 kB
-!>    9A. Read and save on files                  gtp3E     280 kB
+!>    9A. Read and save on files                  gtp3E     281 kB
 !>    9B. Read and save on XTDB files             gtp3EX     67 kB
-!>    10. State variable manipulations            gtp3F     165 kB
-!>    11. Status of things                        gtp3G      77 kB
+!>    9C. Read and save on XTDB files             gtp3EY    135 kB
+!>    10. State variable manipulations            gtp3F     170 kB
+!>    11. Status of things                        gtp3G      79 kB
 !>    12. Unfinished things                       gtp3G
 !>    13. Internal stuff                          gtp3G
-!>    14. Additions and model properties          gtp3H     177 kB
+!>    14. Additions and model properties          gtp3H     178 kB
 !>    15. Calculate G for a phase                 gtp3X     246 kB
-!>   15B. Calculate G for MQMQA                   gtp3XQ     79 kB
+!>   15B. Calculate G for MQMQA                   gtp3XQ     80 kB
 !>    16. Grid minimizer                          gtp3Y     284 kB
 !>    17. Miscellaneous                           gtp3Y
 !>    18. TP functions                            gtp3Z     140 kB    

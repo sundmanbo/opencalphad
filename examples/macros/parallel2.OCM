@@ -1,4 +1,7 @@
 new Y
+
+set echo Y
+
 @$ ================================================================
 @$
 @$
@@ -31,8 +34,6 @@ new Y
 @$ according to a suggestion by Andre
 @$ ================================================================
 @&
-
-set echo Y
 
 r t ./steel1
 
@@ -549,6 +550,12 @@ debug symbol cp 51.1372166
 debug symbol x(fcc,c) 0.463272739
 debug symbol tc(bcc) 1033.90240
 @&
+
+@$ =================================================================
+@$  end of parallel2 macro
+@$ =================================================================
+@$
+
 set inter
 
 @$ =============== measuring ====================
@@ -580,3 +587,4 @@ set inter
 @$   8.16 seconds CPU and 8156 clockcykles with  1 thread
 @$  18.83 seconds CPU and 1671 clockcykles with 12 threads, factor 4.88 faster 
 @$ ==============================================
+

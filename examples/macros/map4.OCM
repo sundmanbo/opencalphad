@@ -1,5 +1,15 @@
 new Y
+
+
+set echo Y
+
+
 @$ ===============================================================
+@$
+@$
+@$
+@$
+@$
 @$
 @$
 @$
@@ -181,7 +191,7 @@ l,,,,,
 @$ that it should be the same in liquid and C1
 @$ IT IS IMPORTANT TO USE THE COMPOSITION SETS THAT ARE STABLE ABOVE
 
-set c x(ionic,u)-x(c1_mo2,u)=0
+set c x(liquid,u)-x(c1_mo2,u)=0
 set c x(o)=none
 l c
 
@@ -208,6 +218,11 @@ N
 scale y n 3100 3150
 title map 4 fig 6
 
+
+
+@$==========================================================================
+@$ end of map4 macro
+@$==========================================================================
 
 set interactive
 

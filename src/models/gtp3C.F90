@@ -2466,7 +2466,7 @@
 ! Check if there are toop/kohler ternaries
    tooprec=>phlista(lokph)%tooplast
    if(associated(tooprec)) then
-      write(*,'(a)')'3C Some ternaries have Toop/Kohler extrapolations'
+      write(*,'(a)')'3C Some ternaries have Toop/Kohler extrapolations methods'
       text=' '
       kk=1
       nsl=0
@@ -2502,11 +2502,11 @@
             kk=len_trim(text)+2
 !         write(*,997)3,text(1:kk),kk
          endif
-         if(kk.gt.50) then
+         if(kk.gt.5) then
 ! This text is written by the commands list data and list phase xxx data
 ! Output from "save tdb" is written by list_phase_data2
             write(*,*)'3C ',text(1:kk)
-            text=' '
+            text=' Y'
             kk=5
          endif
          tooprec=>tooprec%nexttoop

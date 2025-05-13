@@ -1040,7 +1040,7 @@
 ! inked from the binary A-B interaction record (and has a link to it).
 ! link to next tooprec needed for search and listing
      type(gtp_tooprec), pointer :: nexttoop
-! link to binint to know the binay constituents involved
+! link to binint to know the binary constituents involved
      type(gtp_interaction), pointer :: binint
 ! The Toop1 array has constituent indices of all ternaries with A as Toop
 ! The Toop2 array has constituent indices of all ternaries with B as Toop

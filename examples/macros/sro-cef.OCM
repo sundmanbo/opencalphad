@@ -1,4 +1,7 @@
 new Y
+
+set echo Y
+
 @$ ====================================================================
 @$
 @$
@@ -172,6 +175,8 @@ t
 cp
 title Fig 2, SRO-CEF heat capacity at equiatomic composition
 
+@$ There is a lot of error messages as cp calculation failes for 
+@$ the unstable composition sets
 @$ Note the peak of the heat capacity is above the order/disorder T
 @$ when the ordered phase is actually metatsble
 
@@ -289,6 +294,12 @@ title Fig 8, Heat capacity for L1_2 including metastable ranges
 @$ This is the heat capacity of the L1_2 phase.  It remains metatsble
 @$ up to 50% B but disorder to A1 arount 10% B (also as metastable)
 @$ There is a small peak of the heat capacity at x(b)=0.25, the ideal ordering
+
+
+
+@$==========================================================================
+@$ end of sro-cef macro
+@$==========================================================================
 
 set inter
 

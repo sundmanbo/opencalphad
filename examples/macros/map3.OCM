@@ -1,5 +1,12 @@
 new Y
+
+set echo Y
+
 @$ =================================================================
+@$
+@$
+@$
+@$
 @$
 @$
 @$
@@ -31,7 +38,7 @@ r t ./steel1
 fe c
 
 
-set cond t=1000 p=1e5 n=1 x(c)=.2
+set cond t=1200 p=1e5 n=1 x(c)=.2
 
 set ref-state c
 graph
@@ -187,5 +194,10 @@ title map 3 fig 7
 @&
 @$ Note: plotting with composition axis chenged to activity
 @$ will plot the (vertical) 3-phase lines at wrong activity .... why?
+
+
+@$==========================================================================
+@$ end of map3 macro
+@$==========================================================================
 
 set inter

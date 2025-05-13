@@ -156,7 +156,6 @@
 ! calculate RT to normalize all Gibbs energies, ceq is current equilibrium
    rtg=globaldata%rgas*ceq%tpval(1)
    ceq%rtn=rtg
-!   write(*,*)'3X in calcg_internal: ',lokph
 !   if(ocv()) write(*,*)'3X in gcalc_internal: ',lokph
 !-----------------------
    chkperm=.false.
@@ -452,35 +451,6 @@
          endif
 !         write(*,*)'3X Calc internal disordred part 2'
       endif ftype
-!==========================================================
-!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-! code below is an abandonned test to parallelize the calculation of each
-! endmember tree for a single phase ...
-! It is commented away as there has been som many changes
-!
-! there can be ordered and disordered fraction sets selected by fractype
-! One endmember at a time but to speed up when having several
-! CPU we give one endmamber plus its interaction tree to each tread.  
-! To handle this all endmember records should be in an array
-!      if(fractype.eq.1) then
-! TYPE gtp_phase must be extended with these lists
-!         endmemrec=>phlista(lokph)%ordered
-!         oendmems: do i=1,phlista(lokph)%noemr
-!            call calc_endmemtree(lokph,moded,msl,&
-!                 phlista(lokph)%oendmemarr(i)%p1,phres,phmain,ceq)
-!         enddo oendmems
-!      else
-!         endmemrec=>phlista(lokph)%disordered
-!         dendmems: do i=1,phlista(lokph)%ndemr
-!            call calc_endmemtree(lokph,moded,msl,&
-!                 phlista(lokph)%dendmemarr(i)%p1,phres,phmain,ceq)
-!         enddo dendmems
-!      endif
-!
-! calculated for this fraction type, initiation for next in the beginning of
-! loop but we may have to calculate once again with same fraction type but
-! with the fractions as disordered fractions
-! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 !==========================================================
 ! there can be ordered and disordered fraction sets selected by fractype
       if(fractype.eq.1) then
@@ -845,6 +815,8 @@
             intrec=>endmemrec%intpointer
             gz%intlevel=0
             pmq=1
+! looking for Toop/Kohler calculations
+!            write(*,*)'3X start interloop: ',associated(intrec)
 ! pmq is initiated by palmtree above in the interaction records
 !            write(*,*)'3X excess 0: ',associated(intrec),phres%gval(1,1)*rtg
             interloop: do while(associated(intrec))
@@ -854,6 +826,7 @@
 200            continue
                gz%intlevel=gz%intlevel+1
 !               write(*,*)'3X excess 1: ',gz%intlevel,phres%gval(1,1)*rtg
+!               write(*,*)'3X is there a tooprec?: ',associated(intrec%tooprec)
                call push_pyval(pystack,intrec,pmq,&
                     pyq,dpyq,d2pyq,moded,gz%nofc)
 ! intrec%order is initiated by palmtree to set a sequential number
@@ -2197,7 +2170,7 @@
       if(associated(tooprec)) then
 ! This is a Kohler-Toop method parameter
 ! only for binary interaction parameters with Kohler or Toop models
-! not composition dependent we never come here as we exit 50 lines above
+! if no composition dependence we never come here as we exit 50 lines above
          call calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,tooprec,ceq)
 ! we have calculated all, skip the rest of this subroutine
          goto 1000
@@ -5662,8 +5635,9 @@
 !\end{verbatim}
    integer nz,varresx,ij,syfr,savedsyfr,sizeofcopy
 ! size of copyofconst in first word
+! segmentation fault from smp2A running step-epz.OCM
    sizeofcopy=int(copyofconst(1))
-!   write(*,*)'3X restoring amounts: ',highcs,sizeofcopy
+!   write(*,*)'3X restoring constitution: ',highcs,sizeofcopy
 ! skippa varres with index 1, that is the reference phase
 !   do varresx=2,csfree-1
    nz=2

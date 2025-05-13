@@ -1,3 +1,9 @@
+new Y
+
+set echo Y
+
+
+@$ ==============================================================
 @$
 @$ calculate Al-Fe phase diagram including A2/B2 line in BCC
 @$
@@ -27,11 +33,6 @@
 @$
 @$ ==============================================================
 @$
-
-new Y
-
-set echo Y
-
 
 r t ./AlFe-4SLBF
  
@@ -294,6 +295,11 @@ title map 17 fig 3
 @$ If you want you can calculate and add the B2/D0_3 transition curve also.
 
 
+
+
+@$==========================================================================
+@$ end of map17 macro
+@$==========================================================================
 
 set inter
 

@@ -341,6 +341,12 @@ MODULE ocsmp
 ! but stepseparate, Tzero and paraequil works without using this.
 ! For Schiel I am trying to change line color for different parts of the line
      integer :: specialdiagram=0
+#ifdef notwin
+     character (len=8) :: logofont='Arial,20'
+#else
+! On windows system the Garamond is nicer
+     character (len=16) :: logofont='Garamond Bold,20'
+#endif
 ! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}

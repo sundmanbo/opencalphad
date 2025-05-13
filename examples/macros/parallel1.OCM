@@ -1,4 +1,7 @@
 new Y
+
+set echo Y
+
 @$ =================================================================
 @$
 @$
@@ -59,8 +62,11 @@ c e
 
 l,,,,
 @$ it seems to work, the result is different and the first unchanged
+
 sel eq 1
+
 l,,,,
+
 @&
 @$ enter 20 more equilibria, just different T
 enter equil para3 Y
@@ -207,6 +213,12 @@ c a N 1
 
 
 @&
+
+@$ =================================================================
+@$  end of parallel1 macro
+@$ =================================================================
+@$
+
 set inter
 
  

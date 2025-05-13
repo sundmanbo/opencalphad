@@ -1,5 +1,9 @@
 @$
+
 new Y
+
+set echo Y
+
 @$===============================================================
 @$
 @$
@@ -89,14 +93,15 @@ y
 
 
 
+
 @$ The output during the step command is temporary but indicates
 @$ how the fraction liquid and its composition changes with T.
 @&
 
 
 plot
-
-
+PFL
+T
 title step-scheil Fig 2
 
 @$ PFL is a special symbol for the "phase fraction liquid"
@@ -106,11 +111,25 @@ title step-scheil Fig 2
 
 @&
 
+
+
+
+@$ set inter some plotting problems here
+@$
+@$ GNUPLOT has modified reading from datafiles with different
+@$ number od columns.  The plot is not totaly coherent
+
 plot
 
 
 title step-scheil Fig 3
-append ./equil-solidific
+append ./equil-solidific.plt
+
+
+@$----------------------------------------------------------------------
+@$ With gnuplot 5.2 from 2019 there are no messages from gnuplot
+@$ but with gnuplot 6 from 2024 there are messages but the plot the same
+@$----------------------------------------------------------------------
 
 
 @&
@@ -128,6 +147,12 @@ title step-scheil Fig 4
 @$ and note the last liquid is 70% Zn
 @$ This can be very bad for the mechanical properties
 @$ and require complex heat treatments to homogenize the alloy
+
+
+@$==========================================================================
+@$ end of step-scheil macro
+@$==========================================================================
+
 
 set inter
 

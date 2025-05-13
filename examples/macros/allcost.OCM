@@ -1,4 +1,7 @@
 new Y
+
+set echo Y
+
 @$ ==============================================================
 @$
 @$
@@ -124,16 +127,76 @@ l sh p
 @$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
 
 @&
-@$ Added test of the command CALCULATE BOSSES_METHOD
+@$ Added test of the command CALCULATE BOSSES_METHOD   ...does not work...
 @$ This may be useful if there are convergence problems
 
-c b-m
+@$ c b-m
+
+@$ Or try this step by step method
+@$ First just the grid minimizer
+
+c g
+
+@$ set all phases except those found by the gridminimizer as suspended
+@$ and calculate equilibrium without the gridminimizer
+@$ *U is all unstable phases
+
+set st ph *U=S
+
+@$ use c n is to calculate without gridminimizer
+
+c n
+
+@$ it converges but we cannot be sure we have the most stable equilibrium
+@&
+@$ Then set all suspended phases as dormant and calculate without gridmin
+
+set st ph *S=D
+
+c n
+
+@$ Thus time the driving force for all dormat phases will be calculated
+@&
+
+l r
+
+@$ There are 2 dormant phases listed which want to be stable, add them
+
+set st ph bcc_a2 alcu_theta = E 0
+
+@&
+
+c n
+
+@$ Calculate again without the gridminimizer
+@&
+
+l r
 
 
+@$ When listing no new phases wants to be stable
+@$ set all dormant phases as entered
 
+set st ph *D=E
 
-@$ Testing result, same as before!
+@$ Continue to use "c n" because using "c e" will use the gridminimizer
+
+c n
+
+@&
+
+l r
+
+@$ Listing result with all phases as entered, same as before!
+
 debug symbol g -2.3254708E4
+
+
+
+@$==========================================================================
+@$ end of allcost macro
+@$==========================================================================
+
 
 set inter
 

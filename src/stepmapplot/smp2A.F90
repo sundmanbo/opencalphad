@@ -966,10 +966,16 @@
 777       format('SMP2A problem calculating node: ',3i5,' at T=',F8.2)
 ! this occured in an STEP caculation for an 18 element nuclear fuel, 
 ! If only one axis return to calculate line
+! segmentation fault using debugged compiled OC6
+!          write(*,*)'SMP2A step-epz.OCM oc6D seg fault after this'
+!          write(*,*)'SMP2A associated? ',associated(maptop),associated(pcond)
+!          write(*,*)'SMP2A ',maptop%number_ofaxis,pcond%statev
+! pcond not associated !! just ignore it? YES
           noderrmess=.false.
-          if(maptop%number_ofaxis.eq.1 .and. pcond%statev.eq.1) then
+!          if(maptop%number_ofaxis.eq.1 .and. pcond%statev.eq.1) then
+          if(maptop%number_ofaxis.eq.1) then
              gx%bmperr=0
-             write(*,*)'SMP2A tries to continue'
+!             write(*,*)'SMP2A tries to continue'
 !             call list_conditions(kou,ceq)
              call restore_constitutions(ceq,copyofconst)
              gx%bmperr=0; goto 716
@@ -992,15 +998,18 @@
              ceq%tpval(1)=tsave
           endif
 ! restore here creates an infinite loop with no axis increment in map2-crmo
-!          write(*,*)'Restore constitutions 4'
+!          write(*,*)'SMP2A oc6D restore_constitutions 4'
+! segmentation fault with step_epz.OCM, in gtp3X.F90
           call restore_constitutions(ceq,copyofconst)
 !          write(*,800)'SMP2A map_calcnode error, trying smaller step: ',&
 !          gx%bmperr,mapline%lasterr,axvalok
 800       format(a,3i5,1pe12.4)
           gx%bmperr=0
+!          write(*,*)'SMP2A Restore call map_halfstep'
           call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
 !          write(*,*)'back from halfstep 2',halfstep,gx%bmperr
 !          if(gx%bmperr.eq.0.and. halfstep.le.5) then
+!          write(*,*)'SMP2A back from halfstep',gx%bmperr,halfstep
           if(gx%bmperr.eq.0.and. halfstep.le.4) then
              goto 320
           elseif(nax.gt.1 .and. bytaxis.eq.0) then

@@ -1,16 +1,39 @@
+@$=======================================================================
 @$ Example calculating Al-C phase diagram and heat capacities
 @$ down to low T using the new unary database
 @$
 
 new Y
+
 set echo Y
 
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$=======================================================================
 
 r t ./AlC-OC
 
 
 @$
-@$ There are warnings above because LNTH and G2 parameters has no model
+@$ There are warnings because LNTH and G2 parameters has no model
 @$ This will be amended with a new database format.
 @$ At present the models are set below as commands.
 
@@ -217,6 +240,10 @@ Liquid is not crystalline and can have non-zero entropy at T=0K
 Title Entropy for C as graphite liquid and diamond Fig 5
 
 
+
+@$==========================================================================
+@$ end of AlC-diagrams macro
+@$==========================================================================
 
 set inter
 

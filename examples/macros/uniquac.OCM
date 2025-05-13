@@ -1,5 +1,10 @@
+
+new Y
+
+set echo Y
+
+@$==================================================================
 @$
-@$ Testing the implementation of the UNIQUAC model
 @$
 @$
 @&
@@ -29,6 +34,9 @@
 @$
 @$
 @$
+@$ Testing the implementation of the UNIQUAC model
+@$
+@$==============================================================
 @$
 @$ UNIQUAC model based on the 1975 paper by Abrams and Prausnitz
 @$ It has a particular liquid configurational entropy term to
@@ -40,10 +48,6 @@
 @$ First part binary system acenonitrile - n_heptane
 @$
 @&
-
-new Y
-
-set echo
 
 @$ The molecules are entered as elements to simplify
 @$ The "mass" is irrelevant as no mass fraction plots
@@ -376,6 +380,11 @@ title uniquac fig 9
 
 
 @$ All well done ...
+
+
+@$==========================================================================
+@$ end of uniquac macro
+@$==========================================================================
 
 set inter
 

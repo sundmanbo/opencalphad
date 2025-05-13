@@ -3976,7 +3976,7 @@
    character amend*128
 ! ktorg has : element order, fraction index, Took/Koler spec
 !
-   integer xter3(3),toopcon(3),conind(3),nobin
+   integer xter3(3),toopcon(3),conind(3),nobin,tch
    logical checkdup,saveamend,onlym
 ! for debugging
    integer nextmethod
@@ -3984,8 +3984,10 @@
 ! this is incremented by 1 each time a record is created in any phase
 !   integer, save ::uniqid=0
 !
-!   write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),tkmode,&
-!        trim(phlista(lokph)%name)
+!
+   tch=5
+   if(tch.ge.3) write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),&
+        tkmode,trim(phlista(lokph)%name)
 8  format('3H add_ternary_extrapol ',a,' ',a,' ',a,' using ',a,' in ',a)
    if(phlista(lokph)%noofsubl.gt.1) then
       write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
@@ -4014,7 +4016,7 @@
 ! the binary A-B extrapolates is Kohler.  Examples:
 ! T1T1K means A-B and A-C is Toop with A as Toop and B-C is Kohler
 ! KKK means Kohler by all
-! T1KT1 is illegal as A is not part of the BC binary.
+! T1KT1 is illegal as A is not part of the (last) BC binary.
 ! T2KT2 means A-B and B-C is Toop with B as toop and B-C is Kohler
 ! T3T3K is wrong as A-B cannot have C as Toop element
 ! T1KT1 is wrong as B-C cannot have A as Toop element
@@ -4063,6 +4065,7 @@
             gx%bmperr=4399; goto 1000
          endif
 ! Set that for ternary kk the Toop element is toopcon(kk)
+         if(tch.ge.3) write(*,*)'3H Toop xter3 ',kk,' is : ',toopcon(kk)
          xter3(kk)=toopcon(kk)
          onlym=.FALSE.
       elseif(xmode(kk).eq.'K') then
@@ -4078,13 +4081,14 @@
 ! binary B-C has 1st element as Kohler
             xter3(kk)=-1
          endif
+         if(tch.ge.3) write(*,*)'3H Kohler xter3 ',kk,' is : ',xter3(kk)
 ! there is no 'else'
 ! else
       endif
    enddo tkmodel
 !----------------------
    if(onlym) then
-      write(*,'(a)')'3H All species have Muggianu extrapolation, default'
+      write(*,'(a)')'3H All species have Muggianu extrapolation by default'
       goto 1000
    endif
 !----------------------------
@@ -4108,6 +4112,8 @@
          if(loksp.eq.phlista(lokph)%constitlist(kk)) then
 ! element jj in the ternary has constituent index kk
             conx(jj)=kk
+            if(tch.ge.3) write(*,'(a,2i4,2x,2i4)')'3H conx ',jj,kk,&
+                 phlista(lokph)%constitlist(kk),loksp
 ! we found the constituent, take nest one
             cycle all3
          endif
@@ -4117,8 +4123,8 @@
       gx%bmperr=4052; goto 1000
    enddo all3
 !
-!   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H found all 3 constituents: ',conx,&
-!        xter3,xmode
+   if(tch.ge.3) write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H found all const: ',conx,&
+        xter3,xmode
    if(conx(1).eq.conx(2) .or. conx(1).eq.conx(3) .or. conx(2).eq.conx(3)) then
       write(*,*)'3H Same element twice, not a ternary!'
       gx%bmperr=4399; goto 1000
@@ -4141,8 +4147,8 @@
 !   write(*,'(a,10i4)')'3H toopcon as fraction indices: ',toopcon
 !-------------------------------
 !
-!   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H Replaced by const index:  ',conx,&
-!        xter3,xmode
+   if(tch.ge.3) write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H Replaced by index:  ',conx,&
+        xter3,xmode
 ! Kohler OK here
 !
 ! sort constituents in constituent order
@@ -4159,8 +4165,8 @@
       jj=xter3(2); xter3(2)=xter3(3); xter3(3)=jj
       ch1=xmode(2); xmode(2)=xmode(3); xmode(3)=ch1
       jj=toopcon(2); toopcon(2)=toopcon(3); toopcon(3)=jj
-!      write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 1:  ',conx,&
-!           xter3,toopcon,xmode
+      if(tch.ge.3) write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 1:  ',conx,&
+           xter3,toopcon,xmode
    endif
 ! check if 2>3
    if(conx(2).gt.conx(3)) then
@@ -4171,8 +4177,8 @@
       jj=xter3(1); xter3(1)=xter3(2); xter3(2)=jj
       ch1=xmode(1); xmode(1)=xmode(2); xmode(2)=ch1
       jj=toopcon(1); toopcon(1)=toopcon(2); toopcon(2)=jj
-!      write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 2:  ',conx,&
-!           xter3,toopcon,xmode
+      if(tch.ge.3) write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 2:  ',conx,&
+           xter3,toopcon,xmode
    endif
 ! now 3 > (1,2) check again if 1>2
    if(conx(1).gt.conx(2)) then
@@ -4183,8 +4189,8 @@
       jj=xter3(2); xter3(2)=xter3(3); xter3(3)=jj
       ch1=xmode(2); xmode(2)=xmode(3); xmode(3)=ch1
       jj=toopcon(2); toopcon(2)=toopcon(3); toopcon(3)=jj
-!      write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 3:  ',conx,&
-!           xter3,toopcon,xmode
+      if(tch.ge.3) write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 3:  ',conx,&
+           xter3,toopcon,xmode
    endif
 !**************** after here
 !   write(*,'("3H The constituents in alphabetical order: ",3i3)')conx
@@ -4218,21 +4224,21 @@
    nullify(intrec12); nullify(intrec13); nullify(intrec23)
 !
 ! look for endmember with lowest constituent index (they are ordered that way)
-!   write(*,'(a,3i3)')'3H first endmem: ',conx(1)
+   if(tch.ge.3) write(*,'(a,3i3)')'3H search endmemembers: ',conx(1)
 !   write(*,'(a,10I4)')'3H endmemfraclinks: ',endmem%fraclinks(1,1)
 !   write(*,*)'3H where is line with 5 numbers written?'
    conix=1
 !*************** before or after here ?
-!   write(*,*)'3H start findem loop'
+   if(tch.ge.3) write(*,*)'3H start findem loop'
    findem: do while(associated(endmem))
 !      write(*,'(a,3i3)')'3H endmem2: ',conix,endmem%fraclinks(1,1),conx(conix)
       if(endmem%fraclinks(1,1).eq.conx(conix)) then
 ! we found the endmember with conx(conix) as constituent
 ! if comix=1 look for interaction record with conx(2) or conx(3)
-!         write(*,*)'3H endmember: ',conix,conx(conix)
+         if(tch.ge.3) write(*,*)'3H found endmember: ',conix,conx(conix)
          intrec=>endmem%intpointer
          findexcess: do while(associated(intrec))
-!            write(*,*)'3H loop interaction: ',2,conx(2)
+            if(tch.ge.3) write(*,*)'3H loop interaction: ',2,conx(2)
             if(intrec%fraclink(1).eq.conx(2)) then
 ! this must be interaction 1-2  ?? or 2-3 ??
                intrec12=>intrec
@@ -4254,16 +4260,17 @@
                   exit findem
                endif
             endif
-!            write(*,*)'3H loop intrec: ',&
-!                 endmem%fraclinks(1,1),intrec%fraclink(1)
+            if(tch.ge.3) write(*,*)'3H loop intrec: ',&
+                 endmem%fraclinks(1,1),intrec%fraclink(1)
             intrec=>intrec%nextlink
          enddo findexcess
-!         write(*,*)'3H exit findexcess',associated(intrec),conix,conx(conix)
+         if(tch.ge.3) write(*,'(a,l2,i3,2x,3i3)')'3H exit findexcess',&
+              associated(intrec),conix,conx(conix)
 ! when we come here we have found 1-2 and 1-3 and look for 2-3
          if(conix.eq.1) then
-!            if(.not.associated(intrec12) .or. .not.associated(intrec13)) &
-!                 write(*,224)conix,conx,endmem%fraclinks(1,1)
-!224         format('3H some interactions missing',i3,2x,3i3,2x,i3)
+            if(.not.associated(intrec12) .or. .not.associated(intrec13)) &
+                 write(*,224)conix,conx,endmem%fraclinks(1,1)
+224         format('3H some interactions missing',i3,2x,3i3,2x,i3)
 ! increment conix and search for endmember conx(2)
             conix=2
          else
@@ -4279,15 +4286,21 @@
 ! we come here when we found or not found intrec12, intrec13 and intrec23
 !------------------------------------------------------------
 ! check values of xter3
-   do kk=1,3
-!      write(*,44)trim(species(kk)),xter3(kk),conx(kk)
-44    format('3H constituent ',a,' xter3: ',i2,i5)
-   enddo
+   if(tch.ge.3) then
+      do kk=1,3
+         write(*,44)trim(species(kk)),xter3(kk),conx(kk)
+44       format('3H constituent ',a,' xter3: ',i2,i5)
+      enddo
+   endif
 !--------------------------------------
-!   write(*,111)conx(1),conx(2),conx(1),conx(3),conx(2),conx(3),&
-!        associated(intrec12),associated(intrec13),associated(intrec23)
-111 format('3H Found binary interaction records for ',3(i2,'-',i2),3x,3l2)
+   if(tch.ge.3) then
+      write(*,111)conx(1),conx(2),conx(1),conx(3),conx(2),conx(3),&
+           associated(intrec12),associated(intrec13),associated(intrec23)
+111   format('3H Found binary interaction records for ',3(i2,'-',i2),3x,3l2)
+      write(*,*)'3H Allocate tooprecords!'
+   endif
 !=================== now we create the tooprec recotds =====================
+
 ! In  gtp_phaserecord pointers toopfirst, tooplast include all tooprec records
 ! It is needed to list the ternary extrapolation.  It also has lasttoopid
 ! The gtp_intrec has a tooprec pointer with tooprec data for that interaction
@@ -4307,8 +4320,7 @@
 ! Hm, in a 4 component systems there are only 2 extrapolations?.  But the
 ! tooprec for a binary is involved in the extrapolations for other binaries
       nobin=kk*(kk-1)/2
-!      nobin=1               this was used for testing extending allocation
-!      write(*,'(a,i3)')'3H allocating special binary extrapolations ',nobin
+      write(*,'(a,i3)')'3H allocating special binary extrapolations ',nobin
       phlista(lokph)%toopfirst%free=nobin
    else
       nobin=phlista(lokph)%toopfirst%free
@@ -4335,23 +4347,20 @@
 220   format('3H The binary ',i2,'-',i2,' (or ',i2,'-',i2,')',&
            ' with species: ',a,' - ',a,' has no excess')
       goto 300
-!   elseif(.not.associated(intrec12%tooprec)) then
    else
 ! this routine returns with a new or old newtoop record
-!      write(*,*)'3H calling create_toop_record for 1-2'
+      if(tch.ge.3) write(*,*)'3H calling create_toop_record for 1-2'
       call  create_toop_record(lokph,intrec12,conx(1),nobin)
       newtoop=>intrec12%tooprec
       jj=newtoop%free
-!      kk=newtoop%free
-!      write(*,*)'3H data in newtoop: ',newtoop%free,kk
-!      kk=size(intrec12%tooprec%toop1)
-!      write(*,221)'Toop1: ',(newtoop%toop1(kk),jj=1,kk)
-!      write(*,221)'Toop2: ',(newtoop%toop2(kk),jj=1,kk)
-!      write(*,221)'Kohler:',(newtoop%kohler(kk),jj=1,kk)
-!221   format('3H arrays: ',a,10i3)
-!      jj=newtoop%free
+      if(tch.ge.3) then
+         write(*,221)'3H Toop1: ',(newtoop%toop1(kk),kk=1,size(newtoop%toop1))
+         write(*,221)'3H Toop2: ',(newtoop%toop2(kk),kk=1,size(newtoop%toop1))
+         write(*,221)'3H Kohler:',(newtoop%kohler(kk),kk=1,size(newtoop%toop1))
+221   format('3H arrays: ',a,45i3)
+      endif
    endif
-! save Kohler constituent fraction (or zeo if none)
+! save Kohler constituent fraction (or zero if none)
 !   write(*,'(a,3i3,2x,3i3)')'3H xter3, toopcon: ',xter3,toopcon
    if(xter3(1).lt.0)  newtoop%Kohler(jj)=xter3(1)
    if(toopcon(1).gt.0) then
@@ -4371,15 +4380,17 @@
          newtoop%Toop1(jj)=conx(3)
       endif
    endif
-!   write(*,'(a,i3,2x,3i3,2x,3i3)')'3H newtoop 1-2: ',jj,&
-!        newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj),&
-!        intrec12%tooprec%toop1(jj),intrec12%tooprec%toop2(jj),&
-!        intrec12%tooprec%kohler(jj)
+   if(tch.ge.3) then
+      write(*,'(a,i3,2x,3i3,2x,3i3)')'3H newtoop 1-2: ',jj,&
+           newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj),&
+           intrec12%tooprec%toop1(jj),intrec12%tooprec%toop2(jj),&
+           intrec12%tooprec%kohler(jj)
 ! extract the elements from the interaction record
-!   write(*,600)trim(species(1)),trim(species(2)),trim(species(3)),xter3,&
-!        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+      write(*,600)trim(species(1)),trim(species(2)),trim(species(3)),xter3,&
+           conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
 ! xter3 refers to the binary 1, 2 or 3
 ! conx is constituent index
+   endif
 !   
 !-------------------------------------------------------------------
    if(saveamend) then
@@ -4439,13 +4450,15 @@
          newtoop%Toop1(jj)=conx(2)
       endif
    endif
-!   write(*,'(a,i3,2x,3i3,2x,3i3)')'3H newtoop 1-3: ',jj,&
-!        newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj),&
-!        intrec12%tooprec%toop1(jj),intrec12%tooprec%toop2(jj),&
-!        intrec12%tooprec%kohler(jj)
+   if(tch.ge.3) then
+      write(*,'(a,i3,2x,3i3,2x,3i3)')'3H newtoop 1-3: ',jj,&
+           newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj),&
+           intrec12%tooprec%toop1(jj),intrec12%tooprec%toop2(jj),&
+           intrec12%tooprec%kohler(jj)
 !
-!   write(*,600)trim(species(1)),trim(species(3)),trim(species(2)),xter3,&
-!        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+      write(*,600)trim(species(1)),trim(species(3)),trim(species(2)),xter3,&
+           conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+endif
 ! we may not have managed to save the amend?
    if(saveamend) then
       if(len(newtoop%amend1).le.1) then
@@ -4504,20 +4517,23 @@
          newtoop%Toop1(jj)=conx(1)
       endif
    endif
-!   write(*,'(a,i3,2x,3i3,2x,3i3)')'3H newtoop 2-3: ',jj,&
-!        newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj),&
-!        intrec12%tooprec%toop1(jj),intrec12%tooprec%toop2(jj),&
-!        intrec12%tooprec%kohler(jj)
-!
+   if(tch.ge.3) then
+      write(*,'(a,i3,2x,3i3,2x,3i3)')'3H newtoop 2-3: ',jj,&
+           newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj),&
+           intrec12%tooprec%toop1(jj),intrec12%tooprec%toop2(jj),&
+           intrec12%tooprec%kohler(jj)
+   endif
 !*************  furure check ****************
 ! if any of Toop1, Toop2 and Kohler arrays have the same fraction index 
 ! more than once one should add/subract only once.  I think it can happen
 ! for real cases, maybe one can eliminate duplicate indices when calculating
 ! Added check in zeroth tooprec in %free set to -1 when adding ternary
 !----------------------------------------------------
-!   write(*,600)trim(species(2)),trim(species(3)),trim(species(1)),xter3,&
-!        conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
-600 format('3H Binary ',a,'-',a,' extrapolerad to ',a,': ',4(3i3,2x))
+   if(tch.ge.3) then
+      write(*,600)trim(species(2)),trim(species(3)),trim(species(1)),xter3,&
+           conx,toopcon,newtoop%toop1(jj),newtoop%toop2(jj),newtoop%kohler(jj)
+600   format('3H Binary ',a,'-',a,' extrapolerad to ',a,': ',4(3i3,2x))
+   endif
    if(saveamend) then
       if(len(newtoop%amend1).le.1) then
          newtoop%amend1=trim(amend)
@@ -4549,6 +4565,7 @@
    return
 ! Error: Found duplicate method
 1100 continue
+   write(*,*)'3H Error creating ternary extrapolation'
 !   write(*,1110)duplicate%uniqid,duplicate%const1,duplicate%const2,&
 !        duplicate%const3,conx(1),conx(2),conx(3)
 !   write(*,1110)duplicate%uniqid,trim(species(1)),trim(species(2)),&
@@ -4621,7 +4638,8 @@
 !\begin{verbatim}
 ! subroutine create_toop_record
  subroutine create_toop_record(lokph,intrec,endmem,nobin)
-! this can replace a 3 times repeated part of add_ternary_extrapol_method
+! this replaces a 3 times repeated part of add_ternary_extrapol_method
+! Also works for Kohler
    implicit none
    type(gtp_interaction), pointer :: intrec
 ! lokph is phase index, endmem is fraction index for endmember, nobin is size

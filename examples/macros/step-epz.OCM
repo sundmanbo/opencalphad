@@ -1,5 +1,8 @@
 @$
 new Y
+
+set echo Y
+
 @$===============================================================
 @$
 @$
@@ -26,8 +29,6 @@ new Y
 @&
 @$===============================================================
 @$ 
-
-set echo
 
 
 @$ Use Bengt Hallstedt's special database for cast iron
@@ -266,8 +267,10 @@ T-zero line
 Title T-zero Fig 4
 out ./tzero-noG-nucleation
 
+
 @$ We have plotted the Tzero line with a label
 @$ *************************************
+
 @&
 
 @$
@@ -286,6 +289,10 @@ app ./epzpdpara
 
 @$ This diagran gives some indication of possible transitions
 @$ because carbon can diffuse rapidly even at low T
+
+@$==========================================================================
+@$ end of step-epz macro
+@$==========================================================================
 
 
 set inter
