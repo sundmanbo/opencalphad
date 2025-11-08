@@ -342,7 +342,9 @@ MODULE ocsmp
 ! For Schiel I am trying to change line color for different parts of the line
      integer :: specialdiagram=0
 #ifdef notwin
-     character (len=8) :: logofont='Arial,20'
+! Garamond and Baskerville not available in GNUPLOT
+!     character (len=8) :: logofont='Arial,20'
+     character (len=14) :: logofont='Baskerville,20'
 #else
 ! On windows system the Garamond is nicer
      character (len=16) :: logofont='Garamond Bold,20'

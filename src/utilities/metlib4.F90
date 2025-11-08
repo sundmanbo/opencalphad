@@ -655,8 +655,9 @@ CONTAINS
     CHARACTER CMD(*)*(*)
     integer ns,indx(*)
 !\end{verbatim}
-    CHARACTER STR*40
-    integer j1,j2,first,previous,next,limit
+!    CHARACTER STR*40
+!    integer j1,j2,first,previous,next,limit
+    integer j1,first,previous,next,limit
     integer, allocatable, dimension(:) :: order
 !
 ! links has the the index of the CMD in the increasing order
@@ -776,7 +777,7 @@ CONTAINS
        enddo all
     enddo
 !    write(*,10)'QSORT done: ',ns,(indx(j1),j1=1,ns)
-10  format(a,i3,2x,20i3)
+!10  format(a,i3,2x,20i3)
 900 continue
     return
   end SUBROUTINE MQSORT
@@ -1774,7 +1775,7 @@ CONTAINS
        fit=k1
        exit find
     enddo find
-1000 continue
+!1000 continue
 !    if(fit.gt.0) then
 !       write(*,*)'Accept abbreviation ',trim(short(fit)),' for ',trim(long),fit
 !    endif
@@ -3375,7 +3376,8 @@ CONTAINS
   subroutine lowercase1(text)
     character text*(*)
 !\end{verbatim}
-    integer ip,jp,kp,ichA,ichZ,chlower,ich1
+!    integer ip,jp,kp,ichA,ichZ,chlower,ich1
+    integer ip,ichA,ichZ,chlower,ich1
     ichA=ichar('A')
     ichZ=ichar('Z')
 ! cha = chA+chlower
@@ -3389,7 +3391,7 @@ CONTAINS
        endif
     enddo
 !    write(*,*)'ML text: "',trim(text),'"'
-900 return
+!900 return
   end subroutine lowercase1
     
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -3437,7 +3439,7 @@ CONTAINS
     sval=' '
     slin=cdef
 !    write(*,10)'M4 in gparfilex: ',typ,trim(cdef),trim(sval),trim(slin)
-10  format(a,i3,' "',a,'" "',a,'" "',a,'"')
+!10  format(a,i3,' "',a,'" "',a,'" "',a,'"')
 #ifdef tinyfd
 ! only if we use tinyfiledialogs, check if any character after last+1
     typeahead=last+1
@@ -4482,6 +4484,18 @@ CONTAINS
 #ifdef lixed
 ! LINUX: read one character at a time without echo and allow editing history
     ch1=getkex()
+!    write(*,*)'got from getkey: ',ichar(ch1)
+! on MAC all the arrow keys just generate integer 27 once, then input ignored
+! OC reacts in cntrl-P  16  previous line (history)
+!              cntrl-N  14  next line  (history)
+!              cntrl-A   1  move to first character on line
+!              cntrl-B   2  move back one character
+!              cntrl-D   4  delete one character ar cursor
+!              cntrl-E   5  move to after last character
+!              cntrl-F   6  move forward one character
+!              cntrl-K  11  delete from cursor to end of line
+! all of this is like emacs ,,,
+!
 #endif
 110 continue
 !    write(*,*)'got from getkey: ',ichar(ch1)
@@ -7783,7 +7797,7 @@ CONTAINS
     implicit none
     integer ix1,ix2
 !\end{verbatim} %+
-    integer, save :: ncall=0, mcall=0
+!    integer, save :: ncall=0, mcall=0
 !    integer, allocatable, dimension(:) :: bug
 ! at a testing ncall=24623, mcall=507127
 !    if(ix1.le.ix2) then
@@ -8057,7 +8071,7 @@ CONTAINS
           exit loop
        endif
     enddo loop
-1000 continue
+!1000 continue
     return
   end SUBROUTINE INCNUM
 
@@ -8134,10 +8148,11 @@ CONTAINS
    ip=index(line,char(9))
    if(ip.gt.0) then
       line(ip:ip)=' '
+      nl=ip
 !      write(*,*)'Replaced TAB by space on line ',nl
       goto 100
    endif
-1000 continue
+!1000 continue
    return
  end subroutine replacetab
 

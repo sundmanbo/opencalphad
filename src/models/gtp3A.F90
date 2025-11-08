@@ -591,6 +591,8 @@
 ! set that dense grid used by default
 !   globaldata%status=ibset(globaldata%status,GSXGRID)
 ! removed line above as that caused crash in parallel2 WHY????
+! mqmqma exlevel=0 uses the old excess model implementation
+   mqmqa_data%exlevel=0
 ! finished initiating
 1000 continue
    write(*,1001)
@@ -899,6 +901,11 @@
    type(saveint), dimension(:), pointer :: stack
    type(gtp_phase_add), pointer :: addlink,nextadd
 !   write(*,*)'3E In delphase',lokph
+   if(btest(phlista(lokph)%status1,PHMQMQX)) then
+      write(*,12)phlista(lokph)%name
+12    format('The phase ',a,' cannot be deleted, reinitiate fails')
+      goto 1000
+   endif
    allocate(stack(5))
    nsl=phlista(lokph)%noofsubl
 !>>>>> 6:
@@ -1005,10 +1012,10 @@
 !   endif
    phlista(lokph)%noofcs=0
    phlista(lokph)%nooffs=0
-!   write(*,*)'all done'
-1000 continue
 ! remove valgrind leak
    deallocate(stack)
+!   write(*,*)'all done'
+1000 continue
    return
  end subroutine delphase
 

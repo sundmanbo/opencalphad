@@ -1451,6 +1451,7 @@
          dislink=>cps%disfra
          lokdiseq=dislink%varreslink
          phres=>ceq%phase_varres(lokdiseq)
+! UNFINISHED: moded has no value here ....
          if(moded.gt.1) then
             nofc2=gz%nofc*(gz%nofc+1)/2
 !               if(.not.allocated(phres%d2gval)) then

@@ -243,7 +243,7 @@ contains
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=27,ncalc=18,ncent=21,ncread=9
     integer, parameter :: ncam1=18,ncset=27,ncadv=18,ncstat=6,ncdebug=12
-    integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
+    integer, parameter :: nselect=6,nlform=6,noptopt=9,mqmqacc=6,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=9
     integer, parameter :: nplt2=18
@@ -281,7 +281,7 @@ contains
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
          'ACTIVE_EQUILIBR ','ELEMENTS        ','EXCELL_CSV_FILE ',&
-         'MQMQA_QUADS     ','ESTIMAT_ACCURACY','WORKING_DIRECTOR',&
+         'MQMQA_SPECIAL   ','ESTIMAT_ACCURACY','WORKING_DIRECTOR',&
          '                ','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
@@ -299,6 +299,11 @@ contains
         ['SHORT           ','LONG            ','COEFFICIENTS    ',&
          'GRAPHICS        ','DEBUG           ','MACRO           ',&
          'EXPERIMENTS     ','CORRELATION_MTRX','TC_RSD          ']
+!-------------------
+! subsubcommands to LIST MQMQA_SPECIALS
+    character (len=16), dimension(mqmqacc) :: mqmqalist=&
+        ['QUADS           ','ASYMMETRIES     ','                ',&
+         '                ','                ','                ']
 !------------------- subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
@@ -5206,62 +5211,131 @@ contains
           if(gx%bmperr.ne.0) goto 990
           write(*,*)'CSV output saved on file: ',trim(plotfile)
 !          write(*,*)'Not implemented yet'
-!------------------------------
+!-------------------------------------------------------------------
 ! list MQMQA_QUADS
+!    character (len=16), dimension(mqmqacc) :: mqmqalist=&
+!        ['QUADS           ','ASYMMETRIES     ','                ',&
+!         '                ','                ','                ']
        case(22)
-          jquad=0
-          qlista: do i1=1,nosp()
-             call get_species_location(i1,loksp,name1)
-             if(gx%bmperr.ne.0) goto 990
-             if(index(name1,'-Q').le.0) cycle qlista
-             jquad=jquad+1
-             call get_species_component_data(loksp,i2,iphl,stoik,xxx,xxy,ceq)
-             if(gx%bmperr.ne.0) goto 990
-             do j4=1,i2
+          kom2=submenu('List ',cline,last,mqmqalist,mqmqacc,3,'?TOPHLP')
+! allow output file
+!          lut=optionsset%lut
+! if errs not allocated no optimization made
+!          if(allocated(errs)) then
+! trying to avoid segmentation fault when errs destryed by PLOT with APPEND
+!             if(size(errs).ne.mexp) then
+!                write(*,*)'Allocation error of "errs"',size(errs),mexp
+!                deallocate(errs)
+!                write(*,*)'Deallocated errs'
+!..........................................................
+          mqmqa: select case(kom2)
+          case DEFAULT
+             write(kou,*)'No such option'
+!...........................................................
+! list quads
+          case(1) ! Quads
+             jquad=0
+             qlista: do i1=1,nosp()
+                call get_species_location(i1,loksp,name1)
+                if(gx%bmperr.ne.0) goto 990
+                if(index(name1,'-Q').le.0) cycle qlista
+                jquad=jquad+1
+                call get_species_component_data(loksp,i2,iphl,stoik,xxx,xxy,ceq)
+                if(gx%bmperr.ne.0) goto 990
+                do j4=1,i2
 ! pick up element symbols
-                call get_element_data(iphl(j4),ellist(j4),name2,&
-                     dummy,mass,h298,s298)
-             enddo
-             write(kou,1680)i1,loksp,name1,&
-                  (ellist(j4),stoik(j4),j4=1,i2)
-1680         format(i3,i4,1x,a,1x,4(a2,F8.6,1x))
+                   call get_element_data(iphl(j4),ellist(j4),name2,&
+                        dummy,mass,h298,s298)
+                enddo
+                write(kou,1680)i1,loksp,name1,&
+                     (ellist(j4),stoik(j4),j4=1,i2)
+1680            format(i3,i4,1x,a,1x,4(a2,F8.6,1x))
 ! assuming quads are arranged in alphabetical order ...
-             call mqmqa_quadbonds(jquad,quadbonds)
-             if(i2.eq.2) then
-                write(kou,1681)(quadbonds(j4),j4=1,3)
-             else
-                write(kou,1681)(quadbonds(j4),j4=1,i2)
-             endif
-1681         format(26x,'bonds: ',4(F10.6,1x))
+                call mqmqa_quadbonds(jquad,quadbonds)
+                if(i2.eq.2) then
+                   write(kou,1681)(quadbonds(j4),j4=1,3)
+                else
+                   write(kou,1681)(quadbonds(j4),j4=1,i2)
+                endif
+1681            format(26x,'bonds: ',4(F10.6,1x))
 !    max length         8+25+4*11=33+44=77
+             enddo qlista
+             if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
 ! include listing of mqmqa_data%constoi(1..4,index)
-!----------------------------------------------------------------
-! copied from gtp3B lines 8813 ff
-! this is just debug output
-!             ik=1; ij=1
-!             do thiscon=1,mqmqa_data%nconst
-!                if(qorder(thiscon).gt.0) then
-!                   write(*,603)'3B FNN: ',trim(fnnquads(ik))
-!                   ik=ik+1
-!                else
-!                   write(*,603)'3B SNN: ',(trim(snnrefs(s1,ij)),s1=1,4)
-!                   ij=ij+1
-!                endif
-!603             format(a,4(1x,a))
-!      write(*,602)thiscon,(mqmqa_data%contyp(kp,thiscon),kp=1,14),&
-!           qorder(thiscon),(mqmqa_data%constoi(kp,thiscon),kp=1,4)
-!602  format('3B contyp: ',i2,1x,4i3,1x,i3,1x,4i2,1x,i3,1x,4i2,1x,i4/30x,4F10.6)
-!             enddo
+!...........................................................
+! Asymmetries
+          case(2)
+             if(.not.allocated(tersys)) then
+                write(kou,*)'No mqmqa data available'
+                exit mqmqa
+             endif
+             i2=size(tersys)
+             write(kou,310)i2
+310 format(/'Listing of the ',i3,' ternary systems and their asymmetry',/&
+            '  i  seq   el1 el2 el3       T/0 T/0 T/0    asymmetry code')
 !
-!----------------------------------------------------------------
-          enddo qlista
-          if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
-!------------------------------
+             do i1=1,i2
+                write(kou,320)i1,tersys(i1)%seq,(tersys(i1)%el(j4),j4=1,3),&
+                     tersys(i1)%isasym,tersys(i1)%asymm
+320             format(i3,i5,2x,3(1x,i3),5x,3i4,5x,a)
+             enddo
+             write(kou,330)
+330          format(/'Number in T/0 column is actual asymmetric element'/&
+                  'Press return to continue')
+             read(*,*)
+
+             write(kou,4122)nquad,(xquad(i1),i1=1,nquad)
+4122 format(/'Number of quads: ',i5,' and fractions:'/(12F6.3))
+
+             write(kou,408)
+408          format(/'Press RETURN for listing of varkappa(i,j/k,k), xi etc')
+!
+       read(*,*)
+       write(kou,410)
+410    format('List of all binary asymmetric variables',&
+            /17x,'  i  j    seq   varkappaij  varkappaji  xi_ij       xi_ji')
+! calculate varkappaij and varkappaji correcting for all ternaries
+       call calcasymvar
+       j4=0
+       do i1=1,ncat-1
+          do i2=i1+1,ncat
+             j4=j4+1
+             write(kou,412)i1,i2,j4,compvar(j4)%vk_ij,compvar(j4)%vk_ji,&
+                  compvar(j4)%xi_ij,compvar(j4)%xi_ji
+412                format('Exit calcASYMvar:',2i3,i5,3x,4(1PE12.4))
+          enddo
+       enddo
+!
+       write(kou,444)'Values of y_i/k: ',(y_ik(i1),i1=1,ncat)
+444    format(/a,(10f7.4))
+
+!
+!...........................................................
+! 
+          case(3)
+             write(kou,*)'Not implemented yet'
+!...........................................................
+! 
+          case(4)
+             write(kou,*)'Not implemented yet'
+
+!...........................................................
+! 
+          case(5)
+             write(kou,*)'Not implemented yet'
+
+!...........................................................
+! 
+          case(6)
+             write(kou,*)'Not implemented yet'
+             
+          end SELECT mqmqa
+!------------------------------ end list mqmqa_specials
 ! LIST ESTIMATE_ACCURACY.  Additional calculations are made
 ! Eventually included in case(12) ???
        case(23) 
           if(btest(ceq%status,EQNOEQCAL) .or. btest(ceq%status,EQFAIL)) then
-             write(*,*)'You must calculate an equilibrium first'
+             write(kou,*)'You must calculate an equilibrium first'
              goto 100
           endif
           xxy=5.0
@@ -5282,15 +5356,15 @@ contains
 !------------------------------
 ! list ??
        case(25)
-          write(*,*)'Not implemented yet'
+          write(kou,*)'Not implemented yet'
 !------------------------------
 ! list ??
        case(26)
-          write(*,*)'Not implemented yet'
+          write(kou,*)'Not implemented yet'
 !------------------------------
 ! list ??
        case(27)
-          write(*,*)'Not implemented yet'
+          write(kou,*)'Not implemented yet'
        end SELECT list
 !=================================================================
 ! quit

@@ -3975,7 +3975,7 @@
       jp=index(name1,':')
 !      write(*,*)'3E readtdb 11: ',name1,ip,jp
 ! phytype, a letter after the phase name separated by a :, for example GAS:G
-! I2SL is :Y, MQMQA is :Q
+! I2SL is :Y, MQMQA is :Q or :X for new coding
       if(jp.gt.0) then
          phtype=name1(jp+1:jp+1)
          name1(jp:)=' '
@@ -3984,7 +3984,9 @@
       endif
 ! we must know if we have the mqmqa model before reading constituents!!
 ! tested below also.
-      if(phtype.eq.'Q') then
+!      if(phtype.eq.'Q') then
+      if(phtype.eq.'Q' .or. phtype.eq.'X') then
+! Q was the original MQMQA phtype, X means maybe some new code
          mqmqa=.TRUE.
       else
          mqmqa=.FALSE.
@@ -4034,7 +4036,7 @@
 !302   format('3E Debug: name2: ',a,2i5/a)
       thisdis=0
       phdis: if(dodis.eq.1) then
-! special when reading disordered parts, check phase name equail
+! special when reading disordered parts, check phase name equal
 !         write(*,*)'3E Check if disordered part: ',dodis,name1
          do jt=1,disparttc
             if(name1.eq.dispartph(jt)) goto 307
@@ -5485,12 +5487,14 @@
    if(addternaryxpol) then
       write(*,'(a)')'3E Adding extrapolation methods',ntxp
       do zp=1,ntxp
-!         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
-         call set_database_ternary(ternaryxpol(zp))
-! this subroutine is in gtp3H.F90
+         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
+! this subroutine is in gtp3H.F90 is obsolete
+!         call set_database_ternary(ternaryxpol(zp))
+! this subroutine is in gtp3XQ.F90
+         call set_ternary_asymmetry(ternaryxpol(zp))
       enddo
-!   else
-!      write(*,*)'3E No ternary extrapolations'
+   else
+      write(*,*)'3E No ternary extrapolations'
    endif
 !000000000000000000000000000000000000000000000000000000
 ! no more read(21 ...

@@ -817,6 +817,7 @@ CONTAINS
                       mostconph(1,icc)=nvf
                       mostconph(2,icc)=iph
                    else
+! bug reported by valgrid used by UrbanJost  icc-1 = 1 but icc>1 here!
                       mostconph(1,icc-1)=nvf
                       mostconph(2,icc-1)=iph
                    endif
@@ -2022,6 +2023,7 @@ CONTAINS
 !107       format(a,6(1pe12.3))
 ! end of pmi% scope
     enddo parallel
+!    hejhopp
 !    write(*,*)'MM meq_sameset: end loop for all phases'
 !-$omp end parallel do
 !

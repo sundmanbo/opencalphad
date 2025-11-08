@@ -668,12 +668,12 @@
 ! GAS this is the gas phase (first in phase list) 
 ! LIQ phase is liquid (can be several but listed directly after gas)
 ! IONLIQ phase has ionic liquid model (I2SL)
-! AQ1 phase has aqueous model (not implemented)
+! MQMQW phase with new MQMQA model
 ! 2STATE elemental liquid twostate model parameters (not same as I2SL!)
 ! QCE phase has corrected quasichemical entropy (Hillerst-Selleby-Sundman)
-! CVMCE phase has some CVM ordering entropy (not implemented, SEE CVMTFL)
+! CVMCE phase has some CVM ordering entropy (used?)
 ! EXCB phase need explicit charge balance (has ions)
-! XGRID use extra dense grid for this phase (not used ?)
+! XGRID use extra dense grid for this phase
 ! MQMQA (old FACTCE) phase has FACT quasichem SRO model - implementation pending
 ! NOCS not allowed to create composition sets for this phase
 ! HELM parameters are for a Helmholz energy model (not implemented),
@@ -693,7 +693,7 @@
        PHHID=0,     PHIMHID=1,    PHID=2,      PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,     PHBORD=6,    PHSORD=7, &     ! 
        PHMFS=8,     PHGAS=9,      PHLIQ=10,    PHIONLIQ=11, &  ! 
-       PHAQ1=12,    PH2STATE=13,  PHQCE=14,    PHCVMCE=15,&    ! 
+       PHMQMQX=12,  PH2STATE=13,  PHQCE=14,    PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17,   PHMQMQA=18,  PHNOCS=19,&     !
        PHHELM=20,   PHNODGDY2=21, PHEECLIQ=22, PHSUBO=23,&     ! 
        PHPALM=24,   PHMULTI=25,   PHBMAV=26,   PHUNIQUAC=27, & !
@@ -1029,9 +1029,132 @@
 ! allocated dynamically and linked from endmember records and other
 ! interaction records (in a binary tree)
 !\end{verbatim}
+!---------------------
+! Below some structures needed for MQMQA excess model
+!-------------------
+!\begin{verbatim}
+  type terdata
+! use function findtersys(i,j,k,ncat) to find a ternary cation system
+! a linear structure for ternary data, indexing by element order i<j<m 
+! There are ncat*(ncat-1)*(ncat-2)/6 combinations with a single anion
+! with 4 elements there are 4 ternaries: (1,2,3) (1,2,4) (1,3,4) (2,3,4)
+! First ternary is 1-2-3, second is 1-2-4, third 1-3-4, fourth 2-3-4
+     integer seq,el(3)
+! In the ternary the binary order is 1-2, 1-3, 2-3.
+! asymm is a simple way to specify the asymmetric element for each binary
+     character*3 asymm  !  KKK: totally symmetrical
+!           TKK: element 3 is asymmetrical in 1-2. 1-3 and 2-3 are symmetrical
+! This is read from database an used to initiate isasym but kept for backup
+! for simple check of asymmetry of an element use this array
+! seq is ternary system index, el are element index how to know which elements
+! involved in this ternary  isasym must be initiated reading the database
+! and isasym is 0 if no asymmetry, isasym(1) is  
+     integer isasym(3) ! isasym(1,2,3) initially 0 but can be set to the 
+!         aymmetric element index (element index change for different systems)
+! Note all 3 element can be asymmetric,   
+!
+  end type terdata
+!\end{verbatim}
+!---------------------
+!\begin{verbatim}
+  type zquad       
+! storing quad indices, dvkq_ij, for derivatives of vk_ij etc
+     integer quadi
+! should have 4 values?
+     double precision zcoef(4)
+  end type zquad
+!\end{verbatim}
+!---------------------
+!\begin{verbatim}
+  type allinone        ! called BOX in varkappa1
+! a structure for MQMQA data: varkappa, ksi, Y and derivatives, maybe Zv_ijkl
+! stored linearly and indexed by binsym(i,j,ncat)
+! binary:   1   2       n-1 | n   n+1 ... 2n-1 | 2n ...      |     | n*(n-1)/2
+! elements: 1+2 1+3 ... 1+n | 2+3 2+4 ... 2+n  | 3+4 3+5 ... | ... | n-1+n
+! at present only cation mixing.  Use function binsys to find system
+     integer seq,cat1,cat2,anion
+! the internal structure of allinone must be updated whenever the
+! symmetry of a ternary is changed.  This integer keep check of that
+     integer lastupdate
+! varkappa (vk) and xi are asymmetric, i.e xi_ji \ne xi_ji
+! and take into account different ternary extrapolations
+! they should be stored together because they are usually needed together
+! To handle ternary asymmetries we need to save which quadfrations to add
+     double precision vk_ij,vk_ji,denominator,xi_ij,xi_ji
+!
+! vk_ij and v_ji consists of a two sums of quad fractions in
+! equation 21 in Max paper
+!
+!             \sum_i x_i   numerator   
+! f_i=vk_ij = ---------- = ---------    x_i are quad fractions, in seq order
+!              \sum_j x_k  denominator   
+!
+!             \sum_i x_j   numerator   
+! f_j=vk_ji = ---------- = ---------  
+!              \sum_j x_k  denominator   
+!
+! The derivaties of a sum of fractions wrt a fraction is either 1 or 0
+!
+!         \delta_jv \sum_k x_k - \delta_kv \sum_i x_i
+! df/dx_v=-------------------------------------------   as \delta_mv = 1 if m=k
+!                   ( \sum_j x_k ) **2
+!
+! quad indices arrays for for asymmetric sum_ij vk_ij, dynamically allocated!!
+! quad indices are indices in fraction array
+! all_ijk has all quad indices of ivk_ij, jvk_ji, kvk_ijk
+     integer, dimension(:), allocatable :: ivk_ij, jvk_ji, kvk_ijk, all_ijk
+! NEW FORTRAN 2003 feature dynamically extend allocated variables using [ .. ]
+! Fortran ivk_ij=[k1] assigns value k1 to first index
+!         ivk_ij=[ivk_ij, k2] keep k1 and assigns value k2 to second!
+!  (the denominator is the same for vk_ij and vk_ji)
+!
+! the derivatives of vk_ij are stored in dvk_ij and dvk_ji
+! they are calculated using ivk_ij, jvk_ji, kvk_ijk
+     double precision, allocatable, dimension(:) :: dvk_ij,dvk_ji
+     type(zquad), allocatable, dimension(:) :: dvkq_ij, dvkq_ji
+! second derivatives ... suck
+! xi_ij and xi_ji consists of a sum of Y_i/k fractions, Y_i/k are sum of quads
+! equation 21 in Max paper
+! xi_ij = Y_i/k + \sum_m Y_m/k   where j is asymmetric in i-j-m  
+! xi_ji = Y_j/k + \sum_m Y_m/k   where i is asymmetric in j-i-m  
+! in dxi_ij, dxi_ji store the multiplier (many 0.0) for each quad
+! to calculate xi_ij and their derivatives
+     double precision, allocatable, dimension(:) :: dxi_ij,dxi_ji
+!
+! I also need to store which ternary elements that are asymmetrical (m) 
+! in Max eq. 25 and 26 in Calphad§ paper from 2021
+     integer, allocatable, dimension(:) :: asymm_nu,asymm_gamma
+! these arrays can be extended in the same way as ivk_ij etc
+!
+! all the variables above must be initiated before calculations of vk, xi etc
+! the initiation and calculation of each record in the varkappa1 subroutine
+! probably more data will be added later, for example 2nd derivatives
+  end type allinone
+!\end{verbatim}
+! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+! MUST be careful with ncat and nan !!!  ncat and nan used in mqmqa
+  logical mqmqdebug
+  integer :: nquad,ncat,nan,lcat,lan
+! xquad are the quad fractions ordered as 1-2,1-3, ... 2-2,2-3, ... 3-3, ...
+! there are 2 functions to convert from the order in phase record
+! to order in xquad: comp2quad and quad2comp
+!
+  double precision, allocatable, dimension(:) :: xquad
+! tersys and compvar are related to asymmetries, also for other phases
+  type(terdata), dimension(:), allocatable :: tersys
+  type(allinone), dimension(:), allocatable :: compvar
+! quadz are the stoichiometric factors of a quad NOTE ALREADY IN MQMQA_DATA
+  double precision, dimension(:), allocatable :: quadz
+! y_ik are the fraction of each cation maybe in mqmqa_data record?
+  double precision, dimension(:), allocatable :: y_ik
+  double precision, dimension(:,:), allocatable :: dy_ik
+! etafs is the FNN/SNN ratio declated in mqmqa_data  same as: qfnnsnn
+!  double precision, dimension(:), allocatable :: etafs
+! end special datastructures for MQMQA
 !--------------------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_phasetuple
+! THIS IS PROBABLY REDUNDANT NOW
   INTEGER, parameter :: gtp_tooprec_version=1
   TYPE gtp_tooprec
 ! This is used for a binary interaction parameter in Kohler/Toop ternaries
@@ -1213,10 +1336,24 @@
      TYPE(gtp_phase_add), pointer :: nextadd
      type(gtp_elastic_modela), pointer :: elastica
      type(gtp_diffusion_model), pointer :: diffcoefs
+! ternary asymmetry record
+     type(gtp_ternary_asymmetry), pointer :: asym3
 ! calculated contribution to G, G.T, G.P, G.T.T, G.T.P and G.P.P
      double precision, dimension(6) :: propval
   END TYPE gtp_phase_add
 ! allocated when needed and linked from phase record
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! Ternary asymmetry record.  One or more sets of 3 constituent indices
+! and an asymmetry code.  codes are 3 letters T K and many M
+! Used for the MQMQA phase but can be use for other phases
+! There can be several sets
+  integer, parameter :: gtp_ternary_asymmetry_version=1
+  type gtp_ternary_asymmetry
+     integer, dimension(:,:), allocatable :: constindex
+     character*3, dimension(:), allocatable :: asymcode
+  end type gtp_ternary_asymmetry
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -1372,6 +1509,8 @@
 ! used in ionic liquid:
 ! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)
      integer, dimension(2) :: i2slx
+! this is for asymmetric ternaries, only allowed for MQMQA
+!     type(terdata), dimension(:), allocatable :: tersys
 ! Needed to list all Toop/Kohler ternary models
 ! The one used for calculations is the pointer in gtp_intrec (tooprec)
      TYPE(gtp_tooprec), pointer :: tooplast,toopfirst
@@ -1389,6 +1528,8 @@
 ! contains special STATIC information for liquid MQMQA model
 ! nconst is number of constituents, ncon1, ncon2 in subl, npair #of pairs
      integer nconst,ncon1,ncon2,npair
+! 2025/11/05 I am not really sure about this data structure ...
+! 2025/11/06 it seems fairly complete
 ! contyp(1..4,const) 1,2 species in first sublattice, -1,-2 in second sublattice
 ! contyp(5,const) non-zero for PAIR AA/XX, value same as pair index YES !!
 ! contyp(6,7,const) for PAIR species index 
@@ -1404,7 +1545,7 @@
      integer, allocatable, dimension(:) :: pinq
 ! constoi(1..4,const) real with stoichiometry of species in quadrupole
 ! NOTE for pairs (with one constituent in each sublattice) only two values
-! are needed for the stoichiometry.  2, 3 or 4 valuse
+! are needed for the stoichiometry.  2, 3 or 4 values
 ! Pairs initially have a third value, \zeta needed for entropy pair entropy
      double precision, allocatable, dimension(:,:) :: constoi
 ! ratio FCC/SNN for pairs, needed for pair entropy, copied from %constoi(3,q1)
@@ -1415,7 +1556,7 @@
 ! for each pair in a quad, needed for pair fraction and refstate %pp(1..4,quad)
 ! pp(i=1..4,jj) is stoichiometric factor of element i in constituent jj  etc
      double precision, allocatable :: pp(:,:) 
-! At present excess only on cation sublattice
+! At present excess only on cation sublattice, a single anion
 ! For binary excess parameters we need fractions:
 !  ksi1(AB) = ksi_AB/C= x_AA/(x_AA+x_AB+x_BB) and
 !  ksi2(AB) = ksi_BA/C= x_BB/(x_AA+x_AB+x_BB); these are ksi
@@ -1425,9 +1566,22 @@
 !     double precision, allocatable :: d2ksi1(:,:),d2ksi2(:,:)
 ! no need for indexing ksi1 and ksi2 ...???
 !     integer, allocatable :: ksiix(:)
-! Added 250205 in an attempt to handle very small fractions in excess terms
-!     logical, dimension(:), allocatable :: csumx NOT NEEDED
-! any more?
+! New implementation of mqmqa excess model started 2025/11/05 <<<<<<<<<<<<<<<
+! if mqmqax=0 then old excess model
+     integer :: exlevel=0
+! more data may be added later ...
+! Ternary asymmetry is in a separate record gtp_asym_ternary
+! linked in phase additions list.  Several phases can have such a feature
+! FNN/SNN ratio is qfnnsnn(:) 
+! xquad is declaraed as global but maybe it belongs to the mqmqa phase
+!     double precision, dimension(:), allocatable :: xquad  only one mqmqaphase 
+! convert from xquad index to constarray index and back
+! in xquad the order is sequentail in the cation order
+!    1   2   3   4  ..  n   ! n+1 n+2 .. 2n-1 ! 2n     ! ... ! n(n+1)/2
+!    1/1 1/2 1/3 1/4    1/n ! 2/2 2/3 .. 2/n  ! 3/3 .. ! ... ! n/n   
+     integer, dimension(:), allocatable :: con2quad
+     integer, dimension(:), allocatable :: quad2con
+! end new stuff .... but more records below for example allinone
   end TYPE gtp_mqmqa
 ! it is reset in pmon6 when a NEW command
 !  integer, private :: mqmqanend=-100
@@ -1435,7 +1589,6 @@
 ! probably only one of these needed ...
   integer, parameter :: maxmqmqa=200
   integer, parameter :: maxquads=200
-!  TYPE(gtp_mqmqa), private :: mqmqa_data
 ! it should be made private when everything work and removed from pmon6
   TYPE(gtp_mqmqa) :: mqmqa_data
 !
@@ -1463,7 +1616,6 @@
 !
 !===================================================================
 !
-!-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_state_variable
   INTEGER, parameter :: gtp_state_variable_version=1

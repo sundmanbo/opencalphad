@@ -25,8 +25,8 @@ contains
   subroutine getfilename(typ,filename)
 ! Fortran routine to call a C routine to browse for a file name
 ! typ if default extension:
-! 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT ,6=PDB, 7=DAT, 8=LOG
-    character (len=256) :: filename
+! 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT ,6=XTDB, 7=DAT, 8=LOG
+    character (len=*) :: filename
     integer typ
 !\end{verbatim}
     integer jj
@@ -34,8 +34,8 @@ contains
 ! character directory*128
 ! call getcwd(directory)
 ! specify a name of a file type:
-!    write(*,*)'ftinyopen ',typ
-! 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT, 8=LOG
+!    write(*,*)'In ftinyopen ',typ
+! 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=XTDB, 7=DAT, 8=LOG
     C_String_ptr = tinyopen(typ)
 ! convert C pointer to Fortran pointer
     call c_f_pointer(C_String_ptr,filchar,[256])

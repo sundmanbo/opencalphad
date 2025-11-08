@@ -3282,9 +3282,14 @@
    double precision dummy(1,1)
    type(gtp_phase_varres), pointer :: varres
 !
+   write(*,*)'G3 Subroutine calc_qf_otis not implemented'
+   gx%bmperr=4499; goto 1000
+!
    varres=>ceq%phase_varres(lokcs)
 ! Step 1: Jacobian: ncol columns, mrow rows
    value=zero
+   ncol=1
+   mrow=1
    allocate(jac(ncol,mrow))
    jac=zero
 !

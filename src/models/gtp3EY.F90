@@ -1822,7 +1822,7 @@
 ! 1. loop to find the phase
 ! 2. loop models for the phase to find one with the MPID
 ! 3. return TRUE if found, FALSE if not    
-
+    check_mpid=.FALSE.
 1000 continue
     return
   end function check_mpid

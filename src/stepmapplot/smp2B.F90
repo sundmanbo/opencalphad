@@ -1348,7 +1348,7 @@
 !\begin{verbatim} %-
   subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
        phaseline,title,filename,graphopt,version,conditions,fixphasecolor)
-! called from icplot2 to generate the GNUPLOT file after extracting data
+! called from ocplot2 to generate the GNUPLOT file after extracting data
 ! np is number of columns (separate lines), if 1 no labelkey
 ! nrv is number of values to plot
 ! nlinesep is the number of separate lines (index to linesep)
@@ -1392,6 +1392,8 @@
     character pfc*128,pfh*128,backslash*2,appline*128,inline*8,colord*5
     character applines(mofapl)*128,gnuplotline*256,labelkey*64,rotate*16
     character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
+! for handling appended plots use $Appendx    
+    character datablock*8,applot*13
     logical isoplethplot
 ! write the gnuplot command file with data appended
 !
@@ -1495,8 +1497,12 @@
 !    if(graphopt%scalefact(1).ne.one) xf=graphopt%scalefact(1)
 !    if(graphopt%scalefact(2).ne.one) yf=graphopt%scalefact(2)
 8601   format('set origin 0.0, 0.0 '/&
-            'set size ',F8.4', ',F8.4/&
+            'set size ',F8.4,', ',F8.4/&
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
+! the compiler did not detect the missing , between 4' in ... F8.4', ' ....
+!8601   format('set origin 0.0, 0.0 '/&
+!            'set size ',F8.4', ',F8.4/&
+!            'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
 !        'set label "~O{.0  C}" at screen 0.02, 0.03 font "Garamond Bold,20"'/&
 ! the logofont depend on OS, MacOS does not provide Garamond
@@ -1521,7 +1527,7 @@
             ltf1+1,lz,ltf1+2,lz,ltf1+3,lz,ltf1+4,lz,ltf1+5,lz,&
             ltf1+6,lz,ltf1+7,lz,ltf1+8,lz,ltf1+9,lz,ltf1+10,lz
 860    format('set origin 0.0, 0.0 '/&
-            'set size ',F8.4', ',F8.4/&
+            'set size ',F8.4,', ',F8.4/&
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
 ! Help with stackoverflow to fix nice logo independent of plot size!
 !          'set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"'/&
@@ -1709,6 +1715,7 @@
           applines(1)=appline
           appfiletyp=1
        else
+! modify to dataplot inside multiplot
           ii=index(appline,"plot '-'")
           if(ii.gt.0) then
              applines(1)=appline
@@ -1807,15 +1814,30 @@
           write(21,3828)
        endif
        backslash=',\'
-       inline='plot "-"'
 ! All lines to plot, colord can be 2:3 or 3:2 depending what is on the axis
-          colord=' 2:3 '
+       colord=' 2:3 '
 ! no need to change, evidently xax and anp are already shifted ... suck
 !       write(*,'(a,a,2F12.6)')'ocplot2B colord: ',colord,xax(1),anp(1,1)
+!
+! this should be written AFTER entering the data part, what about several
+       datablock='$Append1'
+!       applot='plot '//datablock
+!       do kk=1,nlinesep-1
+!          call replace_uwh(phaseline(kk))
+!          write(21,1999)applot,colord,kk,trim(phaseline(kk)),backslash
+!1999      format('# ',a,' using 'a,' with lines ls ',i2,' title "',a,'"',a)
+!          applot='""'
+!          if(kk.eq.nlinesep-2) backslash=' '
+!       enddo
+!       write(*,*)
+! the loop below the initial one, removed after testing
+       backslash=',\'
+       inline='plot "-"'
+! commented away and using new datablock inside multiplot
        do kk=1,nlinesep-1
           call replace_uwh(phaseline(kk))
           write(21,2000)inline,colord,kk,trim(phaseline(kk)),backslash
-2000      format(a,' using 'a,' with lines ls ',i2,' title "',a,'"',a)
+2000      format('# ',a,' using 'a,' with lines ls ',i2,' title "',a,'"',a)
           inline='""'
           if(kk.eq.nlinesep-2) backslash=' '
        enddo
@@ -1825,6 +1847,8 @@
 ! linesep(1..nlinesep) is number of lines of data for each line to plot
 ! nrv is total lines with lines with data to write
 !       write(*,*)'ocplot2B linesep: ',(linesep(jj),jj=1,nlinesep)
+! begin datablock
+       write(21,'(a," << EOD ")')datablock
        write(21,'(a)')'# Line   1, phases: '//trim(phaseline(1))
        jj=2
        ltw: do nv=1,nrv
@@ -1841,6 +1865,20 @@
        enddo ltw
        write(21,2110)
 2110   format(/'e'/)
+! end of appended data?
+       write(21,'(a)')'EOD  end of appended data'
+! We should add the datablock plot command here
+       applot='plot '//datablock
+       backslash=',\'
+       do kk=1,nlinesep-1
+          call replace_uwh(phaseline(kk))
+          write(21,1999)applot,colord,kk,trim(phaseline(kk)),backslash
+ 1999      format(a,' using 'a,' with lines ls ',i2,' title "',a,'"',a)
+          applot='""'
+! remove backslash at last line
+          if(kk.eq.nlinesep-2) backslash=' '
+       enddo
+!
 !2110   format(/'e'/'pause mouse')
 !       close(21)
 ! Finished writing plot file
