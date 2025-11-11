@@ -150,6 +150,7 @@
 ! 2017.02.10 Release version 4
 ! 2018.03.02 Release version 5
 ! 2020.03.12 Release version 6
+! 2025.11.09 Still updating version 6 
 !---------------------------------------------------------------------------
   character (len=64), dimension(4000:nooferm) :: bmperrmess
 ! The first 30 error messages mainly for TP functions
@@ -668,7 +669,7 @@
 ! GAS this is the gas phase (first in phase list) 
 ! LIQ phase is liquid (can be several but listed directly after gas)
 ! IONLIQ phase has ionic liquid model (I2SL)
-! MQMQW phase with new MQMQA model
+! MQMQX phase with the MQMQA model with asymmetric excess
 ! 2STATE elemental liquid twostate model parameters (not same as I2SL!)
 ! QCE phase has corrected quasichemical entropy (Hillerst-Selleby-Sundman)
 ! CVMCE phase has some CVM ordering entropy (used?)
@@ -1131,26 +1132,38 @@
 ! probably more data will be added later, for example 2nd derivatives
   end type allinone
 !\end{verbatim}
+!
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 ! MUST be careful with ncat and nan !!!  ncat and nan used in mqmqa
   logical mqmqdebug
   integer :: nquad,ncat,nan,lcat,lan
-! xquad are the quad fractions ordered as 1-2,1-3, ... 2-2,2-3, ... 3-3, ...
-! there are 2 functions to convert from the order in phase record
-! to order in xquad: comp2quad and quad2comp
+! tested when using varkappa1 if new asymmetric data added
+  integer :: newXupdate=-1
 !
+! these are the quad fractions, same as mole fractions but in element order
   double precision, allocatable, dimension(:) :: xquad
-! tersys and compvar are related to asymmetries, also for other phases
-  type(terdata), dimension(:), allocatable :: tersys
+  integer, allocatable, dimension(:) :: quadel_i,quadel_j,quadel_k,quadel_l
+! in xquad the element index of corresponding quad index is in quadel_ijkl
+! xquad index  1   2   3  ..  n ! n+1 n+2 .. 2n-1 ! 2n  .. ! n(n+1)/2
+! quadel_i     e1 e1  e1  .. e1 ! e2  e2     e2   ! e3  .. ! en   cations 1..n
+! quadel_j     e1 e2  e3  .. en ! e2  e3  .. en   ! e3  .. ! en   cations 1..n
+! quadel_k     el el  el  .. el ! el  dl  .. el   ! el  .. ! dl   anion     1
+! function ijklx translates from cation/anion indices (i,j,k,l) to quad index
+! The e1, e2 etc and el are saved in quadel_i _j _l
+! The order of xquads is to simplify the handling of Toop/Kohler asymmetries
+!
+! tersys and compvar are related to asymmetries, maybe other phases need also?
+  type(terdata), dimension(:), allocatable :: tersys 
   type(allinone), dimension(:), allocatable :: compvar
 ! quadz are the stoichiometric factors of a quad NOTE ALREADY IN MQMQA_DATA
-  double precision, dimension(:), allocatable :: quadz
-! y_ik are the fraction of each cation maybe in mqmqa_data record?
+!  double precision, dimension(:), allocatable :: quadz
+! y_ik are the fraction of each cation (maybe in mqmqa_data record?)
   double precision, dimension(:), allocatable :: y_ik
   double precision, dimension(:,:), allocatable :: dy_ik
 ! etafs is the FNN/SNN ratio declated in mqmqa_data  same as: qfnnsnn
 !  double precision, dimension(:), allocatable :: etafs
 ! end special datastructures for MQMQA
+!
 !--------------------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_phasetuple
@@ -1540,7 +1553,7 @@
      integer, allocatable, dimension(:,:) :: contyp
 ! quady(i,j) indices of sublattice fractions  ( replaced by 11..14 in contyp)
 !     integer, allocatable :: quady(:,:)
-! for each pair, its index is in %contyp is in PINQ
+! for each pair, its index in %contyp is in PINQ
 !     integer, allocatable, dimension(:,:) :: pinq(:)
      integer, allocatable, dimension(:) :: pinq
 ! constoi(1..4,const) real with stoichiometry of species in quadrupole
@@ -1573,24 +1586,40 @@
 ! Ternary asymmetry is in a separate record gtp_asym_ternary
 ! linked in phase additions list.  Several phases can have such a feature
 ! FNN/SNN ratio is qfnnsnn(:) 
+!
+! for element j if   el2ancat(j)>0 it is a cation index
+!               if  -el2catan(j)>0 is is an anion index  NOT USED
+! ONLY ONE ANION ALLOWED, 
+! (positive) OC element index of the single anion as link and alpabetical
+     integer xanione,xanionalpha
+!
+     integer, dimension(:), allocatable :: cat2el
+     integer, dimension(:), allocatable :: el2ancat
 ! xquad is declaraed as global but maybe it belongs to the mqmqa phase
 !     double precision, dimension(:), allocatable :: xquad  only one mqmqaphase 
 ! convert from xquad index to constarray index and back
 ! in xquad the order is sequentail in the cation order
 !    1   2   3   4  ..  n   ! n+1 n+2 .. 2n-1 ! 2n     ! ... ! n(n+1)/2
 !    1/1 1/2 1/3 1/4    1/n ! 2/2 2/3 .. 2/n  ! 3/3 .. ! ... ! n/n   
-     integer, dimension(:), allocatable :: con2quad
-     integer, dimension(:), allocatable :: quad2con
+! where 1..n are cation indices i.e. element indices ignoring anions
+! transfer of fractions from xquad to OC fraction array use
+     integer, dimension(:), allocatable :: con2quad ! transfer y to quad order
+! transfer of fractions from OC fraction array to xquad use
+!     integer, dimension(:), allocatable :: quad2con not needed
 ! end new stuff .... but more records below for example allinone
   end TYPE gtp_mqmqa
+!-----------------------------------------------------------------
+! it should be made private when everything work and removed from pmon6
+  TYPE(gtp_mqmqa) :: mqmqa_data
 ! it is reset in pmon6 when a NEW command
 !  integer, private :: mqmqanend=-100
   integer :: mqmqanend=-100
 ! probably only one of these needed ...
   integer, parameter :: maxmqmqa=200
-  integer, parameter :: maxquads=200
-! it should be made private when everything work and removed from pmon6
-  TYPE(gtp_mqmqa) :: mqmqa_data
+  integer, parameter :: maxquads=99    ! because only 2 digitd
+! for each quad indicate the index of the element in the quad
+! needed to generate the order of the quads in xquad
+  integer, dimension(:,:,:,:,:), allocatable :: elindex
 !
 !-----------------------------------------------------------------
 ! data for liquid phase with mqmqa model (part of phase_varres record)

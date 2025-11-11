@@ -795,7 +795,9 @@
 !   call delete_biblio
 !------ parameter property records
    deallocate(propid)
-!------ other things such as mqmq_data arrays
+!------ other things such as mqmq_data arrays, I cannot deallocate here
+!   if(allocated(mqmqa_data)) deallocate(mqmqa_data)
+! probably many more mqmqa data must be deallocated
    if(allocated(mqmqa_data%contyp)) then
       deallocate(mqmqa_data%contyp)
       deallocate(mqmqa_data%constoi)
@@ -813,6 +815,9 @@
       deallocate(mqmqa_data%qfnnsnn)
       deallocate(mqmqa_data%pp)
    endif
+   if(allocated(mqmqa_data%con2quad)) deallocate(mqmqa_data%con2quad)
+!   if(allocated(mqmqa_data%quad2con) deallocate(mqmqa_data%quad2con))
+!
 !   write(*,*)'3E No segmentation error G'
 !------ map results are deleted separately
 !   call delete_mapresults(maptop)

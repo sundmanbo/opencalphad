@@ -23,23 +23,35 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.11.11 version 6.086. The work with the MQMQA excess model is
+slowly progressing (rather than progressing slowly).  As the fraction
+variables in the MQMQA excess model can have several different
+asymmetric relations and this require a totally new ordering of the
+composition variables as there are mixed quadruplets with the same
+elements involved.  The first steps to convert from independent
+fraction variables to the dependent ones in the model have been made
+and I decided to save this version as future work may make a new mess
+of the implementation.
+
 2025.11.08 version 6.085.  The work on the MQMQA model in OC started
 in 2021 (version 6.035) when the SRO configurational entropy
-expression was implemented.  However the the excess model implemented
-in FactSage for the MQMQA model was never finished and I did not
-reallize how very complex this was using a asymmetrical ternary
-models.
+expression was implemented.  However, the the excess model implemented
+in FactSage for the MQMQA model was never finished.  I did not
+reallize how complex this model is with a mix of a asymmetrical
+ternary methods.
 
 With the help of Nathalie and Christine and with some economic support
-from CEA I have now started to work on this again and the current
-release has some new facilities to read and use excess model
-parameters for the MQMQA phase from a TDB file converted from a
-FactSage DAT file.  The new version of MQMQA should be indentified
-with the letter X after the phase name.
+from CEA I have now continued to work on this and the current release
+has some new facilities to read and use excess model parameters for
+the MQMQA phase from a database using the TDB foormat.  The TDB can be
+obtained by converting from a FactSage DAT file using a separate
+software.  The new version of MQMQA is identified by the letter X
+after the phase name.
 
-The main code can still not use the full range of excess model
-parameters but this release provide some additional functionallity.
-There is now a LIST MQMQA_SPECIAL command needed for debugging also.
+The current code can still not use the excess model parameters as this
+release is a preliminary release but it has some additional
+functionallity including a LIST MQMQA_SPECIAL command needed for
+debugging.
 
 On my Mac I have installed Gnuplot 6 whereas on my old DELL I used
 Gnuplot 5 and in the new version of Gnuplot one is not allowed to use
@@ -52,7 +64,8 @@ working on the Mac and many examples fails when run in sequence.
 Probably memory is not reinitiated properly, the NEW command may not
 take into account some of the new datastructures.  All the examples
 have been slightly modified and there are now several OCM files
-running just a few of them.
+running just a few of them.  Trying to run all examples in sequence
+makes will always fail one has to restart the program.
 
 I am not familiar with Makefiles but has created a rudimentary one
 compiling OC with -O2 and -OpenMP and a second Makefile_debug with

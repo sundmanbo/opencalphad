@@ -1978,10 +1978,11 @@
 !\addtotable subroutine init_asymm
 !\begin{verbatim}
 ! subroutine init_asymm(phrec,ic,ia)
- subroutine init_asymm(ic,ia)
+ subroutine init_asymm(lokph,ic,ia)
 ! initaties phase variables for new mqmqa excess model
+! called from gtp3B create_asymmetry
 ! number of independent quads, ic cations, ia anions (max 1)
-   integer ia,ic
+   integer ia,ic,lokph
 !   type(gtp_phase_record), pointer :: phase
    type(gtp_ternary_asymmetry), pointer :: asym3rec
 ! there is a global mqmqa_data record to use!! <<<<<<<<<<<<<<<<<<,
@@ -1994,8 +1995,9 @@
 !
    ncat=ic
    nan=ia
-!   write(*,1)ncat,nan
-1  format(/'3XQ Initiating mqmqa excess data, updated 2025.11.05/BoS ',2i3)
+   write(*,1)trim(phlista(lokph)%name),ncat,nan
+1  format(/'3XQ Initiating mqmqa model for ',a,' with ',i3,' cations and ',&
+        i2,' anion')
 ! FNN/SNN ratio same for all pairs ...   in first work: qfnnsnn
 !   allocate(mqmqa_data%etafs(ncat*nan))
 !   mqmqa_data%etafs=2.4D0
@@ -2016,9 +2018,20 @@
 ! xquad is declared globally in OC maybe better
 ! xquad is declared within the mqmqa_data record ??????/
    allocate(xquad(nquad))
-! number of binary cation systems, system 1-2 same as 2-1
-! 11-12-22 is a binary system
-! Later this may be possible to merge with compvar ???
+! initiate with equal amount
+   xquad=1.0d0/nquad
+! The xquads in a sequental array and used ONLY to calculate excess parameters 
+! number of binary cation combination, in a binary 11-12-22
+! in xquad the order is sequential in the cation order
+!    1   2   3   4  ..  n   ! n+1 n+2 .. 2n-1 ! 2n  2n+1 .. ! ... ! n(n+1)/2
+!    1/1 1/2 1/3 1/4    1/n ! 2/2 2/3 .. 2/n  ! 3/3 3/4  .. ! ... ! n/n   
+! the function ijklx(i,j,k,l) calculates the sequential index
+! The fractions are also in 
+! we have to inititate con2quad and quad2con with the corresponding indices
+   write(*,*)' *** Creation of cross indices for fractions and quads below'
+!
+!-------------------------------------------
+! now initate record with asymmetries
    nseq=0
    if(nan.eq.1) then
       if(ncat.gt.1) then
@@ -2066,8 +2079,8 @@
 ! varkappa and xi_ijis now part of allinone
 !
    if(ncat.eq.2) goto 80
-   write(*,67)ncat*(ncat-1)*nan/2
-67 format('init_asymm allocating compvar array: 'i5/' seq  el1  el2')
+!   write(*,67)ncat*(ncat-1)*nan/2
+67 format('init_asymm allocating compvar array: 'i5)
 ! we have to intitiate several variables in each compvar
    allocate(compvar(ncat*(ncat-1)*nan/2))
    nseq=0
@@ -2080,35 +2093,54 @@
          compvar(nseq)%cat2=j
          compvar(nseq)%anion=1
          compvar(nseq)%lastupdate=-1
-! vk_ij, xi_ij etc initiated at first calculation
+! ivk_ij, jvi_ji, kvk_ijk, xi_ij etc allocated at each calculation
+! NOTE vk_ij, xi_ij are single variables in each box, no need to allocate
+         compvar(nseq)%vk_ij=0.0d0
+         compvar(nseq)%vk_ji=0.0d0
+         compvar(nseq)%xi_ij=0.0d0
+         compvar(nseq)%xi_ji=0.0d0
 ! For identifying m used in eq.25 or 26 in Max paper for ternary excess
-! in varkappa1 allocate arrays for wich quad fractions vk and xi depend
+! in varkappa1 allocate arrays for which quad fractions vk and xi depend
 ! they can be different for each compvar
 ! %dvk_ij and %vdk_ji are single variables, arrays for derivatives
-! %dvkx_ij and %vdkx_ji are type(zquad), alternative arrays for derivatives
+! %dvkx_ij and %vdkx_ji are type(zquad) ??, alternative arrays for derivatives
 ! allocated at first calculation
          allocate(compvar(nseq)%dxi_ij(nquad)) ! dxi_ij/dquad_k
          allocate(compvar(nseq)%dxi_ji(nquad)) ! dxi_ji/dquad_k
+! I do not understand why dxi_ij are allocated here and not xi_ij ??
+         compvar(nseq)%dxi_ij=0.0d0
+         compvar(nseq)%dxi_ji=0.0d0
 !         write(*,77)nseq,i,j
 77       format(i4,2i5)
       enddo
    enddo
 80 continue
-! initiate newupdate
-   newupdate=0
+
+! initiate newXupdate, there is a newupdate I do not know where it is declared
+!   write(*,*)'3XQ newXupdate for varkappa and xi ',newXupdate
+   write(*,*)' *** Where is newupdate declared? ',newupdate
+   newXupdate=0
 ! allocate quadz with zi_ijkl, for a single anion
+! There are some data for Zv_ij/kl declared in mqmqa_data, use that!!
 !   write(*,79)ncat*(ncat+1)/2
 79 format('Allocating ',i3,' quadz array, for zv_ijkl data')
 !   allocate(quadz(ncat*(ncat+1)/2))
+! create crossreferences beween OC datastructure and MQMQX asymmetric
+   call correlate_const_and_quads(lokph)
+   if(gx%bmperr.ne.0) goto 1000
 !
 !   write(*,90)ncat*nan
 90 format('Allocating pair fraction array y_i/k: ',i4)
    allocate(y_ik(ncat*nan))
 ! with multiple anion derivatives add dimension nan also
+! its content is set in varkappa1
    allocate(dy_ik(ncat*nan,nquad))
+   call pairfracs(.false.)
 !
 !   write(*,99)ncat,nquad
 99 format(//' ********** 3XQ initated asymmetries ',2i4,'  ********'//)
+!
+1000 continue
 !
    return
  end subroutine init_asymm
@@ -2529,7 +2561,7 @@
    integer a,selectij
 !    testasym=.true.
 ! the TDB format KKK or T3KK has been converted to element index
-   write(*,10)t,tersys(t)%isasym,i,j
+!   write(*,10)t,tersys(t)%isasym,i,j
 10 format('3XQ In asymm: ternary ',i3,' asymmetry: ',3i3,' binary ',2i3,' OK')
    selectij=0
    do a=1,3
@@ -2547,7 +2579,7 @@
 20    format('in asymm: ',i1,i5,5x,2i3,' no more')
    enddo
 100 continue
-   write(*,110)selectij,tersys(t)%asymm,tersys(t)%isasym,i,j
+!   write(*,110)selectij,tersys(t)%asymm,tersys(t)%isasym,i,j
    asymm=selectij
 110 format('3XQ exit asymm: ',i2,5x,a,2x,3i3,5x,2i3)
    return
@@ -2567,7 +2599,7 @@
    ia=1
    seq=0
 ! the separate array of binaries redundant?
-! when a change of ternary asymmetries is made the newupdate is incremented
+! when a change of ternary asymmetries is made the newXupdate is incremented
    do i=1,ncat-1
       do j=i+1,ncat
 ! seq specifies a binary set of elements
@@ -2585,10 +2617,10 @@
  subroutine varkappa1(box)
 ! box is a record of the type(allinone)
 ! this routine may initiate, calculate and store varkappaij, varkappaji, xiij
-! and xiji for  symmetric and asymmetric systems
-! It is programmed for a single anion!
+! and xiji for symmetric and asymmetric systems with Kohler/Toop
+! It is programmed for a single anion and just for the MQMQX phase!
 !
-! It will inintiate all data in box if box%lastupdate ne newupdate
+! It will inintiate all data in box if box%lastupdate ne newXupdate
 !
 ! should it be a pointer?  Does it matter?
    type(allinone) :: box
@@ -2649,14 +2681,14 @@
    mjj=ijklx(jcat,jcat,ia,ia)
 !
    nysym=.false.
-   if(newupdate.gt.box%lastupdate) then
+   if(newXupdate.gt.box%lastupdate) then
 !       write(*,5)box%seq,box%lastupdate,newupdate
 5     format(/'Updating allinone record ',i5,' from ',i5,' to ',i5)
 ! *** this code part needed only once when all asymmetries are defined
 ! the arrays below are allocated, the initial 0 is overwritten if used
 ! This makes use of the new Fortran 2003 facility using [ ]
 ! Setting an allocatable array to single value means previous values deleted
-      box%ivk_ij=[0]; box%jvk_ji=[0]; box%kvk_ijk=[0]
+!      box%ivk_ij=[0]; box%jvk_ji=[0]; box%kvk_ijk=[0]
 !
 ! vk derivatives are quad indices, also denominator (same vk_ij and vk_ji)
 ! the statements below allocate and assign initial quad index
@@ -2874,6 +2906,8 @@
 !    write(*,601)sum,nugamma
 601 format('Total value      Denominator: ',1pe12.4,' nugamma: ',1pe12.4)
 ! save normalized values and save also sum for use with derivatives
+! at initiation sum=0.0, fix that
+   if(sum.eq.0.0d0) sum=1.0d0
    box%vk_ij=varkappaij/sum
    box%vk_ji=varkappaji/sum
 ! the denominantor needed for derivatives
@@ -2933,10 +2967,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
 !
 1000 continue
-   if(box%lastupdate.ne.newupdate) then
-      box%lastupdate=newupdate
-      write(*,1001)box%seq,box%lastupdate
-1001  format('Allinone record ',i3,' updated to new asymmetries ',i5)
+   if(box%lastupdate.ne.newXupdate) then
+      box%lastupdate=newXupdate
+!      write(*,1001)box%seq,box%lastupdate
+1001  format('3XQ allinone record ',i3,' updated to new asymmetries ',i5)
    endif
    return
 1100 continue
@@ -3250,7 +3284,7 @@
    end if
 !   write(*,333)a,b,c,ndim,dim3,mm
 !
-   newupdate=newupdate+1
+   newXupdate=newXupdate+1
 ! tersym is declared globally, it should be within a phase record
 ! as each phase can have ternary symmetries
 !   write(*,511)mm,' old ',tersys(mm)%asymm,tersys(mm)%isasym,a,b,c
@@ -3281,6 +3315,241 @@
 !   
    return
  end subroutine setasym
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine correlate_const_and_quads
+!\begin{verbatim}
+ subroutine correlate_const_and_quads(lokph)
+! this subroutine should for each mqmqa constituent create their
+! quad index element order for handling asymmetric variables in compvar
+! el1  1 1 1 .. 1   ! 2   2  .. 2    ! 3 .. ! n-1
+! el2  1 2 3 .. n-1 ! 2   3  .. n-1  ! 3 .. ! n-1
+! quad 1 2 3    n   ! n+1 n+2   2n-1 ! 2n   ! (n-1)n/2
+! With n elements and  one anion there are n-1 cations
+! The anion element index can be any value from 1 to n
+!
+! i=el2ancat(j) is cation index of element j, a negative value mean anion
+! i=con2quad(j) is index in quad fraction array of constituent j
+!    it is populated using ijklx(cat1,cat2,1,1) where the 1 is the anion
+! OC saves fractions in phase_varres%yfr(1..n) for a single sublattice
+! there is no need to transfer fractions from quad to phase_varres%yfr
+! A quad has 1 or 2 cations ALWAYS indexed from 1 .. n-1 (no anion fraction)
+! i=el2ancat(j) is the cation index element j. If j is anion a negative value
+! i=quadofel(j) is the cation index of an element i
+! The anion element index is not used 
+!  ... but its elllink is saved in xanione and element index in xanionalpha
+!   
+   implicit none
+   integer iph,lokph,loksp,lokcs,nfr,isp,iel,jp,el1,el2,icon,endmem
+   integer cat1,cat2
+   integer missing,ll,nocon
+   logical noanion
+   integer, allocatable, dimension(:) :: invert,inverse
+   integer, allocatable, dimension(:) :: findan
+   character*24 quadname
+!
+   nfr=phlista(lokph)%nooffr(1)
+   write(*,*)'3XQ correlate_const_and_quad',lokph,nfr,noofel
+   allocate(findan(noofel))
+!   lokcs=phlista(lokph)%linktocs(1) composition set?
+! note element numbers are not in order, the anion may be anywhere
+!
+! first step, find anion, it is present in all constituents
+! Stupid to do this here, it has already been found but lost
+   findan=0
+   do isp=1,nfr
+      loksp=phlista(lokph)%constitlist(isp)
+      iel=size(splista(loksp)%ellinks)
+      if(iel.eq.3) then
+         write(*,3)isp,loksp,iel,splista(loksp)%symbol,&
+              (ellista(splista(loksp)%ellinks(jp))%symbol,jp=1,iel),&
+              (ellista(splista(loksp)%ellinks(jp))%alphaindex,jp=1,iel),&
+              (splista(loksp)%ellinks(jp),jp=1,iel)
+      else
+         write(*,2)isp,loksp,iel,splista(loksp)%symbol,&
+              (ellista(splista(loksp)%ellinks(jp))%symbol,jp=1,iel),&
+              (ellista(splista(loksp)%ellinks(jp))%alphaindex,jp=1,iel),&
+              (splista(loksp)%ellinks(jp),jp=1,iel)
+      endif
+2     format('3XQ const: ',3i3,2x,a12,2x,2(a,2x),4x,2(i3),5x,2(i3))
+3     format('3XQ const: ',3i3,2x,a12,2x,3(a,2x),3(i3),2x,3(i3))
+      do jp=1,iel
+         el1=splista(loksp)%ellinks(jp)
+         findan(el1)=findan(el1)+1
+      enddo
+   enddo
+   write(*,4)'3XQ elements: ',findan
+4  format(a,20i3)
+! count the number of times an element occurs
+   write(*,22)(jp,ellista(jp)%alphaindex,ellista(jp)%symbol,jp=1,noofel)
+22  format(/'Elements :',10(2i3,2x,a)/)
+   el1=0
+! The anion should be present in all quads!
+   do jp=1,noofel
+      if(findan(jp).gt.el1) then
+         el1=findan(jp); el2=jp;
+      endif
+   enddo
+! el2 is the element index is in ellista, el1 is the alphabetical order
+!   write(*,*)'3QX anion is element: ',el1,el2,findan(el2)
+!      
+   mqmqa_data%xanione=el2
+   mqmqa_data%xanionalpha=ellista(el2)%alphaindex
+   write(*,6)mqmqa_data%xanione,mqmqa_data%xanionalpha,&
+        ellista(mqmqa_data%xanione)%symbol
+6  format(/'3XQ line 3383 anion link: ',i3,' alpabetical: ',i3,': ',a/)
+!
+! set up translation table for cations from ellink to 1..ncat
+! the anion has a negative value in el2ancat, the cations index 1..ncat
+   allocate(mqmqa_data%el2ancat(noofel))
+   write(*,*)'Size of mqmqa_data%el2ancat ',size(mqmqa_data%el2ancat)
+   do jp=1,noofel
+      if(jp.lt.mqmqa_data%xanionalpha) then
+!      if(jp.lt.mqmqa_data%xanione) then
+         mqmqa_data%el2ancat(jp)=jp
+      elseif(jp.gt.mqmqa_data%xanionalpha) then
+!      elseif(jp.gt.mqmqa_data%xanione) then
+         mqmqa_data%el2ancat(jp)=jp-1
+      else
+         mqmqa_data%el2ancat(jp)=-jp
+      endif
+      write(*,*)'mqmqa_data%el2cat: ',jp,mqmqa_data%el2ancat(jp)
+   enddo
+   write(*,17)'3XQ Element indices: ',(jp,jp=1,noofel)
+   write(*,17)'3XQ Cation indices:  ',(mqmqa_data%el2ancat(jp),jp=1,noofel)
+17  format(a,20i3)
+!
+! We need to know how to transfer compositions from phase_varres%yfr to xquad
+   allocate(mqmqa_data%con2quad(nfr))
+! loop though all constituents in the %constitlist, extract cations and
+! calculate its index in the xquad.  Only done once!
+   con2quad: do isp=1,nfr
+      loksp=phlista(lokph)%constitlist(isp)
+! there are 2 or 3 element links, one of which is an anion
+      el1=ellista(splista(loksp)%ellinks(1))%alphaindex
+      cat1=mqmqa_data%el2ancat(el1)
+!      cat1=mqmqa_data%el2ancat(splista(loksp)%ellinks(1))
+!      write(*,18)'First:   ',el1,cat1,cat1,splista(loksp)%symbol
+18    format(a,3i4,5x,a)
+      first: if(cat1.lt.0) then
+! first link was to the anion, next must be a cation
+         el1=ellista(splista(loksp)%ellinks(2))%alphaindex
+         cat1=mqmqa_data%el2ancat(el1)
+!         write(*,18)'Second:  ',el1,&
+!              mqmqa_data%el2ancat(splista(loksp)%ellinks(2)),cat1
+         more1: if(size(splista(loksp)%ellinks).gt.2) then
+! there can be 1 or 2 cations, the first ellink was to an anion
+            el1=ellista(splista(loksp)%ellinks(3))%alphaindex
+            cat2=mqmqa_data%el2ancat(el1)
+!            write(*,18)'Third:   ',splista(loksp)%ellinks(3),&
+!                 mqmqa_data%el2ancat(splista(loksp)%ellinks(3)),cat2
+         else
+! if there is no third element the single cation is doubled
+            cat2=cat1
+         endif more1
+      else
+! we found one cation, the next ellink can be an anion or cation        
+         el1=ellista(splista(loksp)%ellinks(2))%alphaindex
+         cat2=mqmqa_data%el2ancat(el1)
+!         write(*,18)'Fourth:  ',el1,&
+!                 mqmqa_data%el2ancat(el1),cat2
+         second: if(cat2.lt.0) then
+            more2:if(size(splista(loksp)%ellinks).gt.2) then
+! there can be 1 or 2 cations, the second ellink can be to the anion
+               el1=ellista(splista(loksp)%ellinks(3))%alphaindex
+               cat2=mqmqa_data%el2ancat(el1)
+!               write(*,18)'Fifth:   ',el1,&
+!                    mqmqa_data%el2ancat(el1),cat2
+            else
+! the single cation is doubled
+               cat2=cat1
+            endif more2
+         endif second
+      endif first
+! when we come here we hav one or two cations
+      mqmqa_data%con2quad(isp)=ijklx(cat1,cat2,1,1)
+!      write(*,55)isp,cat1,cat2,mqmqa_data%con2quad(isp)
+55    format('3xq loop: ',i3,2x,2i3,2x,i5)
+   enddo con2quad
+!
+!
+! loop for all constituents of the mqmqa phase
+! we should populate all structures of the %alphaindex of the element
+! skipping the alphaindex of the anion
+!   write(*,60)'3XQ quad->con: ',(mqmqa_data%quad2con(jp),jp=1,nfr)
+   write(*,60)'3XQ const order: ',(jp,jp=1,nfr),&
+              '    quad  order: ',(mqmqa_data%con2quad(jp),jp=1,nfr)
+60 format(/a,10(i3,1x)/a,10(i3,1x))
+! icon is index of constituent in phase 1..n
+! splista(icon)%symbol is species symbol
+!   write(*,65)
+65 format(/'3XQ Constituents in alphabetical order:')
+!   write(*,70)(trim(splista(phlista(lokph)%constitlist(jp))%symbol),jp=1,nfr)
+!
+!   write(*,*)'3XQ Constituents in quad order:'
+!   write(*,70)(trim(splista(phlista(lokph)%constitlist(mqmqa_data%con2quad(jp)))%symbol),jp=1,nfr)
+!
+!
+70 format('3XQ: ',10(a,', '))
+71 format('3XQ: ',2i3,3x,a)
+!
+   write(*,*)
+!
+   allocate(invert(nfr))
+   allocate(inverse(nfr))
+   write(*,87)
+87 format(8x,'OC fraction order    MQMQA quad order')
+  do jp=1,nfr
+      qqq: do el1=1,nfr
+         cat1=mqmqa_data%con2quad(el1)
+         if(cat1.eq.jp) then
+            quadname=splista(phlista(lokph)%constitlist(el1))%symbol
+            invert(jp)=cat1
+            inverse(jp)=el1
+            exit qqq
+         endif
+      enddo qqq
+      write(*,88)jp,trim(splista(phlista(lokph)%constitlist(jp))%symbol),&
+           el1,trim(quadname)
+88    format('Order ',i3,3x,a12,i5,2x,a)
+   enddo
+!
+!   write(*,89)(invert(jp),jp=1,nfr)
+   write(*,89)(inverse(jp),jp=1,nfr)
+89 format('3xq Inverted: ',20i3)
+1000 continue
+   return
+ end subroutine correlate_const_and_quads
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+ subroutine listconst(iph)
+ ! emergency subroutine because phlista protected in pmon6
+   integer iph,lokph,lokcs,isp,iel,elx(4),jp,j4,nel
+   character :: elsym(4)*2='  '
+   lokph=phases(iph)
+   lokcs=phlista(lokph)%linktocs(1)
+   isp=0
+   specie: do jp=1,phlista(lokph)%nooffr(1)
+      isp=isp+1
+      j4=phlista(lokph)%constitlist(jp)
+      nel=size(splista(j4)%ellinks)
+!      write(*,10)isp,trim(splista(j4)%symbol),nel
+10    format('Quad: ',i3,2x,a,2x,i3)
+      mqmqa_data%xanione=splista(j4)%ellinks(nel)
+      elsym='  '
+      elx=0
+      element: do iel=1,nel
+         elx(iel)=splista(j4)%ellinks(iel)
+         elsym(iel)=ellista(elx(iel))%symbol
+      enddo element
+      write(*,20)isp,nel,elsym,elx,splista(j4)%symbol
+20    format('Specie+elements ',i2,i4,4x,4(a,2x),4i3,2x,a)
+   enddo specie
+   write(*,*)'This should be the anion element index? ',mqmqa_data%xanione
+   return
+ end subroutine listconst
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 

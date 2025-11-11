@@ -1,7 +1,7 @@
 !
 MODULE cmon1oc
 !
-! Copyright 2012-2021, Bo Sundman, France
+! Copyright 2012-2025, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -302,7 +302,7 @@ contains
 !-------------------
 ! subsubcommands to LIST MQMQA_SPECIALS
     character (len=16), dimension(mqmqacc) :: mqmqalist=&
-        ['QUADS           ','ASYMMETRIES     ','                ',&
+        ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
          '                ','                ','                ']
 !------------------- subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
@@ -5212,12 +5212,12 @@ contains
           write(*,*)'CSV output saved on file: ',trim(plotfile)
 !          write(*,*)'Not implemented yet'
 !-------------------------------------------------------------------
-! list MQMQA_QUADS
+! list MQMQA_SPECIAL
 !    character (len=16), dimension(mqmqacc) :: mqmqalist=&
-!        ['QUADS           ','ASYMMETRIES     ','                ',&
+!        ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
 !         '                ','                ','                ']
        case(22)
-          kom2=submenu('List ',cline,last,mqmqalist,mqmqacc,3,'?TOPHLP')
+          kom2=submenu('Quads ',cline,last,mqmqalist,mqmqacc,3,'?TOPHLP')
 ! allow output file
 !          lut=optionsset%lut
 ! if errs not allocated no optimization made
@@ -5264,56 +5264,64 @@ contains
 ! include listing of mqmqa_data%constoi(1..4,index)
 !...........................................................
 ! Asymmetries
+! note: tersys, xquad, compvar are not linked from the phase!!!
           case(2)
              if(.not.allocated(tersys)) then
                 write(kou,*)'No mqmqa data available'
                 exit mqmqa
              endif
+             write(kou,4122)nquad,ncat,(xquad(i1),i1=1,nquad)
+4122         format('The ',i3,' quads for ',i2,' cations are arranged ',&
+                  'in order of the n cations:'/&
+                  'Quad   1   2   ... n   | n+1 ... 2n-1 | 2n  ... | n(n+1)/2'/&
+                  'Cation 1,1 1,2 ... 1,n | 2,2 ... 2,n  | 3,3 ... | n,n'/&
+                  'OC fractions values: ',/(12F6.3))
+! Number of quads: ',i5,' and fractions:'/(12F6.3))
+
+             write(kou,308)'OC order   ',(i2,i2=1,nquad)
+             write(kou,308)'Quad order ',(mqmqa_data%con2quad(i2),i2=1,nquad)
+308          format(a,15i3)
+! 4122 format(/'Number of quads: ',i5,' and fractions:'/(12F6.3))
+!
              i2=size(tersys)
              write(kou,310)i2
-310 format(/'Listing of the ',i3,' ternary systems and their asymmetry',/&
+310 format(/'List of the ',i3,' ternary systems with each asymmetry',/&
             '  i  seq   el1 el2 el3       T/0 T/0 T/0    asymmetry code')
-!
              do i1=1,i2
                 write(kou,320)i1,tersys(i1)%seq,(tersys(i1)%el(j4),j4=1,3),&
                      tersys(i1)%isasym,tersys(i1)%asymm
 320             format(i3,i5,2x,3(1x,i3),5x,3i4,5x,a)
              enddo
              write(kou,330)
-330          format(/'Number in T/0 column is actual asymmetric element'/&
-                  'Press return to continue')
-             read(*,*)
-
-             write(kou,4122)nquad,(xquad(i1),i1=1,nquad)
-4122 format(/'Number of quads: ',i5,' and fractions:'/(12F6.3))
-
-             write(kou,408)
-408          format(/'Press RETURN for listing of varkappa(i,j/k,k), xi etc')
+330          format('Any number in T/0 columns is the asymmetric element')
 !
-       read(*,*)
-       write(kou,410)
-410    format('List of all binary asymmetric variables',&
-            /17x,'  i  j    seq   varkappaij  varkappaji  xi_ij       xi_ji')
+             write(kou,410)
+410          format(/'List of all binary asymmetric composition variables',&
+            /'  i  j  seq    varkappa_ij varkappa_ji  xi_ij       xi_ji')
 ! calculate varkappaij and varkappaji correcting for all ternaries
-       call calcasymvar
-       j4=0
-       do i1=1,ncat-1
-          do i2=i1+1,ncat
-             j4=j4+1
-             write(kou,412)i1,i2,j4,compvar(j4)%vk_ij,compvar(j4)%vk_ji,&
-                  compvar(j4)%xi_ij,compvar(j4)%xi_ji
-412                format('Exit calcASYMvar:',2i3,i5,3x,4(1PE12.4))
-          enddo
-       enddo
+             call calcasymvar
+             j4=0
+             do i1=1,ncat-1
+                do i2=i1+1,ncat
+                   j4=j4+1
+                   write(kou,412)i1,i2,j4,compvar(j4)%vk_ij,compvar(j4)%vk_ji,&
+                        compvar(j4)%xi_ij,compvar(j4)%xi_ji
+412                format(2i3,i5,3x,4(1PE12.4))
+                enddo
+             enddo
 !
-       write(kou,444)'Values of y_i/k: ',(y_ik(i1),i1=1,ncat)
-444    format(/a,(10f7.4))
-
+             write(kou,444)'Values of y_i/k: ',(y_ik(i1),i1=1,ncat)
+444          format(/a,(10f7.4))
 !
 !...........................................................
-! 
+! DEBUG for implementation of asymmetric models
           case(3)
-             write(kou,*)'Not implemented yet'
+             call gparcx('Phase name: ',cline,last,1,name1,' ','?List phase')
+             if(buperr.ne.0) goto 990
+             call find_phase_by_name(name1,iph,ics)
+             if(gx%bmperr.ne.0) goto 990
+! list the constituents of the phase in the order they have in constitlink
+             call listconst(iph)
 !...........................................................
 ! 
           case(4)

@@ -774,7 +774,7 @@
          endif
       endif
       call capson(const(jl))
-!      write(6,297)' enter_phase constituent: ',jl,const(jl),nkk
+!      write(6,297)'3B enter_phase constituent: ',jl,const(jl),nkk
       iq=index(const(jl),'-Q')
       if(iq.gt.0) then
          iq=iq+1
@@ -1324,7 +1324,7 @@
 ! create xquad with indices to constituents
 ! create ternary asymmetric records
 ! create the binary allinone and initiate varkappa etc.
-         
+!         
       endif
 ! ******************************** initiating done ... some listing?
 !
@@ -1406,6 +1406,7 @@
 !\begin{verbatim}
  subroutine create_asymmetry(lokph,knr,const,phtype)
 ! creates the data structure for asymmetric excess for MQMQA phase
+! called from enter_phase when the MQMQX phase is entered
 ! lokph phase location
 ! knr: integer array, number of constituents
 ! const: character array, constituent (species) names in sequential order
@@ -1422,25 +1423,34 @@
 !
 !   write(*,*)'3B Inside create_asymmetry',lokph
 ! phlista is TYPE gtp_phaserecord
-! we assume only one anion, 
+! we assume only one anion, WHICH?
 !   nquad=phlista(lokph)%nooffr(1); x=nquad+0.1; y=0.5*(sqrt(x**2+1.0d0)-1.0d0)
 !   ncat=y; nan=1
 !   write(*,10)trim(phlista(lokph)%name),phlista(lokph)%phletter,nquad,x,y,ncat
-10 format('Phase name: ',a,' letter: ',a,' no of const: ',i3,2(1pe12.4),i3)
+!10 format('Phase name: ',a,' letter: ',a,' no of const: ',i3,2(1pe12.4),i3)
 ! There are some data in the mqmqa_data record?
 !   write(*,20)mqmqa_data%nconst,mqmqa_data%ncon1,mqmqa_data%ncon2,&
 !        mqmqa_data%exlevel
-20 format('3B Some mqmqa_data record data: ',4i4)
-! YES it is updated
+!20 format('3B Some mqmqa_data record data: ',4i4)
    nquad=mqmqa_data%nconst
    ncat=mqmqa_data%ncon1
-   lcat=ncat*(ncat+1)/2
    nan=mqmqa_data%ncon2
+! The values above already set in mqmqa_species, copy them here
+   write(*,25)mqmqa_data%nconst,nquad,ncat,nan
+25 format('3B In create_asymmetry ',5i3)
+!
+!   
+   lcat=ncat*(ncat+1)/2
 ! double precision, allocatable ::qfnnsnn(:)
 !   write(*,30)size(mqmqa_data%qfnnsnn),(mqmqa_data%qfnnsnn(iva),iva=1,ncat)
 30 format('FNN/SNN: ',i3,10(1pe10.2))
 ! we have to set mqmqa_data%exlevel to a nonzero value
    mqmqa_data%exlevel=100
+   write(*,*)'3B line 1449 some lines may be needed for ternary asymmetry'
+! The code below needed to read TERNARY asymmetry data
+! skip code below, done in 3XQ <<<<<<<<<< may be needed for TERNARY asymmetry
+!   goto 500
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> not used below
 ! We have to make sure the quads are arranged in cation order !!
 ! 1   2   3   4  ... n   | n+1  ...   2n-1 | 2n          | ...     | n(n+1)/2
 ! 1,1 1,2 1,3 1,4    1,n | 2,2 2,3 .. 2,n  | 3,3 3,4     | ...     | n,n
@@ -1455,8 +1465,9 @@
 ! then element 2 part of the second n-1 quads
 ! then element 3 part of the third set of n-2 quads
 ! use ijklx to calculate the index of constituent in xquad
-   allocate(mqmqa_data%con2quad(nquad))
-   allocate(mqmqa_data%quad2con(nquad))
+! these allocated (also) in gtp3XQ ....
+!   allocate(mqmqa_data%con2quad(nquad))
+!   allocate(mqmqa_data%quad2con(nquad))
 ! maybe quad2con is also needed ??
    do nva=1,nquad
       iva=mqmqa_data%contyp(11,nva)
@@ -1468,18 +1479,23 @@
          ivc=ijklx(iva,iva,1,1)
       endif
 !      write(*,*)'contyp: ',nva,iva,ivb,ivc
-      mqmqa_data%con2quad(nva)=ivc
-      mqmqa_data%quad2con(ivc)=nva
+!      mqmqa_data%con2quad(nva)=ivc
+!      mqmqa_data%quad2con(ivc)=nva
    enddo
    do nva=1,nquad
 !      write(*,50)nva,mqmqa_data%con2quad(nva),nva,mqmqa_data%quad2con(nva)
+!      write(*,51)nva,mqmqa_data%con2quad(nva)
 50    format('contyp index ',i3,' correspond to xquad index  ',i3/&
              'xquad index  ',i3,' correspond to contyp index ',i3)
+51    format('3B contyp index ',i3,' correspond to xquad index  ',i3)
    enddo
 !
+500 continue
 !   write(*,*)'3B Calling init_asymm',ncat,nan
 !
-   call init_asymm(ncat,nan)
+! we need to identify cations and anions
+! cations are Cl, F, ?
+   call init_asymm(lokph,ncat,nan)
 !
 !   write(*,*)'3B Back from init_asymm'
 !   
@@ -1488,742 +1504,6 @@
  end subroutine create_asymmetry
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable subroutine enter_phase_old
-!\begin{verbatim}
- subroutine enter_phase_old2(name,nsl,knr,const,sites,model,phtype,warning,emodel)
-! creates the data structure for a new phase
-! name: character*24, name of phase
-! nsl: integer, number of sublattices (range 1-9)
-! knr: integer array, number of constituents in each sublattice
-! const: character array, constituent (species) names in sequential order
-! sites: double array, number of sites on the sublattices
-! model: character, some fixed parts, some free text
-! phtype: character*1, specifies G for gas, L for liquid
-! emodel: for entropy model and maybe more
-! THING TO FIX: an I2SL phase with no cations should be accepted but
-! as a regular solution with 1 site for neutrals, no anions allowed!
-! When reading the database the first sublattice will be empty
-! Added nullifying toptoop
-   implicit none
-   character name*(*),model*(*),phtype*(*)
-   integer nsl,emodel
-   integer, dimension(*) :: knr
-   double precision, dimension(*) :: sites
-   character, dimension(*) :: const*(*)
-   logical warning
-!\end{verbatim}
-   type(gtp_phase_add), pointer :: addrec
-   character ch1*1,conname*24
-   double precision formalunits,endch
-   integer kconlok(maxconst),kalpha(maxconst),iord(maxconst),klok(maxconst)
-   integer iva(maxconst),endm(maxsubl),endm0(maxsubl+1)
-   logical externalchargebalance,tupix
-   integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
-   integer s1,mqm1(20),mqm2(20),s2,s3,s4,s5,minus,s8
-! logicals for models later stored in phase record
-   logical i2sl,QCE,uniquac,mqm,clusterr,nocations,cvmtfs,cvmtfl
-! csfree and highcs for finding phase_varres record
-   if(.not.allowenter(2)) then
-      gx%bmperr=4125
-      goto 1000
-   endif
-! if I2SL phase with no cation
-!   if(nsl.eq.2) write(*,'(i3,2x,2i3)')'3B phase: ',nsl,knr(1),knr(2)
-!   if(emodel.ne.0) then
-!      write(*,'(a,3i5,F7.3)')'3B emodel phase: ',emodel,nsl,knr(1),sites(1)
-!   endif
-   i2sl=.FALSE.
-   QCE=.FALSE.
-   mqm=.FALSE.
-   uniquac=.FALSE.
-! phase with tetrahedron CVM configurational entropy
-   cvmtfs=.FALSE.
-   cvmtfl=.FALSE.
-! this will be set to TRUE if no cations for the I2SL liquid.
-! changes are needed also when calculating with such a liquid
-   nocations=.FALSE.
-! check input
-   call capson(name)
-!   if(.not.ucletter(name)) then
-   if(.not.proper_symbol_name(name,0)) then
-      write(*,*)'3B Error for phase name: ',name(1:min(24,len(name)))
-      gx%bmperr=4053; goto 1000
-   endif
-! name unique?
-   call find_phase_by_name_exact(name,iph,kkk)
-!   write(6,*)'new phase 1A ',name,nsl,gx%bmperr,const(1)
-   if(gx%bmperr.eq.0) then
-! if phase found then error as name not unique ... but check explicitly
-      lokph=phases(iph)
-      if(name.eq.phlista(lokph)%name) then
-         gx%bmperr=4054
-         goto 1000
-      endif
-! name was not exactly the same, accept this phase name also
-   else
-      gx%bmperr=0
-   endif
-! Check above confirm new phase is not abbreviation of existing phases, now
-! add check that no existing phase is an abbreviation of the new phase name
-   ambig2: do ll=1,noofph
-      nk=len_trim(phlista(ll)%name)
-      if(name(1:nk).eq.trim(phlista(ll)%name)) then
-         write(*,66)trim(phlista(ll)%name),trim(name)
-66       format(/'3B WARNING: An existing phase "',a,&
-              '" is short for new phase "',a,'"'/&
-              'Phase names should be unique')
-! This is for warning about when reading TDB files
-         warning=.TRUE.
-!         gx%bmperr=4054; goto 1000
-      endif
-   enddo ambig2
-   if(nsl.lt.1 .or. nsl.gt.maxsubl) then
-      gx%bmperr=4056
-      goto 1000
-   endif
-   site1: do ll=1,nsl
-      if(sites(ll).le.zero) then
-!        write(6,*)' new phase 1B: ',name,ll,nsl,sites(ll)
-         gx%bmperr=4057
-         goto 1000
-      endif
-   enddo site1
-   nk=0
-   knrtest: do ll=1,nsl
-      if(knr(ll).lt.1 .or. knr(ll).gt.maxconst) then
-         write(*,*)'3B enter phase error:',ll,knr(ll),maxconst
-         gx%bmperr=4058; goto 1000
-      endif
-      if(ll.ge.2 .and. knr(ll).gt.maxcons2) then
-         gx%bmperr=4059; goto 1000
-      endif
-      nk=nk+knr(ll)
-   enddo knrtest
-   nkk=nk
-!  write(6,*)' enter_phase 3: ',name,nsl,nkk,noofsp
-! set bit for quasichemical and ionic liquid model!
-   call capson(model)
-!   write(*,'(a,a,2x,a)')'3B model7: ',trim(model),phtype
-   if(model(1:5).eq.'I2SL ') then
-      i2sl=.TRUE.
-   elseif(model(1:4).eq.'QCE ') then
-      QCE=.TRUE.
-   elseif(model(1:6).eq.'MQMQA ') then
-! FactSage modified quasichemical model
-!      write(*,*)'3B entering MQMQA phase'
-      mqm=.TRUE.
-   elseif(model(1:8).eq.'UNIQUAC ') then
-      uniquac=.TRUE.
-      write(*,7)
-7     format('3B With this model some of the following questions'&
-           ' are irrelevant'/'but kept for compatibility with other models')
-   elseif(model(1:7).eq.'CVMTFS ') then
-! FCC tetrahedron model without LRO (ABBB, AABA, ABAA and BAAA same)
-      cvmtfs=.TRUE.
-   elseif(model(1:7).eq.'CVMTFL ') then
-! FCC tetrahedron model with LRO (max 2 elements)
-      cvmtfl=.TRUE.
-   endif
-   externalchargebalance=.false.
-! CVMTFS creates its own set of constituents in a special subroutine
-   if(cvmtfs) then
-!      write(*,*)'3B creating CVMTFS constituents',knr(1)
-! This will create new set of constituents!
-      call enter_cvmtfs_phase(name,nsl,knr,const)
-      if(gx%bmperr.ne.0) goto 1000
-! sort the phase in its place, create varres record etc
-      nkk=knr(1)
-      sites(1)=one
-! set below
-!      phlista(lokph)%status1=bset(phlista(lokph)%status1,PHSRO)
-!      write(*,*)'3B exit cvmtfs: ',nsl,nkk,knr(1)
-!      goto 370
-   endif
-! check constituents
-   constest: do jl=1,nkk
-      if(jl.eq.1 .and. i2sl) then
-! in this case * is allowed on first sublattice!!
-         if(const(1)(1:2).eq.'* ') then
-            kalpha(jl)=-99
-            kconlok(jl)=-99
-            cycle constest
-         endif
-      endif
-      call capson(const(jl))
-!      write(6,297)' enter_phase constituent: ',jl,const(jl),nkk
-      findspecies: do jk=1,noofsp
-         if(const(jl).eq.splista(jk)%symbol) then
-!            write(*,*)'3B at new 300: ',noofsp,jk,const(jl)
-            goto 300
-         endif
-      enddo findspecies
-!      write(6,297)' enter_phase constituent error: ',jl,const(jl),jk,nkk
-297 format(a,i3,'>',A,'<',2i3)
-      write(kou,*)'Unknown constituent, name must be exact: ',trim(const(jl))
-      gx%bmperr=4051
-      goto 1000
-! found species,
-300   continue
-! check for duplicates in same sublattice
-      kalpha(jl)=splista(jk)%alphaindex
-      ll=1
-      mm=1
-      nk=knr(1)
-310   continue
-      if(jl.gt.nk) then
-         if(ll.lt.nsl) then
-            ll=ll+1
-            mm=nk+1
-            nk=nk+knr(ll)
-            goto 310
-         else
-            write(*,*)'3B Impossible: constituent index outside range!'
-            gx%bmperr=4257; goto 1000
-         endif
-      else
-         do mm=mm,jl-1
-!            write(*,314)mm,jl,kalpha(mm),kalpha(jl),&
-!                 const(jl)(1:len_trim(const(jl))),name(1:len_trim(name))
-314         format('3B Species: ',4i4,' "',a,'" in ',a)
-            if(kalpha(mm).eq.kalpha(jl)) then
-               write(*,315)trim(name),trim(const(jl)),ll
-315            format(' *** Error, the ',a,' phase has constituent ',a,&
-                    ' twice in sublattice ',i2)
-               gx%bmperr=4258; goto 1000
-            endif
-         enddo
-      endif
-! for quasichemical model check that costituents with name 'QC_' has 2 elements
-      if((QCE .or. mqm) .and. const(jl)(1:3).eq.'QC_') then
-         if(splista(jk)%noofel.ne.2) then
-            write(*,*)'Quasichemical mixing constituent must have 2 elements'
-            gx%bmperr=4399; goto 1000
-         endif
-      endif
-      kconlok(jl)=jk
-!     write(6,73)' enter_phase 4B: ',jl,const(jl),jk,kconlok(jl),kalpha(jl)
-!73   format(A,i3,1x,A6,3I3)
-! mark that PHEXCB bit must be set if species has variable charge 
-      if(splista(jk)%charge.ne.zero) then
-         externalchargebalance=.true.
-      endif
-   enddo constest
-! we should have the check if the phase can be neutral here ....
-! a phase with net charge is automatically suspended later ...
-!--------------------------------------------------------------------------
-370 continue
-! the first phase entered is the reference phase created by init_gtp
-   if(noofph.eq.0 .and. phtype(1:1).eq.'Z') then
-! phtyp=Z is the reference phase
-      nyfas=0
-   else
-! sort the phase in alphabetical order but always gas (if any) first
-! then liquids specified by the phtype letter (G, L, etc)
-      noofph=noofph+1
-!      if(nyfas.gt.size(phlista)) then
-      if(noofph.gt.size(phlista)) then
-!         write(*,*)'3B Too many phases: ',noofph
-         gx%bmperr=4259; goto 1000
-      endif
-      nyfas=noofph
-   endif
-   phlista(nyfas)%name=name
-   phlista(nyfas)%status1=0
-!   write(*,*)'3B i2sl?',i2sl
-   ionliq: if(i2sl) then
-! the external charge balance set above, not needed
-!      write(*,*)'3B  *** ionic liquid entered!!!'
-      externalchargebalance=.FALSE.
-! ionic liquid may have phtype='Y', change that to L
-      if(phtype(1:1).eq.'Y') phtype(1:1)='L'
-      if(nsl.ne.2) then
-! if entered with only one sublattice then no cations and only neutrals!!
-         write(*,*)'3B Ionic liquid must have 2 sublattices'
-         gx%bmperr=4255; goto 1000
-      endif
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHIONLIQ)
-! constituents in ionic liquid must be sorted in a special way
-      call sort_ionliqconst(lokph,0,knr,kconlok,klok)
-      if(gx%bmperr.ne.0) goto 1000
-   else ! else link is for all other phases except ionic liquid
-! external chargebalance THIS SET BELOW
-!      if(externalchargebalance) &
-!           phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
-! sort the constituents in each sublattice according to alphaspindex
-!  write(6,70)5,(kalpha(i),i=1,nkk)
-!  write(6,70)5,(kconlok(i),i=1,nkk)
-!70    format('enter_phase ',I2,': ',20I3)
-      nk=1
-      sort1: do ll=1,nsl
-         call sortin(kalpha(nk),knr(ll),iord(nk))
-         if(buperr.ne.0) then
-            gx%bmperr=buperr
-            goto 1000
-         endif
-! iord(nk+1:nk+knr(ll)) has numbers 1..knr(ll), add on nk-1 to these
-! to be in parity with index of kalpha(nk+1:nk+knr(ll))
-         adjust: do mm=0,knr(ll)-1
-            iord(nk+mm)=iord(nk+mm)+nk-1
-         enddo adjust
-         nk=nk+knr(ll)
-      enddo sort1
-!  write(6,70)6,(kalpha(i),i=1,nkk)
-!  write(6,70)6,(kconlok(iord(i)),i=1,nkk)
-! in constituent record store kconlok(iord(i))
-! verify we can find species name ...
-!  test7: do kk=1,nkk
-!    write(6,71)kk,iord(kk),kconlok(iord(kk)),splista(kconlok(iord(kk)))%symbol
-!71 format('enter_phase 7: ',3I3,1x,A)
-!  enddo test7
-      do jl=1,nkk
-         klok(jl)=kconlok(iord(jl))
-      enddo
-   endif ionliq
-!----------------------------------------
-!  write(6,79)8,name,(klok(kk),kk=1,nkk)
-79    format('enter_phase ',I2,': ',A6,10I3)
-   ch1=phtype(1:1)
-   call capson(ch1)
-! sort the phase in alphabetical but order but first gas, then liquid etc
-! legal values of ch1 is G, L, S and C (gas, liquid, solution, compound)
-!   write(*,*)'3B phase byte: ',ch1
-   if(ch1.eq.'G') then
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHGAS)
-      model='ideal'
-   elseif(ch1.eq.'L' .or. ch1.eq.'Q') then
-! i2sl had phtype changed to L above, Q is the MQMQA model ??
-      phtype(1:1)='L'
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHLIQ)
-   endif
-! Handle option F and B for permutations
-   if(ch1.eq.'F') then
-!      write(*,*)'3B Setting PHFORD bit'
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHFORD)
-!      call set_phase_status_bit(lokph,PHFORD)
-   elseif(ch1.eq.'B') then
-!      write(*,*)'3B Setting PHBORD bit'
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHBORD)
-!      call set_phase_status_bit(lokph,PHBORD)
-   endif
-! :I is used by TC to indicate charge balance needed, ignore
-   if(ch1.eq.' ' .or. ch1.eq.'I') ch1='S'
-!   ch1='S'
-   phlista(nyfas)%phletter=ch1
-   phlista(nyfas)%models=model
-!   if(nyfas.eq.0) then
-!      continue
-!   else
-! to force the MQMQA phase be treated as liquid in the alphabetical order ,,,
-!   write(*,*)'3B enter phase: ',trim(phlista(nyfas)%name),mqm
-   if(mqm) phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHMQMQA)
-   if(nyfas.gt.0) then
-      call alphaphorder(tuple)
-      phlista(nyfas)%nooffs=1
-   else
-! uninitiated below for reference phase
-      tuple=0
-   endif
-   phlista(nyfas)%noofsubl=nsl
-   allocate(phlista(nyfas)%nooffr(nsl))
-! sites stored in phase_varres
-!   allocate(phlista(nyfas)%sites(nsl))
-   formalunits=zero
-   do ll=1,nsl
-      phlista(nyfas)%nooffr(ll)=knr(ll)
-      formalunits=formalunits+sites(ll)
-   enddo
-!   write(*,*)'3B enter_phase 8x: ',nyfas,nkk,sites(1)
-   phlista(nyfas)%tnooffr=nkk
-!   write(*,*)'3B enter_phase 8y: ',nyfas,phlista(nyfas)%tnooffr
-! create constituent record
-   call create_constitlist(phlista(nyfas)%constitlist,nkk,klok)
-! in phase_varres we will indicate the VA constituent, indicate in iva
-   valoop: do jl=1,nkk
-      iva(jl)=0
-      loksp=phlista(nyfas)%constitlist(jl)
-      if(loksp.gt.0) then
-! ionic liquid can have a wildcard */-99 as constituent in first sublattice
-         if(btest(splista(loksp)%status,SPVA)) iva(jl)=ibset(iva(jl),CONVA)
-      endif
-   enddo valoop
-!    write(*,32)'3B phase14A: ',nyfas,(phlista(nyfas)%constitlist(iz),iz=1,nkk)
-32  format(a,i3,50(i3))
-!    write(*,33)nkk,(iva(i),i=1,nkk)
-!33 format('3B enter_phase 14B: ',i3,2x,10i3)
-!   nprop=10
-!   write(*,*)'3B enter_phase parrecords: ',lokcs,nkk,trim(name)
-   call create_parrecords(nyfas,lokcs,nsl,nkk,maxcalcprop,iva,firsteq)
-!   write(*,*)'3B enter_phase 15: ',nyfas,lokcs,&
-!        size(firsteq%phase_varres(lokcs)%yfr)
-   if(gx%bmperr.ne.0) goto 1000
-! zero array of pointer to phase_varres record, then set first
-   phlista(nyfas)%linktocs=0
-   phlista(nyfas)%linktocs(1)=lokcs
-   phlista(nyfas)%noofcs=1
-   firsteq%phase_varres(lokcs)%phlink=nyfas
-   firsteq%phase_varres(lokcs)%prefix=' '
-   firsteq%phase_varres(lokcs)%suffix=' '
-! nullify toopfirst and tooplast, set if there are ternary Toop/Kohler models
-   nullify(phlista(nyfas)%tooplast)
-   nullify(phlista(nyfas)%toopfirst)
-! Initiated to total number of sites, will be updated in set_condition
-   firsteq%phase_varres(lokcs)%abnorm(1)=formalunits
-! ncc no longer part of this record
-!   firsteq%phase_varres%ncc=nkk
-! zero the phstate (means entered and not known (unknown) if stable)
-   firsteq%phase_varres(lokcs)%phstate=0
-! sites must be stored in phase_varres
-!   if(QCE) then
-   if(model(1:5).eq.'TISR ' .or. model(1:6).eq.'CVMCE ' .or. &
-        model(1:5).eq.'SROT ' .or. &
-        model(1:4).eq.'QCE ' .or. model(1:6).eq.'MQMQA ') then
-! very special, we have a quasichemical model, the bonds are in sites(1)
-! copy them also to qcbonds
-! HM, confusion ... now I store bonds in sites(1) ....2021/02/17
-      firsteq%phase_varres(lokcs)%qcbonds=sites(1)
-!      firsteq%phase_varres(lokcs)%qcbonds=one
-! in MQMQA all quads share a single set of sites although quad species
-! are formally mixing on a two sublattices with one site each
-!      firsteq%phase_varres(lokcs)%sites(1)=2.0D0
-      firsteq%phase_varres(lokcs)%sites(1)=one
-! Maybe also set %abnorm ??a?
-! %abnorm is moles of atoms per formula units (varies with composition)
-! NOTE %amfu is moles of formula unit of the phase
-      firsteq%phase_varres(lokcs)%abnorm(1)=one
-!      write(*,*)'3B MQMQA special abnorm: ',sites(1),one
-!      write(*,'(a,a,": ",2F7.3)')'3B qcbonds ',model(1:5),sites(1),&
-!           firsteq%phase_varres(lokcs)%qcbonds
-   else
-      do ll=1,nsl
-         firsteq%phase_varres(lokcs)%sites(ll)=sites(ll)
-      enddo
-! this is the model for tetrahedron FCC with just SRO (reduced set of clusters)
-      if(model(1:7).eq.'CVMTFS ') then
-         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHSSRO)
-      endif
-      if(model(1:7).eq.'CVMTFL ') then
-         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHCVMTFL)
-      endif
-   endif
-! make sure status word and some other links are set
-   firsteq%phase_varres(lokcs)%status2=0
-   firsteq%phase_varres(lokcs)%phtupx=tuple
-! set link to lokcs in phase tuple!
-!   phasetuple(tuple)%lokvares=lokcs
-!   write(*,*)'3B new phase tuple: ',nyfas,lokcs,tuple
-! If one has made NEW the links are not always zero
-! set some phase bits (PHGAS and PHLIQ set above)
-! external charge balance etc.
-!   goto 600
-! ------------------------------------------------------------
-! code below moved here to avoid entring phases with net charge
-   bothcharge=0
-!   write(*,*)'3B external charge balance: ',externalchargebalance
-   if(externalchargebalance) then
-      kkk=0
-      bothcharge=-100
-! do not set PHEXCB if all endmembers have zero charge  m2o3(Ce+3,La+3)2(O-2)3
-      jl=1
-      endch=zero
-      do ll=1,nsl
-         endm0(ll)=jl
-         endm(ll)=jl
-         jk=phlista(nyfas)%constitlist(jl)
-         endch=endch+splista(jk)%charge*sites(ll)
-         jl=jl+phlista(nyfas)%nooffr(ll)
-      enddo
-      endm0(nsl+1)=phlista(nyfas)%tnooffr+1
-500   continue
-!      write(*,*)'3B checking external chargebalance for: ',trim(name),&
-!           btest(phlista(nyfas)%status1,PHEXCB)
-      if(abs(endch).gt.1.0D-6) then
-! A clumsy check, with ZRO2_TETR we may have (U+4)1(O-2,VA)2
-! with one neutral and one charged (+4) endmember. It should be allowed ...
-! We will set this bit any time but we have to check if the phase have
-! endmembers with both charges
-!         write(*,*)'3B charge balance needed for ',trim(name),endch
-         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
-         if(bothcharge.eq.-100) then
-            if(endch.lt.zero) then
-               bothcharge=-1
-            else
-               bothcharge=1
-            endif
-         elseif(bothcharge.lt.0) then
-            if(endch.gt.zero) bothcharge=0
-         else
-            if(endch.lt.zero) bothcharge=0
-         endif
-      else
-! kkk counts number of neutral endmembers
-         kkk=kkk+1
-      endif
-      ll=nsl
-510   continue
-      if(endm(ll).lt.endm0(ll+1)-1) then
-         jk=phlista(nyfas)%constitlist(endm(ll))
-         endch=endch-splista(jk)%charge*sites(ll)
-         endm(ll)=endm(ll)+1
-         jk=phlista(nyfas)%constitlist(endm(ll))
-         endch=endch+splista(jk)%charge*sites(ll)
-         goto 500
-      elseif(ll.gt.1) then
-         jk=phlista(nyfas)%constitlist(endm(ll))
-         endch=endch-splista(jk)%charge*sites(ll)
-         endm(ll)=endm0(ll)
-         jk=phlista(nyfas)%constitlist(endm(ll))
-         endch=endch+splista(jk)%charge*sites(ll)
-         ll=ll-1
-         goto 510
-      endif
-!      write(*,*)'3B charge balance not needed for ',trim(name)
-!      goto 530
-! jump here if any endmember has a net charge
-!520   continue
-! jump here if all neutral
-!530   continue
-   endif
-! if a phase with charged constituents cannot be neutral suspend it
-! If bothcharge=0 no charged endmember or there are both + and - charges,
-!           do not suspend
-! If bothcharge=-100 there are no charged endmember, do not suspend
-! If kkk>0 there is at least one neutral, do not suspend
-   if(bothcharge.ne.0) then
-      if(kkk.eq.0) then
-         write(*,531)trim(name),bothcharge,nkk
-531      format('3B *** WARNING: the phase ',a,2i5,' suspended'/&
-              14x,'as it cannot be electrically neutral')
-         firsteq%phase_varres(lokcs)%phstate=PHSUS
-      endif
-   endif
-!--------------------------------------- end moved
-600 continue
-! set net charge to zero
-   firsteq%phase_varres(lokcs)%netcharge=zero
-   if(nsl.eq.1) then
-      if(.not.uniquac) then
-! if no sublattices set ideal bit.  Will be cleared if excess parameter entered
-         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHID)
-      endif
-   endif
-   if(nkk.eq.nsl) then
-! as many constiuents as sublattice, compound with fix composition
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHNOCV)
-   endif
-! quasichemical liquid: indicate status bit for bond clusters in phase_varres 
-!   if(mqm .or. QCE) then
-   if(QCE) then
-! clear the ideal bit, the corrected quasichemical model (Hillert et al)
-      phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
-      clusterr=.TRUE.
-      do jk=1,size(phlista(nyfas)%constitlist)
-! indexing is tricky ...
-         ll=phlista(nyfas)%constitlist(jk)
-         if(splista(ll)%symbol(1:3).eq.'QC_') then
-            firsteq%phase_varres(lokcs)%constat(jk)=&
-                 ibset(firsteq%phase_varres(lokcs)%constat(jk),CONQCBOND)
-            write(*,*)'3B setting bond cluster bit',jk,CONQCBOND
-            clusterr=.FALSE.
-         endif
-      enddo
-      if(clusterr) then
-         write(*,*)'3B Phase with QCE model without any clusters "CQ_" !'
-         gx%bmperr=4399
-      endif
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHQCE)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHLIQ)
-   elseif(mqm) then
-!      write(*,*)'3B entering MQMQA phase',mqm,mqmqa_data%nconst
-      phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
-!      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHFACTCE)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHMQMQA)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHLIQ)
-! code below moved to rearrange_mqmqa
-!      goto 888
-! we must set correct fraction index in mqmqa_data%contyp(10,i)
-! and also set %contyp(11,i) to %contyp(14,i) to sequalial index in sublattice
-! The order does not matter but same element should have same index
-! mqmqa_data%contyp(10,i) set to order in fraction array
-      ll=0
-      mqm1=0; mqm2=0
-      do kkk=1,mqmqa_data%nconst
-         loksp=abs(mqmqa_data%contyp(10,kkk))
-!         write(*,*)'3B index: ',loksp
-         do jk=1,size(phlista(nyfas)%constitlist)
-            if(loksp.eq.phlista(nyfas)%constitlist(jk)) then
-               mqmqa_data%contyp(10,kkk)=jk
-               ll=ll+1
-            endif
-         enddo
-         if(mqmqa_data%contyp(5,kkk).gt.0) then
-! fix sublattice index for pair constituents
-            s1=1
-            sub1: do while(mqm1(s1).gt.0 .and. &
-                 mqm1(s1).ne.mqmqa_data%contyp(6,kkk))
-               s1=s1+1
-            enddo sub1
-            mqm1(s1)=mqmqa_data%contyp(6,kkk)
-! save original index in 13
-            mqmqa_data%contyp(13,kkk)=mqmqa_data%contyp(11,kkk)
-            mqmqa_data%contyp(11,kkk)=s1
-            s1=1
-            sub2: do while(mqm2(s1).gt.0 .and. &
-                 mqm2(s1).ne.mqmqa_data%contyp(7,kkk))
-               s1=s1+1
-            enddo sub2
-            mqm2(s1)=mqmqa_data%contyp(7,kkk)
-! save original index in 14
-            mqmqa_data%contyp(14,kkk)=mqmqa_data%contyp(12,kkk)
-! set constituent in second sublattice as negative
-            mqmqa_data%contyp(12,kkk)=-s1
-!         else
-! for all other quadrpoles these contain species index for bonds
-!            mqmqa_data%contyp(11,kkk)=0
-!            mqmqa_data%contyp(12,kkk)=0
-         endif
-!         write(*,555)kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14)
-555      format('3B yindex2: ',i2,4i3,2i4,3i3,i4,2x,4i3)
-      enddo
-      if(ll.ne.size(phlista(nyfas)%constitlist)) then
-         write(*,*)'3B MQMQA constituent fractions problems',ll,&
-              size(phlista(nyfas)%constitlist)
-         gx%bmperr=4399; goto 1000
-      endif
-! finally list constitents
-!      do s1=1,mqmqa_data%nconst
-!         conname=splista(phrec%constitlist(mqmqa_data%contyp(10,s1)))%symbol
-!         conname=mqmqa_data%contyp(10,s1)))%symbol
-!         connames(s1)=conname
-!         write(*,3)s1,(mqmqa_data%contyp(ll,s1),ll=1,14),&
-!              (mqmqa_data%constoi(ll,s1),ll=1,4),&
-!              trim(splista(phlista(nyfas)%constitlist(s1))%symbol)
-3        format('3B mq:',i2,4i3,1x,i3,1x,4i2,1x,i3,1x,4i2,4F5.1,1x,a)
-!      enddo
-!888   continue
-!      WRITE(*,*)'3B mqmqa constituents: ',mqmqa_data%nconst
-!--------------------- code originally in rearrange_mqmqa
-! Replace species indices in SNN quadruplets by sublattice fraction order
-!      do s1=1,mqmqa_data%nconst
-!         write(*,34)'3B before: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14)
-34       format(a,i2,1x,4i2,1x,i3,1x,4i3,1x,i3,1x,4i3,2x,a)
-!      enddo
-      do s1=1,mqmqa_data%nconst
-         if(mqmqa_data%contyp(5,s1).eq.0) then
-! this is a SNN quadruplet with 2 or 4 pair links in %contyp(6..9,s1)
-! and species indices in %contyp(11..14,s1)
-! replace the species index in 11..14 by sublattuce fraction index in
-! %contyp(11..12,pair).  The original species indices in %contyp(13..14,pair)
-! det galler att halla tungan ratt i mun ... (swedish saying)
-! NOTE: indices in 2nd sublattice set as negative!!!
-!            minus=1
-            allsubsp: do s2=11,14
-               s3=mqmqa_data%contyp(s2,s1)
-! at index s2 in s2 replace species index s3 with sublattice index, if 0 done
-               if(s3.le.0) exit allsubsp
-! if second sublattice set minus=-1
-!               if(mqmqa_data%contyp(s2-10,s1).lt.0) minus=-1
-!               write(*,*)'3B in ',s1,' replace species ',s3,' in position ',s2
-               do s4=6,9
-! loop all pairs, s4, connected to this SNN for sublattice index of s3
-                  s8=mqmqa_data%contyp(s4,s1)
-!                  write(*,'(a,3i3)')'3B looking in pair: ',s5
-                  if(s8.eq.0) then
-! failed to find species s3 in any pair
-                     write(*,*)'3B Cannot find a sublattice index order!'
-                     gx%bmperr=4399; goto 1000
-                  endif
-! s5 is now index of a pair, the index of the pair in %contyp is in pinq(s8)
-! and finally in %contyp(13..14,s5) are species indices
-                  s5=mqmqa_data%pinq(s8)
-                  if(s3.eq.mqmqa_data%contyp(13,s5)) then
-                     mqmqa_data%contyp(s2,s1)=mqmqa_data%contyp(11,s5)
-!                     write(*,35)'3B sublattice 1 index ',&
-!                          mqmqa_data%contyp(11,s4),' inserted in ',&
-!                          mqmqa_data%contyp(s2,s1)
-35                   format(a,i3,a,i3)
-                     cycle allsubsp
-                  elseif(s3.eq.mqmqa_data%contyp(14,s5)) then
-                     mqmqa_data%contyp(s2,s1)=mqmqa_data%contyp(12,s5)
-!                     write(*,35)'3B sublattice 2 index ',&
-!                          mqmqa_data%contyp(12,s4),' inserted in ',&
-!                          mqmqa_data%contyp(s2,s1)
-                     cycle allsubsp
-                  endif
-               enddo
-            enddo allsubsp
-         endif
-      enddo
-!      do s1=1,mqmqa_data%nconst
-!         s2=phlista(nyfas)%constitlist(mqmqa_data%contyp(10,s1))
-!         conname=splista(s2)%symbol
-!         write(*,34)'3B final: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
-!              conname
-!      enddo
-!      stop 'testing'
-!------------------------------------------------------
-   elseif(uniquac) then
-      phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHUNIQUAC)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHLIQ)
-   elseif(emodel.eq.4) then
-! this is the CVM or QC model with LRO
-! NOTE emodel 2 and 3 are treaded with different IFs above
-      phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHCVMCE)
-      write(*,*)'3B PHCVMCE bit set'
-   elseif(emodel.eq.5) then
-      phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHTISR)
-      write(*,*)'3B PHTISR bit set'
-   elseif(emodel.eq.6) then
-      phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHSROT)
-      write(*,*)'3B PHSROT bit set'
-   endif
-! nullify links, added tooprec 241012/BoS
-   nullify(phlista(nyfas)%additions)
-   nullify(phlista(nyfas)%ordered)
-   nullify(phlista(nyfas)%disordered)
-   nullify(phlista(nyfas)%toopfirst)
-   nullify(phlista(nyfas)%tooplast)
-! initiate phcs, the phase composition set counter for nyfas redundant ??
-! (not for reference phase 0) 
-!   if(nyfas.gt.0) phcs(nyfas)=1
-   if(noofph.gt.0) then
-! clear the nophase bit
-      globaldata%status=ibclr(globaldata%status,GSNOPHASE)
-!---------------------- new code to generate phase tuple array here
-! NOTE nooftuples updated in alphaphorder ... for old times sake
-      do ll=1,noofph
-! this is index in phlista
-!         phasetuple(ll)%phaseix=phases(ll)
-         phasetuple(ll)%lokph=phases(ll)
-         phasetuple(ll)%compset=1
-! this is alphabetical index
-         phasetuple(ll)%ixphase=ll
-! this is link to higher tuple of same phase
-         phasetuple(ll)%nextcs=0
-! this is the link to phase tuple from the phase
-         jl=phlista(phases(ll))%linktocs(1)
-         firsteq%phase_varres(jl)%phtupx=ll
-         phasetuple(ll)%lokvares=jl
-      enddo
-!---------------------- new code end
-   endif
-! almost always enter volume model1, nyfas is lokph, use alphabetical index
-   if(nyfas.gt.0) then
-      if(.not.(btest(phlista(nyfas)%status1,PHUNIQUAC) .or.&
-           btest(phlista(nyfas)%status1,PHGAS))) then
-!      write(*,*)'3B enter_phase adding volume model: ',trim(name),nyfas
-         call add_addrecord(nyfas,' ',volmod1)
-      endif
-   endif
-1000 continue
-   return
- END subroutine enter_phase_old2
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine enter_cvmtfs_phase
 !\begin{verbatim}
@@ -8388,6 +7668,7 @@
 !\begin{verbatim}
  subroutine mqmqa_rearrange(const)
 ! This routine will scan the mqmqa_data datastructure
+! The phase record does not yet exist ...
 ! and for all non-endmembers replace links to species by links to endmembers
 ! and calculate and store several useful things
 ! NOTE the phase is not yet entered!!  we only have arrays with data
@@ -8405,13 +7686,18 @@
    character spname1*24,spname2*24
    double precision cconstoi(4,f1),ctotstoi(f1)
 !
-!   write(*,*)'3B rearranging contyp'
+   write(*,2)
+2  format('3B in mqmqa_rearrange fixing mqmqa_data%contyp and more')
 ! attempt to fix problem with stoichiometries and order, sort const
    need=mqmqa_data%nconst
+! save element index of quad
    if(need.gt.f1) then
       write(*,*)'3B too many constituents, ',need,', max: ',f1
       gx%bmperr=4399; goto 1000
    endif
+!   do s1=1,mqmqa_data%nconst
+!      write(*,820)'3B Phase constituent: ',s1,trim(const(s1))
+!   enddo
 !   write(*,8)(trim(const(s1)),s1=1,need)
 8  format(/'3B orig: ',20(a,1x))
 !   write(*,*)'3B calling MQSORT'
@@ -8440,7 +7726,7 @@
 !           trim(splista(-mqmqa_data%contyp(10,s1))%symbol)
 !   enddo
 !7  format(a,i2,14i3,i4,4F6.2,1x,a)
-! rearrange contyp and constoi according to indx...
+! rearrange contyp and constoi according to indx... example:
 ! original order: 1 2 3 4 5 6 7 8 9
 ! alphabet order: 7 3 2 5 1 6 8 9 4
 ! stack: push 1; push 7; push 8; push 9; 9 push 4; push 5: find 5=1
@@ -8653,6 +7939,7 @@
 !      write(*,12)'3B quad2: ',s1,(mqmqa_data%contyp(s2,s1),s2=1,14),&
 !           (mqmqa_data%constoi(s2,s1),s2=1,4)
 !   enddo
+! cations and anions
    mqmqa_data%ncon1=ncon1
    mqmqa_data%ncon2=ncon2
 ! copy the value in constoi(3,s1) for all pairs to qfnnsnn
@@ -8671,7 +7958,7 @@
 !      write(*,34)'3B fixed: ',(mqmqa_data%contyp(s2,s1),s2=1,14)
 !   enddo
 !-----------------------------------------
-! check we have all necessary quadrupoles
+! check we have all necessary quadrupoles, the DAT file may not provide all!!
 ! pairs:
    s1=ncon1*ncon2
 !   write(*,*)'3B ncon1,ncon2: ',ncon1,ncon2,s1
@@ -8727,6 +8014,30 @@
          endif
       enddo
    enddo pp
+!
+! DO NOT CHANGE ABOVE, probably necessay for the configurational entropy
+! just add what is needed for the asymmetrical excess below
+! check what is available in mqmqa_data record
+!   write(*,800)mqmqa_data%nconst
+!800 format('3B line 8010 we have finished subroutine mqmqa_rearrange: ',i3)
+!   do s1=1,mqmqa_data%nconst
+! I do not understand many of the indices in this array and I miss some
+! for example the element indices of the cations and anions
+! I have added 4 arrays: quadel_i, quadel_j, _k _l for element indices in xquad
+!      write(*,810)s1,(mqmqa_data%contyp(s2,s1),s2=1,14)
+!810   format('3B contyp ',i3,2x,2i3,2x,2i3,i4,2i3,2x,2i3,i5,4i3)
+!   enddo
+!   do s1=1,mqmqa_data%nconst
+!      write(*,820)'Phase constituent: ',s1,trim(const(s1))
+!820   format(a,i3,' name: ',a)
+!   enddo
+!   do s1=1,noofsp
+!      write(*,820)'Species: ',s1,trim(splista(species(s1))%symbol)
+!   enddo
+!
+!   write(*,*)'3B We need to add cross references between xquad and fractions'
+!
+   
 !
 !   do s1=1,mqmqa_data%nconst
 ! an AB/XY has 4 FNN paris
