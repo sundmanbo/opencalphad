@@ -2871,6 +2871,7 @@ end function find_phasetuple_by_indices
    double precision charge1,bion1,compsum,comp1
 ! The mass is not calculated correctly in version 2, attempt to fix
    double precision bliq1
+   type(gtp_phase_varres), pointer :: phres
 ! This is needed if we have other components than the elements
    double precision, allocatable :: compam(:),elam(:),iliqcats(:)
 !   TYPE(gtp_fraction_set), pointer :: disrec
@@ -3152,6 +3153,18 @@ end function find_phasetuple_by_indices
 !      write(*,*)'3A segmentation fault 311',lokph,lokcs
    endif
 314 format(a,8F8.3)
+! added for the new MQMQA asymmetrical excess
+! we must copy yfra to quad fractions and calculate some internal variables
+! this routine is in gtp3XQ
+!   write(*,*)'Testing PHMQMQX bit'
+   if(btest(phlista(lokph)%status1,PHMQMQX)) then
+      if(mqmqa_data%exlevel.ge.100) then
+         write(*,*)'Testing PHMQMQX bit, calling set_quadfractions'
+!            ceq%phase_varres(lokcs)%yfr(ic+ml)=yz
+         phres=>ceq%phase_varres(lokcs)
+         call set_quadfractions(phres,yfra)
+      endif
+   endif
 1000 continue
 !   write(*,*)'3A no segmentation fault at exit'
 !   if(ionicliq) write(*,*)'3A s_c: ',phlista(lokph)%i2slx

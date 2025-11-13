@@ -170,6 +170,8 @@ contains
     double precision dblv(10)
 ! debugging mqmqma_data%const lines ... lines 5236 ff
     integer ik,ij,kp,s1,thiscon
+! ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%vk_ij,
+    type(gtp_mqmqa_var), pointer :: mqmqavar
 !-------------------
 ! variables for lmdif
 !    integer, parameter :: lwam=2500
@@ -1693,7 +1695,7 @@ contains
           CASE DEFAULT
              write(kou,*)'Calculate phase subcommand error'
 !.......................................................
-          case(1) ! calculate phase < > only G
+          case(1) ! calculate_phase .. calculate phase < > only G
              call calcg(iph,ics,0,lokres,ceq)
              if(gx%bmperr.ne.0) goto 990
              parres=>ceq%phase_varres(lokres)
@@ -5217,7 +5219,6 @@ contains
 !        ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
 !         '                ','                ','                ']
        case(22)
-          kom2=submenu('Quads ',cline,last,mqmqalist,mqmqacc,3,'?TOPHLP')
 ! allow output file
 !          lut=optionsset%lut
 ! if errs not allocated no optimization made
@@ -5227,18 +5228,31 @@ contains
 !                write(*,*)'Allocation error of "errs"',size(errs),mexp
 !                deallocate(errs)
 !                write(*,*)'Deallocated errs'
+          call gparcx('Phase name: ',cline,last,1,name1,' ','?List phase')
+          if(buperr.ne.0) goto 990
+          call find_phase_by_name(name1,iph,ics)
+          if(gx%bmperr.ne.0) goto 990
+! A stupid way to find lokvares ... (or lokcs, I have forgooten which)
+          lokcs=1
+          do while(ceq%phase_varres(lokcs)%phlink.ne.iph)
+             lokcs=lokcs+1
+          enddo
+          write(*,*)'lokcs: ',lokcs,lokph,iph
+!
+          kom2=submenu('Quads ',cline,last,mqmqalist,mqmqacc,3,'?TOPHLP')
 !..........................................................
           mqmqa: select case(kom2)
           case DEFAULT
              write(kou,*)'No such option'
 !...........................................................
-! list quads
+! list quads, this is independent of the phase
           case(1) ! Quads
              jquad=0
              qlista: do i1=1,nosp()
                 call get_species_location(i1,loksp,name1)
                 if(gx%bmperr.ne.0) goto 990
                 if(index(name1,'-Q').le.0) cycle qlista
+! this is a species that is a quad
                 jquad=jquad+1
                 call get_species_component_data(loksp,i2,iphl,stoik,xxx,xxy,ceq)
                 if(gx%bmperr.ne.0) goto 990
@@ -5250,7 +5264,7 @@ contains
                 write(kou,1680)i1,loksp,name1,&
                      (ellist(j4),stoik(j4),j4=1,i2)
 1680            format(i3,i4,1x,a,1x,4(a2,F8.6,1x))
-! assuming quads are arranged in alphabetical order ...
+! this is in quad alphabetical order, not in alphabetical order of quad elements
                 call mqmqa_quadbonds(jquad,quadbonds)
                 if(i2.eq.2) then
                    write(kou,1681)(quadbonds(j4),j4=1,3)
@@ -5266,61 +5280,76 @@ contains
 ! Asymmetries
 ! note: tersys, xquad, compvar are not linked from the phase!!!
           case(2)
-             if(.not.allocated(tersys)) then
-                write(kou,*)'No mqmqa data available'
-                exit mqmqa
-             endif
-             write(kou,4122)nquad,ncat,(xquad(i1),i1=1,nquad)
-4122         format('The ',i3,' quads for ',i2,' cations are arranged ',&
-                  'in order of the n cations:'/&
-                  'Quad   1   2   ... n   | n+1 ... 2n-1 | 2n  ... | n(n+1)/2'/&
-                  'Cation 1,1 1,2 ... 1,n | 2,2 ... 2,n  | 3,3 ... | n,n'/&
-                  'OC fractions values: ',/(12F6.3))
-! Number of quads: ',i5,' and fractions:'/(12F6.3))
+! tersys is global data
+             ts: if(allocated(tersys)) then
+                write(*,3101)size(tersys)
+3101  format(/'Listing of the ',i3,' ternary systems and their asymmetry',&
+          /'  i  seq   el1 el2 el3       T/0 T/0 T/0    asymmetry code')
+                do iz=1,size(tersys)
+                   write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
+                        tersys(iz)%isasym,tersys(iz)%asymm
+3201               format(i3,i5,2x,3(1x,i3),5x,3i4,5x,a)
+                enddo
+                write(*,3301)
+3301 format(/'Number in T/0 column is actual asymmetric (quad) element'/)
+             else
+                write(kou,*)'No ternary asymmetry data available'
+             endif ts
+!
+! listing in fraction in alphbetical order
+             write(kou,4123)nquad,(ceq%phase_varres(lokcs)%yfr(i1),i1=1,nquad)
+4123         format('Fractions ',i2,'in species alphabetical order (OC):',&
+                  /(12F6.3/)/)
+             noq: if(.not.allocated(ceq%phase_varres(lokcs)%mqmqaf%xquad)) then
+                write(*,*)'Quads not allocated'
+             else
+                write(kou,4122)nquad,&
+                     (ceq%phase_varres(lokcs)%mqmqaf%xquad(i1),i1=1,nquad)
+4122            format('Fractions ',i2,' in Quad order: ',/(12F6.3/))
 
-             write(kou,308)'OC order   ',(i2,i2=1,nquad)
-             write(kou,308)'Quad order ',(mqmqa_data%con2quad(i2),i2=1,nquad)
-308          format(a,15i3)
-! 4122 format(/'Number of quads: ',i5,' and fractions:'/(12F6.3))
+                write(kou,4124)nquad,ncat
+4124 format(/'The ',i3,' quads for ',i2,' cations are arranged ',&
+          'in order of the n cations:'/&
+          'Quad   1  2 ... n | n+1 .. 2n-1 | 2n .. | n(n+1)/2'/&
+          'Cation 1  1 ... 1 | 2   ..  2   | 3  .. | n'/&
+          'Cation 2  2 ... n | 2   ..  n   | 3  .. | n'/)
+!             
+                write(kou,308)'Fractions in OC order   ',(i2,i2=1,nquad)
+                write(kou,308)'FRactions in Quad order ',&
+                     (mqmqa_data%con2quad(i2),i2=1,nquad)
+308             format(a,15i3)
 !
-             i2=size(tersys)
-             write(kou,310)i2
-310 format(/'List of the ',i3,' ternary systems with each asymmetry',/&
-            '  i  seq   el1 el2 el3       T/0 T/0 T/0    asymmetry code')
-             do i1=1,i2
-                write(kou,320)i1,tersys(i1)%seq,(tersys(i1)%el(j4),j4=1,3),&
-                     tersys(i1)%isasym,tersys(i1)%asymm
-320             format(i3,i5,2x,3(1x,i3),5x,3i4,5x,a)
-             enddo
-             write(kou,330)
-330          format('Any number in T/0 columns is the asymmetric element')
-!
-             write(kou,410)
-410          format(/'List of all binary asymmetric composition variables',&
+                write(kou,410)newXupdate
+410          format(/'List of binary asymmetric composition variables',i5&
             /'  i  j  seq    varkappa_ij varkappa_ji  xi_ij       xi_ji')
 ! calculate varkappaij and varkappaji correcting for all ternaries
-             call calcasymvar
-             j4=0
-             do i1=1,ncat-1
-                do i2=i1+1,ncat
-                   j4=j4+1
-                   write(kou,412)i1,i2,j4,compvar(j4)%vk_ij,compvar(j4)%vk_ji,&
-                        compvar(j4)%xi_ij,compvar(j4)%xi_ji
+                mqmqavar=>ceq%phase_varres(lokcs)%mqmqaf
+                call calcasymvar(mqmqavar)
+                j4=0
+                cat1: do i1=1,ncat-1
+                   cat2: do i2=i1+1,ncat
+                      j4=j4+1
+                   write(kou,412)i1,i2,j4,&
+                        ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%vk_ij,&
+                        ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%vk_ji,&
+                        ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%xi_ij,&
+                        ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%xi_ji
+!                   write(kou,412)i1,i2,j4,compvar(j4)%vk_ij,compvar(j4)%vk_ji,&
+!                        compvar(j4)%xi_ij,compvar(j4)%xi_ji
 412                format(2i3,i5,3x,4(1PE12.4))
-                enddo
-             enddo
+                  enddo cat2
+               enddo cat1
+            endif noq
 !
-             write(kou,444)'Values of y_i/k: ',(y_ik(i1),i1=1,ncat)
-444          format(/a,(10f7.4))
+            write(kou,444)'Values of y_i/k: ',&
+                 (ceq%phase_varres(lokcs)%mqmqaf%y_ik(i1),i1=1,ncat)
+444         format(/a,(10f7.4)/)
 !
 !...........................................................
 ! DEBUG for implementation of asymmetric models
           case(3)
-             call gparcx('Phase name: ',cline,last,1,name1,' ','?List phase')
-             if(buperr.ne.0) goto 990
-             call find_phase_by_name(name1,iph,ics)
-             if(gx%bmperr.ne.0) goto 990
 ! list the constituents of the phase in the order they have in constitlink
+! THIS IS AN EMERGY SUBROUTINE NOT CONFORMING WITH THE BASIC DATA STRUCTURE
              call listconst(iph)
 !...........................................................
 ! 
@@ -6259,7 +6288,6 @@ contains
 !             write(kou,16020)jp,phasetuple(jp),name1,lokph,lokcs
              write(kou,16020)jp,phasetuple(jp),name1,&
                   ceq%phase_varres(phasetuple(jp)%lokvares)%disfra%varreslink
-!16020        format(i3,': ',2i7,2i9,3x,a/i12,18x,i7)
 16020        format(i3,': ',2i7,2i9,i6,3x,a,2x,i6)
           enddo
           call list_free_lists(kou)

@@ -52,9 +52,9 @@
 ! equilibrium data structure which also contains conditions,
 ! calculated values of TP functions and other symbols.  To identify a
 ! phase+comp.set a phasetuple has been intoduced.  This contains two
-! integers, th first is the phase number, the second the composition
+! integers, the first is the phase number, the second the composition
 ! set number.  The second or higher composition set of a phase will
-! have a tupel index higher that the number of phases.
+! have a tupel index higher than the number of phases(?).
 !
 ! One equilibrium record is created in init_gtp and it is called
 ! FIRSTEQ which is a global variable.  There is also an array EQLISTA
@@ -904,6 +904,7 @@
   END TYPE gtp_element
 ! allocated in init_gtp
   TYPE(gtp_element), private, allocatable :: ellista(:)
+! elements are in alpabetical order ... ???
   INTEGER, private, allocatable :: ELEMENTS(:)
 !\end{verbatim}
 !-----------------------------------------------------------------
@@ -1058,12 +1059,12 @@
 !\end{verbatim}
 !---------------------
 !\begin{verbatim}
-  type zquad       
+!  type zquad       
 ! storing quad indices, dvkq_ij, for derivatives of vk_ij etc
-     integer quadi
+!     integer quadi
 ! should have 4 values?
-     double precision zcoef(4)
-  end type zquad
+!     double precision zcoef(4)
+!  end type zquad
 !\end{verbatim}
 !---------------------
 !\begin{verbatim}
@@ -1074,6 +1075,8 @@
 ! elements: 1+2 1+3 ... 1+n | 2+3 2+4 ... 2+n  | 3+4 3+5 ... | ... | n-1+n
 ! at present only cation mixing.  Use function binsys to find system
      integer seq,cat1,cat2,anion
+! for use in OC save also the actual element indices
+     integer elcat1,elcat2,elan
 ! the internal structure of allinone must be updated whenever the
 ! symmetry of a ternary is changed.  This integer keep check of that
      integer lastupdate
@@ -1112,7 +1115,7 @@
 ! the derivatives of vk_ij are stored in dvk_ij and dvk_ji
 ! they are calculated using ivk_ij, jvk_ji, kvk_ijk
      double precision, allocatable, dimension(:) :: dvk_ij,dvk_ji
-     type(zquad), allocatable, dimension(:) :: dvkq_ij, dvkq_ji
+!     type(zquad), allocatable, dimension(:) :: dvkq_ij, dvkq_ji
 ! second derivatives ... suck
 ! xi_ij and xi_ji consists of a sum of Y_i/k fractions, Y_i/k are sum of quads
 ! equation 21 in Max paper
@@ -1134,40 +1137,47 @@
 !\end{verbatim}
 !
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-! MUST be careful with ncat and nan !!!  ncat and nan used in mqmqa
+! MUST be careful with ncat and nan !!! USED IN MQMQA
   logical mqmqdebug
   integer :: nquad,ncat,nan,lcat,lan
 ! tested when using varkappa1 if new asymmetric data added
   integer :: newXupdate=-1
 !
-! these are the quad fractions, same as mole fractions but in element order
-  double precision, allocatable, dimension(:) :: xquad
-  integer, allocatable, dimension(:) :: quadel_i,quadel_j,quadel_k,quadel_l
+!-----------------------------------------------------------------
+! these are the quad fractions, same as mole fractions but ordered differntly
+! used together with the compvar asymmetrical variables
+! compvar has values of asymmetrical variables for excess
 ! in xquad the element index of corresponding quad index is in quadel_ijkl
 ! xquad index  1   2   3  ..  n ! n+1 n+2 .. 2n-1 ! 2n  .. ! n(n+1)/2
 ! quadel_i     e1 e1  e1  .. e1 ! e2  e2     e2   ! e3  .. ! en   cations 1..n
 ! quadel_j     e1 e2  e3  .. en ! e2  e3  .. en   ! e3  .. ! en   cations 1..n
-! quadel_k     el el  el  .. el ! el  dl  .. el   ! el  .. ! dl   anion     1
+! quadel_k     el el  el  .. el ! el  el  .. el   ! el  .. ! el   anion     1
 ! function ijklx translates from cation/anion indices (i,j,k,l) to quad index
 ! The e1, e2 etc and el are saved in quadel_i _j _l
+! The declarations are now inside mqmqa_var
 ! The order of xquads is to simplify the handling of Toop/Kohler asymmetries
+!  double precision, allocatable, dimension(:) :: xquad
+!  type(allinone), dimension(:), allocatable :: compvar
+! y_ik are the fraction of each cation (moved to gtp_mqmqa_var record?)
+!  double precision, dimension(:), allocatable :: y_ik
+!  double precision, dimension(:,:), allocatable :: dy_ik
+! the 4 arrays above should be in the record (type) mqmqa_var
+!-----------------------------------------------------------------
+!
+! data below is common for all mqmqa composition sets
+  integer, allocatable, dimension(:) :: quadel_i,quadel_j,quadel_k,quadel_l
 !
 ! tersys and compvar are related to asymmetries, maybe other phases need also?
   type(terdata), dimension(:), allocatable :: tersys 
-  type(allinone), dimension(:), allocatable :: compvar
 ! quadz are the stoichiometric factors of a quad NOTE ALREADY IN MQMQA_DATA
 !  double precision, dimension(:), allocatable :: quadz
-! y_ik are the fraction of each cation (maybe in mqmqa_data record?)
-  double precision, dimension(:), allocatable :: y_ik
-  double precision, dimension(:,:), allocatable :: dy_ik
 ! etafs is the FNN/SNN ratio declated in mqmqa_data  same as: qfnnsnn
-!  double precision, dimension(:), allocatable :: etafs
 ! end special datastructures for MQMQA
 !
 !--------------------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_phasetuple
-! THIS IS PROBABLY REDUNDANT NOW
+!************ this record is not used with new mqmqa excess
   INTEGER, parameter :: gtp_tooprec_version=1
   TYPE gtp_tooprec
 ! This is used for a binary interaction parameter in Kohler/Toop ternaries
@@ -1204,6 +1214,7 @@
      character (len=:), allocatable :: amend1
      character (len=:), allocatable :: amend2
      character (len=:), allocatable :: amend3
+!************ this record is not used with new mqmqa excess
   end type gtp_tooprec
 !\end{verbatim}
 !-----------------------------------------------------------------
@@ -1536,13 +1547,13 @@
   INTEGER, private, allocatable :: PHASES(:)
 !\end{verbatim}
 !-----------------------------------------------------------------
-! data for liquid phase with mqmqa model (only one!)
+! data for liquid phase with mqmqa model (only one but several composition sets)
   TYPE gtp_mqmqa
 ! contains special STATIC information for liquid MQMQA model
-! nconst is number of constituents, ncon1, ncon2 in subl, npair #of pairs
-     integer nconst,ncon1,ncon2,npair
-! 2025/11/05 I am not really sure about this data structure ...
-! 2025/11/06 it seems fairly complete
+! nconst is number of phase const (quads), ncon1, ncon2 in subl, npair #of pairs
+     integer nconst,ncon1,ncon2,npair,lcat
+! these variables are also defined globally as ncat,nan,nquad ... confusing
+! 2025/11/06 This seems OK but a lot of data missing for excess
 ! contyp(1..4,const) 1,2 species in first sublattice, -1,-2 in second sublattice
 ! contyp(5,const) non-zero for PAIR AA/XX, value same as pair index YES !!
 ! contyp(6,7,const) for PAIR species index 
@@ -1592,19 +1603,21 @@
 ! ONLY ONE ANION ALLOWED, 
 ! (positive) OC element index of the single anion as link and alpabetical
      integer xanione,xanionalpha
-!
-     integer, dimension(:), allocatable :: cat2el
+! index of element as cation (-1 for anion)
      integer, dimension(:), allocatable :: el2ancat
 ! xquad is declaraed as global but maybe it belongs to the mqmqa phase
 !     double precision, dimension(:), allocatable :: xquad  only one mqmqaphase 
+!                                             but there can be miscibility gaps
 ! convert from xquad index to constarray index and back
 ! in xquad the order is sequentail in the cation order
 !    1   2   3   4  ..  n   ! n+1 n+2 .. 2n-1 ! 2n     ! ... ! n(n+1)/2
 !    1/1 1/2 1/3 1/4    1/n ! 2/2 2/3 .. 2/n  ! 3/3 .. ! ... ! n/n   
 ! where 1..n are cation indices i.e. element indices ignoring anions
-! transfer of fractions from xquad to OC fraction array use
+! transfer of fractions from OC yfr to quad use
      integer, dimension(:), allocatable :: con2quad ! transfer y to quad order
-! transfer of fractions from OC fraction array to xquad use
+! these are constants depending of the elements in the quad
+     double precision, dimension(:,:), allocatable :: dy_ik
+! transfer of fractions from OC fraction array to xquad not needed
 !     integer, dimension(:), allocatable :: quad2con not needed
 ! end new stuff .... but more records below for example allinone
   end TYPE gtp_mqmqa
@@ -1612,22 +1625,40 @@
 ! it should be made private when everything work and removed from pmon6
   TYPE(gtp_mqmqa) :: mqmqa_data
 ! it is reset in pmon6 when a NEW command
-!  integer, private :: mqmqanend=-100
   integer :: mqmqanend=-100
 ! probably only one of these needed ...
   integer, parameter :: maxmqmqa=200
-  integer, parameter :: maxquads=99    ! because only 2 digitd
-! for each quad indicate the index of the element in the quad
-! needed to generate the order of the quads in xquad
-  integer, dimension(:,:,:,:,:), allocatable :: elindex
+  integer, parameter :: maxquads=99    ! because only 2 digits
 !
 !-----------------------------------------------------------------
 ! data for liquid phase with mqmqa model (part of phase_varres record)
 ! separate records for each compset because the liquid may have miscibility gaps
   TYPE gtp_mqmqa_var 
 ! The quadruplet fractions are the "normal" constituent fractions
+! but in a differt order. it is part of the phase_varres record
 ! size of arrays
      integer nquad,npair,ns1,ns2
+!------------------------------------------ data for MQMQA new excess
+! these are the quad fractions, same as mole fractions but ordered differntly
+! used together with the compvar asymmetrical variables
+! compvar has values of asymmetrical variables for excess
+! in xquad the element index of corresponding quad index is in quadel_ijkl
+! xquad index  1   2   3  ..  n ! n+1 n+2 .. 2n-1 ! 2n  .. ! n(n+1)/2
+! quadel_i     e1 e1  e1  .. e1 ! e2  e2     e2   ! e3  .. ! en   cations 1..n
+! quadel_j     e1 e2  e3  .. en ! e2  e3  .. en   ! e3  .. ! en   cations 1..n
+! quadel_k     el el  el  .. el ! el  el  .. el   ! el  .. ! el   anion     1
+! function ijklx translates from cation/anion indices (i,j,k,l) to quad index
+! The e1, e2 etc and el are saved in quadel_i _j _l
+! The order of xquads is to simplify the handling of Toop/Kohler asymmetries
+  double precision, allocatable, dimension(:) :: xquad
+! The fractions in xquad are the same as in yfr bot in differnt order!
+  type(allinone), dimension(:), allocatable :: compvar
+! the two arrays above should be in the record (type) mqmqa_var
+! y_ik are the fraction of each cation
+  double precision, dimension(:), allocatable :: y_ik
+!  double precision, dimension(:,:), allocatable :: dy_ik  in gtp_mqmqa
+!-----------------------------------------------------------------
+!
 ! (dynamic) site fractions and derivatives
      double precision, allocatable :: yy1(:),yy2(:),dyy1(:,:),dyy2(:,:)
      double precision, allocatable :: d2yy1(:,:),d2yy2(:,:)
@@ -1840,11 +1871,9 @@
 ! this TYPE(gtp_fraction_set) variable is a bit messy.  Declaring it in this
 ! way means the record is stored inside this record.
      type(gtp_fraction_set) :: disfra
+!-------------------------------------------- IMPORTANT for MQMQA excess
 ! this is for saving fractions in the mqmqa liquid model
      type(gtp_mqmqa_var) :: mqmqaf
-! complier error when target added when arrays allocated to pointer
-!  disapperad after subroutine return
-!     type(gtp_mqmqa_var), target :: mqmqaf
 ! ---
 ! stored calculated results for each phase (composition set)
 ! amfu: is amount formula units of the composition set (calculated result)
@@ -1852,7 +1881,7 @@
 ! dgm: driving force
 ! qcbonds: quasichemical bonds (NOT SAVED ON UNFORMATTED)
      double precision amfu,netcharge,dgm,qcbonds
-! qcsro: current value of SRO (for quasichemical model)
+! qcsro: current value of SRO (for quasichemical model) ??
      double precision, allocatable, dimension(:) :: qcsro
 ! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
 ! nprop: the number of different properties (set in allocate)

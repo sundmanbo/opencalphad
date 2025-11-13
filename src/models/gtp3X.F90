@@ -150,7 +150,7 @@
 ! mobility parameters must not have wildcard constituents
    logical liq2state,wildmob,mqmqa
 ! pointer to mqmqaf record with all fraction records for MQMQA
-   type(gtp_mqmqa_var), pointer :: mqf
+!   type(gtp_mqmqa_var), pointer :: mqf
 ! debugging for partitioning and ordering
    integer idlist(9)
 ! calculate RT to normalize all Gibbs energies, ceq is current equilibrium
@@ -244,7 +244,7 @@
       iliqva=.FALSE.
       jonva=0
    elseif(mqmqa) then
-      
+!      
 ! MQMQA FactSage entropy model
 ! strange error OC dies when calling this using "c g" as first command
 ! OK when using c ph .... , problem with arguments

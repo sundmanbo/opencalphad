@@ -355,6 +355,7 @@
     character, dimension(maxconst) :: const*24
     logical once,dummy
 !
+! this is called from pmon or TDB file
     call gparcx('Phase name: ',cline,last,1,name1,' ','?Enter phase')
 ! ionic liquid require special sorting of constituents on anion sublattice
     call capson(name1)
@@ -686,8 +687,8 @@
    ambig2: do ll=1,noofph
       nk=len_trim(phlista(ll)%name)
       if(name(1:nk).eq.trim(phlista(ll)%name)) then
-         write(*,66)trim(phlista(ll)%name),trim(name)
-66       format(/'3B WARNING: An existing phase "',a,&
+         write(*,63)trim(phlista(ll)%name),trim(name)
+63       format(/'3B WARNING: An existing phase "',a,&
               '" is short for new phase "',a,'"'/&
               'Phase names should be unique')
 ! This is for warning about when reading TDB files
@@ -1318,10 +1319,13 @@
 !           btest(phlista(nyfas)%status1,PHMQMQX)
 !69    format('gtp3B line 1319 ',2l2)
       if(btest(phlista(nyfas)%status1,PHMQMQX)) then
-! creating excess structures for allinone for MQMQX here?
+! creating excess structures for allinone for MQMQX here? 
 !         write(*,*)'gtp3B line 1322  >>>>>>>> initiate allonone <<<<<<<<<<< '
+         write(*,66)nyfas,phtype
+66       format('Calling create_asymmetry from enter_phase',i5,2x,a)
+!              
          call create_asymmetry(nyfas,knr,const,phtype)
-! create xquad with indices to constituents
+! In this routine we create xquad with indices to constituents
 ! create ternary asymmetric records
 ! create the binary allinone and initiate varkappa etc.
 !         
@@ -1397,6 +1401,7 @@
       endif
    endif
 1000 continue
+!   write(*,*)'3B leaving enter_phase'
    return
  END subroutine enter_phase
 
@@ -1414,6 +1419,7 @@
    implicit none
    integer lokph
    character phtype*(*)
+!   type(phase_varres), pointer :: phres
    integer, dimension(*) :: knr
    character, dimension(*) :: const*(*)
 !\end{verbatim}
@@ -1421,9 +1427,30 @@
    double precision x,y
    integer iva,jva,nva,ivb,ivc
 !
-!   write(*,*)'3B Inside create_asymmetry',lokph
+! BoS 2025.11.12: when we are here the mqmqa_data already initiated
+! that is done in mqmqa_species, around line 7062
+! for example mqmqa_data%nconst and  mqmqa_data%contyp
+! but I do not want to fiddle with that routine
+! The global variables nquad etc redundant but kept for the moment
+! because I have forgotten most of what I did in 2020-2021 
+!
+   write(*,*)'3B start of create_asymmetry phase',lokph
+!
+   write(*,3)nquad,mqmqa_data%nconst,ncat,mqmqa_data%ncon1,&
+        nan,mqmqa_data%ncon2,lcat,ncat*(ncat+1)/2
+3  format(//'3B create_asymmery redundant?',4(2i3,2x))
+!
+   nquad=mqmqa_data%nconst
+   ncat=mqmqa_data%ncon1
+   nan=mqmqa_data%ncon2
+   lcat=ncat*(ncat+1)/2
+!
+   write(*,*)'3B inside create_asymmetry calling correlate_const_and_quads'
+!
+   call correlate_const_and_quads(lokph)
+!
 ! phlista is TYPE gtp_phaserecord
-! we assume only one anion, WHICH?
+! we assume only one anion, WHICH? it is set in mqmqa_data%contyp
 !   nquad=phlista(lokph)%nooffr(1); x=nquad+0.1; y=0.5*(sqrt(x**2+1.0d0)-1.0d0)
 !   ncat=y; nan=1
 !   write(*,10)trim(phlista(lokph)%name),phlista(lokph)%phletter,nquad,x,y,ncat
@@ -1432,21 +1459,21 @@
 !   write(*,20)mqmqa_data%nconst,mqmqa_data%ncon1,mqmqa_data%ncon2,&
 !        mqmqa_data%exlevel
 !20 format('3B Some mqmqa_data record data: ',4i4)
-   nquad=mqmqa_data%nconst
-   ncat=mqmqa_data%ncon1
-   nan=mqmqa_data%ncon2
-! The values above already set in mqmqa_species, copy them here
-   write(*,25)mqmqa_data%nconst,nquad,ncat,nan
+!
+! these global values are duplicates but may be useful
+!
+! we have to set mqmqa_data%exlevel to a nonzero value !!!!!!!!!!!
+
+   mqmqa_data%exlevel=100
+
+! The values above already set in mqmqa_species, copied here
+!   write(*,25)mqmqa_data%nconst,nquad,ncat,nan
 25 format('3B In create_asymmetry ',5i3)
 !
-!   
-   lcat=ncat*(ncat+1)/2
 ! double precision, allocatable ::qfnnsnn(:)
 !   write(*,30)size(mqmqa_data%qfnnsnn),(mqmqa_data%qfnnsnn(iva),iva=1,ncat)
 30 format('FNN/SNN: ',i3,10(1pe10.2))
-! we have to set mqmqa_data%exlevel to a nonzero value
-   mqmqa_data%exlevel=100
-   write(*,*)'3B line 1449 some lines may be needed for ternary asymmetry'
+!   write(*,*)'3B line 1449 some lines may be needed for ternary asymmetry'
 ! The code below needed to read TERNARY asymmetry data
 ! skip code below, done in 3XQ <<<<<<<<<< may be needed for TERNARY asymmetry
 !   goto 500
@@ -1482,22 +1509,17 @@
 !      mqmqa_data%con2quad(nva)=ivc
 !      mqmqa_data%quad2con(ivc)=nva
    enddo
-   do nva=1,nquad
-!      write(*,50)nva,mqmqa_data%con2quad(nva),nva,mqmqa_data%quad2con(nva)
-!      write(*,51)nva,mqmqa_data%con2quad(nva)
-50    format('contyp index ',i3,' correspond to xquad index  ',i3/&
-             'xquad index  ',i3,' correspond to contyp index ',i3)
-51    format('3B contyp index ',i3,' correspond to xquad index  ',i3)
-   enddo
 !
 500 continue
-!   write(*,*)'3B Calling init_asymm',ncat,nan
+!
+   write(*,510)ncat,nan
+510 format(//'3B Calling init_excess_asymm',2i5//)
 !
 ! we need to identify cations and anions
 ! cations are Cl, F, ?
-   call init_asymm(lokph,ncat,nan)
+   call init_excess_asymm(lokph,ncat,nan)
 !
-!   write(*,*)'3B Back from init_asymm'
+   write(*,*)'3B Back from init_asymm'
 !   
 1000 continue
    return
@@ -2030,7 +2052,7 @@
 !      write(*,*)'3B allocate yfr: ',allocated(neq%yfr),nz,&
 !           btest(phlista(lokph)%status1,phmfs)
       if(.not.allocated(neq%yfr)) then
-!         write(*,*)'3B allocate and copy yfr: ',nyttcs,nz
+         write(*,*)'3B ********** 2039 allocate and copy yfr: ',nyttcs,nz
          allocate(neq%yfr(nz))
          neq%yfr=peq%yfr
       endif
@@ -7054,8 +7076,6 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
 !\addtotable subroutine mqmqa_species
 !\begin{verbatim}
  subroutine mqmqa_species(name1,inline,nend)
@@ -7686,7 +7706,7 @@
    character spname1*24,spname2*24
    double precision cconstoi(4,f1),ctotstoi(f1)
 !
-   write(*,2)
+!   write(*,2)
 2  format('3B in mqmqa_rearrange fixing mqmqa_data%contyp and more')
 ! attempt to fix problem with stoichiometries and order, sort const
    need=mqmqa_data%nconst
