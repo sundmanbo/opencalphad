@@ -1,4 +1,4 @@
-!***************************************************************
+!**************************************************************
 ! General Thermodynamic Package (GTP)
 ! for thermodynamic modelling and calculations
 !
@@ -1137,9 +1137,12 @@
 !\end{verbatim}
 !
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-! MUST be careful with ncat and nan !!! USED IN MQMQA
   logical mqmqdebug
-  integer :: nquad,ncat,nan,lcat,lan
+!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! MUST be careful with ncat and nan !!! USED IN MQMQA
+! this is dangerous ....... move into mqmqa_data
+!  integer :: nquad,ncat,nan,lcat,lan
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ! tested when using varkappa1 if new asymmetric data added
   integer :: newXupdate=-1
 !
@@ -1552,6 +1555,12 @@
 ! contains special STATIC information for liquid MQMQA model
 ! nconst is number of phase const (quads), ncon1, ncon2 in subl, npair #of pairs
      integer nconst,ncon1,ncon2,npair,lcat
+!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! MUST be careful with ncat and nan !!! USED IN MQMQA
+! this is dangerous .... duplicates of nconst,ncon1,ncon2 also declared locally
+!     integer :: nquad,ncat,nan,lcat,lan
+     integer :: nquad,ncat,nan,lan
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ! these variables are also defined globally as ncat,nan,nquad ... confusing
 ! 2025/11/06 This seems OK but a lot of data missing for excess
 ! contyp(1..4,const) 1,2 species in first sublattice, -1,-2 in second sublattice

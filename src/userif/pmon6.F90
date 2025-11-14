@@ -5274,8 +5274,23 @@ contains
 1681            format(26x,'bonds: ',4(F10.6,1x))
 !    max length         8+25+4*11=33+44=77
              enddo qlista
+!
              if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
-! include listing of mqmqa_data%constoi(1..4,index)
+!
+! check consistency of some data in mqma_data!!
+! some also in gtp_mqmqa_var!!
+             write(*,1687)mqmqa_data%nconst,mqmqa_data%nquad,&
+                  mqmqa_data%ncon1,mqmqa_data%ncat,&
+                  mqmqa_data%ncon2,mqmqa_data%nan,&
+                  mqmqa_data%npair,mqmqa_data%lcat
+1687         format('Values of some duplicate global data:',&
+                  'Number of quads: ',2i4/&
+                  'Number of cations: ',2i4/&
+                  'Number of anions: ',2i4/&
+                  'Number of pairs: ',i4/&
+                  'Value of cation*(cation+1)/2: ',i4/)
+!
+! maybe include listing of mqmqa_data%constoi(1..4,index)
 !...........................................................
 ! Asymmetries
 ! note: tersys, xquad, compvar are not linked from the phase!!!
@@ -5297,26 +5312,27 @@ contains
              endif ts
 !
 ! listing in fraction in alphbetical order
-             write(kou,4123)nquad,(ceq%phase_varres(lokcs)%yfr(i1),i1=1,nquad)
+             write(kou,4123)mqmqa_data%nquad,&
+                  (ceq%phase_varres(lokcs)%yfr(i1),i1=1,mqmqa_data%nquad)
 4123         format('Fractions ',i2,'in species alphabetical order (OC):',&
                   /(12F6.3/)/)
              noq: if(.not.allocated(ceq%phase_varres(lokcs)%mqmqaf%xquad)) then
                 write(*,*)'Quads not allocated'
              else
-                write(kou,4122)nquad,&
-                     (ceq%phase_varres(lokcs)%mqmqaf%xquad(i1),i1=1,nquad)
+                write(kou,4122)mqmqa_data%nquad,&
+                (ceq%phase_varres(lokcs)%mqmqaf%xquad(i1),i1=1,mqmqa_data%nquad)
 4122            format('Fractions ',i2,' in Quad order: ',/(12F6.3/))
 
-                write(kou,4124)nquad,ncat
+                write(kou,4124)mqmqa_data%nquad,mqmqa_data%ncat
 4124 format(/'The ',i3,' quads for ',i2,' cations are arranged ',&
           'in order of the n cations:'/&
           'Quad   1  2 ... n | n+1 .. 2n-1 | 2n .. | n(n+1)/2'/&
           'Cation 1  1 ... 1 | 2   ..  2   | 3  .. | n'/&
           'Cation 2  2 ... n | 2   ..  n   | 3  .. | n'/)
 !             
-                write(kou,308)'Fractions in OC order   ',(i2,i2=1,nquad)
+            write(kou,308)'Fractions in OC order   ',(i2,i2=1,mqmqa_data%nquad)
                 write(kou,308)'FRactions in Quad order ',&
-                     (mqmqa_data%con2quad(i2),i2=1,nquad)
+                     (mqmqa_data%con2quad(i2),i2=1,mqmqa_data%nquad)
 308             format(a,15i3)
 !
                 write(kou,410)newXupdate
@@ -5326,8 +5342,8 @@ contains
                 mqmqavar=>ceq%phase_varres(lokcs)%mqmqaf
                 call calcasymvar(mqmqavar)
                 j4=0
-                cat1: do i1=1,ncat-1
-                   cat2: do i2=i1+1,ncat
+                cat1: do i1=1,mqmqa_data%ncat-1
+                   cat2: do i2=i1+1,mqmqa_data%ncat
                       j4=j4+1
                    write(kou,412)i1,i2,j4,&
                         ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%vk_ij,&
@@ -5342,7 +5358,7 @@ contains
             endif noq
 !
             write(kou,444)'Values of y_i/k: ',&
-                 (ceq%phase_varres(lokcs)%mqmqaf%y_ik(i1),i1=1,ncat)
+                 (ceq%phase_varres(lokcs)%mqmqaf%y_ik(i1),i1=1,mqmqa_data%ncat)
 444         format(/a,(10f7.4)/)
 !
 !...........................................................

@@ -1321,8 +1321,8 @@
       if(btest(phlista(nyfas)%status1,PHMQMQX)) then
 ! creating excess structures for allinone for MQMQX here? 
 !         write(*,*)'gtp3B line 1322  >>>>>>>> initiate allonone <<<<<<<<<<< '
-         write(*,66)nyfas,phtype
-66       format('Calling create_asymmetry from enter_phase',i5,2x,a)
+!         write(*,66)nyfas,phtype
+66       format('3B Calling create_asymmetry from enter_phase',i5,2x,a)
 !              
          call create_asymmetry(nyfas,knr,const,phtype)
 ! In this routine we create xquad with indices to constituents
@@ -1434,18 +1434,29 @@
 ! The global variables nquad etc redundant but kept for the moment
 ! because I have forgotten most of what I did in 2020-2021 
 !
-   write(*,*)'3B start of create_asymmetry phase',lokph
+! This routine can probably be integrated in correlate_const_and_quads
 !
-   write(*,3)nquad,mqmqa_data%nconst,ncat,mqmqa_data%ncon1,&
-        nan,mqmqa_data%ncon2,lcat,ncat*(ncat+1)/2
-3  format(//'3B create_asymmery redundant?',4(2i3,2x))
+!   write(*,*)'3B start of create_asymmetry phase',lokph
 !
-   nquad=mqmqa_data%nconst
-   ncat=mqmqa_data%ncon1
-   nan=mqmqa_data%ncon2
-   lcat=ncat*(ncat+1)/2
+!   write(*,5)'first',mqmqa_data%nconst,mqmqa_data%ncon1,mqmqa_data%ncon2,&
+!        mqmqa_data%lcat,mqmqa_data%nquad,mqmqa_data%ncat,&
+!        mqmqa_data%nan
+5  format('3B in create_asymmetry ',a,' check: ',4i4,2x,4i4)
+! Make sure these variables are set !!
+   mqmqa_data%nquad=mqmqa_data%nconst
+   mqmqa_data%ncat=mqmqa_data%ncon1
+   mqmqa_data%nan=mqmqa_data%ncon2
+   mqmqa_data%lcat=mqmqa_data%ncat*(mqmqa_data%ncat+1)/2
 !
-   write(*,*)'3B inside create_asymmetry calling correlate_const_and_quads'
+!   write(*,5)'second',mqmqa_data%nconst,mqmqa_data%ncon1,mqmqa_data%ncon2,&
+!        mqmqa_data%lcat,mqmqa_data%nquad,mqmqa_data%ncat,&
+!        mqmqa_data%nan
+!   nquad=mqmqa_data%nconst
+!   ncat=mqmqa_data%ncon1
+!   nan=mqmqa_data%ncon2
+!   lcat=ncat*(ncat+1)/2
+!
+!   write(*,*)'3B inside create_asymmetry calling correlate_const_and_quads'
 !
    call correlate_const_and_quads(lokph)
 !
@@ -1496,7 +1507,7 @@
 !   allocate(mqmqa_data%con2quad(nquad))
 !   allocate(mqmqa_data%quad2con(nquad))
 ! maybe quad2con is also needed ??
-   do nva=1,nquad
+   do nva=1,mqmqa_data%nquad
       iva=mqmqa_data%contyp(11,nva)
       ivb=mqmqa_data%contyp(12,nva)
 !      write(*,*)'contyp: ',nva,iva,ivb
@@ -1512,14 +1523,15 @@
 !
 500 continue
 !
-   write(*,510)ncat,nan
+!   write(*,510)ncat,nan
 510 format(//'3B Calling init_excess_asymm',2i5//)
 !
 ! we need to identify cations and anions
 ! cations are Cl, F, ?
-   call init_excess_asymm(lokph,ncat,nan)
+!   call init_excess_asymm(lokph,ncat,nan)
+   call init_excess_asymm(lokph)
 !
-   write(*,*)'3B Back from init_asymm'
+!   write(*,*)'3B Back from init_excess_asymm'
 !   
 1000 continue
    return
