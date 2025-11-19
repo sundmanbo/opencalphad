@@ -356,11 +356,20 @@ c e
 
 l,,,,
 
-@$ Check result
-debug symbol g -9.4475313E2
-@&
+@$==========================================================================
+@$ problems with this calculation and diagram
 
-@$ cset the axis for an isothermal phase diagram ...
+set inter
+
+@$==========================================================================
+
+
+@$ Check result
+@$ debug symbol g -9.4475313E2
+@&
+show g
+
+@$ set the axis for an isothermal phase diagram ...
 set ax 1 x(b) 0 1 .01
 set ax 2 x(c) 0 1 .01
 

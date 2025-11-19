@@ -536,7 +536,7 @@
    d2yy1=zero
    dummy1=one/sum1AB**2
 ! ixsym finds the sequential storage place of (i,j) in a symmetrical array
-   write(*,538)ncon,ixsym(ncon,ncon),ixsym(5,3),nspin
+!   write(*,538)ncon,ixsym(ncon,ncon),ixsym(5,3),nspin
 538 format('3XQ entropy: ',3i5,' nspin: ',20i3)
 !
 !   write(*,*)'3X d2yy1 size: ',fz,fq*(fq+1)/2,fz*fq*(fq+1)/2,all2
@@ -708,7 +708,7 @@
 ! mqf is phvar%mqmqaf
       phvar%mqmqaf%nquad=ncon; phvar%mqmqaf%npair=noofpair; 
       phvar%mqmqaf%ns1=nspin(1); phvar%mqmqaf%ns2=nspin(2)
-      write(*,207)nspin(1),nspin(2),ncon,noofpair
+!      write(*,207)nspin(1),nspin(2),ncon,noofpair
 207   format('3XQ allocating phvar%mqmqaf arrays',2i3,4i5)
       allocate(phvar%mqmqaf%yy1(nspin(1)))
       allocate(phvar%mqmqaf%yy2(nspin(2)))
@@ -722,7 +722,7 @@
       allocate(phvar%mqmqaf%dceqf2(nspin(2),ncon))
       allocate(phvar%mqmqaf%pair(noofpair))
       allocate(phvar%mqmqaf%dpair(noofpair,ncon))
-      write(*,*)'3XQ allocation of d2yy2:',size(phvar%mqmqaf%d2yy2)
+!      write(*,*)'3XQ allocation of d2yy2:',size(phvar%mqmqaf%d2yy2)
 !   else
 !      write(*,*)'3X copying data to phvar%mqmqaf arrays'
    endif
@@ -768,7 +768,7 @@
          line757=max(line757,s1*ixsym(s1,s8))
       enddo
    enddo
-   write(*,*)'3XQ line 757 skipping a 2nd derivative',line757
+!   write(*,*)'3XQ line 771: ',line757,s1*ixsym(s1,s8)
 !   do s1=1,noofpair
 ! this will later be replaced by cpair!! for entropy the old pair works better
 !      phvar%mqmqaf%pair(s1)=pair(s1)
@@ -1188,7 +1188,7 @@
 ! this shortcut may be bad - but it works ---------------------------------
 !   write(*,*)'3XQ assigning mqf pointer'
    mqf=>phres%mqmqaf
-   write(*,*)'3XQ assigning mqf pointer OK'
+!   write(*,*)'3XQ assigning mqf pointer OK'
 !-------------------
    allocate(affarr(mqf%npair))
    affarr=zero
@@ -1389,8 +1389,8 @@
    enddo qloop
    if(tch.ge.3) write(*,*)'3XQ finished loop for endmembers'
 ! if this goto then excess is ignored and result correct
-   write(kou,299)
-299 format('3QX endmember enery and entropy calculated, excess to be done')
+!   write(kou,299)
+299 format('3QX endmember energy and entropy calculated, excess to be done')
 !   goto 800
 !---------------------------------------------------------------------
 ! code below needed for excess parameters ONLY, all SNN FNN endmembers done
@@ -1420,14 +1420,15 @@
 ! if we cycle here the results are the same as without excess parameters
 !      cycle endmemloop2
 !
-      write(*,*)'3XQ looking for excess parameters',associated(intrec)
+!      write(*,*)'3XQ looking for excess parameters',associated(intrec)
       if(.not.associated(intrec)) then
          cycle endmemloop2
       endif
-!********************* new code needed to replace code below *******
+!
+!*************** check if using new code to replace code below *******
 ! 
       call new_mqmqa_excess(lokph,intrec,vals,dvals,d2vals,gz,ceq)
-! if new mqmqa excess used then intrec will be nullified on return
+! if new_mqmqa_excess used then intrec will be nullified on return
       if(.not.associated(intrec)) cycle endmemloop2
 !********************* new code needed to replace code below *******
 ! There are excess parameters, any Tooprecords?
@@ -1600,8 +1601,8 @@
    enddo endmemloop2
 !----------------------------------------------------- end SNN loop
 800 continue
-   write(*,990)'3XQ exit calc_mqmqa G:',phres%gval(1,1),&
-        (phres%dgval(1,s1,1),s1=1,gz%nofc)
+!   write(*,990)'3XQ exit calc_mqmqa G:',phres%gval(1,1),&
+!        (phres%dgval(1,s1,1),s1=1,gz%nofc)
 990 format(a,5(1pe14.6))
 1000 return
  end subroutine calc_mqmqa
@@ -1957,7 +1958,7 @@
 !\begin{verbatim}
 ! subroutine new_mqmqa_excess(lokph,intrecin,vals,dvals,d2vals,gz,intrec,ceq)
  subroutine new_mqmqa_excess(lokph,intrecin,vals,dvals,d2vals,gz,ceq)
-! To be written using the allinone data structure for asymmetric excess
+! To be written using the gtp_allinone data structure for asymmetric excess
    implicit none
    integer lokph,moded
    type(gtp_property), pointer :: lokpty
@@ -1967,25 +1968,42 @@
 ! pointer to first interaction record from an endmember
    TYPE(gtp_interaction), pointer :: intrecin,intrec
    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
 ! needed locally?
    TYPE(gtp_pystack), pointer :: pystack
    TYPE(gtp_phase_add), pointer :: addrec
    TYPE(gtp_mqmqa_var), pointer :: mqf
-!\end{verbatim}
+   TYPE(gtp_terdata), pointer :: ternaries
+!
    logical :: once=.true.
+   integer i1,i2,i3
 ! The previous MQMQA excess implementation arrive here
 ! If mqmqa_data%exlevel is zero we should return and that code will still work.
+!   write(*,5)
+5  format('3XQ *** in new_mqmqa_excess gtp3XQ.FOR ***')
    if(mqmqa_data%exlevel.eq.0) then
-      if(once) write(*,*)' *** Using old mqmqa excess implentation ***'
+      if(once) write(*,6)mqmqa_data%exlevel
+6     format('3XQ *** this system use the old excess model ***',i5)
 ! for old excess calculations DO NOT nullify intrec
+      once=.false.
       goto 1000
    endif
 !   if(once) write(*,*)' *** Using new mqmqa excess implentation ***'
-   write(*,*)' *** Using new mqmqa excess implentation ***'
-! intrecin points at the beginning of an excess parameter tree
+! intrecin is a gtp_interaction record
 ! it should be nullified before return not to create confusion
    intrec=>intrecin
    nullify(intrecin)
+! list data in intrec
+   write(*,10)lokph,intrec%status,intrec%antalint,intrec%order,&
+        associated(intrec%propointer),associated(intrec%tooprec)
+10 format('3XQ interaction record: ',4i5,2l2)
+   write(*,15)associated(intrec%nextlink),associated(intrec%highlink),&
+        intrec%propointer%proptype,intrec%propointer%extra
+15 format('3XQ link to next: ',l2,', linkto higher: ',l2,' extra: ',i3,i7)
+! these should be allocated for a single sublattice
+   write(*,20)intrec%sublattice(1),intrec%fraclink(1),intrec%noofip(1)
+20 format('3XQ subl, frac, noofip: ',3i5)
+!
 ! new excess model implementation using allinone etc below
 ! first set quad fractions and related composition variables, which ics?
 ! quadfractions and asymmetrical variables  are set by set_constitution
@@ -1998,9 +2016,9 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
-!\addtotable subroutine set_quadfractions(phres,yfr)
+!\addtotable subroutine set_quadfractions(phres,verbose,yfr)
 !\begin{verbatim}
- subroutine set_quadfractions(phres,yfra)
+ subroutine set_quadfractions(phres,verbose,yfra)
 ! copy values from yfr to xquad, y_ik etc using con2quad
 ! mqmqa_data%initaties phase variables for new mqmqa excess model
 ! the normal fractions, used by the config entropy, already set
@@ -2008,6 +2026,7 @@
    type(gtp_phase_varres), pointer :: phres
    type(gtp_mqmqa_var), pointer :: mqmqaf
    double precision yfra(*)
+   logical verbose
 !   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer ia,iq
@@ -2016,20 +2035,20 @@
         'then call calcasymvar to set \varkappa, \xi and Y_ik.',&
         'Latt som en platt')
    mqmqaf=>phres%mqmqaf
-   write(*,20)size(mqmqa_data%con2quad),&
+   if(verbose) write(*,20)size(mqmqa_data%con2quad),&
         (mqmqa_data%con2quad(ia),ia=1,mqmqa_data%nquad)
 20 format('3XQ mqmqaf%con2quad: ',i3,2x,20i3)
    do ia=1,mqmqa_data%nquad
       iq=mqmqa_data%con2quad(ia)
 ! I am not sure how to copy from yfr to mqmqaf%xquad
       mqmqaf%xquad(ia)=phres%yfr(iq)
-      write(*,26)ia,phres%yfr(ia),iq,mqmqaf%xquad(ia)
-26    format('3XQ is OC fraction: ',i3,1pe14.6,&
-           ' equal to MQMQA quad: ',i3,1pe14.6)
+      if(verbose) write(*,26)ia,phres%yfr(ia),iq,mqmqaf%xquad(ia)
+26    format('3XQ the OC fraction: ',i3,1pe14.6,&
+           ' is set to MQMQA quad: ',i3,1pe14.6)
    enddo
-   write(*,*)'3XQ calling calcasymvar to update \varkappa_ij, \xi_ij etc.'
+   if(verbose) write(*,*)'3XQ calling calcasymvar for \varkappa_ij, \xi_ij etc.'
    call calcasymvar(mqmqaf)
-   write(*,*)'3XQ back from calcasymvar'
+   if(verbose) write(*,*)'3XQ back from calcasymvar'
 !
 1000 continue
    return
@@ -2445,7 +2464,7 @@
 ! calculates sequential index of a binary system
 !\begin{verbatim}
  integer function binsym(i,j)
-! SEPARATE FOR CATIONS AND ANION BINARIES, maybe merge with allinone?
+! SEPARATE FOR CATIONS AND ANION BINARIES, maybe merge with gtp_allinone?
 ! The binary systems form a symmetric matrix where (i,j) is the same as (j,i)
 ! and data for this system is stored as a linear array where where i > j always
 ! This function return the sequantial index for the binary (i,j)
@@ -2812,7 +2831,7 @@
 !\addtotable subroutine varkappa1
 !\begin{verbatim}
  subroutine varkappa1(seq,mqf)
-! box is a record of the type(allinone)
+! box is a record of the type(gtp_allinone)
 ! this routine may initiate, calculate and store varkappaij, varkappaji, xiij
 ! and xiji for symmetric and asymmetric systems with Kohler/Toop
 ! It is programmed for a single anion and just for the MQMQX phase!
@@ -2829,7 +2848,7 @@
 !
 ! these are quad indices of i,i, i,j abd j,j
    integer mii,mij,mjj,ia
-   type(allinone), pointer :: box
+   type(gtp_allinone), pointer :: box
 !
 ! ia represent the single anion
 ! varkappaij and varkappaji are the 2 composition variables to be multiplied
@@ -2863,7 +2882,7 @@
    logical nysym
 ! local variables used for updating quad indices for iasymm, jasymm, etc
 !    integer, dimension(:), allocatable :: vk_ij,vk_ji,vk_ijk,xi_ij,xi_ji
-! all asymmetric quad indices needed are stored in each separate allinone
+! all asymmetric quad indices needed are stored in each separate gtp_allinone
 !    integer nvk_ij,nvk_ji,nvk_ijk,nxi_ij,nxi_ji
 !
 ! how to create xquad mm when we need a pointer to gtp_phase_varres?
@@ -3198,7 +3217,7 @@
  subroutine dexcess_dq(box)
 ! calculate the partial derivatives of a \varkappa or \xi variable
    implicit none
-   type(allinone) :: box
+   type(gtp_allinone) :: box
 ! in ivk_ij, jvk_ji etc specify the indices of quad fractions involved for vk_ij
 ! A derivative wrt to a quad fractions included means it is 1, otherwise 0
 ! vk_ij has a numerator and a denominator, both are sums of quad fractions
@@ -3763,24 +3782,38 @@
    integer iph
 !\end{verbatim}
    type(gtp_phase_varres), pointer :: phres
-   integer lokph,lokcs,isp,iel,elx(4),elxx(4),jp,j1,j4,nel,cations(2),jj
-   character :: elsym(4)*2='  '
-   write(*,2)size(mqmqa_data%el2ancat),mqmqa_data%el2ancat
-2  format('3XQ el2ancat: ',i3,2x,20i3)
+   integer lokph,lokcs,isp,iel,elx(4),elxx(4),jp,j1,j4,nel,cations(2),jj,kk
+   character :: elsym(noofel)*2
+
+   elsym=' '
+   kk=0
+   do nel=1,noofel
+      elsym(nel)=ellista(elements(nel))%symbol
+      if(mqmqa_data%el2ancat(nel).lt.0) kk=nel
+   enddo
+   write(*,2)(elsym(jj),jj=1,noofel)
+2  format(/'Element names:      ',20(a2,1x))
+   write(*,3)size(mqmqa_data%el2ancat),mqmqa_data%el2ancat
+3  format('3XQ el2ancat: ',i3,2x,20i3)
+   if(kk.eq.0) then
+      write(*,*)'You have a strange MQMQA system without any anion'
+   endif
+   write(*,4)elsym(kk),mqmqa_data%xanionalpha,&
+        mqmqa_data%xanione
+4     format('The anion element name, index and link: ',a,2i3)
+!
    lokph=phases(iph)
    lokcs=phlista(lokph)%linktocs(1)
    isp=0
 !   mqmqa_data%xanione=splista(j4)%ellinks(nel)   
 !   write(kou,5)lokcs,mqmqa_data%xanione,mqmqa_data%xanionalpha
    write(kou,5)
-5  format('Con  Quad NoEl   Elements',7x,'El indices',2x,'Species name',&
+5  format(/'Con  Quad Nel Elements   ',7x,'Elem index',2x,'Species name',&
         15x,'Cations')
    specie: do jp=1,phlista(lokph)%nooffr(1)
       isp=isp+1
       j4=phlista(lokph)%constitlist(jp)
       nel=size(splista(j4)%ellinks)
-!      write(*,10)isp,trim(splista(j4)%symbol),nel
-10    format('Quad: ',i3,2x,a,2x,i3)
       elsym='  '
       elxx=1000
       jj=0
@@ -3796,13 +3829,17 @@
          endif
       enddo element
       if(jj.eq.1) cations(2)=cations(1)
-      write(kou,20)isp,mqmqa_data%con2quad(isp),nel,elsym,elxx,&
-           splista(j4)%symbol,cations
-20    format(i3,i4,2x,i4,1x,4(a,2x),4(1x,i2),2x,a,2x,2i3)
-!20    format('Specie+elements ',i2,i4,4x,4(a,2x),4i3,2x,a)
+      if(noofel.le.3) then
+         write(kou,19)isp,mqmqa_data%con2quad(isp),nel,(elsym(kk),kk=1,3),&
+              elxx,splista(j4)%symbol,cations
+19       format(i3,i4,2x,i4,1x,3(a,2x),4(1x,i2),2x,a,2x,2i3)
+      else
+         write(kou,20)isp,mqmqa_data%con2quad(isp),nel,(elsym(kk),kk=1,4),&
+              elxx,splista(j4)%symbol,cations
+20       format(i3,i4,2x,i4,1x,4(a,2x),4(1x,i2),2x,a,2x,2i3)
+      endif
    enddo specie
-   write(*,*)'The anion element index and link: ',&
-        mqmqa_data%xanionalpha,mqmqa_data%xanione
+   write(*,*)'The quads are in the alphabetical order of the quad elements'
    return
  end subroutine listconst
 

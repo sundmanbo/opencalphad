@@ -2064,7 +2064,7 @@
 !      write(*,*)'3B allocate yfr: ',allocated(neq%yfr),nz,&
 !           btest(phlista(lokph)%status1,phmfs)
       if(.not.allocated(neq%yfr)) then
-         write(*,*)'3B ********** 2039 allocate and copy yfr: ',nyttcs,nz
+!         write(*,*)'3B ********** 2039 allocate and copy yfr: ',nyttcs,nz
          allocate(neq%yfr(nz))
          neq%yfr=peq%yfr
       endif
@@ -2677,7 +2677,7 @@
 ! lint is array of sublattice+constituent indices for interactions
 ! ideg is degree
 ! lfun is link to function (integer index) if -1 used for listing
-! refx is reference (text)
+! refx is reference (text) ... maybe use this also for MQMQA excess??
 ! if this is a phase with permutations all interactions should be in
 ! the first or the first two identical sublattices (except interstitals)
 ! a value in endm can be negative to indicate wildcard
@@ -2709,6 +2709,7 @@
       gx%bmperr=0
    endif
    fractyp=1
+!   write(*,*)'In enter_parameter ',typty,nint,ideg
    if(btest(phlista(lokph)%status1,PHMFS)) then
 ! for phases with diordered set the number of sublattices can vary ....
       if(nsl.ne.phlista(lokph)%noofsubl) fractyp=2
@@ -3146,6 +3147,11 @@
 !   write(*,*)'3B enter_parameter mint3: ',mint,nint
    nullify(linktohigh)
    lokint=0
+!
+! this indicates an MQMQA excess parameter
+!   if(ideg.ge.1000) write(*,201)lokph,trim(refx),typty,ideg
+201 format('3B line 3149 adding MQMQA excess: ',i5,' "',a,'" ',2i5)
+!
    someint: if(nint.gt.0) then
 ! when there are interaction records the ideal bit must be cleared
       phlista(lokph)%status1=ibclr(phlista(lokph)%status1,PHID)
@@ -3171,6 +3177,7 @@
             allocate(intlinks(1,1))
          endif
 ! this subroutine is in gtp3G.F90
+!         write(*,*)'3B calling create_interaction 1'
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
 ! clear phpalm as it is needed to handle FCC and BCC permutations
@@ -3185,7 +3192,7 @@
          firstint=0
       endif
 300   continue
-!      write(*,303)'3B  at 300A: ',lokph,newint,nint,mint,intrec%status
+!      write(*,303)'3B at 300A: ',lokph,newint,nint,mint,intrec%status,gx%bmperr
 303   format(a,10i3)
 ! interaction records should be ordered according to the sublattice
 ! with the interaction.  For interaction with permutations use the 
@@ -3267,6 +3274,7 @@
 ! allocate a dummy intlinks to avoid segmentation fault compiling with -lefence
             allocate(intlinks(1,1))
          endif
+!         write(*,*)'3B calling create_interaction 2'
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
 ! clear PHPALM as calling palmtree is needed to handle FCC and BCC permutations
@@ -3320,8 +3328,14 @@
       proprec=>intrec%propointer
       if(.not.associated(proprec)) then
 ! do not create anything if lfun=-1
-         if(lfun.eq.-1) goto 900
+         if(lfun.eq.-1) goto 900 
+         if(ideg.gt.9) then
+            typty=ideg; ideg=0
+!            write(*,*)'3B create_proprec for MQMQA: ',typty,ideg,lfun
+         endif
+!         write(*,*)'3B create_proprec 1',typty,ideg,lfun
          call create_proprec(intrec%propointer,typty,ideg,lfun,refx)
+         if(gx%bmperr.ne.0) goto 1000
       else
          goto 800
       endif
@@ -3331,9 +3345,16 @@
 ! search the property list, there may not be the correct property!
       proprec=>endmemrec%propointer
       if(.not.associated(proprec)) then
-! if on property record and lfun=-1 just list parameter equal to zero
+! if no property record and lfun=-1 just list parameter equal to zero
          if(lfun.lt.0) goto 900
+         if(ideg.gt.9) then
+            typty=ideg; ideg=0
+!            write(*,*)'3B create_proprec for MQMQA: ',typty,ideg,lfun
+         endif
+!         write(*,*)'3B line 3346 creating proprec: ',ideg
+!         write(*,*)'3B create_proprec 2: ',typty,ideg,lfun
          call create_proprec(endmemrec%propointer,typty,ideg,lfun,refx)
+         if(gx%bmperr.ne.0) goto 1000
       else
          goto 800
       endif
@@ -3353,6 +3374,7 @@
          call capson(refx)
          notext='*** Not set by user'
          call tdbrefs(refx,notext,0,ifri)
+!         write(*,*)'3B value of ideg: ',ideg,proprec%degree
          if(ideg.le.proprec%degree) then
             if(lfun.eq.-1) then
                listfun=proprec%degreelink(ideg)
@@ -3371,8 +3393,14 @@
    enddo
 ! if lfun=-1 we just want to list a the parameter which is zero
    if(lfun.lt.0) goto 900
-! no record for this property present, add a new property record
+! no record for this property at present, add a new property record
+   if(ideg.gt.9) then
+      typty=ideg; ideg=0
+!     write(*,*)'3B create_proprec for MQMQA: ',typty,ideg,lfun
+   endif
+!   write(*,*)'3B create_proprec 3: ',typty,ideg,lfun
    call create_proprec(lastprop%nextpr,typty,ideg,lfun,refx)
+   if(gx%bmperr.ne.0) goto 1000
 ! all done and go home
    goto 1000
 !--------------------------------------------------------
@@ -3426,21 +3454,24 @@
       endif
 ! we found no addition for this parameter!!
       if(zz.gt.100) zz=zz/100
+!
       mpiwarning: if(zz.ne.26) then
 ! give warning first time only!
          do i2=1,nundefmpi
             if(propid(zz)%symbol.eq.undefmpi(i2)) exit mpiwarning
          enddo
+! these are MQMQA excess parameters
+         if(zz.ge.34 .and. zz.le.36) goto 1005
          if(nundefmpi.lt.mundefmpi) then
             nundefmpi=nundefmpi+1
             undefmpi(nundefmpi)=propid(zz)%symbol
          else
             write(*,*)'3B too many model parameter identifier errors',mundefmpi
          endif
-!         write(*,*)'3B *** Warning phase ',trim(phlista(lokph)%name),&
-!              ' has no addition using parameter id: ',propid(zz)%symbol
-         write(*,*)'3B *** Warning parameter ',propid(zz)%symbol,' has no ',&
-              'addition in ',trim(phlista(lokph)%name),' (or other phases)'
+!
+         write(*,1002)propid(zz)%symbol,trim(phlista(lokph)%name)
+1002     format('3B *** Warning parameter ',a,&
+              ' has no addition in ',a,' (or other phases)')
       endif mpiwarning
 1005  continue
    endif lastcheck
@@ -3449,6 +3480,9 @@
 !   write(*,*)'3B enter_parameter deallocated: ',gx%bmperr
 !  write(*,1010)'enter_parameter 77: ',(phlista(lokph)%constitlist(i),i=1,6)
 !1010 format(A,6I3)
+   if(gx%bmperr.ne.0) then
+      write(*,*)'Leaving enter_parameter with error ',gx%bmperr
+   endif
    return
  end subroutine enter_parameter
 

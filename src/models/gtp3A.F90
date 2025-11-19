@@ -17,7 +17,7 @@
 !>     4. Get things                              gtp3A    
 !>     5. Set things                              gtp3A    
 !>     6. Section: enter data                     gtp3B     367 kB
-!>     7. List data                               gtp3C     173 kB
+!>     7. List data ............................  gtp3C     173 kB
 !>     8. Interactive things                      gtp3D      93 kB
 !>    9A. Read and save on files                  gtp3E     281 kB
 !>    9B. Read and save on XTDB files             gtp3EX     67 kB
@@ -463,8 +463,33 @@
    propid(npid)%symbol=modparid(33)
    propid(npid)%note='MQMQA cluster coord factor (not used)'
    propid(npid)%status=0
+   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
+!.......................................
+! Modified MQMQA parameter factor 34
+   npid=npid+1
+!   propid(npid)%symbol='GG'
+   propid(npid)%symbol=modparid(34)
+   propid(npid)%note='MQMQA excess parameter'
+   propid(npid)%status=0
+   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
+!.......................................
+! GG
+   npid=npid+1
+!   propid(npid)%symbol='GQ'
+   propid(npid)%symbol=modparid(35)
+   propid(npid)%note='MQMQA excess parameter'
+   propid(npid)%status=0
+   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
+!.......................................
+! Modified MQMQA parameter factor 36
+   npid=npid+1
+   propid(npid)%symbol=modparid(36)
+!   propid(npid)%symbol='GB'
+   propid(npid)%note='MQMQA excess parameter'
+   propid(npid)%status=0
 ! This parameter does not depend on T and P
    propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
+
 !.......................................
 ! The array modparid is declared in gtp3_dd2.F90 with 40 items.
 ! debug output
@@ -3158,11 +3183,12 @@ end function find_phasetuple_by_indices
 ! this routine is in gtp3XQ
 !   write(*,*)'Testing PHMQMQX bit'
    if(btest(phlista(lokph)%status1,PHMQMQX)) then
-      write(*,*)'3A PHMQMQX bit set, calling set_quadfractions',lokcs
+      write(*,*)'3A This phase has PHMQMQX set, calling set_quadfractions',lokcs
 !            ceq%phase_varres(lokcs)%yfr(ic+ml)=yz
       phres=>ceq%phase_varres(lokcs)
       if(mqmqa_data%exlevel.lt.100) mqmqa_data%exlevel=100
-      call set_quadfractions(phres,yfra)
+! the second argument means to list
+      call set_quadfractions(phres,.TRUE.,yfra)
    endif
 1000 continue
 !   write(*,*)'3A no segmentation fault at exit'

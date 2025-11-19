@@ -669,7 +669,7 @@
 ! GAS this is the gas phase (first in phase list) 
 ! LIQ phase is liquid (can be several but listed directly after gas)
 ! IONLIQ phase has ionic liquid model (I2SL)
-! MQMQX phase with the MQMQA model with asymmetric excess
+! MQMQX phase with the MQMQA model with asymmetric excess (also MQMQA set)
 ! 2STATE elemental liquid twostate model parameters (not same as I2SL!)
 ! QCE phase has corrected quasichemical entropy (Hillerst-Selleby-Sundman)
 ! CVMCE phase has some CVM ordering entropy (used?)
@@ -1035,7 +1035,8 @@
 ! Below some structures needed for MQMQA excess model
 !-------------------
 !\begin{verbatim}
-  type terdata
+!  type terdata
+  type gtp_terdata
 ! use function findtersys(i,j,k,ncat) to find a ternary cation system
 ! a linear structure for ternary data, indexing by element order i<j<m 
 ! There are ncat*(ncat-1)*(ncat-2)/6 combinations with a single anion
@@ -1055,7 +1056,7 @@
 !         aymmetric element index (element index change for different systems)
 ! Note all 3 element can be asymmetric,   
 !
-  end type terdata
+  end type gtp_terdata
 !\end{verbatim}
 !---------------------
 !\begin{verbatim}
@@ -1068,7 +1069,7 @@
 !\end{verbatim}
 !---------------------
 !\begin{verbatim}
-  type allinone        ! called BOX in varkappa1
+  type gtp_allinone        ! called BOX in varkappa1
 ! a structure for MQMQA data: varkappa, ksi, Y and derivatives, maybe Zv_ijkl
 ! stored linearly and indexed by binsym(i,j,ncat)
 ! binary:   1   2       n-1 | n   n+1 ... 2n-1 | 2n ...      |     | n*(n-1)/2
@@ -1133,7 +1134,7 @@
 ! all the variables above must be initiated before calculations of vk, xi etc
 ! the initiation and calculation of each record in the varkappa1 subroutine
 ! probably more data will be added later, for example 2nd derivatives
-  end type allinone
+  end type gtp_allinone
 !\end{verbatim}
 !
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1171,7 +1172,7 @@
   integer, allocatable, dimension(:) :: quadel_i,quadel_j,quadel_k,quadel_l
 !
 ! tersys and compvar are related to asymmetries, maybe other phases need also?
-  type(terdata), dimension(:), allocatable :: tersys 
+  type(gtp_terdata), dimension(:), allocatable :: tersys 
 ! quadz are the stoichiometric factors of a quad NOTE ALREADY IN MQMQA_DATA
 !  double precision, dimension(:), allocatable :: quadz
 ! etafs is the FNN/SNN ratio declated in mqmqa_data  same as: qfnnsnn
@@ -1183,6 +1184,7 @@
 !************ this record is not used with new mqmqa excess
   INTEGER, parameter :: gtp_tooprec_version=1
   TYPE gtp_tooprec
+! THIS IS SUPERSSEDED BY THE ASYMMETRY RECORD
 ! This is used for a binary interaction parameter in Kohler/Toop ternaries
 ! to specify the third constituents involved in extrapolations
 ! These records form a linear list for each phase and are also
@@ -1220,6 +1222,35 @@
 !************ this record is not used with new mqmqa excess
   end type gtp_tooprec
 !\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! this constant must be incremented when a change is made in gtp_property
+  INTEGER, parameter :: gtp_asymmetry_version=2
+  TYPE gtp_asymmetry
+! this provides a static link between the fraction indices in MQMQA interaction
+! records and the fractions in the allinone array in gtp_mqmqa_var
+! The fraction indices in an MQMQA interaction are for the constituent species
+! but the compositions used for the excess parameters should be a mixture
+! of quad_i fractions, \varkappa_ij, \xi_ij and Y_i/k composition variables
+! The global array EL2ANCAT specifies the cation indices for elements (- anion)
+! The global array CON2QUAD relates constituent indices to quad indices
+! There are 2 types of constituents, A/X and pairs with 2 cations, AB/X
+! The element indices may sometimes be needed for the A/X constituents
+! data in this record will be created when the phase parameters are entered
+! and used during calculations.  At present I do not know how !!
+! This should be the link between the OC A/X pair index and the Y_A/X fraction
+     integer, dimension(:), allocatable :: pair2y
+! This should be a link between OC AB/X index and the varkappa_AB/xi_AB arrays
+     integer, dimension(:), allocatable :: con2vk
+! Maybe some more links are needed ...
+! The TYPE gtp_mqmqa_var with the xquad, allinone and other arrays is used
+! In allionone the phase deoendent updated values of \varkappa etc are stored
+! they are organized in alphabetical order of the elements.
+! When it works all of this should be reorganized removing the Tooprecord
+!
+  end type gtp_asymmetry
+!\end{verbatim}
+  type (gtp_asymmetry) mqmq_asym
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_property
@@ -1338,6 +1369,9 @@
 !  31 TSCH  - P                                   2 Schottky anomaly T
 !  32 CSCH  - P                                   2 Schottky anomaly Cp/R.
 !  33 QCM   - -                                   1 Modif Quasichem model ratio
+!  34 GG    - -                                   0 MQMQA excess
+!  35 GQ    - -                                   0 MQMQA excess
+!  36 GB    - -                                   0 MQMQA excess
 !  
 !\end{verbatim}
 !-----------------------------------------------------------------
@@ -1536,8 +1570,6 @@
 ! used in ionic liquid:
 ! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)
      integer, dimension(2) :: i2slx
-! this is for asymmetric ternaries, only allowed for MQMQA
-!     type(terdata), dimension(:), allocatable :: tersys
 ! Needed to list all Toop/Kohler ternary models
 ! The one used for calculations is the pointer in gtp_intrec (tooprec)
      TYPE(gtp_tooprec), pointer :: tooplast,toopfirst
@@ -1661,7 +1693,7 @@
 ! The order of xquads is to simplify the handling of Toop/Kohler asymmetries
   double precision, allocatable, dimension(:) :: xquad
 ! The fractions in xquad are the same as in yfr bot in differnt order!
-  type(allinone), dimension(:), allocatable :: compvar
+  type(gtp_allinone), dimension(:), allocatable :: compvar
 ! the two arrays above should be in the record (type) mqmqa_var
 ! y_ik are the fraction of each cation
   double precision, dimension(:), allocatable :: y_ik
@@ -2303,13 +2335,16 @@
 ! 31 TSCH  - P                                   2 Schottky anomaly T
 ! 32 CSCH  - P                                   2 Schottky anomaly Cp/R.
 ! 33 QCZ   - -                                   1 MQMQA cluster coord factor
+! 34 GG    - -                                   1 MQMQA excess maybe redundant
+! 35 GQ    - -                                   1 MQMQA excess maybe redundant
+! 36 GB    - -                                   1 MQMQA excess maybe redundant
 ! DO NOT CHANGE THE ORDER in gtp3A, that would require changes elsewhere too
 ! The table below is the current definition of model parameters!!
   character (len=4), dimension(40) :: MODPARID=&
        ['G   ','TC  ','BMAG','CTA ','NTA ','IBM ','LNTH','V0  ','VA  ','VB  ',&
         'VC  ','VS  ','MQ  ','MF  ','MG  ','G2  ','THT2','DCP2','LPX ','LPY ',&
         'LPZ ','LPTH','EC11','EC12','EC44','UQT ','RHO ','VISC','LAMB','HMVA',&
-        'TSCH','CSCH','QCZ ','    ','    ','    ','    ','    ','    ','    ']
+        'TSCH','CSCH','QCZ ','GG  ','GQ  ','GB  ','    ','    ','    ','    ']
 !        1      2      3      4      5      6      7      8      9      10
 !      ['G   ','LNTH','BMAG','TC  ','NT  ','G2  ','V0  ','VA  ','VB  ','XX  ',&
 !       'VC  ','VS  ','MQ  ','MF  ','MG  ','YY  ','THT2','DCP2','LPX ','LPY ',&

@@ -1041,7 +1041,7 @@
    if(phname(1:1).lt.'A' .or. phname(1:1).gt.'Z') then
 ! in some cases unprintable phase names appears!!
       write(lut,19)iph,jcs,lokph,lokcs
-19    format('Illegal  phase name: ',10i5)
+19    format(' *** Warning: illegal  phase name: ',10i5)
    endif
 !X   write(lut,20)phname,status,ceq%phase_varres(lokcs)%dgm
 20  format(/'Phase: ',A,' Status: 'A,' Driving force: ',1PE12.4)
@@ -1903,11 +1903,15 @@
    type(gtp_endmember), pointer :: endmemrec
    TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_phase_add), pointer :: addrec
+   integer powpqr(3),iiz
+   character mqmqxchar*2
+   logical mqmqxess
 !
 !   write(*,*)'3C in list_phase_data',iph
 ! modelid should be used to identify the model
    modelid=' '
    mqmqa=.FALSE.
+   mqmqxess=.false.
 ! this specifies the top line
    topline=1
 !   modelid='123456789.123456789.1234'
@@ -1944,6 +1948,14 @@
 ! added 20201128/BoS, FACTCE, QCE and UNIQUAC
 ! added 20201128/BoS, MQMQA, QCE and UNIQUAC
 !   elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
+   elseif(btest(phlista(lokph)%status1,PHMQMQX)) then
+! modelid is just locally. this is with new excess sooftware 20251119/BoS
+      special(1:1)='Q'; modelid='MQMQX'
+      if(.not.btest(phlista(lokph)%status1,PHMQMQX)) then
+         write(*,*)'Error,   missing bit PHMQMQA'
+      endif
+      mqmqa=btest(phlista(lokph)%status1,PHMQMQA)
+!                                123456789.123456789.1234
    elseif(btest(phlista(lokph)%status1,PHMQMQA)) then
       special(1:1)='Q'; modelid='MQMQA'
       mqmqa=btest(phlista(lokph)%status1,PHMQMQA)
@@ -2256,6 +2268,7 @@
    enddo endmemberlist
 !-----------------------------------------------------------------------
 ! parameters for interactions using site fractions
+!   write(*,*)'3C list excess model parameters'
    if(parlist.eq.1) then
       endmemrec=>phlista(lokph)%ordered
    else
@@ -2293,6 +2306,7 @@
             lint(2,nint)=phlista(lokph)%constitlist(kkk)
          endif
          proprec=>intrec%propointer
+! loop for all properties with this composition dependence
          ptyloop2: do while(associated(proprec))
 !            typty=proprec%proptype
             ij=proprec%proptype
@@ -2310,7 +2324,32 @@
 !               typty=typspec
 !            endif
             if(typty.gt.0 .and. typty.le.ndefprop) then
-               prop=propid(typty)%symbol
+               if(typty.ge.34 .and. typty.le.36) then
+! extracting MQMQA, MQMQX powers
+!                  write(*,*)'3C listing parameters',typty,proprec%extra
+! extra=230 
+                  if(typty.eq.34) mqmqxchar='G,'
+                  if(typty.eq.35) mqmqxchar='Q,'
+                  if(typty.eq.36) mqmqxchar='B,'
+!                  if(typty.eq.34) prop='G'
+!                  if(typty.eq.35) prop='Q'
+!                  if(typty.eq.36) prop='B'
+                  prop='G'
+                  mqmqxess=.true.
+                  powpqr(1)=proprec%extra/100
+! 2; 30
+                  powpqr(2)=(proprec%extra-100*powpqr(1))/10
+! 2; 3
+                  powpqr(3)=proprec%extra-100*powpqr(1)-10*powpqr(2)
+!                  write(*,55)typty,proprec%extra,powpqr
+55                format('3C listing MQMQA/MQMQX parameters ',i2,i5,3i4)
+! the powpqr is used when listing degree below
+                  do iiz=1,3
+                     powpqr(iiz)=powpqr(iiz)+ichar('0')
+                  enddo
+               else
+                  prop=propid(typty)%symbol
+               endif
 !               if(parlist.eq.2) then
 ! disordered interaction parameter
 !                  write(*,*)'3C skipping suffix D 3rd time'
@@ -2389,6 +2428,18 @@
                   cycle degree
                endif
                call encode_constarr(text,nsl,endm,nint,lint,jdeg)
+               if(mqmqxess) then
+! MQMQA excess replace degree after ; in text by G,powpqr(1:2) for binary 
+!                                   G,powpqr(1:3) for ternary
+!                  write(*,*)'3C parameter 1: ',nint,trim(text)
+                  iiz=index(text,';')
+                  text(iiz+1:)=mqmqxchar//char(powpqr(1))//','//char(powpqr(2))
+                  iiz=iiz+5
+                  if(nint.eq.3) then
+                     text(iiz+1:)=','//char(powpqr(3))
+                  endif
+!                  write(*,*)'3C parameter 2: ',iiz,trim(text)
+               endif
                write(funexpr,300)trim(prop),trim(phname),trim(text)
 300            format(A,'(',A,',',A,') ')
                ip=len_trim(funexpr)+1
@@ -2851,6 +2902,8 @@
    else
       endmemrec=>phlista(lokph)%disordered
    endif
+   write(*,*)'3C list_phase_data2 for TDB?XTDB files'
+   write(lut,*)'$ 3C list_phase_data2 for TDB?XTDB files'
    intlist1: do while(associated(endmemrec))
       intrec=>endmemrec%intpointer
       if(associated(intrec)) then
@@ -3559,7 +3612,7 @@
    integer nsl,nint,ideg,lokph,lord
 !\end{verbatim}
    character const*24,ch1*1
-   integer ll,ip,jp,isep,loksp,mord,isp,jsp,nord
+   integer ll,ip,jp,isep,loksp,mord,isp,jsp,nord,mqmqa1
    integer constlist(5),klok(5),knr(2)
 !
    nint=0; ideg=0; ll=1
@@ -3636,11 +3689,59 @@
          ll=ll+1
          endm(ll)=0
       elseif(isep.eq.3) then
-! this is end of constituent array, followed ba a degree 0-9
-         ideg=ichar(constarr(jp+1:jp+1))-ichar('0')
-         if(ideg.lt.0 .or. ideg.gt.9) then
+! this is the end of a constituent array, normally followed by a degree 0-9
+         if(btest(phlista(lokph)%status1,PHMQMQX)) then
+! begin MQMQA special: phase with asymmetrical excess with more data after ;
+! typically G,1,1.  position jp indicate the ";"
+            ch1=constarr(jp+1:jp+1)
+            if(ch1.eq.'0') then
+! MQMQA endmember parameter
+               ideg=0; exit loop
+            endif
+            jp=jp+2
+!            write(*,50)1,jp,ch1,trim(constarr),ideg
+50          format('3C MQMQA excess ',i1,i5,' "',a,'" "',a,'" ideg',i5)
+            if(ch1.eq.'G') then
+               ideg=1000
+            elseif(ch1.eq.'Q') then
+               ideg=2000
+            elseif(ch1.eq.'B') then
+               ideg=3000
+            else
+               write(*,*)'3C *** Error: illegal MQMQA excess letter: "',ch1,'"'
+               gx%bmperr=4063; goto 1000
+            endif
+!            write(*,50)2,jp,ch1,trim(constarr(jp:)),ideg
+! there will be one or more integers after the letter
+! skip the ","
+            jp=jp+1
+            call getint(constarr,jp,mqmqa1)
+            if(buperr.ne.0) then
+!               write(*,50)3,jp,ch1,trim(constarr),mqmqa1
+!               gx%bmperr=4399; goto 1000
+            endif
+            ideg=ideg+100*mqmqa1
+!            write(*,*)'3C value of ideg: ',ideg
+! skip the  "," character
+            jp=jp+1
+            call getint(constarr,jp,mqmqa1)
+            if(buperr.ne.0) then
+!               write(*,50)4,jp,ch1,trim(constarr(jp:)),mqmqa1
+! it is not an error, there may be just a single number
+!               gx%bmperr=4399; goto 1000
+               buperr=0
+            else
+               ideg=ideg+10*mqmqa1
+            endif
+!            write(*,*)'3C final ideg: ',ideg
+! end of special MQMQA excess
+         else
+! normally a digit 0 to 9 is allowed after the ";"
+            ideg=ichar(constarr(jp+1:jp+1))-ichar('0')
+            if(ideg.lt.0 .or. ideg.gt.9) then
 ! a degree must be between 0 and 9
-            gx%bmperr=4063; goto 1000
+               gx%bmperr=4063; goto 1000
+            endif
          endif
          exit loop
       elseif(isep.eq.4) then

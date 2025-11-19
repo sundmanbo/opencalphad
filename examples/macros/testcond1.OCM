@@ -435,6 +435,13 @@ debug symbol dgm(bcc) 4.8934988E-4
 @$ Report one yourself and get cited!
 
 @&
+
+set inter
+
+@$ ==============================================================
+@$ 
+@$ The example below does not work at present
+@$
 @$ ==============================================================
 @$ 
 @$ Testing entering mobility data, list and calculate

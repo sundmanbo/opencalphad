@@ -276,7 +276,7 @@
    endif
    nl=nl+1
    write(lut,95)ModelAppendXTDB
-95 format('  <DatabaseInfo Info="Test version of XTDB format" />'/&
+95 format('  <DatabaseInfo Info="Test version of XTDB format gtp3EX.FOR" />'/&
           '  <AppendXTDB Models="',a,'" />')
    nl=nl+2
 ! Writing in this order (option writing parameters by phase?)

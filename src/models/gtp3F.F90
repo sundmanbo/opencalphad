@@ -2629,8 +2629,9 @@
 ! THIS IS A VERY CRUDE CHECK! Please check also the SELECT below !!!
 ! it may need to be modified !!!
 !   if(ndefprop.ne.31) then modified to 32 to include VS
-   if(ndefprop.ne.33) then
-      write(*,*)'3F The model parameter identifiers has been changed!',33
+!   if(ndefprop.ne.33) then
+   if(ndefprop.ne.36) then
+      write(*,*)'3F The model parameter identifiers has been changed!',36
       write(*,*)'3F You must correct state_variable_val3 in GTP3F.F90!'
 ! you may also have to change the case indices!!
       stop
