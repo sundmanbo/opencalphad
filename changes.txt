@@ -23,6 +23,25 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.11.19 version 6.089. More work done on the MQMQA model and
+handling of its particular excess model parameters.  The actual code
+for calculating the excess Gibbs energy is still under development and
+to facilitate collaboration of testing the model this release is made
+available for everyone.  The format of MQMQA parameter on a TDB/XTDB
+file has been revised.
+
+2025.11.14 version 6.088. Yesterdays version had a number of problems,
+duplications and bugs which occured when integrating the new MQMQA
+excess structure together with the already existing configurational
+MQMQA entropy.  This version have fixed some of these.
+
+2025.11.13 version 6.087. The data structures for the excess model of
+MQMQA is now fairly established.  It is possible to read data from a
+modified TDB file.  Listing of the various forms of asymmetric options
+has been added.  Time for saving this version.
+
+There is still a long way to go for calculating anything.
+
 2025.11.11 version 6.086. The work with the MQMQA excess model is
 slowly progressing (rather than progressing slowly).  As the fraction
 variables in the MQMQA excess model can have several different
