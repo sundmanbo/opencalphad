@@ -1031,6 +1031,13 @@
 ! allocated dynamically and linked from endmember records and other
 ! interaction records (in a binary tree)
 !\end{verbatim}
+!
+!\begin{verbatim}
+! for storing interaction records when traversiong a parameter tree
+   TYPE gtp_intstack
+      type(gtp_interaction), pointer :: saved
+   end type gtp_intstack
+!\end{verbatim}
 !---------------------
 ! Below some structures needed for MQMQA excess model
 !-------------------
@@ -1138,7 +1145,7 @@
 !\end{verbatim}
 !
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-  logical mqmqdebug
+  logical mqmqdebug,mqmqdebug2
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! MUST be careful with ncat and nan !!! USED IN MQMQA
 ! this is dangerous ....... move into mqmqa_data

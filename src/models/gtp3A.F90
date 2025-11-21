@@ -471,7 +471,7 @@
    propid(npid)%symbol=modparid(34)
    propid(npid)%note='MQMQA excess parameter'
    propid(npid)%status=0
-   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
+!   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
 !.......................................
 ! GG
    npid=npid+1
@@ -479,16 +479,16 @@
    propid(npid)%symbol=modparid(35)
    propid(npid)%note='MQMQA excess parameter'
    propid(npid)%status=0
-   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
+!   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
 !.......................................
 ! Modified MQMQA parameter factor 36
    npid=npid+1
-   propid(npid)%symbol=modparid(36)
-!   propid(npid)%symbol='GB'
+!   propid(npid)%symbol=modparid(36)
+   propid(npid)%symbol='GB'
    propid(npid)%note='MQMQA excess parameter'
    propid(npid)%status=0
 ! This parameter does not depend on T and P
-   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
+!   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
 
 !.......................................
 ! The array modparid is declared in gtp3_dd2.F90 with 40 items.
@@ -618,6 +618,9 @@
 ! removed line above as that caused crash in parallel2 WHY????
 ! mqmqma exlevel=0 uses the old excess model implementation
    mqmqa_data%exlevel=0
+! to manually select debug output using LIST MQMQA DEBUG
+   mqmqdebug=.false.
+   mqmqdebug2=.false.
 ! finished initiating
 1000 continue
    write(*,1001)
@@ -1562,7 +1565,7 @@ end function find_phasetuple_by_indices
    character name*(*)
    integer phcsx,iph,zcs
 !\end{verbatim} %+
-   character name1*36,csname*36,name2*24,name3*24
+   character name1*36,csname*36,name2*24,name3*24,ambname*24
    TYPE(gtp_phase_varres), pointer :: csrec
    integer kp,kcs,lokph,jcs,lokcs,first1,fcs,lcs,ics,lenam,allsets
 ! set ics to an illegal value
@@ -1571,6 +1574,7 @@ end function find_phasetuple_by_indices
 ! convert to upper case locally
    name1=name
    call capson(name1)
+   ambname=name1
 ! composition set as #digit
    kp=index(name1,'#')
    if(kp.gt.0) then
@@ -1615,6 +1619,8 @@ end function find_phasetuple_by_indices
                endif
             else
 ! another phase with same abbreviation, phase name is ambiguous
+               write(kou,4121)trim(name1),trim(name2),trim(ambname)
+4121           format('Phase abbreviation ambiguous: ',a,' and ',a,2x,a)
                gx%bmperr=4121
                goto 1000
             endif
@@ -1647,6 +1653,7 @@ end function find_phasetuple_by_indices
                allsets=ics
             else
 ! ambiguous phase name
+               write(kou,4121)1652,trim(name1),trim(csname)
                gx%bmperr=4121; goto 1000
             endif
          elseif(kcs.gt.1) then
@@ -1658,6 +1665,7 @@ end function find_phasetuple_by_indices
                   ics=jcs
                else
 ! another phase with same abbreviation, phase name is ambiguous
+                  write(kou,4121)1664,trim(name1),trim(name2)
                   gx%bmperr=4121
                   goto 1000
                endif
@@ -1764,6 +1772,8 @@ end function find_phasetuple_by_indices
 !    write(*,*)'find_phase ',iphfound
    if(iphfound.lt.0) then
 ! several phases found
+      write(kou,4121)trim(name1),trim(name2)
+4121  format('Several phases found: ',a,' and ',a)
       gx%bmperr=4121; goto 1000
    elseif(iphfound.le.0) then
 ! no phase found
@@ -1857,6 +1867,8 @@ end function find_phasetuple_by_indices
                   first=loksp
                   jabbr=icon
                else
+                  write(kou,4121)trim(spname1),trim(splista(loksp)%symbol)
+4121              format('Specie name abbreviation same ',a,' and ',a)
                   gx%bmperr=4121
                   goto 1000
                endif

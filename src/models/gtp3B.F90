@@ -3331,7 +3331,7 @@
          if(lfun.eq.-1) goto 900 
          if(ideg.gt.9) then
             typty=ideg; ideg=0
-!            write(*,*)'3B create_proprec for MQMQA: ',typty,ideg,lfun
+            write(*,*)'3B create excess proprec for MQMQA 1: ',typty,ideg,lfun
          endif
 !         write(*,*)'3B create_proprec 1',typty,ideg,lfun
          call create_proprec(intrec%propointer,typty,ideg,lfun,refx)
@@ -3349,9 +3349,8 @@
          if(lfun.lt.0) goto 900
          if(ideg.gt.9) then
             typty=ideg; ideg=0
-!            write(*,*)'3B create_proprec for MQMQA: ',typty,ideg,lfun
+            write(*,*)'3B create excess proprec for MQMQA 2: ',typty,ideg,lfun
          endif
-!         write(*,*)'3B line 3346 creating proprec: ',ideg
 !         write(*,*)'3B create_proprec 2: ',typty,ideg,lfun
          call create_proprec(endmemrec%propointer,typty,ideg,lfun,refx)
          if(gx%bmperr.ne.0) goto 1000
@@ -3396,7 +3395,7 @@
 ! no record for this property at present, add a new property record
    if(ideg.gt.9) then
       typty=ideg; ideg=0
-!     write(*,*)'3B create_proprec for MQMQA: ',typty,ideg,lfun
+     write(*,*)'3B create excess proprec for MQMQA 3: ',typty,ideg,lfun
    endif
 !   write(*,*)'3B create_proprec 3: ',typty,ideg,lfun
    call create_proprec(lastprop%nextpr,typty,ideg,lfun,refx)

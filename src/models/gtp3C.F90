@@ -2323,6 +2323,8 @@
 !            else
 !               typty=typspec
 !            endif
+! one should fix ndefprop to 33 but as typty is 34-36 for MQMQA excess SUCK
+!            write(*,*)'value of ndefprop',ndefprop
             if(typty.gt.0 .and. typty.le.ndefprop) then
                if(typty.ge.34 .and. typty.le.36) then
 ! extracting MQMQA, MQMQX powers

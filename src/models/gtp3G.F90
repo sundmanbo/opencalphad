@@ -1545,11 +1545,9 @@
    integer j,iref,typty,powers
    character notext*32
 !
-!   write(*,*)'3G in create_proprec',proptype,degree,refx
-!
    if(proptype.ge.1000) then
 ! this is for MQMQA model parameters with asymmetric composition dependence
-!      write(*,*)'3G special MQMQA excess parameter',proptype,degree
+      write(*,*)'3G special MQMQA excess parameter',proptype,degree
 ! this MQMQA parameter
       typty=proptype/1000
 ! this proptype is probably not needed nor useful
@@ -1567,15 +1565,21 @@
 ! this has a single function byt can be asymmetric
       allocate(proprec%degreelink(0:0))
       nullify(proprec%nextpr)
+! proptype for MQMQA is 34, 35, 36, the modelparameter i just G
       proprec%proptype=proptype
-      proprec%modelparamid=propid(proptype)%symbol
+! maybe that is fixed when listing?
+      proprec%modelparamid=propid(1)%symbol
+!      proprec%modelparamid=propid(proptype)%symbol
 !      write(*,*)'3G MQMQA parameter ',typty,proprec%proptype,powers
-! the proprec%extra contains 3 powers, as 100*i + 10*j + r
-! for the equation \varkappa_ij**i * \varkappa_ji**j in Max eq. 23/24
-! The r is for a ternary parameter in eqs. 25/26
+! the proprec%extra should contains 3 powers, as 100*p + 10*q + r
+! for the equation \varkappa_ij**p * \varkappa_ji**q in Max eq. 23/24
+! The r is for a ternary parameter in eqs. 25/26.  There is just one degree  0
       proprec%extra=powers
       proprec%degree=0
       proprec%degreelink(0)=lfun
+      write(*,2)proptype,powers,degree,refx
+2     format('3G in create_proprec  ',i2,i7,i3,' refx: ',a)
+!
 ! what is adjustl ?  evidently it removes initial spaces ... shift left ...
       proprec%reference=adjustl(refx)
       goto 900
@@ -1585,6 +1589,7 @@
       gx%bmperr=4063
       goto 1000
    endif
+! this is for all parameters EXCEPT the MQMQA excess
    allocate(proprec)
 ! enter data in reserved record
    allocate(proprec%degreelink(0:degree))
@@ -1592,6 +1597,7 @@
 !   if(proptype.ge.100) write(*,*)'property type: ',proptype
    proprec%proptype=proptype
 ! also save %modelparamid for unformatted files ...
+! this causes problems with the MQMQA ...
    if(proptype.gt.100) then
 ! this is a property with a constituent suffix like MQ&FE
       proprec%modelparamid=propid(proptype/100)%symbol
@@ -1613,6 +1619,7 @@
    proprec%antalprop=noofprop
 !   write(*,11)refx,notext
 !11 format('create proprec: ',a,a)
+! save the reference index
 900 continue
    call capson(refx)
 !   write(*,*)'3G reference: ',refx

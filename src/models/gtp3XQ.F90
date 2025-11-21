@@ -1424,13 +1424,14 @@
       if(.not.associated(intrec)) then
          cycle endmemloop2
       endif
-!
-!*************** check if using new code to replace code below *******
-! 
-      call new_mqmqa_excess(lokph,intrec,vals,dvals,d2vals,gz,ceq)
+!  
+      call new_mqmqa_excess(lokph,intrec,mqmqj,vals,dvals,d2vals,gz,ceq)
 ! if new_mqmqa_excess used then intrec will be nullified on return
       if(.not.associated(intrec)) cycle endmemloop2
-!********************* new code needed to replace code below *******
+!
+!*************** remove all code below when excess code above OK *******
+!******************* new code above should replace code below *******
+!
 ! There are excess parameters, any Tooprecords?
       if(associated(intrec%tooprec)) then
 ! the allocatable arrays Toop1, Toop2 and Kohler have all same size
@@ -1954,14 +1955,15 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !\addtotable subroutine new_mqmqa_excess
-! called from calc_mqmqa(lokph,intrec,vals,dvals,d2vals,gz,ceq)
+! called from calc_mqmqa line 1429
 !\begin{verbatim}
-! subroutine new_mqmqa_excess(lokph,intrecin,vals,dvals,d2vals,gz,intrec,ceq)
- subroutine new_mqmqa_excess(lokph,intrecin,vals,dvals,d2vals,gz,ceq)
+! subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
+  subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
 ! To be written using the gtp_allinone data structure for asymmetric excess
    implicit none
-   integer lokph,moded
-   type(gtp_property), pointer :: lokpty
+! mqmqj is index of first constituent in endmemberrecord
+   integer lokph,mqmqj
+!   type(gtp_property), pointer :: lokpty
    type(gtp_parcalc) :: gz
    double precision vals(6),dvals(3,gz%nofc)
    double precision d2vals(gz%nofc*(gz%nofc+1)/2)
@@ -1970,47 +1972,103 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! needed locally?
+   TYPE(gtp_intstack), dimension(:), allocatable :: savedint
    TYPE(gtp_pystack), pointer :: pystack
    TYPE(gtp_phase_add), pointer :: addrec
    TYPE(gtp_mqmqa_var), pointer :: mqf
    TYPE(gtp_terdata), pointer :: ternaries
+   TYPE(gtp_property), pointer :: proprec
 !
    logical :: once=.true.
-   integer i1,i2,i3
+   integer ppow,qpow,rpow,intlev,iiz
+   integer, dimension(:), allocatable :: ylinks
 ! The previous MQMQA excess implementation arrive here
 ! If mqmqa_data%exlevel is zero we should return and that code will still work.
-!   write(*,5)
-5  format('3XQ *** in new_mqmqa_excess gtp3XQ.FOR ***')
    if(mqmqa_data%exlevel.eq.0) then
-      if(once) write(*,6)mqmqa_data%exlevel
+!      if(once) write(*,6)mqmqa_data%exlevel
 6     format('3XQ *** this system use the old excess model ***',i5)
-! for old excess calculations DO NOT nullify intrec
-      once=.false.
       goto 1000
    endif
-!   if(once) write(*,*)' *** Using new mqmqa excess implentation ***'
-! intrecin is a gtp_interaction record
-! it should be nullified before return not to create confusion
+! we are here because this endmember has an intercation link
+   if(mqmqdebug2) write(*,5)mqmqj
+5  format('3XQ *** in new_mqmqa_excess with constituent: ',i3)
+! initiate ylinks for this tree with the endmember fraction
    intrec=>intrecin
+! this is needed to move to next endmemeber
    nullify(intrecin)
+! not more than 10 interactions ....
+   allocate(savedint(10))
+   allocate(ylinks(10))
+! this is the constituent from the endmember
+   ylinks(1)=mqmqj
+   intlev=2
+!
+! loop here until all excess records from this endmember calculated
+! The new excess model implementation using allinone etc below
+! The quad fractions and related composition variables such as
+! quadfractions and asymmetrical variables  have been set by set_constitution
+!
+100 continue
+!
+! This has to be developed, first check all parameter are there
+!
+! there is a single set of sites, save constituent first index
+! We may come back here for another interaction with same endmember
+   ylinks(intlev)=intrec%fraclink(1)
+! intrecin is to a gtp_interaction record
 ! list data in intrec
-   write(*,10)lokph,intrec%status,intrec%antalint,intrec%order,&
-        associated(intrec%propointer),associated(intrec%tooprec)
-10 format('3XQ interaction record: ',4i5,2l2)
-   write(*,15)associated(intrec%nextlink),associated(intrec%highlink),&
-        intrec%propointer%proptype,intrec%propointer%extra
-15 format('3XQ link to next: ',l2,', linkto higher: ',l2,' extra: ',i3,i7)
-! these should be allocated for a single sublattice
-   write(*,20)intrec%sublattice(1),intrec%fraclink(1),intrec%noofip(1)
-20 format('3XQ subl, frac, noofip: ',3i5)
+   if(mqmqdebug2) write(*,10)lokph,intrec%status,intrec%antalint,&
+        intrec%sublattice(1),&
+        associated(intrec%propointer),(ylinks(iiz),iiz=1,intlev)
+10 format('3XQ interaction: ',4i3,l3,', constituents: ',10i3)
+! these is a single sublattice, some interaction records has no properties
+! but some may have several properties
+   proprec=>intrec%propointer
+   do while (associated(proprec))
+! there can be several property record for the same set of constituents
+! there is a propointer here! error in gtp3B or empty interaction record
+      ppow=proprec%extra/100
+      qpow=(proprec%extra-100*ppow)/10
+      rpow=proprec%extra-100*ppow-10*qpow
+      if(mqmqdebug2) write(*,15)proprec%proptype,proprec%extra,ppow,qpow,rpow
+15    format('3XQ with a parameter, proptype and p q r powers ',2i5,3i3)
+! found one more excess parameter
 !
-! new excess model implementation using allinone etc below
-! first set quad fractions and related composition variables, which ics?
-! quadfractions and asymmetrical variables  are set by set_constitution
-!   call set_quadfraction(iph,ics,yfr,ceq)
+      proprec=>proprec%nextpr
+   enddo
+! when properties done take higher link if any, otherwise next   
+! until all excess parameters listed or calculated
 !
-1000 continue
-   once=.false.
+   if(associated(intrec%highlink)) then
+      if(mqmqdebug2) write(*,*)'3XQ push nextlink and take higher excess'
+      intlev=intlev+1
+      if(intlev.gt.9) then
+         write(*,*)'Interaction record overflow, increae dimension of savedint'
+         gx%bmperr=4399; goto 1000
+      endif
+      savedint(intlev)%saved=>intrec%nextlink
+      if(mqmqdebug2) write(*,18)intlev,associated(intrec%nextlink)
+18    format('3XQ pushed next intrec on stack',i2,l3)
+      intrec=>intrec%highlink
+      goto 100
+   elseif(associated(intrec%nextlink)) then
+! we pushed the next link !!!
+      if(mqmqdebug2) write(*,*)'3XQ take link to next parameter on same level'
+      intrec=>intrec%nextlink
+      if(associated(intrec)) goto 100
+   endif
+! No high or next link, pop saved intrec
+   do while(intlev.gt.1)
+      intrec=>savedint(intlev)%saved
+      if(mqmqdebug2) write(*,*)'3XQ popped intrec off stack',&
+           intlev,associated(intrec)
+      intlev=intlev-1
+      if(associated(intrec)) goto 100
+   enddo
+   if(mqmqdebug2) write(*,99)
+99 format('3XQ Back to endmemeber record'/)
+! we go back to endmember level
+1000  continue
    return
  end subroutine new_mqmqa_excess
 

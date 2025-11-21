@@ -5233,13 +5233,19 @@ contains
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
 ! A stupid way to find lokvares ... (or lokcs, I have forgooten which)
+          if(.not.allocated(mqmqa_data%contyp)) then
+! if this not allocated there is no MQMQA data
+             write(*,*)'No data for MQMQA phases'
+             exit main
+          endif
           lokcs=1
           do while(ceq%phase_varres(lokcs)%phlink.ne.iph)
              lokcs=lokcs+1
           enddo
-          write(*,*)'lokcs: ',lokcs,lokph,iph
+!          write(*,*)'lokcs: ',lokcs,lokph,iph
 !
-          kom2=submenu('Quads ',cline,last,mqmqalist,mqmqacc,3,'?TOPHLP')
+          kom2=submenu('MQMQA special?',&
+               cline,last,mqmqalist,mqmqacc,3,'?TOPHLP')
 !..........................................................
           mqmqa: select case(kom2)
           case DEFAULT
@@ -5277,18 +5283,6 @@ contains
 !
              if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
 !
-! check consistency of some data in mqma_data!!
-! some also in gtp_mqmqa_var!!
-             write(*,1687)mqmqa_data%nconst,mqmqa_data%nquad,&
-                  mqmqa_data%ncon1,mqmqa_data%ncat,&
-                  mqmqa_data%ncon2,mqmqa_data%nan,&
-                  mqmqa_data%npair,mqmqa_data%lcat
-1687         format('Values of some duplicate global data:',&
-                  'Number of quads: ',2i4/&
-                  'Number of cations: ',2i4/&
-                  'Number of anions: ',2i4/&
-                  'Number of pairs: ',i4/&
-                  'Value of cation*(cation+1)/2: ',i4/)
 !
 ! maybe include listing of mqmqa_data%constoi(1..4,index)
 !...........................................................
@@ -5311,11 +5305,11 @@ contains
                 write(kou,*)'No ternary asymmetry data available'
              endif ts
 !
-! listing in fraction in alphbetical order
+! listing of fraction in alphbetical order
              write(kou,4123)mqmqa_data%nquad,&
                   (ceq%phase_varres(lokcs)%yfr(i1),i1=1,mqmqa_data%nquad)
-4123         format('Fractions ',i2,'in species alphabetical order (OC):',&
-                  /(12F6.3/)/)
+4123         format('Fractions ',i2,' in species OC alphabetical order:',&
+                  (12F6.3/))
              noq: if(.not.allocated(ceq%phase_varres(lokcs)%mqmqaf%xquad)) then
                 write(*,*)'Quads not allocated'
              else
@@ -5365,8 +5359,32 @@ contains
 ! DEBUG for implementation of asymmetric models
           case(3)
 ! list the constituents of the phase in the order they have in constitlink
-! THIS IS AN EMERGY SUBROUTINE NOT CONFORMING WITH THE BASIC DATA STRUCTURE
+! THIS IS AN EMERGY SUBROUTINE IN gtp3XQ NOT CONFORMING WITH THE STRUCTURE
              call listconst(iph)
+!
+! check consistency of some data in mqma_data!!
+! some also in gtp_mqmqa_var!!
+             write(*,1687)mqmqa_data%nconst,mqmqa_data%nquad,&
+                  mqmqa_data%ncon1,mqmqa_data%ncat,&
+                  mqmqa_data%ncon2,mqmqa_data%nan,&
+                  mqmqa_data%npair,mqmqa_data%lcat
+1687         format(/'Values of some duplicate global data:',&
+                  'Number of quads: ',2i4/&
+                  'Number of cations: ',2i4/&
+                  'Number of anions: ',2i4/&
+                  'Number of pairs: ',i4/&
+                  'Value of cation*(cation+1)/2: ',i4/)
+!
+             i2=0
+             call gparidx('Set mqmqa debug?',cline,last,i1,i2,'?MQMQA debug')
+             mqmqdebug=.false.
+             mqmqdebug2=.false.
+             if(i1.eq.1) then
+                mqmqdebug=.true.
+             elseif(i1.eq.2) then
+                mqmqdebug2=.true.
+             endif
+!
 !...........................................................
 ! 
           case(4)
