@@ -927,8 +927,10 @@
      double precision, dimension(:), allocatable :: stoichiometry
 ! Can be used for extra species properties as in UNIQUAC models (area, volume)
      double precision, dimension(:), allocatable :: spextra
-! new property, not included in unformatted save
+! new property, not included in unformatted save NEVER USED
      character(len=:), allocatable :: mqmqa1
+! Index in mqmqa_data%contyp ... must be updated after reading a database
+     integer :: quadindex
   END TYPE gtp_species
 ! allocated in init_gtp
   TYPE(gtp_species), private, allocatable :: splista(:)
@@ -1239,8 +1241,10 @@
 ! The fraction indices in an MQMQA interaction are for the constituent species
 ! but the compositions used for the excess parameters should be a mixture
 ! of quad_i fractions, \varkappa_ij, \xi_ij and Y_i/k composition variables
-! The global array EL2ANCAT specifies the cation indices for elements (- anion)
-! The global array CON2QUAD relates constituent indices to quad indices
+! The mqmqa_data array EL2ANCAT specify cation indices for elements (- anion)
+! The mqmqa_data array CON2QUAD relates mqmqa constituent index to quad indices
+! The mqmqa_data array EMQUAD indices of A/X endmember quads
+! The global array SP2QUAD relates species indices to quad indices
 ! There are 2 types of constituents, A/X and pairs with 2 cations, AB/X
 ! The element indices may sometimes be needed for the A/X constituents
 ! data in this record will be created when the phase parameters are entered
@@ -1589,7 +1593,7 @@
   INTEGER, private, allocatable :: PHASES(:)
 !\end{verbatim}
 !-----------------------------------------------------------------
-! data for liquid phase with mqmqa model (only one but several composition sets)
+! data for liquid phase with mqmqa model (only one but maybe composition sets)
   TYPE gtp_mqmqa
 ! contains special STATIC information for liquid MQMQA model
 ! nconst is number of phase const (quads), ncon1, ncon2 in subl, npair #of pairs
@@ -1663,6 +1667,8 @@
 ! where 1..n are cation indices i.e. element indices ignoring anions
 ! transfer of fractions from OC yfr to quad use
      integer, dimension(:), allocatable :: con2quad ! transfer y to quad order
+! this is the indices of A/X quads in quad
+     integer, dimension(:), allocatable :: emquad 
 ! these are constants depending of the elements in the quad
      double precision, dimension(:,:), allocatable :: dy_ik
 ! transfer of fractions from OC fraction array to xquad not needed

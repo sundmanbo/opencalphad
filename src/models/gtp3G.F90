@@ -1547,7 +1547,7 @@
 !
    if(proptype.ge.1000) then
 ! this is for MQMQA model parameters with asymmetric composition dependence
-      write(*,*)'3G special MQMQA excess parameter',proptype,degree
+!      write(*,*)'3G special MQMQA excess parameter',proptype,degree
 ! this MQMQA parameter
       typty=proptype/1000
 ! this proptype is probably not needed nor useful
@@ -1577,7 +1577,7 @@
       proprec%extra=powers
       proprec%degree=0
       proprec%degreelink(0)=lfun
-      write(*,2)proptype,powers,degree,refx
+!      write(*,2)proptype,powers,degree,refx
 2     format('3G in create_proprec  ',i2,i7,i3,' refx: ',a)
 !
 ! what is adjustl ?  evidently it removes initial spaces ... shift left ...

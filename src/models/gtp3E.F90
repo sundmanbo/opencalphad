@@ -3497,7 +3497,7 @@
 ! to read references in MatCalc TDB files
    character longline*40000,reftext*512
 ! to handle ternary_extrapolation lines
-   character ternaryxpol(mtxp)*500
+   character ternaryxpol(mtxp)*2000
    character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60,chd*1
    character refx*16,more*4
    character (len=1), dimension(maxtypedefs) :: typedefchar
@@ -3780,7 +3780,7 @@
 !
 ! we have 13 keywords
 !   write(*,*)'3E Reading tdb: ',keyw
-  select case(keyw)
+   select case(keyw)
    case default
       if(ocv()) write(*,*)'3E default case: ',keyw,line(1:30)
 !---------------------------------------------------------------------
@@ -4259,7 +4259,7 @@
 ! The r3 is a FNN/SNN ratio for pairs, normally 2.4
 ! nend is set to zero at first call, then incremented for each FNN endmember
          call mqmqa_constituents(longline(ip:jp),const,nend,loop)
-         write(*,*)'3E back from entering constituents',gx%bmperr
+!         write(*,*)'3E back from entering constituents',gx%bmperr
          if(gx%bmperr.ne.0) then
             write(*,*)'3E error entering quadrupoles'
             goto 1000
@@ -4278,7 +4278,7 @@
          name2='MQMQA '
          call enter_phase(name1,1,knr,const,stoik,name2,phtype,&
               tdbwarning,emodel)
-!         write(*,*)'3E back from entering phase',gx%bmperr
+         write(*,*)'3E back from entering phase 1',gx%bmperr
 !         if(tdbwarning) write(*,*)'3E tdbwarning set true 6'
          if(gx%bmperr.ne.0) then
             write(*,*)'3E failed to enter the MQMQA phase',gx%bmperr
@@ -4502,7 +4502,7 @@
 !         if(tdbwarning) write(*,*)'3E tdbwarning set true 8'
 ! no error entering an I2SL liuqid with empty first sublattice ... suck
 ! It is just not entered ....
-!         write(*,*)'3E readtdb 9A: error?',gx%bmperr
+!         write(*,*)'3E back from enter_phase 2, error? ',gx%bmperr
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then
                if(.not.silent) write(kou,*) &
@@ -4578,7 +4578,7 @@
 !         write(*,607)trim(name1),iph
 607      format('3E Entered phase ',a,i5)
       endif condis2
-!      write(*,*)'readtdb 9B:',name1,nsl,phtype
+!      write(*,*)'3E readtdb 9B:',name1,nsl,phtype
 !-------------------------------------------------------------------
    case(6) ! PARAMETER --------------------------------------------
 !   elseif(line(4:13).eq.'PARAMETER ') then
@@ -5485,9 +5485,9 @@
 !000000000000000000000000000000000000000000000000000000
 ! After entering all parameters we should take care of ternary_extrapolations 
    if(addternaryxpol) then
-      write(*,'(a)')'3E Adding extrapolation methods',ntxp
+!      write(*,'(a)')'3E Adding extrapolation methods',ntxp
       do zp=1,ntxp
-         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
+!         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
 ! this subroutine is in gtp3H.F90 is obsolete
 !         call set_database_ternary(ternaryxpol(zp))
 ! this subroutine is in gtp3XQ.F90

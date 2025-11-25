@@ -23,6 +23,17 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.11.21 version 6.091.  Reading from TDB files now works and all
+parameters for the MQMQA phase are stored correctly in the data
+structure.  Some test to use them in calculations have been made and
+also to save them on a new TDB file but these are not finished.  The
+data structure is complex and any changes must be tested to avoid they
+create problems for other calculations.
+
+2025.11.21 version 6.090. More bugfixes reading MQMQA data from TDB
+files and for calculation of excess Gibbs energies.  New version for
+testing by my collaborators.
+
 2025.11.19 version 6.089. More work done on the MQMQA model and
 handling of its particular excess model parameters.  The actual code
 for calculating the excess Gibbs energy is still under development and

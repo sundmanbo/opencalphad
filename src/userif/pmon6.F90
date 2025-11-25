@@ -5289,6 +5289,10 @@ contains
 ! Asymmetries
 ! note: tersys, xquad, compvar are not linked from the phase!!!
           case(2)
+! copied from gtp3XQ listconst
+! list element names, numbers and quad indices
+             call list_quads(i1)
+!
 ! tersys is global data
              ts: if(allocated(tersys)) then
                 write(*,3101)size(tersys)
@@ -5300,7 +5304,7 @@ contains
 3201               format(i3,i5,2x,3(1x,i3),5x,3i4,5x,a)
                 enddo
                 write(*,3301)
-3301 format(/'Number in T/0 column is actual asymmetric (quad) element'/)
+3301 format(/'Number in T/0 column is actual asymmetric cation'/)
              else
                 write(kou,*)'No ternary asymmetry data available'
              endif ts
@@ -5308,14 +5312,14 @@ contains
 ! listing of fraction in alphbetical order
              write(kou,4123)mqmqa_data%nquad,&
                   (ceq%phase_varres(lokcs)%yfr(i1),i1=1,mqmqa_data%nquad)
-4123         format('Fractions ',i2,' in species OC alphabetical order:',&
-                  (12F6.3/))
+4123         format('Fractions ',i2,' in species OC alphabetical order:',/&
+                  (12F6.3))
              noq: if(.not.allocated(ceq%phase_varres(lokcs)%mqmqaf%xquad)) then
                 write(*,*)'Quads not allocated'
              else
                 write(kou,4122)mqmqa_data%nquad,&
                 (ceq%phase_varres(lokcs)%mqmqaf%xquad(i1),i1=1,mqmqa_data%nquad)
-4122            format('Fractions ',i2,' in Quad order: ',/(12F6.3/))
+4122            format('Fractions ',i2,' in Quad order: ',/(12F6.3))
 
                 write(kou,4124)mqmqa_data%nquad,mqmqa_data%ncat
 4124 format(/'The ',i3,' quads for ',i2,' cations are arranged ',&
@@ -5904,7 +5908,7 @@ contains
 !         'DIRECT          ','UNFORMATTED     ','XTDB            ']
     CASE(9)
 ! default is 3, unformatted
-       kom2=submenu(cbas(kom),cline,last,csave,ncsave,5,'?TOPHLP')
+       kom2=submenu(cbas(kom),cline,last,csave,ncsave,1,'?TOPHLP')
        if(kom2.le.0 .or. kom2.gt.ncsave) goto 100
 !
        call date_and_time(optres,name1)
@@ -5938,7 +5942,7 @@ contains
 !             filename(kl:)='.DAT '
           endif
 ! inside list_TDB_format
-          write(*,*)'PMON calling list_TDB_formats'
+!          write(*,*)'PMON calling list_TDB_formats'
           call list_TDB_format(filename)
 !          write(*,*)'PMON back from list_TDB_formats'
           if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then

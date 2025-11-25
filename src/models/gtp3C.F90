@@ -137,14 +137,16 @@
    text(ipos+26:ipos+48)=dummy(1:min(23,jpos))
    if(jpos.gt.23) text(ipos+46:ipos+48)='<.>'
    text(ipos+49:ipos+49)=' '
-   write(text(ipos+50:ipos+59),100)splista(spno)%mass
-   write(text(ipos+60:ipos+65),105)splista(spno)%charge
-100 format(F10.3)
+   write(text(ipos+50:ipos+56),100)splista(spno)%mass
+   write(text(ipos+57:ipos+62),105)splista(spno)%charge
+100 format(F7.3)
 105 format(F6.2)
    text(ipos+66:)=' '
 !    write(*,120)splista(spno)%status
-   write(text(ipos+66:ipos+73),120)splista(spno)%status
+   write(text(ipos+63:ipos+70),120)splista(spno)%status
+   write(text(ipos+71:ipos+73),125)splista(spno)%quadindex
 120 format(Z8)
+125 format(i3)
    ipos=ipos+73
 1000 continue
    return
@@ -158,12 +160,12 @@
 ! loksp is species record ...
    implicit none
    character text*(*)
-   integer ipos,loksp
+   integer ipos,loksp,tdb
 !\end{verbatim}
    character dummy*24
    integer jpos
    if(loksp.lt.1 .or. loksp.gt.noofsp) then
-!       write(*,*)'3C in list_species_data'
+!       write(*,*)'3C in list_species_data2'
       gx%bmperr=4051
       goto 1000
    endif
@@ -174,9 +176,20 @@
    text(ipos:ipos+24)=splista(loksp)%symbol
    text(ipos+25:ipos+25)=' '
    dummy=' '
-   call encode_stoik(dummy,jpos,5,loksp)
-   text(ipos+26:ipos+48)=dummy(1:jpos)
-!   text(ipos+49:ipos+49)=' '
+   if(splista(loksp)%quadindex.gt.0) then
+      write(*,*)'3C quads listed in another way'
+      goto 1000
+   endif
+!   if(tdb.ne.1) then
+!      text(ipos:)=splista(loksp)%mqmqa1
+!      write(*,*)'3C list_species_data2: ',trim(text)
+!   else
+! quads never arrive here
+     call encode_stoik(dummy,jpos,5,loksp)
+      text(ipos+26:ipos+48)=dummy(1:jpos)
+!   endif
+! mqmqa  SPECIES KLA/CL-Q K,LA/CL 3.5 6 2.5454546  !
+! mqmqa  SPECIES MG/CL-Q MG/CL 6 3 4 !
 !   write(text(ipos+50:ipos+59),100)splista(loksp)%mass
 !   write(text(ipos+60:ipos+65),105)splista(loksp)%charge
 100 format(F10.3)
@@ -202,7 +215,7 @@
    character line*100
    write(unit,10)noofsp
 10  format(/'List of ',i3,' species'/ &
-        '  No Symbol',20X,'Stoichiometry',12X,'Mass      Charge Status')
+        '  No Symbol',20X,'Stoichiometry',9X,'Mass',5x,'Charge  Status Qua')
    loop1: do jl=1,noofsp
       ipos=1
       call list_species_data(line,ipos,species(jl))
@@ -1496,11 +1509,12 @@
       call list_bibliography(' ',kou)
 !--------------------------------------------------------------
 ! write on unit
-   case(2) ! ftyp=2 TDB format  THIS IS NOW REDUNDANT
+   case(2) ! ftyp=2 TDB format  
       write(*,*)'Please use the SAVE command'
       goto 1000
 ! CHTD1 keeps track of type definitions, note: incremented before use
       CHTD='0'
+! NOTE this is not the normal subroutine to save TDB formats, see list_tdb_
       write(*,*)'3C saving TDB format'
       if(notallowlisting(privilege)) goto 1000
       write(*,*)'Use SAVE TDB to write a TDB database file'
@@ -1517,6 +1531,7 @@
 ! skip vacancy species and species that are elements
          iph=species(isp)
          ipos=1
+         write(*,*)'3C listing using list_species_data2'
          call list_species_data2(text,ipos,iph)
 ! not very logical, using species index below and location above ... suck
          if(testspstat(isp,SPEL) .or. testspstat(isp,SPVA)) then
@@ -1599,7 +1614,7 @@
    implicit none
    character filename*(*)
 !\end{verbatim}
-   integer iph,ipos,unit,isp
+   integer iph,ipos,unit,isp,noq
 ! the retured file name can be very long
    character text*512, text2*2000
    character date*8,CHTD*1
@@ -1629,12 +1644,20 @@
 ! skip vacancy species and species that are elements
          iph=species(isp)
          ipos=1
-         call list_species_data2(text,ipos,iph)
+! special format of text for MQMQA species
+         if(splista(iph)%quadindex.gt.0) then
+! remove the 2 number after -Q
+            noq=index(splista(iph)%symbol,'-Q')
+            text=splista(iph)%symbol(1:noq+1)//'      '//splista(iph)%mqmqa1
+!            write(*,*)'3C quad: ',trim(text)
+         else
+            call list_species_data2(text,ipos,iph)
 ! not very logical, using species index below and location above ... suck
+         endif
          if(testspstat(isp,SPEL) .or. testspstat(isp,SPVA)) then
             cycle sploop
          endif
-         write(unit,110)text(1:len_trim(text))
+         write(unit,110)trim(text)
 110      format('SPECIES ',A,' !')     
       end do sploop
       write(unit,107)
@@ -1642,7 +1665,8 @@
 ! skip the first two functions which are R and RTLNP (using R)
 ! write RTLNP in correct TDB form here
       text2='FUNCTION RTLNP 10 R*T*LN(1.0D-5*P); 20000 N !'
-      write(unit,112)text2(1:len_trim(text2))
+      write(unit,112)trim(text2)
+      write(*,112)trim(text2)
 112   format(a)
 !
       tpfuns: do iph=3, notpf()! freetpfun-1
@@ -1947,12 +1971,11 @@
 !                                123456789.123456789.1234
 ! added 20201128/BoS, FACTCE, QCE and UNIQUAC
 ! added 20201128/BoS, MQMQA, QCE and UNIQUAC
-!   elseif(btest(phlista(lokph)%status1,PHFACTCE)) then
    elseif(btest(phlista(lokph)%status1,PHMQMQX)) then
 ! modelid is just locally. this is with new excess sooftware 20251119/BoS
       special(1:1)='Q'; modelid='MQMQX'
       if(.not.btest(phlista(lokph)%status1,PHMQMQX)) then
-         write(*,*)'Error,   missing bit PHMQMQA'
+         write(*,*)'3C Error,   missing bit PHMQMQA'
       endif
       mqmqa=btest(phlista(lokph)%status1,PHMQMQA)
 !                                123456789.123456789.1234
@@ -2431,8 +2454,8 @@
                endif
                call encode_constarr(text,nsl,endm,nint,lint,jdeg)
                if(mqmqxess) then
-! MQMQA excess replace degree after ; in text by G,powpqr(1:2) for binary 
-!                                   G,powpqr(1:3) for ternary
+! MQMQA excess replace degree after ; in text by G,p,q,0 for binary 
+!                                   G,p,q,r for ternary
 !                  write(*,*)'3C parameter 1: ',nint,trim(text)
                   iiz=index(text,';')
                   text(iiz+1:)=mqmqxchar//char(powpqr(1))//','//char(powpqr(2))
@@ -2590,7 +2613,8 @@
    character text*1024,phname*24,prop*32,funexpr*1024
    character special*8
    character,save :: ctop*1='K'
-   integer, dimension(2,3) :: lint
+!   integer, dimension(2,3) :: lint insufficient for MQMQX
+   integer, dimension(2,4) :: lint
    integer, dimension(maxsubl) :: endm,ilist
    logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap
@@ -2606,6 +2630,11 @@
    TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_phase_add), pointer :: addrec
    TYPE(gtp_tooprec), pointer :: tooprec
+! MQMQAX
+   logical :: mqmqax=.false.
+   character*1 mqmqxchar*7
+   integer ppow,temp
+! G,1,1,1
 ! an empty line first
    write(lut,*)
 ! for type definitions
@@ -2651,6 +2680,9 @@
       phname(lokcs:)=':Y'
    elseif(btest(phlista(lokph)%status1,PHGAS)) then
       phname='GAS:G'
+   elseif(btest(phlista(lokph)%status1,PHMQMQX)) then
+      lokcs=len_trim(phname)+1
+      phname(lokcs:)=':X'
    elseif(btest(phlista(lokph)%status1,PHLIQ)) then
       phname='LIQUID:L'
    endif
@@ -2684,6 +2716,7 @@
       addrec=>addrec%nextadd
    enddo lastadd
 60 continue
+   write(*,*)'3C Not saving any asymmetric data for ',trim(phname)
 ! This subroutine is independent of current equilibrium, use firsteq
 !   write(lut,10)phname,phlista(lokph)%status1,special,&
 !        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
@@ -2701,6 +2734,11 @@
            nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
    endif
 10  format(' PHASE ',A,1x,a,1x,I2,10(1x,F7.3))
+   mqmqax=.false.
+   if(btest(phlista(lokph)%status1,PHMQMQX)) then
+      write(*,*)'3C Listing MQMQA phase'
+      mqmqax=.true.
+   endif
    write(lut,11)
 11 format('!')
    nk=0
@@ -2904,8 +2942,9 @@
    else
       endmemrec=>phlista(lokph)%disordered
    endif
-   write(*,*)'3C list_phase_data2 for TDB?XTDB files'
-   write(lut,*)'$ 3C list_phase_data2 for TDB?XTDB files'
+   write(*,210)
+!   write(lut,210)
+210 format('$ 3C list_phase_data2 for TDB?XTDB files')
    intlist1: do while(associated(endmemrec))
       intrec=>endmemrec%intpointer
       if(associated(intrec)) then
@@ -3024,17 +3063,37 @@
 !         if(parlist.eq.2) then
 !            prop=prop(1:len_trim(prop))//'D'
 !         endif
-! note changes here must be repeated for endmember parameters above
-            degree: do jdeg=0,proprec%degree
-               if(proprec%degreelink(jdeg).eq.0) then
-!                  write(*,*)'Ignoring function link'
-                  cycle degree
+            if(mqmqax) then
+! this is just for mqmqax excess parameters
+               if(typty.ge.34 .and. typty.le.36) then
+! MQMQX excess parameter with additional data after ;
+! initial parameter symbol is G
+!                  write(*,*)'3C MQMQX excess: ',proprec%extra
+                  if(typty.eq.34) mqmqxchar(1:2)='G,'
+                  if(typty.eq.35) mqmqxchar(1:2)='Q,'
+                  if(typty.eq.36) mqmqxchar(1:2)='B,'
+                  prop='G'
+! we have to add powers after the letter 100*p + 10*p + r
+                  ppow=proprec%extra/100
+                  mqmqxchar(3:4)=char(ppow+ichar('0'))//','
+                  temp=(proprec%extra-100*ppow)/10
+                  mqmqxchar(5:6)=char(temp+ichar('0'))//','
+                  temp=(proprec%extra-100*ppow-10*temp)/10
+                  mqmqxchar(7:7)=char(temp+ichar('0'))
+               else
+                  write(*,298)typty
+298               format('3C illegal excess parameter for MQMQX phase',i7)
                endif
+               jdeg=0
                call encode_constarr(text,nsl,endm,nint,lint,jdeg)
                write(funexpr,300)prop(1:len_trim(prop)), &
                     phname(1:len_trim(phname)),text(1:len_trim(text))
 300            format('PARAMETER ',A,'(',A,',',A,') ')
-               ip=len_trim(funexpr)+1
+! the expression ends with ";0)" replace "0) by mqmqxchar!
+               ip=len_trim(funexpr)-1
+               funexpr(ip:)=mqmqxchar//')'
+               ip=ip+8
+! add expression after ip
                call list_tpfun(proprec%degreelink(jdeg),1,funexpr(ip:))
 ! remove = sign
                ip=index(funexpr,'=')
@@ -3044,7 +3103,30 @@
                ip=len_trim(funexpr)
                funexpr(ip+1:)=' !'
                call wrice2(lut,4,12,78,1,funexpr(1:ip+2))
-            enddo degree
+            else
+! note changes below must be repeated for endmember parameters above
+! all other phases
+               degree: do jdeg=0,proprec%degree
+                  if(proprec%degreelink(jdeg).eq.0) then
+!                  write(*,*)'Ignoring function link'
+                     cycle degree
+                  endif
+                  call encode_constarr(text,nsl,endm,nint,lint,jdeg)
+                  write(funexpr,300)prop(1:len_trim(prop)), &
+                       phname(1:len_trim(phname)),text(1:len_trim(text))
+!300               format('PARAMETER ',A,'(',A,',',A,') ')
+                  ip=len_trim(funexpr)+1
+                  call list_tpfun(proprec%degreelink(jdeg),1,funexpr(ip:))
+! remove = sign
+                  ip=index(funexpr,'=')
+                  funexpr(ip:ip)=' '
+                  ip=len_trim(funexpr)
+                  funexpr(ip+1:)=' '//proprec%reference
+                  ip=len_trim(funexpr)
+                  funexpr(ip+1:)=' !'
+                  call wrice2(lut,4,12,78,1,funexpr(1:ip+2))
+               enddo degree
+            endif
             proprec=>proprec%nextpr
          enddo ptyloop2
 ! list temporarily the number of permutations
@@ -3360,7 +3442,7 @@
    character text*(*)
 !\end{verbatim}
    character elnam*2,ltext*60
-   integer eli,noelx,iel,isto,jpos,ich,nlen
+   integer eli,noelx,iel,isto,jpos,ich,nlen,iq,tdb
    double precision stoi,charge
    if(spno.lt.1 .or. spno.gt.noofsp) then
 !       write(*,*)'3C in encode_stoik, no species: ',spno
@@ -3370,6 +3452,12 @@
    ipos=1
    noelx=splista(spno)%noofel
 !   write(6,*)'3C encode_stoik 1: ',spno,noelx
+   ltext=splista(spno)%symbol
+   iq=index(ltext,'/')
+!   if(iq.gt.0 .and. (ichar(ltext(iq+1:iq+1)).gt.ichar('9'))) then
+! this is a quas, special output in TDB files ...
+!      write(*,*)'3C next species is a quad "',trim(ltext),'"'
+!   endif
    loop1: do iel=1,noelx
       eli=splista(spno)%ellinks(iel)
       elnam=ellista(eli)%symbol
@@ -3620,12 +3708,12 @@
    nint=0; ideg=0; ll=1
    endm(ll)=0
    ip=1
-! write(*,*)'decode_constarr 1: ',ip,constarr
+!   write(*,*)'3C decode_constarr 1: ',ip,trim(constarr)
    if(eolch(constarr,ip)) then
       gx%bmperr=4061; goto 1000
    endif
    jp=ip-1
-!  write(*,*)'decode_constarr 2: ',ip,jp
+!  write(*,*)'3C decode_constarr 2: ',ip,jp
    loop: do while(.true.)
 ! find separators between constituents, no spaces allowed
       jp=jp+1
@@ -3640,7 +3728,7 @@
       elseif(ch1.eq.' ') then
          isep=4
       elseif(.not.(ch1.ge.'A' .and. ch1.le.'Z')) then
-!          write(*,*)'decode_constarr 3B: ',jp,ip,ch1
+!          write(*,*)'3C decode_constarr 3B: ',jp,ip,ch1
          if(jp.gt.ip) then
 ! accept 0-9 and _ and . and / and + and - 
 ! after the first character of a constituent
@@ -3723,7 +3811,7 @@
 !               gx%bmperr=4399; goto 1000
             endif
             ideg=ideg+100*mqmqa1
-!            write(*,*)'3C value of ideg: ',ideg
+!            write(*,*)'3C first value of ideg: ',ideg
 ! skip the  "," character
             jp=jp+1
             call getint(constarr,jp,mqmqa1)
@@ -3735,7 +3823,19 @@
             else
                ideg=ideg+10*mqmqa1
             endif
-!            write(*,*)'3C final ideg: ',ideg
+!            write(*,*)'3C second value of ideg: ',ideg,mqmqa1
+! skip the  "," character
+            jp=jp+1
+            call getint(constarr,jp,mqmqa1)
+            if(buperr.ne.0) then
+!               write(*,50)4,jp,ch1,trim(constarr(jp:)),mqmqa1
+! it is not an error, there may be just a single number
+!               gx%bmperr=4399; goto 1000
+               buperr=0
+            else
+               ideg=ideg+mqmqa1
+            endif
+!            write(*,*)'3C final ideg: ',ideg,mqmqa1
 ! end of special MQMQA excess
          else
 ! normally a digit 0 to 9 is allowed after the ";"
@@ -5103,4 +5203,6 @@
     return
   end subroutine listoptcoeff
 
-!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+  

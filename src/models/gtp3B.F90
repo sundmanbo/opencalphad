@@ -143,6 +143,7 @@
    elements(noofel)=noofel
    call alphaelorder
    species(noofsp)=noofsp
+   splista(noofsp)%quadindex=0
    call alphasporder
 ! As this is an element add the species to the component list of firsteq
 !------------------------------------------------
@@ -275,7 +276,7 @@
 200    continue
       elindex(jl)=jk
       if(jk.ge.0) then
-!CCI : when GSVIRTUAL is added, negative stoechiometry is allowed (numerically) 
+!CCI : when GSVIRTUAL is added, negative stoichiometry is allowed (numerically) 
          if( (stoik(jl).lt.zero) .and. &
               (.not.btest(globaldata%status,GSVIRTUAL))) then
 !CCI
@@ -309,6 +310,8 @@
    splista(noofsp)%alphaindex=noofsp
    splista(noofsp)%noofel=noelxx
    splista(noofsp)%status=0
+! with MQMQA model this links species to quad index
+   splista(noofsp)%quadindex=0
    if(charge.ne.zero) then
       splista(noofsp)%status=ibset(splista(noofsp)%status,SPION)
    endif
@@ -322,8 +325,6 @@
 !           splista(noofsp)%stoichiometry(jl)
 12    format('3B species: ',2i5,F7.4)
    enddo loop2
-! mqmqa1 data character ... problem reading MQMQA as TDB or XTDB 
-   if(allocated(splista(noofsp)%mqmqa1)) deallocate(splista(noofsp)%mqmqa1)
 ! return with no error
    gx%bmperr=0
 ! add species last and rearrange
@@ -332,6 +333,7 @@
 ! NOTE the array spextra is allocated with AMEND SPECIES command
 ! error: continue would be a nice use of non-digit labels ....
 1000 continue
+!   write(*,*)'3B exit enter species: ',noofsp,splista(noofsp)%quadindex
    return
  END subroutine enter_species
 
@@ -600,6 +602,8 @@
 900 continue
     if(buperr.ne.0) gx%bmperr=buperr
 1000 continue
+!    write(*,*)'3B leave enterphase'
+    return
   end subroutine enterphase
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -654,7 +658,7 @@
    mqm=.FALSE.
    uniquac=.FALSE.
 !   write(*,4)trim(name),nsl,(const(jk),jk=1,nsl)
-4  format('3B In enter_phase: 'a,2x,i1,' "',9a)
+4  format('3B In enter_phase: 'a,2x,i1,' "',9a,'"')
 ! phase with tetrahedron CVM configurational entropy
    cvmtfs=.FALSE.
    cvmtfl=.FALSE.
@@ -736,6 +740,7 @@
 !      write(*,13)(trim(const(ll)),ll=1,nk)
 13    format('3B MQMQA const: ',10(a,1x))
       call mqmqa_rearrange(const)
+!      write(*,*)'3B in enter_phase, back from mqmqa_rearrange'
       if(gx%bmperr.ne.0) goto 1000
    elseif(model(1:8).eq.'UNIQUAC ') then
       uniquac=.TRUE.
@@ -983,6 +988,7 @@
 ! create constituent record
 !   write(*,*)'gtp3B line 981 creating constituent list: "',ch1,'"'
    call create_constitlist(phlista(nyfas)%constitlist,nkk,klok)
+!   write(*,*)'gtp3B back from creating constituent list: "',ch1,'"'
 ! in phase_varres we will indicate the VA constituent, indicate in iva
    valoop: do jl=1,nkk
       iva(jl)=0
@@ -1443,6 +1449,7 @@
 !        mqmqa_data%nan
 5  format('3B in create_asymmetry ',a,' check: ',4i4,2x,4i4)
 ! Make sure these variables are set !!
+!   write(*,*)'3B calling init_excess_asymm'
    mqmqa_data%nquad=mqmqa_data%nconst
    mqmqa_data%ncat=mqmqa_data%ncon1
    mqmqa_data%nan=mqmqa_data%ncon2
@@ -1933,14 +1940,21 @@
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
+! not implemented 
    lokph=phases(iph)
    ncs=phlista(lokph)%noofcs
    if(ncs.gt.8) then
 ! max 9 composition sets
       gx%bmperr=4092; goto 1000
    endif
+! not available for PHMQMQX phase
+   if(btest(phlista(lokph)%status1,PHMQMQX)) then
+      write(*,*)'3B phases with MQMQX model cannot have extra composition sets'
+      gx%bmperr=4399; goto 1000
+   endif
    ceq=>firsteq
    icsno=ncs+1
+
 ! test if mmy is correct in all existing compsets
 ! OK here
 !   do jl=1,ncs
@@ -2709,7 +2723,7 @@
       gx%bmperr=0
    endif
    fractyp=1
-!   write(*,*)'In enter_parameter ',typty,nint,ideg
+!   write(*,*)'3B In enter_parameter ',typty,nint,ideg
    if(btest(phlista(lokph)%status1,PHMFS)) then
 ! for phases with diordered set the number of sublattices can vary ....
       if(nsl.ne.phlista(lokph)%noofsubl) fractyp=2
@@ -3331,7 +3345,7 @@
          if(lfun.eq.-1) goto 900 
          if(ideg.gt.9) then
             typty=ideg; ideg=0
-            write(*,*)'3B create excess proprec for MQMQA 1: ',typty,ideg,lfun
+!            write(*,*)'3B create excess proprec for MQMQA 1: ',typty,ideg,lfun
          endif
 !         write(*,*)'3B create_proprec 1',typty,ideg,lfun
          call create_proprec(intrec%propointer,typty,ideg,lfun,refx)
@@ -3349,7 +3363,7 @@
          if(lfun.lt.0) goto 900
          if(ideg.gt.9) then
             typty=ideg; ideg=0
-            write(*,*)'3B create excess proprec for MQMQA 2: ',typty,ideg,lfun
+!            write(*,*)'3B create excess proprec for MQMQA 2: ',typty,ideg,lfun
          endif
 !         write(*,*)'3B create_proprec 2: ',typty,ideg,lfun
          call create_proprec(endmemrec%propointer,typty,ideg,lfun,refx)
@@ -3395,7 +3409,7 @@
 ! no record for this property at present, add a new property record
    if(ideg.gt.9) then
       typty=ideg; ideg=0
-     write(*,*)'3B create excess proprec for MQMQA 3: ',typty,ideg,lfun
+!     write(*,*)'3B create excess proprec for MQMQA 3: ',typty,ideg,lfun
    endif
 !   write(*,*)'3B create_proprec 3: ',typty,ideg,lfun
    call create_proprec(lastprop%nextpr,typty,ideg,lfun,refx)
@@ -7127,7 +7141,7 @@
 ! almost identical to subroutine mqmqa_species(inline,const,nend,...
 ! called from readtdb in gtp3E.F90.  If nend<0 initiate to 1
 ! called also from gtp3EY, OCenterspecies
-! the species is created at the end of all is OK
+! the species is created at the end if all is OK
 ! can take input from database file or terminal
 ! name1 is OC species name. Must contain / followd by letter
 ! inline is A/B or A,C/B or A/B,D or A,C/B,D with , and /
@@ -7155,6 +7169,8 @@
    character*24 cation1,species(4),quaderr
    character quadname*64,ch1*1,elnames(9)*2
    character*2 :: seqnum='00'
+! beginning of text to save in species record
+   integer sinsp
    double precision val,qstoi(mqq),smass,qsp,extra(5),stoi(20),double(4)
    double precision vazero,totstoi
 ! Example of input line with "constituents":
@@ -7165,7 +7181,7 @@
 ! multiple valencies are used such as U+3 and U+4
 ! Species representing different valencies of an element have names as UQ4 
 ! fnnquads store names of FNN quadruplets
-   integer nfnnq,nsnnq,pair,qorder(maxconst)
+   integer nfnnq,nsnnq,pair,qorder(maxconst),haha
    integer, parameter :: mfnnq=20
    character (len=24) :: fnnquads(mfnnq),snnrefs(4,maxconst-mfnnq)
 ! this save is probably redundant
@@ -7211,11 +7227,14 @@
    nomqmqava=.TRUE.
 100 continue
    if(eolch(inline,ip)) goto 900
+   haha=0
 ! set TRUE below if two species represent the same element, such as Fe2Q, Fe3Q
    sametwice1=.FALSE.; sametwice2=.FALSE.
 ! here a new quadrupole. Third argumment 2 means terminated by space
 ! getext increment ip by 1 before extracting so decrement first
    ip=ip-1
+   sinsp=ip
+! trying to extract quad information
 !   write(*,*)'3B inline: "',trim(inline),'"',ip
    call getext(inline,ip,2,quadname,' ',lenc)
    if(buperr.ne.0) then
@@ -7556,6 +7575,7 @@
    mqmqa_data%contyp(12,thiscon)=loksparr(2)
    mqmqa_data%contyp(13,thiscon)=loksparr(3)
    mqmqa_data%contyp(14,thiscon)=loksparr(4)
+   haha=thiscon
    nspel=0
 ! loop from 0 to include the vacancy, it will be the first element?
 ! why loop to 20? Well, I assume there is less than 20 different species
@@ -7642,8 +7662,22 @@
    const(thiscon)=quadname
 ! we must use the location of the endmember species?? YES
    call find_species_by_name_exact(quadname,kp)
+   if(gx%bmperr.ne.0) then
+      write(*,*)'3B quad link from species failed',trim(quadname)
+      goto 1000
+   endif
    call get_species_location(kp,loksp,cation1)
-!   write(*,*)'3B found quad: ',trim(quadname),kp,loksp,thiscon
+! save quad index in species record
+!   write(*,611)nspel,loksp,kp,thiscon
+611 format('3B set link from species to quad',4i5)
+!   splista(loksp)%quadindex=thiscon
+   splista(loksp)%quadindex=haha
+! finally store the input information
+   splista(loksp)%mqmqa1=trim(inline)
+!   write(*,*)'3B saved quad info: "',splista(loksp)%mqmqa1,'"'
+!
+!   write(*,612)trim(quadname),kp,loksp,thiscon,haha,splista(loksp)%quadindex
+612 format('3B found quad: ',a,6i5)
    if(gx%bmperr.ne.0) goto 1000
 ! in this place we must store the final constituent index of this species
 ! the constituents are arranged alphabetical in the call to enter_phase
@@ -7722,6 +7756,7 @@
    enddo
 !
 1000 continue
+!   write(*,*)'3B leaving mqmqa_species',thiscon
 !   write(*,910)nend
 910 format('3B found ',i3,' FNN constituents in MQMQA')
    return
@@ -8118,7 +8153,7 @@
 !\addtotable subroutine mqmqa_quadbonds
 !\begin{verbatim}
  subroutine mqmqa_quadbonds(index,values)
-! This routine will add missing quads using the pairs 
+! This routine will return quad specifics
    implicit none
    integer index
    double precision values(*)

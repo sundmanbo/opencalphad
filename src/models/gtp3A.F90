@@ -102,6 +102,7 @@
    splista(1)%mass=zero
    splista(1)%charge=zero
    splista(1)%status=0
+   splista(1)%quadindex=0
 ! set status bits that is is also an element and it is the vacancy
    splista(1)%status=ibset(splista(1)%status,SPEL)
    splista(1)%status=ibset(splista(1)%status,SPVA)
@@ -2521,27 +2522,6 @@ end function find_phasetuple_by_indices
    return
  end subroutine get_phasetuple_name
 
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!
-!-\addtotable subroutine get_phasetup_name_old
-!-\begin{verbatim}
-! subroutine get_phasetup_name_old(phtuple,name)
-! Given the phase tuple this subroutine returns the name with pre- and suffix
-! for composition sets added and also a \# followed by a digit 2-9 for
-! composition sets higher than 1.
-!   implicit none
-!   character name*(*)
-!   type(gtp_phasetuple) :: phtuple
-!-\end{verbatim} %+
-!
-! PROBABLY REDUNDANT and wrong ...
-!
-!   call get_phase_name(phtuple%phaseix,phtuple%compset,name)
-!   call get_phase_name(phtuple%ixphase,phtuple%compset,name)
-!1000 continue
-!   return
-! end subroutine get_phasetup_name_old
-!
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine get_phasetup_record
