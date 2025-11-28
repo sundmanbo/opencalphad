@@ -2367,7 +2367,7 @@
 ! 2; 3
                   powpqr(3)=proprec%extra-100*powpqr(1)-10*powpqr(2)
 !                  write(*,55)typty,proprec%extra,powpqr
-55                format('3C listing MQMQA/MQMQX parameters ',i2,i5,3i4)
+55                format('3C listing 2370 MQMQA/MQMQX parameters ',i2,i5,3i4)
 ! the powpqr is used when listing degree below
                   do iiz=1,3
                      powpqr(iiz)=powpqr(iiz)+ichar('0')
@@ -2633,7 +2633,7 @@
 ! MQMQAX
    logical :: mqmqax=.false.
    character*1 mqmqxchar*7
-   integer ppow,temp
+   integer ppow,temp,rpow
 ! G,1,1,1
 ! an empty line first
    write(lut,*)
@@ -2742,6 +2742,8 @@
    write(lut,11)
 11 format('!')
    nk=0
+!   lqq=0
+!   if(btest(phlista(lokph)%status1,PHMQMQX)) lqq=-1
    text='CONSTITUENT '//phname(1:len_trim(phname))//' :'
    ip=len_trim(text)+1
    sublatloop: do ll=1,nsl
@@ -2749,7 +2751,12 @@
          nk=nk+1
          jnr=phlista(lokph)%constitlist(nk)
          if(jnr.gt.0) then
-            text(ip:)=splista(jnr)%symbol
+            if(mqmqax) then
+               kkk=index(splista(jnr)%symbol,'-Q')
+               text(ip:)=splista(jnr)%symbol(1:kkk+1)
+            else
+               text(ip:)=splista(jnr)%symbol
+            endif
          else
             text(ip:)='*'
          endif
@@ -2809,8 +2816,11 @@
       enddo
       nint=0
       ideg=0
+      if(btest(phlista(lokph)%status1,PHMQMQX)) ideg=-1
+! supress digits after -Q for MQMQX phases, works
       call encode_constarr(text,nsl,endm,nint,lint,ideg)
       if(gx%bmperr.ne.0) goto 1000
+      ideg=0
       proprec=>endmemrec%propointer
       ptyloop: do while(associated(proprec))
          ij=proprec%proptype
@@ -3068,7 +3078,7 @@
                if(typty.ge.34 .and. typty.le.36) then
 ! MQMQX excess parameter with additional data after ;
 ! initial parameter symbol is G
-!                  write(*,*)'3C MQMQX excess: ',proprec%extra
+!                  write(*,*)'3C line 3071 MQMQX excess: ',proprec%extra
                   if(typty.eq.34) mqmqxchar(1:2)='G,'
                   if(typty.eq.35) mqmqxchar(1:2)='Q,'
                   if(typty.eq.36) mqmqxchar(1:2)='B,'
@@ -3078,13 +3088,14 @@
                   mqmqxchar(3:4)=char(ppow+ichar('0'))//','
                   temp=(proprec%extra-100*ppow)/10
                   mqmqxchar(5:6)=char(temp+ichar('0'))//','
-                  temp=(proprec%extra-100*ppow-10*temp)/10
-                  mqmqxchar(7:7)=char(temp+ichar('0'))
+                  rpow=proprec%extra-100*ppow-10*temp
+                  mqmqxchar(7:7)=char(rpow+ichar('0'))
                else
                   write(*,298)typty
 298               format('3C illegal excess parameter for MQMQX phase',i7)
                endif
-               jdeg=0
+! excess constituents should also be listed with just -Q NO DIGITS! 
+               jdeg=-1
                call encode_constarr(text,nsl,endm,nint,lint,jdeg)
                write(funexpr,300)prop(1:len_trim(prop)), &
                     phname(1:len_trim(phname)),text(1:len_trim(text))
@@ -3093,7 +3104,8 @@
                ip=len_trim(funexpr)-1
                funexpr(ip:)=mqmqxchar//')'
                ip=ip+8
-! add expression after ip
+! add expression after ip, there is just one
+               jdeg=0
                call list_tpfun(proprec%degreelink(jdeg),1,funexpr(ip:))
 ! remove = sign
                ip=index(funexpr,'=')
@@ -3651,20 +3663,33 @@
 ! creates a constituent array
    implicit none
    character constarr*(*)
+   character dummy*24
    integer, dimension(*) :: endm
-   integer nsl,nint,ideg
+   integer nsl,nint,ideg,rp
    integer, dimension(2,*) :: lint
 !\end{verbatim}
    integer ip,mint,ll,l2
    ip=1
    constarr=' '
    mint=1
+! special MQMQX
+!   if(ideg.lt.0) write(*,*)'3C line 3665 removing digits after -Q'
 !  if(nint.gt.0) then
 !     write(*,*)'encode_contarr ',lint(1,1),lint(2,1)
 !  endif
    do ll=1,nsl
       if(endm(ll).gt.0) then
-         constarr(ip:)=splista(endm(ll))%symbol
+         if(ideg.lt.0) then
+! this is for TDB files using the MQMQA model.  Remove 2 digits after -Q. WORKS
+            rp=index(splista(endm(ll))%symbol,'-Q')
+!            write(*,*)'3C in encode_constarr no digits after -Q',rp
+            if(rp.le.0) then
+               write(*,*)'3C Warning, MQMQA constituent missing "-Q"'
+            endif
+            constarr(ip:)=splista(endm(ll))%symbol(1:rp+1)
+         else
+            constarr(ip:)=splista(endm(ll))%symbol
+         endif
       else
          constarr(ip:)='*'
       endif
@@ -3675,7 +3700,13 @@
             if(lint(1,mint).eq.ll) then
                constarr(ip+1:ip+1)=','
                ip=ip+2
-               constarr(ip:)=splista(lint(2,mint))%symbol
+               if(ideg.lt.0) then
+                  rp=index(splista(lint(2,mint))%symbol,'-Q')
+! take into account the ,
+                  constarr(ip:)=splista(lint(2,mint))%symbol(1:rp+1)
+               else
+                  constarr(ip:)=splista(lint(2,mint))%symbol
+               endif
                ip=len_trim(constarr)
                mint=mint+1
             endif
@@ -3684,8 +3715,10 @@
       constarr(ip+1:ip+1)=':'
       ip=ip+2
    enddo
+! for MQMQA phases the part after ";" is replaced on TDB files ... (ideg -1)
    constarr(ip-1:ip-1)=';'
-   constarr(ip:ip)=char(ideg+ichar('0'))
+   constarr(ip:ip)='0'
+   if(ideg.gt.0) constarr(ip:ip)=char(ideg+ichar('0'))
    return
  end subroutine encode_constarr
 

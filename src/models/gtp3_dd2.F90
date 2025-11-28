@@ -1078,7 +1078,7 @@
 !\end{verbatim}
 !---------------------
 !\begin{verbatim}
-  type gtp_allinone        ! called BOX in varkappa1
+  TYPE gtp_allinone        ! called BOX in varkappa1
 ! a structure for MQMQA data: varkappa, ksi, Y and derivatives, maybe Zv_ijkl
 ! stored linearly and indexed by binsym(i,j,ncat)
 ! binary:   1   2       n-1 | n   n+1 ... 2n-1 | 2n ...      |     | n*(n-1)/2
@@ -1276,8 +1276,9 @@
 ! reference: can be used to indicate the source of the data
 ! refix: can be used to indicate the source of the data
 ! nextpr: link to next property record
-! extra: TOOP and KOHLER can be implemented inside the property record
-!       this is superceeded by the TernaryXpol method ....
+! extra: for some extra stuff
+! -TOOP and KOHLER can be implemented inside the property record ??
+! -but this is superceeded by the gtp_mqmqparprop
 ! proptype: type of propery, 1 is G, other see parameter property
 ! degree: if parameter has Redlich-Kister or similar degrees (powers)
 ! degreelink: indices of TP functions for different degrees (0-9)
@@ -1290,12 +1291,29 @@
      character*8 MPIDXTDB
      character*24 modelrecord
      TYPE(gtp_property), pointer :: nextpr
+! this record is for mqmqa asymmetrical excess composition variables
+     TYPE(gtp_asymprop), pointer :: asymdata
      integer proptype,degree,extra,protect,refix,antalprop
      integer, dimension(:), allocatable :: degreelink
   END TYPE gtp_property
 ! property records, linked from endmember and interaction records, allocated
 ! when needed.  Each propery like G, TC, has a property record linking
 ! a TPFUN record (by index to tpfun_parres)
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! The property record is local to each parameter and for the MQMQX model
+! it is not sufficient.  The gtp_mqmqparprop is an extention of this
+! They depend on the gtp_asymmetry and gtp_allinone records
+  TYPE gtp_asymprop
+! this is the index to the AB/X quad for this parameter
+     integer quad
+! these are the indices to varkappa, xi and yik variables for this parameter
+! The are used in the arrays in allinone and reflect asymmetries 
+     integer alpha, beta, ternary
+! These are the powers for ij, ji and ternary expressions
+     integer ppow, qpow, rpow
+  END TYPE gtp_asymprop
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -1713,6 +1731,7 @@
 !  double precision, dimension(:,:), allocatable :: dy_ik  in gtp_mqmqa
 !-----------------------------------------------------------------
 !
+! the variables below until the end of this TYPE are (probably) not used
 ! (dynamic) site fractions and derivatives
      double precision, allocatable :: yy1(:),yy2(:),dyy1(:,:),dyy2(:,:)
      double precision, allocatable :: d2yy1(:,:),d2yy2(:,:)

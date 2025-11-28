@@ -260,6 +260,13 @@ NEW Y
 @$
 @$ Calculate 78And part 2: fig 4: acenonitrile - n_heptane - benzene
 @$
+@$==========================================================================
+@$ problems with the calculation of this diagram, maybe NEW is not sufficient
+@$
+
+set inter
+
+@$
 @$=================================================================
 @$
 @$
@@ -355,13 +362,6 @@ l,,,,
 c e
 
 l,,,,
-
-@$==========================================================================
-@$ problems with this calculation and diagram
-
-set inter
-
-@$==========================================================================
 
 
 @$ Check result

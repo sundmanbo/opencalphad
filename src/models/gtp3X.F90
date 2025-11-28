@@ -2381,10 +2381,14 @@
          fvv(2)=-onethird
          if(size(lokpty%degreelink).eq.2) then
 ! KRASCH if only two degrees of ternary parameter (3 MUST BE GIVEN)
-! If only one it is not composition dependent!
-            write(*,37)trim(phlista(lokph)%name)
+! If only one it is composition independent!
+            write(*,37)trim(phlista(lokph)%name),size(lokpty%degreelink)
 37          format('3X Database error, ternary composition dependent',&
-                 ' parameter in ',a/'must have 3 degrees.')
+                 ' parameter in ',a/'must have 3 degrees, has only ',i2)
+            write(*,38)gz%endcon(1),gz%intcon(1),gz%intcon(2)
+38          format('3X constituents: ',3i3)
+            write(*,39)(lokpty%degreelink(jint),jint=0,2)
+39          format('3X degreelinks: ',3i5)
             gx%bmperr=4342; goto 1000
          endif
          terloop: do jint=0,2

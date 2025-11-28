@@ -2681,6 +2681,7 @@
 ! enter a parameter for a phase from database or interactivly
 ! enter_parameter_inter(activly) is in gtp3D for some unknown reason ...
 ! typty is the type of property, 1=G, 2=TC, ... , n*100+icon MQ&const#subl
+!       for MQMQA it is parameter type and powers !!
 ! fractyp is fraction type, 1 is site fractions, 2 disordered fractions
 ! FRACTYPE no longer supported, has to be determined by sublattices...
 ! nsl is number of sublattices
@@ -2688,7 +2689,8 @@
 ! constituents in endm and lint should be ordered so endm has lowest
 ! (done by decode_constarr)
 ! nint is number of interacting constituents (can be zero)
-! lint is array of sublattice+constituent indices for interactions
+! lint(1,..) is array of sublattice for interactions
+! lint(2,..) is array of constituent indices for interactions
 ! ideg is degree
 ! lfun is link to function (integer index) if -1 used for listing
 ! refx is reference (text) ... maybe use this also for MQMQA excess??
@@ -2704,8 +2706,8 @@
 !\end{verbatim}
    character notext*20,funexp*1024
    integer iord(maxsubl),jord(2,maxsubl)
-   integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz,highint
-   integer lj,i1,i2,newint,ifri,lokcs,noperm,firstint,listfun,ii,iq,jq
+   integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz,highint,sem
+   integer lj,i1,i2,i3,newint,ifri,lokcs,noperm,firstint,listfun,ii,iq,jq
    integer, dimension(24) :: intperm
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
@@ -2713,7 +2715,7 @@
    type(gtp_interaction), pointer :: intrec,lastint,newintrec,donotforget
    type(gtp_interaction), pointer :: linktohigh
 !   type(gtp_interaction), allocatable, target :: newintrec
-   type(gtp_property), pointer :: proprec,lastprop
+   type(gtp_property), pointer :: proprec,lastprop,savedproplink
    TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_phase_add), pointer :: addrec
    logical ionliq
@@ -2748,7 +2750,8 @@
       else
          write(*,8)trim(phlista(lokph)%name),nsl
 8        format('Parameter fo phase ',a,' has wrong number of sublattice ',i2)
-         gx%bmperr=4065; goto 1000
+!         gx%bmperr=4065; goto 1000
+         gx%bmperr=4065; goto 2000
       endif
    endif
 ! this is for site fractions
@@ -2779,7 +2782,8 @@
          iord(ll)=-99
       else
 !         write(*,*)'3B error in enter_parameter ',endm(ll)
-         gx%bmperr=4096; goto 1000
+!         gx%bmperr=4096; goto 1000
+         gx%bmperr=4096; goto 2000
       endif
 17     continue
       kkk=kkk+phlista(lokph)%nooffr(ll)
@@ -2812,7 +2816,8 @@
             enddo intloop
 ! a constituent does not exist in sublattice ll
 !    write(*,16)ll,mint,lint(1,mint),lint(2,mint)
-            gx%bmperr=4066; goto 1000
+!            gx%bmperr=4066; goto 1000
+            gx%bmperr=4066; goto 2000
          endif
          kkk=kkk+phlista(lokph)%nooffr(ll)
       enddo
@@ -2835,7 +2840,8 @@
 50  continue
    if(.not.btest(phlista(lokph)%status1,PHMFS)) then
 ! there are no disordered fraction sets for this phase
-      gx%bmperr=4068; goto 1000
+!      gx%bmperr=4068; goto 1000
+      gx%bmperr=4068; goto 2000
    endif
 !   write(*,*)'3B adding disordered parameter to ',trim(phlista(lokph)%name)
    lokcs=phlista(lokph)%linktocs(1)
@@ -2843,7 +2849,8 @@
 ! number of sublattices in the disordered set
 !   write(*,*)'3B disordered ',nsl,disfra%ndd
    if(nsl.ne.disfra%ndd) then
-      gx%bmperr=4069; goto 1000
+!      gx%bmperr=4069; goto 1000
+      gx%bmperr=4069; goto 2000
    endif
    kkk=0
 !   write(*,*)'3B: disordered parameter: ',nsl
@@ -2861,7 +2868,8 @@
          iord(ll)=-99
       else
 !         write(*,*)'3B in enter_parameter'
-         gx%bmperr=4051; goto 1000
+!         gx%bmperr=4051; goto 1000
+         gx%bmperr=4051; goto 2000
       endif
 67     continue
       kkk=kkk+disfra%nooffr(ll)
@@ -2886,14 +2894,16 @@
                endif
             enddo
 ! a constituent does not exist in sublattice ll
-            gx%bmperr=4066; goto 1000
+!            gx%bmperr=4066; goto 1000
+            gx%bmperr=4066; goto 2000
          endif
          kkk=kkk+disfra%nooffr(ll)
       enddo
    endif
 78  continue
    if(mint.lt.nint) then
-      gx%bmperr=4067; goto 1000
+!      gx%bmperr=4067; goto 1000
+      gx%bmperr=4067; goto 2000
    endif
 !---------------------------------------------------
 ! we have found all constituents for the end member and interactions
@@ -2929,7 +2939,8 @@
 !            write(*,656)'3B Illegal with same interaction constituent twice',&
 !                 phlista(lokph)%name
 656         format(a/' phase: ',a)
-            gx%bmperr=4266; goto 1000
+!            gx%bmperr=4266; goto 1000
+            gx%bmperr=4266; goto 2000
          endif
       endif
    enddo intcheck
@@ -2953,7 +2964,8 @@
 !              ideg,nint,(lint(1,zz),lint(2,zz),zz=1,nint)
 97       format('pmod3B: Illegal with interaction with same constituent:'/&
               3i3,i4,2x,15(i5))
-         gx%bmperr=4266; goto 1000
+!         gx%bmperr=4266; goto 1000
+         gx%bmperr=4266; goto 2000
       elseif(jord(2,kint).lt.iord(ll)) then
 ! constituent in iord higher than that in jord, exchange jord and iord.  
          ib=iord(ll)
@@ -3004,7 +3016,8 @@
 ! These permutations may require 2 interaction records created ...
          call fccpermuts(lokph,nsl,iord,noperm,elinks,nint,jord,&
               intperm,intlinks)
-         if(gx%bmperr.ne.0) goto 1000
+!         if(gx%bmperr.ne.0) goto 1000
+         if(gx%bmperr.ne.0) goto 2000
 ! make sure iord is alphabtically ordered to find the correct parameter
 ! iord(*) and elinks(*,1) are constituent indices, not species indices
          do jl=1,nsl
@@ -3013,7 +3026,8 @@
       elseif(btest(phlista(lokph)%status1,PHBORD)) then
          call bccpermuts(lokph,nsl,iord,noperm,elinks,nint,jord,&
               intperm,intlinks)
-         if(gx%bmperr.ne.0) goto 1000
+!         if(gx%bmperr.ne.0) goto 1000
+         if(gx%bmperr.ne.0) goto 2000
 ! make sure iord is alphabtically ordered to find the correct parameter
 ! iord(*) and elinks(*,1) are constituent indices, not species indices
 !         write(*,76)'3B iord   ',(iord(jl),jl=1,nsl)
@@ -3047,7 +3061,8 @@
             i1=iord(lj)
             if(.not.allocated(endmemrec%fraclinks)) then
                write(*,*)'3B Phase data structure error'
-               gx%bmperr=4399; goto 1000
+!               gx%bmperr=4399; goto 1000
+               gx%bmperr=4399; goto 2000
             endif
             i2=endmemrec%fraclinks(lj,1)
             if(i1.gt.0) then
@@ -3116,7 +3131,8 @@
    if(noperm.gt.1) then
       if(.not.allocated(elinks)) then
          write(*,*)'3B permutations but no elinks!'
-         gx%bmperr=4399; goto 1000
+!         gx%bmperr=4399; goto 1000
+         gx%bmperr=4399; goto 2000
       endif
    elseif(.not.allocated(elinks)) then
 ! allocate a dummy elinks to avoid segmentation fault compiling with -lefence
@@ -3132,13 +3148,17 @@
 !      enddo
 !      write(*,*)'3B MQMQA index: ',iord(1)
 !   endif
-! this subroutine in gtp3G.F90
+! this subroutine is in gtp3G.F90
    call create_endmember(lokph,newem,noperm,nsl,iord,elinks)
+!   write(*,*)'3B created endmember, value of nsl: ',nsl,elinks(1)
+!   if(gx%bmperr.ne.0) goto 1000
+   if(gx%bmperr.ne.0) goto 2000
    if(btest(phlista(lokph)%status1,PHMQMQA)) then
       newem%antalem=iord(1)
 !      write(*,*)'3B enter_par: created MQMQA endmember ',lokph,newem%antalem
    endif
-   if(gx%bmperr.ne.0) goto 1000
+!   if(gx%bmperr.ne.0) goto 1000
+   if(gx%bmperr.ne.0) goto 2000
 ! insert link to new from last end member record, lastem.
    if(.not.associated(lastem)) then
       if(fractyp.eq.1) then
@@ -3163,8 +3183,8 @@
    lokint=0
 !
 ! this indicates an MQMQA excess parameter
-!   if(ideg.ge.1000) write(*,201)lokph,trim(refx),typty,ideg
-201 format('3B line 3149 adding MQMQA excess: ',i5,' "',a,'" ',2i5)
+!   if(ideg.ge.1000) write(*,201)lokph,endmemrec%fraclinks(1,1)
+201 format(/'3B line 3187 adding MQMQA excess from: ',2i5)
 !
    someint: if(nint.gt.0) then
 ! when there are interaction records the ideal bit must be cleared
@@ -3173,9 +3193,12 @@
       nullify(lastint)
       mint=1
       intrec=>endmemrec%intpointer
-!      write(*,202)'3B enter_parameter 12A: ',lokph,typty,nsl,ideg,typty,lokem,&
-!           (lint(1,i),i=1,nint),(lint(2,i),i=1,nint)
-202   format(/a,7i4,4x,10i4)
+! some excess parameters in wrong order for MQMQA, what is lint?
+!      write(*,202)lokph,nsl,typty,ideg,nint,(lint(2,i3),i3=1,nint)
+! fraclinks is fraction index of constituent of MQMQA endmember OUI!!!
+      sem=endmemrec%fraclinks(1,1)
+!      write(*,202)lokph,nsl,typty,ideg,nint,sem,(jord(2,i3),i3=1,nint)
+202   format(/'3B excess parameters:',5i4,', endmem:',i3,' jord: ',10i4)
       if(.not.associated(intrec)) then
 ! no interaction record for this endmember, create one unless lfun=-1
 ! It seems this record is created but never used so it remains empty
@@ -3184,7 +3207,8 @@
          if(intperm(1).gt.0) then
             if(.not.allocated(intlinks)) then
                write(*,*)'3B permutations but no intlinks!'
-               gx%bmperr=4399; goto 1000
+!               gx%bmperr=4399; goto 1000
+               gx%bmperr=4399; goto 2000
             endif
          elseif(.not.allocated(intlinks)) then
 ! allocate a dummy intlinks to avoid segmentation fault compiling with -lefence
@@ -3193,7 +3217,8 @@
 ! this subroutine is in gtp3G.F90
 !         write(*,*)'3B calling create_interaction 1'
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
-         if(gx%bmperr.ne.0) goto 1000
+!         if(gx%bmperr.ne.0) goto 1000
+         if(gx%bmperr.ne.0) goto 2000
 ! clear phpalm as it is needed to handle FCC and BCC permutations
          phlista(lokph)%status1=ibclr(phlista(lokph)%status1,PHPALM)
          endmemrec%intpointer=>newintrec
@@ -3201,7 +3226,11 @@
          lastint=>intrec
          newint=1
       else
-!         write(*,*)'3B existing interaction: ',intrec%status
+! problem with MQMQA excess, ordering of ternary parameter not working
+! If new excess constituent lower than current this must replace
+! current
+!       write(*,298)intrec%status,intrec%fraclink(1),sem,(jord(2,i3),i3=1,nint)
+298      format('3B **** existing interaction: ',i3,5x,10i3)
          newint=0
          firstint=0
       endif
@@ -3221,11 +3250,25 @@
 307      format(a,4i4,2x,2i3,2x,2i3)
          if(intrec%sublattice(1).eq.jord(1,mint) .and. &
               intrec%fraclink(1).eq.jord(2,mint)) then
+!            write(*,*)'3B interaction levels: ',mint,nint
 ! found an interaction with same constituent (maybe just created)
-            if(mint.eq.nint) then
-!               write(*,*)'3B same interaction, level: ',mint
+!            if(mint.eq.nint) then
+! This was modified 251128 for MQMQA parameters. First change nint.ge.nint 
+! created problems for ternary parameters with different degrees
+!            if(mint.ge.nint) then
+            if(nint.eq.mint) then
+!               write(*,*)'3B same or higher interaction, level: ',nint,mint
                nullify(linktohigh)
                goto 400
+            elseif(nint.gt.mint) then
+               if(btest(phlista(lokph)%status1,PHMQMQX)) then
+! special for the crazy excess parameters in MQMQA
+!                  write(*,*)'3B for MQMQA ceazy excess? '
+! The MQMQA parameters does not use the degree for identical constitutions
+                  goto 310
+               endif
+! for ternary composition dependent excess parameters just continue ...
+!               write(*,*)'3B what to do when nint>mint? ',mint,nint
             endif
             lastint=>intrec
             linktohigh=>intrec
@@ -3253,8 +3296,8 @@
 ! we must store interactions in sublattice order and in order of constituent
 ! in jord(2,mint) otherwise we will never be able to find a permutation. 
             if(intrec%sublattice(1).gt.jord(1,mint)) then
-!               write(*,*)'3B insering interaction before existing',&
-!                    associated(linktohigh)
+               write(*,*)'3B insering interaction before existing',&
+                    associated(linktohigh)
                exit findint
             endif
             nullify(linktohigh)
@@ -3272,29 +3315,32 @@
 ! we must create at least one interactionrecord, newint=0 if same level
 ! If intrec is associated the nextint link should be set to this
 310    continue
-!      write(*,*)'3B At 310',mint,nint,newint,highint
+!      write(*,*)'3B At 310',mint,nint,newint,highint,associated(intrec)
       if(mint.le.nint) then
 ! if lfun=-1 and parameter does not exist just skip away
          if(lfun.eq.-1) goto 900
 !         write(*,303)'3B create at 310:',mint,nint,newint,firstint,highint,&
 !              jord(1,mint),jord(2,mint)
-! in gtp3G
          if(intperm(1).gt.0) then
             if(.not.allocated(intlinks)) then
                write(*,*)'3B permutations but no intlinks!'
-               gx%bmperr=4399; goto 1000
+!               gx%bmperr=4399; goto 1000
+               gx%bmperr=4399; goto 2000
             endif
          elseif(.not.allocated(intlinks)) then
 ! allocate a dummy intlinks to avoid segmentation fault compiling with -lefence
             allocate(intlinks(1,1))
          endif
-!         write(*,*)'3B calling create_interaction 2'
+!         write(*,*)'3B calling create_interaction in gtp3G'
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
-         if(gx%bmperr.ne.0) goto 1000
+!         if(gx%bmperr.ne.0) goto 1000
+         if(gx%bmperr.ne.0) goto 2000
+!         write(*,312)intperm(1),mint,jord(2,mint)
+312      format('3B created expty interaction for',3i3)              
 ! clear PHPALM as calling palmtree is needed to handle FCC and BCC permutations
          phlista(lokph)%status1=ibclr(phlista(lokph)%status1,PHPALM)
          if(newint.eq.1) then
-!           write(*,*)'3B Linking as higher',mint,highint,associated(linktohigh)
+!            write(*,*)'3B Linking as higher',mint,highint,associated(linktohigh)
 ! We may have a high link already! Set it as nextlink!
 !            write(*,*)'3B Using lastint'
             donotforget=>lastint%highlink
@@ -3337,8 +3383,15 @@
          goto 310
       endif
 ! Now we should have found or created the interaction record,
+! We may have found the record it should be linked from if nint>mint
 ! check property list
-400    continue
+400   continue
+!      if(nint.gt.mint) then
+! this has higher interaction than current, take %next link.
+!         write(*,403)sem,(jord(2,ii),ii=1,nont)
+!403      format('3B looking place of excess:',6i3)
+!         intrec=>intrec%nextlink
+!      endif
       proprec=>intrec%propointer
       if(.not.associated(proprec)) then
 ! do not create anything if lfun=-1
@@ -3347,10 +3400,20 @@
             typty=ideg; ideg=0
 !            write(*,*)'3B create excess proprec for MQMQA 1: ',typty,ideg,lfun
          endif
-!         write(*,*)'3B create_proprec 1',typty,ideg,lfun
+!         write(*,*)'3B create_proprec 1:',typty,ideg,lfun
+! create_proprec is in gtp3G.F90
          call create_proprec(intrec%propointer,typty,ideg,lfun,refx)
-         if(gx%bmperr.ne.0) goto 1000
+!         if(gx%bmperr.ne.0) goto 1000
+         if(gx%bmperr.ne.0) goto 2000
+! if this is an MQMQA parameter some information in intrec%propinter%asymdata
+! must be added here.  typty is 34, 35 or 36
+         if(typty.ge.34 .and. typty.le.36) then
+! sem is fraclink of endmember constiuent
+            call create_mqmqa_excessprop(intrec%propointer%asymdata,&
+                 sem,nint,jord)
+         endif
       else
+!         write(*,*)'3B create additional proprecord for same constituents!'
          goto 800
       endif
 !     write(*,*)'3B enter_parameter 17: ',lokint,lokem,link
@@ -3360,6 +3423,7 @@
       proprec=>endmemrec%propointer
       if(.not.associated(proprec)) then
 ! if no property record and lfun=-1 just list parameter equal to zero
+! in MQMQA some endmembers have no Gibbs energy of formation!!!
          if(lfun.lt.0) goto 900
          if(ideg.gt.9) then
             typty=ideg; ideg=0
@@ -3367,20 +3431,27 @@
          endif
 !         write(*,*)'3B create_proprec 2: ',typty,ideg,lfun
          call create_proprec(endmemrec%propointer,typty,ideg,lfun,refx)
-         if(gx%bmperr.ne.0) goto 1000
+!         if(gx%bmperr.ne.0) goto 1000
+         if(gx%bmperr.ne.0) goto 2000
       else
          goto 800
       endif
    endif someint
-! all done
+! all not done !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    goto 1000
 !--------------------------------------------------------
-! we found correct parameter record with a property, now search property list
+! we found correct parameter record WITH A PROPERTY, now search property list
 ! This loop both for endmembers and interactions
 800 continue
    do while(associated(proprec))
       lastprop=>proprec
-      if(proprec%proptype.eq.typty) then
+      if(btest(phlista(lokph)%status1,PHMQMQX)) then
+         if(proprec%proptype.eq.typty) then
+            write(*,803)proprec%proptype,typty
+803         format('3B adding one more property',2i5)
+         endif
+      elseif(proprec%proptype.eq.typty) then
+! With MQMQA one cannot change the expression of a property
 ! found property record, one should delete old and insert new function
 ! one must alse change the reference !!! And add the reference if new.
 ! mode=0 means no change of reference text if reference already exists
@@ -3408,13 +3479,47 @@
    if(lfun.lt.0) goto 900
 ! no record for this property at present, add a new property record
    if(ideg.gt.9) then
+! this is probably an MQMQA parameter
       typty=ideg; ideg=0
 !     write(*,*)'3B create excess proprec for MQMQA 3: ',typty,ideg,lfun
    endif
-!   write(*,*)'3B create_proprec 3: ',typty,ideg,lfun
+!
+! ----------------------------------------------------------------------
+!
+!   write(*,*)'3B create_proprec 3:',typty,ideg,lfun
+! lastprop%nextpr will be allocated insde create_proprec
+   savedproplink=>lastprop
    call create_proprec(lastprop%nextpr,typty,ideg,lfun,refx)
-   if(gx%bmperr.ne.0) goto 1000
-! all done and go home
+!   if(gx%bmperr.ne.0) goto 1000
+   if(gx%bmperr.ne.0) goto 2000
+! In create_proprec the lastprop%nextpr has been allocated
+!
+! lastprop=>proprec
+!
+!   if(associated(savedproplink,lastprop)) then
+!      write(*,*)'3B complicated'
+!   else
+!      write(*,*)'3B new record created'
+!   endif
+!   intrec%propointer=>savedproplink%nextpr
+!   if(.not.associated(intrec%propointer)) then
+!      write(*,*)'3B fundamental illusion lost'
+!      stop 100
+!   endif
+! ----------------------------------------------------------------------
+!
+! Special for a second MQMQA parameter with same constituents ....
+! must be added here.  typty is 34, 35 or 36
+   if(typty.ge.34 .and. typty.le.36) then
+! sem is fraclink of endmember constiuent
+      call create_mqmqa_excessprop(intrec%propointer%asymdata,&
+           sem,nint,jord)
+      if(gx%bmperr.ne.0) then
+         write(*,*)'3B error creating a next MQMQA excess parameter'
+         goto 2000
+      endif
+   endif
+! all done and go home ........ not quite ..........
    goto 1000
 !--------------------------------------------------------
 ! this is for listing parameter
@@ -3493,11 +3598,63 @@
 !   write(*,*)'3B enter_parameter deallocated: ',gx%bmperr
 !  write(*,1010)'enter_parameter 77: ',(phlista(lokph)%constitlist(i),i=1,6)
 !1010 format(A,6I3)
+2000 continue
    if(gx%bmperr.ne.0) then
       write(*,*)'Leaving enter_parameter with error ',gx%bmperr
    endif
    return
  end subroutine enter_parameter
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine create_mqmqa_excessprop
+!\begin{verbatim}
+ subroutine create_mqmqa_excessprop(asymdata,sem,nint,jord)
+! creates a particular mqmqa excess property record
+   implicit none
+   type(gtp_asymprop) :: asymdata
+   integer :: sem, nint, jord(2,*)
+!\end{verbatim} %+
+   integer ii,jj,pair
+! we may have to find species records to find the mixed quad and alphabetical 
+!   write(*,100)asymdata%ppow,asymdata%qpow,asymdata%rpow,sem,&
+!        (jord(2,ii),ii=1,nint)
+100 format('3B in mqmqa_excessprop: powers:',3i2,', const: ',10i3)
+! the values needed here have been collected in the path up to here
+! Two other emquads should have the same elements as in the quad outside enquads
+! They whould be ordered alphabetically in quad_ii and quad_jj
+!   pair=0
+!   semloop: do ii=1,mqmqa_data%ncat
+!      if(mqmqa_data%emquad(ii).eq.sem) exit semloop
+!   enddo semloop
+! sem is the mixed quad AB/X
+!   pair=sem
+!   goto 180
+!110 contiinue
+!   int: do jj=1,nint
+!      do ii=1,mqmqa_data%ncat
+!         if(mqmqa_data%emquad(ii).eq.jord(jj)) cycle int
+!      enddo
+!      goto 110
+!   enddo int
+! this interaction constituent is the pair quad
+!110 pair=jord(jj)
+! the pair quad is among jord(1..nint)
+!120 continue
+!
+! The quad is the index to the fraction to quads
+   asymdata%quad=1
+! the index to ij and ji composition in allonone
+   asymdata%alpha=1
+! if there is a ternary c/X quad this is the index to the y_ik fraction
+   asymdata%ternary=1
+! powers already set  ??
+!   write(*,200)asymdata%ppow,asymdata%qpow,asymdata%rpow
+200 format('3B powers: ',3i3)
+!
+1000 continue
+   return
+ end subroutine create_mqmqa_excessprop
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

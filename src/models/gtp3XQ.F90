@@ -1169,12 +1169,14 @@
    TYPE(gtp_tooprec), pointer :: tooprec
 ! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
    integer ij,jd,jq,qq1,qq2,ass,mpow,isumx,tsize,tch,iiz,mqmqcon,mqmqjy
+   integer noofex
    double precision ksi,sumx,dsumx
    double precision dksi(3),d2ksi(3)
 !   logical ddebug
 !------------------------------------- 
 ! tch is level of debug output, 0=none, 3=max
    tch=0
+   noofex=0
 !   ddebug=.FALSE.
 !   ddebug=.TRUE.
    if(tch.ge.1) write(*,*)'3XQ in calc_mqmqa nonconfig G'
@@ -1451,6 +1453,8 @@
 !      write(*,315)phlista(lokph)%constitlist
 315   format('3XQ constituents: ',20i3)
 !      
+      noofex=noofex+1
+!      write(*,*)'3XQ excess with endmember constituent: ',mqmqjy
       call new_mqmqa_excess(lokph,intrec,mqmqjy,vals,dvals,d2vals,gz,ceq)
       if(gx%bmperr.ne.0) goto 1000
 ! if new_mqmqa_excess used then intrec will be nullified on return
@@ -1632,7 +1636,8 @@
 !   write(*,990)'3XQ exit calc_mqmqa G:',phres%gval(1,1),&
 !        (phres%dgval(1,s1,1),s1=1,gz%nofc)
 990 format(a,5(1pe14.6))
-1000 return
+1000 continue
+   return
  end subroutine calc_mqmqa
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
@@ -1982,7 +1987,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !\addtotable subroutine new_mqmqa_excess
-! called from calc_mqmqa line 1429
+! called from calc_mqmqa line 1429.  Calculates MQMQA excess
 !\begin{verbatim}
 ! subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
   subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
@@ -2009,7 +2014,7 @@
    character*120 text
    logical :: once=.true.
    integer ppow,qpow,rpow,intlev,iiz,jj,pairquad,jp
-!   integer :: nex=0
+   integer :: nex=0
    integer, dimension(:), allocatable :: ylinks
    character*1 ptyp1
 ! The previous MQMQA excess implementation arrive here
@@ -2020,6 +2025,7 @@
       goto 1000
    endif
 ! we are here because this endmember has an intercation link
+!   if(mqmqdebug2) write(*,5)mqmqj
    if(mqmqdebug2) write(*,5)mqmqj
 5  format('3XQ *** in new_mqmqa_excess with constituent: ',i3)
 ! initiate ylinks for this tree with the endmember fraction
@@ -2034,11 +2040,11 @@
    intlev=2
 ! there can only a one quad with two cations (pair) in an interaction
    pairquad=0
-   ifem: do jj=1,mqmqa_data%ncat
-      if(ylinks(1).eq.mqmqa_data%emquad(jj)) goto 17
-   enddo ifem
+!   ifem: do jj=1,mqmqa_data%ncat
+!      if(ylinks(1).eq.mqmqa_data%emquad(jj)) goto 17
+!   enddo ifem
 ! this quad is evidently a pair AB/X
-   pairquad=ylinks(1)
+!   pairquad=ylinks(1)
 17 continue
 !
 ! loop here until all excess records from this endmember calculated
@@ -2053,35 +2059,37 @@
 ! there is a single set of sites, save constituent first index
 ! We may come back here for another interaction with same endmember
 !   write(*,101)'3XQ value of intlev: ',intlev,(ylinks(jj),jj=1,intlev)
-!101 format(a,i3,3x,10i3)
    ylinks(intlev)=intrec%fraclink(1)
-!   write(*,101)'3XQ now   of intlev: ',intlev,(ylinks(jj),jj=1,intlev)
 ! jump here when popped a next link
 105 continue
-   ifem2: do jj=1,mqmqa_data%ncat
-      if(ylinks(intlev).eq.mqmqa_data%emquad(jj)) goto 108
-   enddo ifem2
-   if(pairquad.eq.0) then
-      pairquad=ylinks(intlev)
-   else
-      write(*,107)ylinks(intlev),pairquad
-107   format('3XQ MQMQA parameter has two pair quads: ',2i4)
-      write(*,109)(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
-109   format(/'3XQ *** Error because 2 constituents in the excess',&
-           ' parameter has 2 cations.'/&
-           '3XQ The quads with a single cation are: ',15i3)
-      gx%bmperr=4399; goto 1000
-   endif
-108 continue
+!   ifem2: do jj=1,mqmqa_data%ncat
+!      if(ylinks(intlev).eq.mqmqa_data%emquad(jj)) goto 108
+!   enddo ifem2
+!   if(pairquad.eq.0) then
+!      pairquad=ylinks(intlev)
+!   else
+!      write(*,107)ylinks(intlev),pairquad
+!107   format('3XQ MQMQA parameter has two pair quads: ',2i4)
+!      write(*,109)(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
+!109   format(/'3XQ *** Error because 2 constituents in the excess',&
+!           ' parameter has 2 cations.'/&
+!           '3XQ The quads with a single cation are: ',15i3)
+!      gx%bmperr=4399; goto 1000
+!   endif
+!108 continue
 ! intrecin is to a gtp_interaction record
 ! list data in intrec
-   if(mqmqdebug2) write(*,110)lokph,intrec%status,intrec%antalint,&
-        intrec%sublattice(1),&
-        associated(intrec%propointer),(ylinks(iiz),iiz=1,intlev)
+!   if(mqmqdebug2) write(*,110)lokph,intrec%status,intrec%antalint,&
+!        intrec%sublattice(1),&
+!        associated(intrec%propointer),(ylinks(iiz),iiz=1,intlev)
 110 format('3XQ MQMQA interaction: ',4i3,l3,', constituents: ',10i3)
 ! these is a single sublattice, some interaction records has no properties
-! but some may have several properties
+! is there a property?
    proprec=>intrec%propointer
+!  if(associated(intrec%propointer)) write(*,*)'3XQ there is a property pointer'
+   if(associated(intrec%propointer)) &
+        write(*,101)intlev,(ylinks(jj),jj=1,intlev)
+101 format('3XQ interaction level:',i2,', with constitents: ',10i3)
    do while (associated(proprec))
 ! we have found an excess parameter !!!
 ! there can be several property record for the same set of constituents
@@ -2090,9 +2098,6 @@
       if(proprec%proptype.eq.35) ptyp1='Q'
       if(proprec%proptype.eq.36) ptyp1='B'
 !
-      ppow=proprec%extra/100
-      qpow=(proprec%extra-100*ppow)/10
-      rpow=proprec%extra-100*ppow-10*qpow
       if(mqmqdebug2) then
 ! helps to understand what the parameter it is ....
          jp=1
@@ -2105,7 +2110,7 @@
       endif
 ! there can be several parameters for the same set of constituents
       proprec=>proprec%nextpr
-!      nex=nex+1
+      nex=nex+1
    enddo
 ! when properties done and there is a higher link push next and take higher
 ! otherwise if there is a next link take that,
@@ -2145,11 +2150,10 @@
       goto 100
 !      if(associated(intrec)) goto 100
    enddo popping
-   if(mqmqdebug2) write(*,99)
-99 format('3XQ Back to endmemeber record'/)
-! we go back to endmember level
+!   if(mqmqdebug2) write(*,99)
+!   write(*,99)nex
+99 format('3XQ Back to endmemeber record',i5/)
 1000  continue
-!   write(*,*)'3XQ Total number of excess parameters: ',nex
    return
  end subroutine new_mqmqa_excess
 
@@ -3934,7 +3938,6 @@
 !
 !   write(*,*)'3XQ Constituents in quad order:'
 !   write(*,70)(trim(splista(phlista(lokph)%constitlist(mqmqa_data%con2quad(jp)))%symbol),jp=1,nfr)
-!
 !
 !70 format('3XQ: ',10(a,', '))
 !71 format('3XQ: ',2i3,3x,a)

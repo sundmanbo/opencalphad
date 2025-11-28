@@ -1537,18 +1537,25 @@
 !\begin{verbatim}
  subroutine create_proprec(proprec,proptype,degree,lfun,refx)
 ! reservs a property record from free list and insert data
+! it is called from enter_parameter in gtp3B.F90
+! if there is already a property record (magnetic, MQMQA etc) for the parameter
+! this record is automatically linked at the end
    implicit none
    TYPE(gtp_property), pointer :: proprec
    integer proptype,degree,lfun
    character refx*(*)
 !\end{verbatim} %+
-   integer j,iref,typty,powers
+   type(gtp_asymprop) :: asymdata
+   integer j,iref,typty,powers,ppow,qpow
    character notext*32
+   logical mqmqa
 !
+   mqmqa=.false.
    if(proptype.ge.1000) then
-! this is for MQMQA model parameters with asymmetric composition dependence
+! this an MQMQA parameter
+      mqmqa=.true.
+! an MQMQA model parameters have special asymmetric composition dependence
 !      write(*,*)'3G special MQMQA excess parameter',proptype,degree
-! this MQMQA parameter
       typty=proptype/1000
 ! this proptype is probably not needed nor useful
       if(typty.eq.1) then
@@ -1562,12 +1569,14 @@
          proptype=36     !GB
       endif
       allocate(proprec)
-! this has a single function byt can be asymmetric
+! MQMQA has a single function but it can be asymmetric
       allocate(proprec%degreelink(0:0))
       nullify(proprec%nextpr)
 ! proptype for MQMQA is 34, 35, 36, the modelparameter i just G
       proprec%proptype=proptype
-! maybe that is fixed when listing?
+! the typty 34, 35 and 36 is kept but changed to G when listing?
+! this typty is used to provide information after the ; in listing
+! 34 is ;G,p,q,r), 35 is ;Q,p,q,r) and 26 is ;B,p,q,r)
       proprec%modelparamid=propid(1)%symbol
 !      proprec%modelparamid=propid(proptype)%symbol
 !      write(*,*)'3G MQMQA parameter ',typty,proprec%proptype,powers
@@ -1579,10 +1588,23 @@
       proprec%degreelink(0)=lfun
 !      write(*,2)proptype,powers,degree,refx
 2     format('3G in create_proprec  ',i2,i7,i3,' refx: ',a)
-!
+! create an addition asymprop record for extra information
+! some of the information in this will be added from the calling routine
+      allocate(proprec%asymdata)
+! powers is for example 321 where 3 is ppow, 2 is qpow and 1 is rpow
+! very clumsy but I am tired of this model
+      ppow=powers/100
+      qpow=(powers-100*ppow)/10
+      proprec%asymdata%ppow=ppow
+      proprec%asymdata%qpow=qpow
+      proprec%asymdata%rpow=powers-100*ppow-10*qpow
+!      write(*,7)powers,ppow,qpow,powers-100*ppow-10*qpow
+7     format('3G powers: ',i7,5x,3i3)
+! indices in asymdata%quad_ij _ii, _jj and _33 will be set by calling routine
 ! what is adjustl ?  evidently it removes initial spaces ... shift left ...
       proprec%reference=adjustl(refx)
       goto 900
+!------------ end of MQMQA specific
    elseif(degree.lt.0 .or. degree.gt.9) then
       write(*,10)degree
 10    format('*** Error, degree of a parameter ',i2,'must be between 0 and 9')

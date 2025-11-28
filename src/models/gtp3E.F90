@@ -5493,8 +5493,8 @@
 ! this subroutine is in gtp3XQ.F90
          call set_ternary_asymmetry(ternaryxpol(zp))
       enddo
-   else
-      write(*,*)'3E No ternary extrapolations'
+!   else
+!      write(*,*)'3E No ternary extrapolations'
    endif
 !000000000000000000000000000000000000000000000000000000
 ! no more read(21 ...
