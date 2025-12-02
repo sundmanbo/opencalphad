@@ -23,6 +23,21 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.12.02 version 6.093. I am now almost able to include the excess
+parameters when calculating the Gibbs energies for the MQMQA phase.
+There are still some problems to read the parameters from the database
+but it is more important to have the code that can use the parameters
+for the calculations.  This is just an intermedate save to establish
+that most other calculations among the examples still work.
+
+2025.11.25 version 6.092.  The previous release did not really store
+all MQMQA parameters correctly and it took a few days to find the
+reason.  I am now working on using them to calculate the Gibbs energy
+trying to take care of all odd normalizing and asymmetrical relations
+imposed by the model.  The set of model parameters in the database are
+really strange.  How can a ternary parameter with the value -33.5
+contribute to the Gibbs energy in a multicomponent system?
+
 2025.11.21 version 6.091.  Reading from TDB files now works and all
 parameters for the MQMQA phase are stored correctly in the data
 structure.  Some test to use them in calculations have been made and

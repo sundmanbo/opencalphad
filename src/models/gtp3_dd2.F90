@@ -1233,7 +1233,7 @@
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
-! this constant must be incremented when a change is made in gtp_property
+! this constant must be incremented when a change is made in gtp_asymmetry
   INTEGER, parameter :: gtp_asymmetry_version=2
   TYPE gtp_asymmetry
 ! this provides a static link between the fraction indices in MQMQA interaction
@@ -1615,6 +1615,7 @@
   TYPE gtp_mqmqa
 ! contains special STATIC information for liquid MQMQA model
 ! nconst is number of phase const (quads), ncon1, ncon2 in subl, npair #of pairs
+! nconst does not include anions ... these variables are used for the entropy
      integer nconst,ncon1,ncon2,npair,lcat
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! MUST be careful with ncat and nan !!! USED IN MQMQA
@@ -1685,7 +1686,7 @@
 ! where 1..n are cation indices i.e. element indices ignoring anions
 ! transfer of fractions from OC yfr to quad use
      integer, dimension(:), allocatable :: con2quad ! transfer y to quad order
-! this is the indices of A/X quads in quad
+! this is the indices of A/X quads in quad, 1, n, 2n-1 etc.
      integer, dimension(:), allocatable :: emquad 
 ! these are constants depending of the elements in the quad
      double precision, dimension(:,:), allocatable :: dy_ik
@@ -1730,6 +1731,8 @@
   double precision, dimension(:), allocatable :: y_ik
 !  double precision, dimension(:,:), allocatable :: dy_ik  in gtp_mqmqa
 !-----------------------------------------------------------------
+! needed for access to phase data
+  type(gtp_phase_varres), pointer :: phresq
 !
 ! the variables below until the end of this TYPE are (probably) not used
 ! (dynamic) site fractions and derivatives
@@ -2061,8 +2064,10 @@
      integer ::  type_change_phase_amount
      double precision :: scale_change_phase_amount
 
-! splitsolver : flag to allow the splitting resolution when conditions lead to a square mass matrix
-! precondsolver : flag to allow the preconditionning of the matrix before solving linear system
+! splitsolver : flag to allow the splitting resolution when conditions
+! lead to a square mass matrix
+! precondsolver : flag to allow the preconditionning of the matrix 
+! before solving linear system
      integer :: precondsolver
      integer :: splitsolver
 !CCI

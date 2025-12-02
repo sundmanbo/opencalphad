@@ -1555,7 +1555,7 @@
 ! this an MQMQA parameter
       mqmqa=.true.
 ! an MQMQA model parameters have special asymmetric composition dependence
-!      write(*,*)'3G special MQMQA excess parameter',proptype,degree
+      write(*,*)'3G special MQMQA excess parameter',proptype,degree
       typty=proptype/1000
 ! this proptype is probably not needed nor useful
       if(typty.eq.1) then
@@ -1579,10 +1579,11 @@
 ! 34 is ;G,p,q,r), 35 is ;Q,p,q,r) and 26 is ;B,p,q,r)
       proprec%modelparamid=propid(1)%symbol
 !      proprec%modelparamid=propid(proptype)%symbol
-!      write(*,*)'3G MQMQA parameter ',typty,proprec%proptype,powers
+      write(*,*)'3G MQMQA parameter ',typty,proprec%proptype,powers
 ! the proprec%extra should contains 3 powers, as 100*p + 10*q + r
 ! for the equation \varkappa_ij**p * \varkappa_ji**q in Max eq. 23/24
 ! The r is for a ternary parameter in eqs. 25/26.  There is just one degree  0
+! NOW THERE IS A MQMQA property record for this
       proprec%extra=powers
       proprec%degree=0
       proprec%degreelink(0)=lfun
@@ -1590,19 +1591,23 @@
 2     format('3G in create_proprec  ',i2,i7,i3,' refx: ',a)
 ! create an addition asymprop record for extra information
 ! some of the information in this will be added from the calling routine
-      allocate(proprec%asymdata)
 ! powers is for example 321 where 3 is ppow, 2 is qpow and 1 is rpow
 ! very clumsy but I am tired of this model
-      ppow=powers/100
-      qpow=(powers-100*ppow)/10
-      proprec%asymdata%ppow=ppow
-      proprec%asymdata%qpow=qpow
-      proprec%asymdata%rpow=powers-100*ppow-10*qpow
-!      write(*,7)powers,ppow,qpow,powers-100*ppow-10*qpow
-7     format('3G powers: ',i7,5x,3i3)
-! indices in asymdata%quad_ij _ii, _jj and _33 will be set by calling routine
-! what is adjustl ?  evidently it removes initial spaces ... shift left ...
+      allocate(proprec%asymdata)
+      proprec%asymdata%ppow=powers/100
+      proprec%asymdata%qpow=(powers-100*proprec%asymdata%ppow)/10
+!      proprec%proprec%asymdata%ppow=ppow
+!      proprec%proprec%asymdata%qpow=qpow
+      proprec%asymdata%rpow=powers-100*proprec%asymdata%ppow-&
+           10*proprec%asymdata%qpow
+!      write(*,*)'3G value of rpow: ',proprec%asymdata%rpow
+!      write(*,7)powers,proprec%asymdata%ppow,proprec%asymdata%qpow,&
+!           proprec%asymdata%rpow
+7     format('3G allocated asymdata: ',i7,5x,3i3)
+! indices in proprec%asymdata%quad_ij _ii, _jj and _33 will be set by 
+! calling routine
       proprec%reference=adjustl(refx)
+! index of asymdata%quad, %alpha, %beta and %ternary should be set <<<<<<
       goto 900
 !------------ end of MQMQA specific
    elseif(degree.lt.0 .or. degree.gt.9) then

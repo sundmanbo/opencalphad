@@ -1443,7 +1443,7 @@
 !  
 ! mqmqj is NOT the mqmqa constituent index, it is just an endmember counter
 ! look for the constituent in fraction record, sublattice 1, constituent 1
-! WOW !!!! it works
+! WOW !!!! it does not crash
       mqmqjy=endmemrec%fraclinks(1,1)
 !
 ! we must find its position in the quad list      
@@ -1987,7 +1987,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !\addtotable subroutine new_mqmqa_excess
-! called from calc_mqmqa line 1429.  Calculates MQMQA excess
+! called from calc_mqmqa line 1429.  CALCULATES MQMQA excess
 !\begin{verbatim}
 ! subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
   subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
@@ -2013,7 +2013,7 @@
 !
    character*120 text
    logical :: once=.true.
-   integer ppow,qpow,rpow,intlev,iiz,jj,pairquad,jp
+   integer ppow,qpow,rpow,intlev,iiz,jj,pairquad,jp,proprecno
    integer :: nex=0
    integer, dimension(:), allocatable :: ylinks
    character*1 ptyp1
@@ -2027,7 +2027,7 @@
 ! we are here because this endmember has an intercation link
 !   if(mqmqdebug2) write(*,5)mqmqj
    if(mqmqdebug2) write(*,5)mqmqj
-5  format('3XQ *** in new_mqmqa_excess with constituent: ',i3)
+5  format(/'3XQ /// in new_mqmqa_excess with endmember: ',i3)
 ! initiate ylinks for this tree with the endmember fraction
    intrec=>intrecin
 ! this is needed to move to next endmemeber
@@ -2058,8 +2058,10 @@
 !
 ! there is a single set of sites, save constituent first index
 ! We may come back here for another interaction with same endmember
-!   write(*,101)'3XQ value of intlev: ',intlev,(ylinks(jj),jj=1,intlev)
+! Set ylinks to be indices of the OC fractions
    ylinks(intlev)=intrec%fraclink(1)
+   write(*,997)intlev,(ylinks(jj),jj=1,intlev)
+997 format('3XQ Level pf interaction: ',i2,5x,10i3)
 ! jump here when popped a next link
 105 continue
 !   ifem2: do jj=1,mqmqa_data%ncat
@@ -2087,13 +2089,19 @@
 ! is there a property?
    proprec=>intrec%propointer
 !  if(associated(intrec%propointer)) write(*,*)'3XQ there is a property pointer'
-   if(associated(intrec%propointer)) &
-        write(*,101)intlev,(ylinks(jj),jj=1,intlev)
-101 format('3XQ interaction level:',i2,', with constitents: ',10i3)
+   if(associated(intrec%propointer)) then
+      write(*,101)intlev,(ylinks(jj),jj=1,intlev)
+101   format('3XQ interaction:',i2,', with property and constitents: ',10i3)
+   else
+      write(*,*)'3XQ no property with constituents:',(ylinks(jj),jj=1,intlev)
+   endif
+! there can be several property records
+   proprecno=0
    do while (associated(proprec))
 ! we have found an excess parameter !!!
 ! there can be several property record for the same set of constituents
 ! there is a propointer here! error in gtp3B or empty interaction record
+      proprecno=proprecno+1
       if(proprec%proptype.eq.34) ptyp1='G'
       if(proprec%proptype.eq.35) ptyp1='Q'
       if(proprec%proptype.eq.36) ptyp1='B'
@@ -2103,11 +2111,18 @@
          jp=1
          text=' '
          call mqmqa_excess(lokph,intlev,ylinks,text,jp)
+         ppow=proprec%asymdata%ppow
+         qpow=proprec%asymdata%qpow
+         rpow=proprec%asymdata%rpow
          text(jp-1:)=';'//ptyp1//','//char(ichar('0')+ppow)//&
               ','//char(ichar('0')+qpow)//','//char(ichar('0')+rpow)//')'
-         write(*,115)trim(text)
-115      format('3XQ parameter: ',a)
+         write(*,115)trim(text),proprecno
+115      format('3XQ debug parameter: ',a,i4)
       endif
+! extract the quad pointers
+      write(*,117)proprec%asymdata%quad,proprec%asymdata%alpha,&
+           proprec%asymdata%beta,proprec%asymdata%ternary
+117   format('3XQ composition variables: :',5i3)
 ! there can be several parameters for the same set of constituents
       proprec=>proprec%nextpr
       nex=nex+1
@@ -2192,6 +2207,143 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
+!\addtotable subroutine convert_y2quadx
+!\begin{verbatim}
+ subroutine convert_y2quadx(sem,nint,jord,pquad)
+! This is to fix the constitution variables for an MQMQX excess parameter.
+! It has one AB/X quad index and 2 A/X and B/X quads and possibly a C/X one
+! convert y fraction indexed in sem and jord to quad indices in parquad
+!
+! I am really really fedup with this model
+!
+   implicit none
+   integer sem,nint,jord(2,*),pquad(*)
+!\end{verbatim}
+   integer ii,jj,nq3,kk,pair,qorder(4),lowa,highb,temp(4),nbx
+!
+! input data from database
+   write(*,*)'3XQ *** fixing parameter composition variables',&
+        size(mqmqa_data%emquad),size(mqmqa_data%con2quad)
+!   write(*,20)'emquad',(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
+!   write(*,20)'con2quad',(mqmqa_data%con2quad(jj),jj=1,mqmqa_data%nquad)
+20 format('3XQ ',a,21i3)
+! pquad(1) should be the pair quad AB/X among sem, jord(2,1..nint)
+   temp(1)=mqmqa_data%con2quad(sem)
+! pquad(2) should be the alphabetically first  in quad AB/X, i.e A/X
+! pquad(3) should be the alphabetically second in quad AB/X, i.e B/X
+! pquad(4) should be the 4th quand, not including A or B 
+   temp(2)=mqmqa_data%con2quad(jord(2,1))
+   temp(3)=mqmqa_data%con2quad(jord(2,2))
+   nq3=3
+   if(nint.eq.3) then
+      nq3=4; temp(4)=mqmqa_data%con2quad(jord(2,3))
+   endif
+!   write(*,10)'first',(temp(ii),pquad(ii),ii=1,nq3)
+10 format('3XQ ',a,' quads ',2i3,', first ',2i3,', second ',2i3,', maybe ',2i3)
+! find the AB/X quad and the arrange the others
+! all but one of the quads in temp(1..nq3) should be A/X quads
+! and temp(2) should have the lowest index of the AB/x quad and temp(3)
+! the highest.  Any temp(4) quad should not be A/X or B/X
+! this code is horrible
+!
+   pair=0; lowa=0
+   loop4: do ii=1,nq3
+      pquad(ii)=temp(ii)
+      qorder(ii)=ii
+!      write(*,*)'3XQ is this the pair?',pquad(ii),qorder(ii)
+      loopax: do jj=1,mqmqa_data%ncat
+! emquad are the quad indices of all A/X quads, there are ncat of them
+! cycle loop4 if temp(ii) is an A/X quad
+         if(temp(ii).eq.mqmqa_data%emquad(jj)) cycle loop4
+      enddo loopax
+! if we arrive here temp(ii) is a AB/X quad
+      if(pair.eq.0) then
+! do not exit as we want to check there is not a second pair
+!         pair=ii; lowa=jj-1
+! ERROR: we have to loop mequad again to find jj! Or program smarter
+         pair=ii
+!         write(*,*)'3XQ loop to find the A/X quad index'
+         notneeded: do jj=1,mqmqa_data%ncat
+            if(temp(ii).lt.mqmqa_data%emquad(jj)) exit notneeded
+!            if(temp(ii).gt.mqmqa_data%emquad(jj)) then
+!               lowa=jj-1
+!               exit notneeded
+!            endif
+         enddo notneeded
+         lowa=jj-1
+! lowa saves the quad index of the A/X quad for the AB/X quad
+!         write(*,*)'3XQ the pair is quad ',ii,lowa
+      else
+         write(*,*)'3XQ convert_y2quads found two pair fractions in a parameter'
+         gx%bmperr=4399; goto 1000
+      endif
+   enddo loop4
+! if lowa=0 we have not found the AB/X quad
+   if(lowa.eq.0) then
+      write(*,*)'3XQ cannot find the AB/X quad',(temp(ii),ii=1,nq3),&
+      ', among ',(mqmqa_data%emquad(ii),ii=1,mqmqa_data%ncat)
+      stop
+   endif
+! set the pair as first quad in pquad; maybe change qorder
+!   write(*,30)pair,lowa,(qorder(ii),ii=1,nq3)
+30 format('3XQ we found the pair: 'i3,', lowa:',i3,', qorder:',15i3)
+!   write(*,40)'3XQ pquad  before:',(pquad(ii),ii=1,nq3)
+!   write(*,40)'3XQ qorder before',(qorder(ii),ii=1,nq3)
+   if(pair.ne.1) then
+! shift positions
+      jj=pquad(1); kk=qorder(1)
+      pquad(1)=pquad(pair); qorder(1)=qorder(pair)
+      pquad(pair)=jj; qorder(pair)=kk
+   endif
+!   write(*,40)'3XQ pquad after:',(pquad(ii),ii=1,nq3)
+!   write(*,40)'3XQ qorder after',(qorder(ii),ii=1,nq3)
+40 format(a,4i3)
+! it seems OK here ..................
+! now pquad(1) is the pair AB/X. make pquad(2) to be A/X and pquad(3) as B/X
+! Probably there is a smart way but I am just fed up with this
+! All other constituents must be single cations: A/X, B/X or C/X
+!   write(*,*)'3XQ value of nq3',nq3
+   if(nq3.eq.3) then
+! It should be sufficient that temp(2) < temp(3)
+! But if there is a 4th quad one has to eliminate the quad without A and B
+      if(pquad(2).gt.pquad(3)) then
+         if(pquad(3).ne.lowa) then
+            write(*,*)'3XQ problems finding A/X quad',lowa,pquad(2)
+            jj=pquad(2); pquad(2)=pquad(3); pquad(3)=jj
+         endif
+      endif
+!      write(*,*)'3XQ order of pquad:',(pquad(kk),kk=1,nq3)
+   else
+! lowa must be the A/X quad because AB/X must be after A/X
+! the difference between quad AB/X and A/X must be related to the B/X
+! pquad(1) is the index of AB/X quad, the A/X quad is lowa
+!      write(*,20)'emquad again',(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
+      highb=pquad(1)-mqmqa_data%emquad(lowa)
+      write(*,*)'3XQ value of highb',pquad(1),mqmqa_data%emquad(lowa),highb
+! the B/X quad should be highb indices in emquad higher than lowa
+      nbx=mqmqa_data%emquad(lowa+highb)
+!      write(*,*)'3XQ tables are turning:',pquad(3),pquad(4),nbx
+      if(pquad(3).ne.nbx) then
+         if(pquad(4).ne.nbx) then
+            write(*,*)'3XQ circles are square'
+            stop
+         endif
+         jj=pquad(4); pquad(4)=jj; pquad(3)=jj
+      endif
+!      write(*,*)'3XQ order of pquad:',(pquad(kk),kk=1,nq3)
+   endif
+! list everything
+!   write(*,20)'emquad again',(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
+!   write(*,10)'final',(temp(ii),pquad(ii),ii=1,nq3)
+   write(*,*)'3XQ hit return to handle next parameter'
+   read(*,*)
+!
+1000 continue
+   return
+ end subroutine convert_y2quadx
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
 !\addtotable subroutine set_quadfractions(phres,verbose,yfr)
 !\begin{verbatim}
  subroutine set_quadfractions(phres,verbose,yfra)
@@ -2226,9 +2378,9 @@
 26    format('3XQ the OC fraction: ',i3,1pe14.6,&
            ' is set to MQMQA quad: ',i3,1pe14.6)
    enddo
-   if(verbose) write(*,*)'3XQ calling calcasymvar for \varkappa_ij, \xi_ij etc.'
-   call calcasymvar(mqmqaf)
-   if(verbose) write(*,*)'3XQ back from calcasymvar'
+!  if(verbose) write(*,*)'3XQ calling calcasymvar for \varkappa_ij, \xi_ij etc.'
+   call calcasymvar(phres)
+!   if(verbose) write(*,*)'3XQ back from calcasymvar'
 !
 1000 continue
    return
@@ -2284,7 +2436,6 @@
 ! xquad is declared globally in OC BUT maybe better if
 ! xquad is declared within the gtp3_phase_varres mqmqaf record ??????/
 ! The mqf below is part of gtp_phase_varres 
-!   allocate(xquad(nquad))
 ! initiate with equal amount
 ! The xquads in a sequental array and used ONLY to calculate excess parameters 
 ! number of binary cation combination, in a binary 11-12-22
@@ -2304,8 +2455,8 @@
 !
 !   ncat=ic
 !   nan=ia
-!   write(*,10)trim(phlista(lokph)%name),ncat,nan
-10  format(/'3XQ Initiating mqmqa model for ',a,' with ',i3,' cations and ',&
+!   write(*,10)trim(phlista(lokph)%name),mqmqa_data%ncat,mqmqa_data%nan
+10 format(/'3XQ Initiating mqmqa model for ',a,' with ',i3,' cations and ',&
         i2,' anion')
 ! initiate also values in mqmqa_data
 !   write(*,*)'3XQ init_excess check:',mqmqa_data%ncon1,mqmqa_data%ncat,&
@@ -2339,6 +2490,7 @@
 !!
 !-------------------------------------------
 ! now initate record with asymmetries
+!   write(*,*)'Allocating asymmetries',mqmqa_data%ncat
    nseq=0
    if(mqmqa_data%nan.eq.1) then
       if(mqmqa_data%ncat.gt.1) then
@@ -2372,8 +2524,8 @@
             if(mm.ne.ntercat) then
                stop 'ternary allocation error'
             endif
-         else
-            write(*,*)'No ternary data structures allocated'
+!         else
+!            write(*,*)'3XQ No ternary data structures needed'
          endif
       else
          write(*,*)'A liquid with a single cation and anion not implemented'
@@ -2385,14 +2537,15 @@
    endif
 ! varkappa and xi_ijis now part of allinone
 !
-   if(mqmqa_data%ncat.eq.2) goto 80
-!   write(*,67)ncat*(ncat-1)*nan/2
-67 format('init_asymm allocating compvar array: 'i5)
+!   if(mqmqa_data%ncat.eq.2) goto 80
+   write(*,67)mqmqa_data%ncat*(mqmqa_data%ncat-1)*mqmqa_data%nan/2
+67 format('3XQ init_excess_asymm allocating compvar array: ',2i5)
 ! we have to intitiate several variables in each compvar
 !   allocate(compvar(ncat*(ncat-1)*nan/2))
-!   write(*,*)'3QX, initiating compvar for excess model variables'
 !
    allocate(mqf%compvar(mqmqa_data%ncat*(mqmqa_data%ncat-1)/2*mqmqa_data%nan))
+!   write(*,*)'3QX, initiating compvar for excess model variables',&
+!        mqmqa_data%ncat,size(mqf%compvar)
    if(allocated(mqmqa_data%el2ancat)) then
 !      write(*,69)
 69    format('Heureca! el2ancat allocated')
@@ -2452,12 +2605,12 @@
 79 format('Allocating ',i3,' quadz array, for zv_ijkl data')
 !   allocate(quadz(ncat*(ncat+1)/2))
 ! create crossreferences beween OC datastructure and MQMQX asymmetric
-!   write(*,*)'3qx **** init_asymm calls correlate_const_and_quads'
+!   write(*,*)'3qx **** init_excess_asymm calls correlate_const_and_quads'
 !
-!   call correlate_const_and_quads(lokph)
+! THIS ROUTINE CALLS THIS ONE   call correlate_const_and_quads(lokph)
 !   if(gx%bmperr.ne.0) goto 1000
 !
-!   write(*,90)ncat*nan
+!   write(*,90)mqmqa_data%ncat*mqmqa_data%nan
 90 format('Allocating pair fraction array y_i/k: ',i4)
    allocate(mqf%y_ik(mqmqa_data%ncat*mqmqa_data%nan))
 ! with multiple anion derivatives add dimension nan also
@@ -2466,10 +2619,11 @@
    allocate(mqmqa_data%dy_ik(mqmqa_data%ncat,mqmqa_data%nquad))
    call pairfracs(.false.,mqf)
 !
-!   write(*,99)ncat,nquad,size(phres%yfr)
-99 format(/'3QX *********** leaving init_asym : ',3i4/)
-!
 1000 continue
+!
+! REMOVE ncat from global data structure
+!  write(*,99)mqmqa_data%ncat,mqmqa_data%nquad,size(phres%yfr),size(mqf%compvar)
+99 format(/'3QX **** leaving init_excess_asym : ',10i4/)
 !
    return
  end subroutine init_excess_asymm
@@ -2962,13 +3116,16 @@
 
 !\addtotable subroutine calcasymvar
 !\begin{verbatim}
- subroutine calcasymvar(mqmqavar)
+ subroutine calcasymvar(phres)
+! subroutine calcasymvar(mqmqavar)
 ! This must be called whenever the quad fractions has changed
 ! It updates varkappaij, xiij etc for the whole system
 ! and stores them in compvar(bin) datastructure
 ! Currently programmed ONLY for a single anion
    implicit none
-   type(gtp_mqmqa_var), pointer :: mqmqavar
+   type(gtp_phase_varres), pointer :: phres
+!   type(gtp_mqmqa_var), pointer :: mqmqavar
+!   type(gtp_mqmqa_var), pointer :: mqmqavar
 !\end{verbatim}
    integer i,j,ia,seq
 ! how to create xquad mm when we need a pointer to gtp_phase_varres?
@@ -2979,19 +3136,24 @@
 !   phres=>ceq%phase_varres(lokvar)
 !   mqf=>phres%mqmqaf
 !
-   if(.not.allocated(mqmqavar%xquad)) then
-      write(*,*)'No xquad array not allocated'
-      goto 1000
-   endif
-   if(.not.allocated(mqmqavar%compvar)) then
-      write(*,*)'No xquad array not allocated'
-      goto 1000
-   endif
+!   if(.not.allocated(mqmqavar%xquad)) then
+!      write(*,*)'3XQ No xquad array allocated'
+!      goto 1000
+!   endif
+!   if(.not.allocated(mqmqavar%compvar)) then
+!      write(*,*)'3XQ No compvar array allocated'
+!      goto 1000
+!   endif
 !
    ia=1
-   seq=0
+!   if(allocated(phres%mqmqaf%compvar)) then
+!      write(*,*)'3XQ in calcasym: compvar: ',size(phres%mqmqaf%compvar)
+!   else
+!      write(*,*)'3XQ in calasym: phres%mqmqaf%compvar not allocated'
+!   endif
 ! the separate array of binaries redundant?
 ! when a change of ternary asymmetries is made the newXupdate is incremented
+   seq=0
    do i=1,mqmqa_data%ncat-1
       do j=i+1,mqmqa_data%ncat
 ! seq specifies a binary set of elements
@@ -2999,7 +3161,10 @@
          seq=seq+1
 !         write(*,*)'Calling varkappa1 ',i,j,seq
 !         call varkappa1(mqmqavar%compvar(seq))
-         call varkappa1(seq,mqmqavar)
+!         call varkappa1(seq,mqmqavar)
+!         call varkappa1(seq,mqf)
+!         write(*,*)'3XQ calcasymvar call varkappa1'
+         call varkappa1(seq,phres)
       enddo
    enddo
 1000 continue
@@ -3010,7 +3175,8 @@
 
 !\addtotable subroutine varkappa1
 !\begin{verbatim}
- subroutine varkappa1(seq,mqf)
+! subroutine varkappa1(seq,mqf)
+ subroutine varkappa1(seq,phres)
 ! box is a record of the type(gtp_allinone)
 ! this routine may initiate, calculate and store varkappaij, varkappaji, xiij
 ! and xiji for symmetric and asymmetric systems with Kohler/Toop
@@ -3021,6 +3187,8 @@
 ! should it be a pointer?  Does it matter?
    implicit none
    integer seq
+   type(gtp_phase_varres), pointer :: phres
+!   type(gtp_mqmqa_var), pointer :: 
    type(gtp_mqmqa_var), pointer :: mqf
 !\end{verbatim}
 !
@@ -3068,12 +3236,22 @@
 ! how to create xquad mm when we need a pointer to gtp_phase_varres?
 !   type(gtp_equilibrium_data), pointer :: ceq
 !   type(gtp_phase_varres), pointer :: phres
-!   type(gtp_mqmqa_var), pointer :: mqmqavar
+!   type(gtp_mqmqa_var), pointer :: mqf
 ! attempt to move mqmqa variables into the mqmqa_var record
 !   ceq=>firsteq
 ! maybe problem with the array here ...
+   mqf=>phres%mqmqaf
+!   write(*,*)'3XQ in varkappa1',seq
+!   write(*,*)'3XQ in varkappa1',mqf%nquad
+   if(.not.allocated(mqf%compvar)) then
+      write(*,*)'3XQ line 3076 in varkappa: compvar not allocated, problems'
+      gx%bmperr=4399; goto 1000
+!   else
+!      write(*,*)'3XQ varkappa allocated OK'
+   endif
 !   phres=>ceq%phase_varres(1)
 !   mqf=>phres%mqmqaf
+!   box=>mqf%compvar(seq)
    box=>mqf%compvar(seq)
 ! icat and jcat represent cations ... duplicated here (and many other places)
    icat=box%cat1
@@ -3376,13 +3554,13 @@
 900 continue
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
-!
-1000 continue
    if(box%lastupdate.ne.newXupdate) then
       box%lastupdate=newXupdate
 !      write(*,1001)box%seq,box%lastupdate
 1001  format('3XQ allinone record ',i3,' updated to new asymmetries ',i5)
    endif
+!
+1000 continue
    return
 1100 continue
    write(*,1105)icat,jcat,v
@@ -3781,7 +3959,7 @@
 !
 ! called from create_asymmetry in gtp3B
 !   write(*,7)lokph,nfr,noofel
-7  format(//'3XQ In correlate_const_and_quad',3i5//)
+7  format(/'3XQ In correlate_const_and_quad',3i5//)
 !
    nfr=phlista(lokph)%nooffr(1)
    allocate(findan(noofel))
@@ -3837,6 +4015,9 @@
 ! set up translation table for cations from ellink to 1..ncat
 ! the anion has a negative value in el2ancat, the cations index 1..ncat
 !   write(*,*)'3XQ in correlate_const_and_quads ... allocating el2ancat'
+! mqmqa_data is not allocated ... suck
+!   if(allocated(mqmqa_data%el2ancat(noofel))) &
+!        deallocate(mqmqa_data%el2ancat(noofel))
    allocate(mqmqa_data%el2ancat(noofel))
 !   write(*,*)'Size of mqmqa_data%el2ancat ',size(mqmqa_data%el2ancat)
    do jp=1,noofel

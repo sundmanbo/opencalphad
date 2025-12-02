@@ -171,7 +171,8 @@ contains
 ! debugging mqmqma_data%const lines ... lines 5236 ff
     integer ik,ij,kp,s1,thiscon
 ! ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%vk_ij,
-    type(gtp_mqmqa_var), pointer :: mqmqavar
+!    type(gtp_mqmqa_var), pointer :: mqmqavar
+    type(gtp_phase_varres), pointer :: mqmqavar
 !-------------------
 ! variables for lmdif
 !    integer, parameter :: lwam=2500
@@ -5337,7 +5338,10 @@ contains
 410          format(/'List of binary asymmetric composition variables',i5&
             /'  i  j  seq    varkappa_ij varkappa_ji  xi_ij       xi_ji')
 ! calculate varkappaij and varkappaji correcting for all ternaries
-                mqmqavar=>ceq%phase_varres(lokcs)%mqmqaf
+!                mqmqavar=>ceq%phase_varres(lokcs)%mqmqaf
+!                call calcasymvar(ceq%phase_varres(lokcs))
+!                call calcasymvar(ceq%phase_varres(lokcs))
+                mqmqavar=>ceq%phase_varres(lokcs)
                 call calcasymvar(mqmqavar)
                 j4=0
                 cat1: do i1=1,mqmqa_data%ncat-1
