@@ -306,7 +306,7 @@ contains
 ! subsubcommands to LIST MQMQA_SPECIALS
     character (len=16), dimension(mqmqacc) :: mqmqalist=&
         ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
-         '                ','                ','                ']
+         'EXCESS          ','                ','                ']
 !------------------- subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
@@ -5218,7 +5218,7 @@ contains
 ! list MQMQA_SPECIAL
 !    character (len=16), dimension(mqmqacc) :: mqmqalist=&
 !        ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
-!         '                ','                ','                ']
+!         'EXCESS          ','                ','                ']
        case(22)
 ! allow output file
 !          lut=optionsset%lut
@@ -5231,6 +5231,11 @@ contains
 !                write(*,*)'Deallocated errs'
           call gparcx('Phase name: ',cline,last,1,name1,' ','?List phase')
           if(buperr.ne.0) goto 990
+! special to debug read database
+          if(name1.eq.'DEBUG') then
+             mqmqtdb=.true.
+             goto 100
+          endif
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
 ! A stupid way to find lokvares ... (or lokcs, I have forgooten which)
@@ -5387,16 +5392,25 @@ contains
              call gparidx('Set mqmqa debug?',cline,last,i1,i2,'?MQMQA debug')
              mqmqdebug=.false.
              mqmqdebug2=.false.
+             mqmqtdb=.false.
+             mqmqxcess=.false.
              if(i1.eq.1) then
                 mqmqdebug=.true.
              elseif(i1.eq.2) then
                 mqmqdebug2=.true.
+             elseif(i1.eq.3) then
+! tdb reading debug
+                mqmqtdb=.true.
+             elseif(i1.eq.4) then
+! calculation debug
+                mqmqxcess=.true.
              endif
 !
 !...........................................................
-! 
+! list excess tree
           case(4)
-             write(kou,*)'Not implemented yet'
+             call get_phase_record(iph,lokph)
+             call listpartree(lokph)
 
 !...........................................................
 ! 

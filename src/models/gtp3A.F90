@@ -3175,12 +3175,12 @@ end function find_phasetuple_by_indices
 ! this routine is in gtp3XQ
 !   write(*,*)'Testing PHMQMQX bit'
    if(btest(phlista(lokph)%status1,PHMQMQX)) then
-      write(*,*)'3A This phase has PHMQMQX set, calling set_quadfractions',lokcs
-!            ceq%phase_varres(lokcs)%yfr(ic+ml)=yz
-      phres=>ceq%phase_varres(lokcs)
       if(mqmqa_data%exlevel.lt.100) mqmqa_data%exlevel=100
+      if(mqmqxcess) write(*,*)'3A This phase has PHMQMQX set,',&
+           ' calling set_quadfractions',lokcs
+      phres=>ceq%phase_varres(lokcs)
 ! the second argument means to list
-      call set_quadfractions(phres,.TRUE.,yfra)
+      call set_quadfractions(phres,mqmqxcess,yfra)
    endif
 1000 continue
 !   write(*,*)'3A no segmentation fault at exit'

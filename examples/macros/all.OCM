@@ -240,10 +240,10 @@ mac ./cslaf-map
 mac ./sro-cef.OCM
 
 @&& *********************************************************
-@$ Testing the UNIQUAC model
+@$ Testing the UNIQUAC model  Removed as it conflicts with new MQMQA model
 @$ *********************************************************
 
-mac ./uniquac
+@$ mac ./uniquac
 
 @&& *********************************************************
 @$ Calculation for 20 elements and 191 phases using COST507

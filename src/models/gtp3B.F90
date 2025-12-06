@@ -3202,7 +3202,8 @@
          call enter_mqmqa_excess_param(lokph,endmemrec,typty,nint,jord,&
               ideg,lfun,refx)
 ! ignore the rest if this subroutine, 
-         write(*,*)'3B Back from mqmqa_excess ',associated(endmemrec%intpointer)
+         if(mqmqtdb) write(*,*)'3B Back from mqmqa_excess ',&
+              associated(endmemrec%intpointer)
          goto 2000
       endif mqmq
 !
@@ -3668,7 +3669,8 @@
    mint=0
    sem=endmemrec%fraclinks(1,1)
    intrec=>endmemrec%intpointer
-   write(*,10)mint,nint,lfun,associated(intrec),sem,(jord(2,ii),ii=1,nint)
+   if(mqmqtdb) write(*,10)mint,nint,lfun,associated(intrec),&
+        sem,(jord(2,ii),ii=1,nint)
 10 format('3B MQMQA >>> excess start ',2i3,i6,2x,l2,3x,i2,2x,6i3)
 !  
 ! intperm, elinks and intlinks not needed here, used for FCC/BCC permutations
@@ -3712,7 +3714,7 @@
       elseif(level.eq.0) then
 ! we must be careful with lastint
 ! if level=0 the previous record on lower level. set lastint%highlink
-         write(*,*)'3B is lastint allocated?',associated(lastint)
+!         write(*,*)'3B is lastint allocated?',associated(lastint)
          if(associated(lastint%highlink)) then
             write(*,*)'3B highlink already set'
             stop
@@ -3747,7 +3749,7 @@
 333      format(a,2i7,2x,a)
          typty=ideg; ideg=0
 ! this routine is in gtp3G.F90
-         call create_proprec(intrec%propointer,typty,ideg,lfun,refx)
+         call create_mqmqa_proprec(intrec%propointer,typty,ideg,lfun,refx)
          if(gx%bmperr.ne.0) then
             write(*,*)'3B error code',gx%bmperr
             goto 1000
@@ -3757,19 +3759,19 @@
 ! For a MQMQA excess parameter we need to store the index of the AB/X quad
 ! and which the index of the A/X and B/X (and sometices C/X) quads
 ! A/X and B/X in alphabetical order, the C/X last
-         write(*,334)'yfrac',sem,(jord(2,ii),ii=1,nint)
+!         write(*,334)'yfrac',sem,(jord(2,ii),ii=1,nint)
 334      format('3B call convert for constituent ',a,i3,' interactions: ',10i3)
          call convert_y2quadx(sem,nint,jord,parquad)
          if(gx%bmperr.ne.0) goto 1000
-         write(*,334)'quad',(parquad(ii),ii=1,nint)
+!         write(*,334)'quad',(parquad(ii),ii=1,nint)
 ! these are the indices for quad and aymmetric compvar ...
-         write(*,*)'3B back from convert_y2quadx 1'
+!         write(*,*)'3B back from convert_y2quadx 1'
          proprec%asymdata%quad=parquad(1)
          proprec%asymdata%alpha=parquad(2)
          proprec%asymdata%beta=parquad(3)
          proprec%asymdata%ternary=parquad(4)
-         write(*,335)parquad
-335      format('3B saved in propery quad mm:',4i3)
+!         write(*,335)parquad
+335      format('3B saved in propery quad mm:',5i3)
          exit findint
       else !-----------------------------------------------------------------
 ! we should never have mint lesser than nint !!!
@@ -3778,7 +3780,7 @@
       endif data1
    else  ! here we have found an intrec =====================================
 ! we have found an interaction record, intrec has some data
-      write(*,*)'3B level ',level,intrec%fraclink(1),jord(2,mint)
+      if(mqmqtdb) write(*,*)'3B level ',level,intrec%fraclink(1),jord(2,mint)
       order: if(intrec%fraclink(1).lt.jord(2,mint)) then
 ! continue search on this level
          lastint=>intrec
@@ -3787,7 +3789,7 @@
          goto 100
       elseif(intrec%fraclink(1).eq.jord(2,mint)) then
 ! we have found an interaction record with correct constituent on this level
-         write(*,*)'3B same interaction constituent',mint,jord(2,mint)
+!         write(*,*)'3B same constituents',intrec%fraclink(1),jord(2,mint)
          if(mint.eq.nint) then
 ! we have to add a second property!!
             write(*,*)'3B parameter exists, add property!',mint,nint
@@ -3799,7 +3801,7 @@
             typty=ideg; ideg=0
 ! add a property record
             write(*,*)'3B adding a second property record'
-            call create_proprec(proprec%nextpr,typty,ideg,lfun,refx)
+            call create_mqmqa_proprec(proprec%nextpr,typty,ideg,lfun,refx)
             if(gx%bmperr.ne.0) then
                write(*,*)'3B error code',gx%bmperr
                goto 1000
@@ -3813,8 +3815,8 @@
             enddo
             call convert_y2quadx(sem,nint,jord,parquad)
             if(gx%bmperr.ne.0) goto 1000
-            write(*,*)'3B back from convert_y2quadx 2',parquad
-            write(*,334)'quad',(parquad(ii),ii=1,nint)
+!            write(*,*)'3B back from convert_y2quadx 2',parquad
+!            write(*,334)'quad',(parquad(ii),ii=1,nint)
             proprec%asymdata%quad=parquad(1)
             proprec%asymdata%alpha=parquad(2)
             proprec%asymdata%beta=parquad(3)
@@ -3853,14 +3855,14 @@
 !            write(*,332)'3B constituents: ',sem,(jord(2,ii),ii=1,nint)
 !            write(*,333)'3B data: ',typty,ideg,refx!
 ! there can be several property records!!!
-            call create_proprec(lastprop%nextpr,typty,ideg,lfun,refx)
+            call create_mqmqa_proprec(lastprop%nextpr,typty,ideg,lfun,refx)
             if(gx%bmperr.ne.0) goto 1000
 ! add particular MQMQA data
             proprec=>intrec%propointer
             call convert_y2quadx(sem,nint,jord,parquad)
             if(gx%bmperr.ne.0) goto 1000
-            write(*,*)'3B back from convert_y2quadx 3'
-            write(*,334)'quad',(parquad(ii),ii=1,nint)
+!            write(*,*)'3B back from convert_y2quadx 3'
+!            write(*,334)'quad',(parquad(ii),ii=1,nint)
             proprec%asymdata%quad=parquad(1)
             proprec%asymdata%alpha=parquad(2)
             proprec%asymdata%beta=parquad(3)
@@ -3873,7 +3875,7 @@
          endif data2
       endif order
    endif findint
-   write(*,*)'3B we are here!',associated(intrec),mint,nint,jord(2,1:nint)
+!   write(*,*)'3B we are here!',associated(intrec),mint,nint,jord(2,1:nint)
 !
 1000 continue
    return

@@ -1169,7 +1169,7 @@
    TYPE(gtp_tooprec), pointer :: tooprec
 ! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
    integer ij,jd,jq,qq1,qq2,ass,mpow,isumx,tsize,tch,iiz,mqmqcon,mqmqjy
-   integer noofex
+   integer noofex,nqx,ncv,icv
    double precision ksi,sumx,dsumx
    double precision dksi(3),d2ksi(3)
 !   logical ddebug
@@ -1216,6 +1216,29 @@
 !           splista(mqmqj)%quadindex
 !13    format('3XQ specie: ',i3,2x,a,2x,5i5)
 !   enddo
+!--------------------------------------
+! debug output of varkappa mm moved to beginning of calc_mqmqa
+   if(mqmqxcess .and. btest(phlista(lokph)%status1,PHMQMQX)) then
+      write(*,*)'3XQ Debug output of quads, \varkappa_ij, \xi_ij and y_i/k'
+!
+! these variables are in the TYPE GTP_MQMQA_VAR
+      nqx=mqmqa_data%nquad
+      write(*,82)nqx
+82    format('3XQ Quad fractions:',i3)
+      write(*,84)(mqf%xquad(icv),icv=1,nqx)
+84    format((8F8.5))
+      ncv=size(mqf%compvar)
+      write(*,78)ncv
+78 format('3XQ varkappa_ij     varkappa_ji          xi_ij           xi_ji',i12)
+!          123456789.123456123456789.123456.....123456789.123456123456789.123456
+      do icv=1,ncv
+         write(*,80)mqf%compvar(icv)%vk_ij,mqf%compvar(icv)%vk_ji,&
+              mqf%compvar(icv)%xi_ij,mqf%compvar(icv)%xi_ji
+80       format(2x,2(1pe16.8),5x,2(1pe16.8))
+      enddo
+      write(*,86)mqmqa_data%ncat,(mqf%y_ik(icv),icv=1,mqmqa_data%ncat)
+86    format(/'3XQ y_i/k:',i2,3x,7F9.6)
+   endif
 !--------------------------------------
 ! first loop over ALL endmembers
    mqmqj=0
@@ -1435,7 +1458,7 @@
          cycle endmemloop2
       endif
 !
-      if(mqmqdebug2) then
+      if(mqmqxcess) then
 ! if parameter errors in interactions below these are the endmemberquads A/X
          write(*,313)(mqmqa_data%emquad(iiz),iiz=1,mqmqa_data%ncat)
 313      format('3XQ endmember quads: ',15i3)
@@ -1457,6 +1480,8 @@
 !      write(*,*)'3XQ excess with endmember constituent: ',mqmqjy
       call new_mqmqa_excess(lokph,intrec,mqmqjy,vals,dvals,d2vals,gz,ceq)
       if(gx%bmperr.ne.0) goto 1000
+! for the moment add vals(1) to G and vales(2) to G.T
+      
 ! if new_mqmqa_excess used then intrec will be nullified on return
       if(.not.associated(intrec)) cycle endmemloop2
 !
@@ -1614,7 +1639,7 @@
       proprec=>proprec%nextpr
       if(associated(proprec)) then
 ! more than one property ... not implemented
-         write(*,*)'3XQ MQMQA parameter with several propertyes!',mqmqj
+         write(*,*)'3XQ MQMQA parameter with several properties!',mqmqj
       endif
       if(associated(intrec%highlink)) then
 ! a higher interaction ... not allowed
@@ -1988,15 +2013,18 @@
 
 !\addtotable subroutine new_mqmqa_excess
 ! called from calc_mqmqa line 1429.  CALCULATES MQMQA excess
-!\begin{verbatim}
-! subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
-  subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
+ !\begin{verbatim}
+ ! subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
+ subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
+! dvals and d2vals are composition derivatives, what is gz?
 ! To be written using the gtp_allinone data structure for asymmetric excess
    implicit none
 ! mqmqj is index of first constituent in endmemberrecord
    integer lokph,mqmqj
 !   type(gtp_property), pointer :: lokpty
    type(gtp_parcalc) :: gz
+   type(gtp_phase_varres), pointer :: phres
+   TYPE(gtp_mqmqa_var), pointer :: mqf
    double precision vals(6),dvals(3,gz%nofc)
    double precision d2vals(gz%nofc*(gz%nofc+1)/2)
 ! pointer to first interaction record from an endmember
@@ -2007,15 +2035,17 @@
    TYPE(gtp_intstack), dimension(:), allocatable :: savedint
    TYPE(gtp_pystack), pointer :: pystack
    TYPE(gtp_phase_add), pointer :: addrec
-   TYPE(gtp_mqmqa_var), pointer :: mqf
    TYPE(gtp_terdata), pointer :: ternaries
    TYPE(gtp_property), pointer :: proprec
 !
    character*120 text
    logical :: once=.true.
    integer ppow,qpow,rpow,intlev,iiz,jj,pairquad,jp,proprecno
+   integer parquad(4),nprr
    integer :: nex=0
    integer, dimension(:), allocatable :: ylinks
+   integer ncv,icv,nqx,lokcs,lokfun,xq,cxq
+   double precision mqmqx_deltag,compprod,nomin,divisor
    character*1 ptyp1
 ! The previous MQMQA excess implementation arrive here
 ! If mqmqa_data%exlevel is zero we should return and that code will still work.
@@ -2025,9 +2055,8 @@
       goto 1000
    endif
 ! we are here because this endmember has an intercation link
-!   if(mqmqdebug2) write(*,5)mqmqj
-   if(mqmqdebug2) write(*,5)mqmqj
-5  format(/'3XQ /// in new_mqmqa_excess with endmember: ',i3)
+   if(mqmqxcess) write(*,5)mqmqj
+5  format(/'3XQ in new_mqmqa_excess with endmember: ',i3)
 ! initiate ylinks for this tree with the endmember fraction
    intrec=>intrecin
 ! this is needed to move to next endmemeber
@@ -2047,57 +2076,57 @@
 !   pairquad=ylinks(1)
 17 continue
 !
+! THIS IS THE CALCULATION ROUTINE WITH DEBUG LISTING ADDED
+!
 ! loop here until all excess records from this endmember calculated
 ! The new excess model implementation using allinone etc below
 ! The quad fractions and related composition variables such as
 ! quadfractions and asymmetrical variables  have been set by set_constitution
 !
+! ceq%phase_varres(lokcs)%mqmqaf%compvar(icv)%vi_ij etc
+! access to composition variables
+!
+   lokcs=phlista(lokph)%linktocs(1)
+   mqf=>ceq%phase_varres(lokcs)%mqmqaf
+!
+!   if(btest(phlista(lokph)%status1,PHMQMQX)) then
+   if(.false.) then
+! these variables are in the TYPE GTP_MQMQA_VAR
+      write(*,*)'3XQ Check we have access to xquad, compvar etc?'
+!
+      nqx=mqmqa_data%nquad
+      write(*,82)nqx
+82    format('3XQ Quad fractions:',i3)
+      write(*,84)(mqf%xquad(icv),icv=1,nqx)
+84    format((8F8.5))
+      ncv=size(mqf%compvar)
+      write(*,78)ncv
+78 format('3XQ varkappa_ij     varkappa_ji          xi_ij           xi_ji',i12)
+!          123456789.123456123456789.123456.....123456789.123456123456789.123456
+      do icv=1,ncv
+         write(*,80)mqf%compvar(icv)%vk_ij,mqf%compvar(icv)%vk_ji,&
+              mqf%compvar(icv)%xi_ij,mqf%compvar(icv)%xi_ji
+80       format(2x,2(1pe16.8),5x,2(1pe16.8))
+      enddo
+      write(*,86)mqmqa_data%ncat,(mqf%y_ik(icv),icv=1,mqmqa_data%ncat)
+86    format(/'3XQ y_i/k:',i2,3x,7F9.6)
+!
+      write(*,*)'Press return to continue'
+      read(*,*)
+   endif
+!
+! when we are here intrec must be associated
 100 continue
 !
-! This has to be developed, first check all parameter are there
+! This has to be developed, first try to list all parameters
 !
 ! there is a single set of sites, save constituent first index
 ! We may come back here for another interaction with same endmember
 ! Set ylinks to be indices of the OC fractions
    ylinks(intlev)=intrec%fraclink(1)
-   write(*,997)intlev,(ylinks(jj),jj=1,intlev)
-997 format('3XQ Level pf interaction: ',i2,5x,10i3)
-! jump here when popped a next link
-105 continue
-!   ifem2: do jj=1,mqmqa_data%ncat
-!      if(ylinks(intlev).eq.mqmqa_data%emquad(jj)) goto 108
-!   enddo ifem2
-!   if(pairquad.eq.0) then
-!      pairquad=ylinks(intlev)
-!   else
-!      write(*,107)ylinks(intlev),pairquad
-!107   format('3XQ MQMQA parameter has two pair quads: ',2i4)
-!      write(*,109)(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
-!109   format(/'3XQ *** Error because 2 constituents in the excess',&
-!           ' parameter has 2 cations.'/&
-!           '3XQ The quads with a single cation are: ',15i3)
-!      gx%bmperr=4399; goto 1000
-!   endif
-!108 continue
-! intrecin is to a gtp_interaction record
-! list data in intrec
-!   if(mqmqdebug2) write(*,110)lokph,intrec%status,intrec%antalint,&
-!        intrec%sublattice(1),&
-!        associated(intrec%propointer),(ylinks(iiz),iiz=1,intlev)
-110 format('3XQ MQMQA interaction: ',4i3,l3,', constituents: ',10i3)
-! these is a single sublattice, some interaction records has no properties
-! is there a property?
    proprec=>intrec%propointer
-!  if(associated(intrec%propointer)) write(*,*)'3XQ there is a property pointer'
-   if(associated(intrec%propointer)) then
-      write(*,101)intlev,(ylinks(jj),jj=1,intlev)
-101   format('3XQ interaction:',i2,', with property and constitents: ',10i3)
-   else
-      write(*,*)'3XQ no property with constituents:',(ylinks(jj),jj=1,intlev)
-   endif
-! there can be several property records
    proprecno=0
-   do while (associated(proprec))
+   listprop: do while(associated(proprec))
 ! we have found an excess parameter !!!
 ! there can be several property record for the same set of constituents
 ! there is a propointer here! error in gtp3B or empty interaction record
@@ -2106,75 +2135,110 @@
       if(proprec%proptype.eq.35) ptyp1='Q'
       if(proprec%proptype.eq.36) ptyp1='B'
 !
-      if(mqmqdebug2) then
+      ppow=proprec%asymdata%ppow
+      qpow=proprec%asymdata%qpow
+      rpow=proprec%asymdata%rpow
+      if(mqmqxcess) then
 ! helps to understand what the parameter it is ....
          jp=1
          text=' '
-         call mqmqa_excess(lokph,intlev,ylinks,text,jp)
-         ppow=proprec%asymdata%ppow
-         qpow=proprec%asymdata%qpow
-         rpow=proprec%asymdata%rpow
+         call mqmqa_excesspar_name(lokph,intlev,ylinks,text,jp)
          text(jp-1:)=';'//ptyp1//','//char(ichar('0')+ppow)//&
               ','//char(ichar('0')+qpow)//','//char(ichar('0')+rpow)//')'
-         write(*,115)trim(text),proprecno
-115      format('3XQ debug parameter: ',a,i4)
-      endif
+!         write(*,115)trim(text),proprecno,proprec%antalprop
+         write(*,115)trim(text),ppow,qpow,rpow
+115      format(/'3XQ parameter: ',a,', pqr:',3i2)
 ! extract the quad pointers
-      write(*,117)proprec%asymdata%quad,proprec%asymdata%alpha,&
-           proprec%asymdata%beta,proprec%asymdata%ternary
-117   format('3XQ composition variables: :',5i3)
-! there can be several parameters for the same set of constituents
-      proprec=>proprec%nextpr
-      nex=nex+1
-   enddo
-! when properties done and there is a higher link push next and take higher
-! otherwise if there is a next link take that,
-! otherwise pop any pushed next links
-! until all excess parameters listed or calculated
+      endif
 !
-   if(associated(intrec%highlink)) then
-      if(mqmqdebug2) write(*,*)'3XQ push nextlink and take higher excess'
+      lokfun=proprec%degreelink(0)
+      xq=proprec%asymdata%quad
+! cxq transforms the quad index to an index in compvar (which as no diagonal)
+      cxq=mqmqa_data%quad2compvar(xq)
+! we should not use quad index in compvar.  We should use the index
+! related to the two elemnts i and j represented by the quad index
+! and they are NOT
+      if(mqmqxcess) then
+         write(*,117)xq,cxq,lokfun,&
+              mqf%xquad(xq),mqf%compvar(cxq)%xi_ij,mqf%compvar(cxq)%xi_ji
+117      format('3XQ composition variables: :',2i4,' parameter link: ',i5/&
+              'Quad   ',1pe13.6,' \xi_ij ',1pe13.6,' \x_ji',1pe13.6)
+      endif
+! this return 6 values in vals: G, G.T, G.P,  G.T.T, G.T.P, G.P.P
+      call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
+      if(gx%bmperr.ne.0) goto 1000
+!--------------------------------------------------------------------
+! calculate the parameter with composition variables
+      if(ptyp1.eq.'G') then
+         nomin=(mqf%compvar(cxq)%xi_ij)**ppow*(mqf%compvar(cxq)%xi_ji)**qpow
+         divisor=(mqf%compvar(cxq)%xi_ij+mqf%compvar(cxq)%xi_ji)**(ppow+qpow)
+         compprod=mqf%xquad(xq)*nomin/divisor
+         mqmqx_deltag=compprod*vals(1)
+         if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,divisor,compprod
+118      format('3XQ comprod: ',1pe15.8,'*',1pe15.8,'/',1pe15.8,'=',1pe15.8)
+      else
+         write(*,*)'3XQ proptyp not implemented: ',ptyp1
+         stop
+      endif
+!     if(mqmqxcess) write(*,119)vals(1),compprod,mqmqx_deltag
+      write(*,119)vals(1),compprod,mqmqx_deltag
+119   format('3XQ Delta G should be added to G'/&
+           'param: ',(1pe15.8)', comprod: ',1pe15.8,' Delta G: ',1pe15.8)
+!---------------------------------------------------------------------
+! there can be several parameters for the same set of constituents
+! They differ by the powers but not the constituents
+!         
+      proprec=>proprec%nextpr
+      if(mqmqxcess) then
+         if(.not.associated(proprec)) then
+            write(*,*)'3XQ no more properties'
+         else
+            write(*,*)'3XQ one more property!'
+         endif
+      endif
+      nex=nex+1
+   enddo listprop
+!
+! we have listed all property records, try a higher interaction or next
+! first try a higher level of interactio
+!   write(*,997)nprr,intlev,(ylinks(jj),jj=1,intlev)
+!997   format('3XQ interaction with no property: ',i2,' OC fractions ',10i3)
+   pushornext: if(associated(intrec%highlink)) then
+      savedint(intlev)%saved=>intrec%nextlink
       intlev=intlev+1
       if(intlev.gt.9) then
-         write(*,*)'Interaction record overflow, increae dimension of savedint'
+         write(*,*)'Interaction level record overflow',intlev
          gx%bmperr=4399; goto 1000
       endif
-      savedint(intlev)%saved=>intrec%nextlink
-      if(mqmqdebug2) write(*,18)intlev,associated(intrec%nextlink)
-18    format('3XQ pushed next intrec on stack',i2,l3)
       intrec=>intrec%highlink
       goto 100
    elseif(associated(intrec%nextlink)) then
-! we pushed the next link !!!
-      if(mqmqdebug2) write(*,*)'3XQ take link to next parameter on same level'
+      if(mqmqxcess) write(*,*)'3XQ take link to next parameter on same level'
       intrec=>intrec%nextlink
       if(associated(intrec)) goto 100
-   endif
+   endif pushornext
 ! No higher or next link, pop saved intrec
    popping: do while(intlev.gt.1)
       intrec=>savedint(intlev)%saved
-      if(mqmqdebug2) write(*,98)'3XQ popped intrec off stack',&
-           intlev,associated(intrec),(ylinks(jp),jp=1,intlev)
-98    format(a,i3,2x,l2,10i3)
-      if(ylinks(intlev).eq.pairquad) pairquad=0
+      if(mqmqxcess) write(*,98)'3XQ popped intrec off stack',&
+           intlev,associated(intrec)
+98    format(a,i3,2x,l2)
+      pairquad=0
       intlev=intlev-1
       if(.not.associated(intrec)) cycle popping
-!      write(*,97)intlev,intrec%fraclink(1),(ylinks(jp),jp=1,intlev)
-97    format('3XQ decreasd intlev: ',2i3,2x,10i3)
-      if(ylinks(intlev).eq.pairquad) pairquad=0
       goto 100
-!      if(associated(intrec)) goto 100
    enddo popping
-!   if(mqmqdebug2) write(*,99)
-!   write(*,99)nex
-99 format('3XQ Back to endmemeber record',i5/)
+!
+!------------ return to next endmember
 1000  continue
+   if(mqmqxcess) write(*,1001)
+1001 format('3XQ Back to endmemeber record',i5/)
    return
  end subroutine new_mqmqa_excess
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
- subroutine mqmqa_excess(lokph,intlev,ylinks,text,jp)
+ subroutine mqmqa_excesspar_name(lokph,intlev,ylinks,text,jp)
    integer lokph,intlev
    integer ylinks(*),jp
    character text*(*)
@@ -2203,7 +2267,7 @@
 !40 format('3XQ *** phase const name: ',10(a,','))
 !
    return
- end subroutine mqmqa_excess
+ end subroutine mqmqa_excesspar_name
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
@@ -2222,8 +2286,10 @@
    integer ii,jj,nq3,kk,pair,qorder(4),lowa,highb,temp(4),nbx
 !
 ! input data from database
-   write(*,*)'3XQ *** fixing parameter composition variables',&
-        size(mqmqa_data%emquad),size(mqmqa_data%con2quad)
+!   write(*,*)'3XQ *** fixing MQMQA parameter composition variables',&
+!        size(mqmqa_data%emquad),size(mqmqa_data%con2quad)
+!   write(*,5)sem,jord(2,1:nint)
+5  format('3XQ fixing MQMQA parameter composition variables',10i3)
 !   write(*,20)'emquad',(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
 !   write(*,20)'con2quad',(mqmqa_data%con2quad(jj),jj=1,mqmqa_data%nquad)
 20 format('3XQ ',a,21i3)
@@ -2234,6 +2300,22 @@
 ! pquad(4) should be the 4th quand, not including A or B 
    temp(2)=mqmqa_data%con2quad(jord(2,1))
    temp(3)=mqmqa_data%con2quad(jord(2,2))
+! the quad index related to temp(2) and temp(3) should be temp(1) ???
+! check:
+! emquad have the quad indices of all A/X quads, there are ncat of them.
+! The index of a quad (i,j) where j>i is emquad(i)+j-i   
+!   write(*,*)'3XQ values temp: ',temp(1),temp(2),temp(3)
+   if(temp(2).gt.temp(3)) then
+      write(*,*)'3XQ parameter has wrong order of A/X and B/X quads'
+      stop 76
+!   else
+!      ii=mqmqa_data%emquad(temp(2))+temp(3)-temp(2)
+!      write(*,*)'3XQ values of mixed quad index: ',temp(1),temp(2),temp(3),ii
+!      if(temp(1).ne.ii) then
+!         write(*,*)'3XQ problems with quad indices'
+!         stop 77
+!      endif
+   endif
    nq3=3
    if(nint.eq.3) then
       nq3=4; temp(4)=mqmqa_data%con2quad(jord(2,3))
@@ -2250,10 +2332,175 @@
    loop4: do ii=1,nq3
       pquad(ii)=temp(ii)
       qorder(ii)=ii
+!
+! qx is quad
+! Calculate: quad(temp(1)*\xi(temp(3),temp(2)**ppow
 !      write(*,*)'3XQ is this the pair?',pquad(ii),qorder(ii)
       loopax: do jj=1,mqmqa_data%ncat
-! emquad are the quad indices of all A/X quads, there are ncat of them
+!
 ! cycle loop4 if temp(ii) is an A/X quad
+!
+         if(temp(ii).eq.mqmqa_data%emquad(jj)) cycle loop4
+      enddo loopax
+! if we arrive here temp(ii) is a AB/X quad
+      if(pair.eq.0) then
+! do not exit as we want to check there is not a second pair
+!         pair=ii; lowa=jj-1
+! ERROR: we have to loop mequad again to find jj! Or program smarter
+         pair=ii
+!         write(*,*)'3XQ loop to find the A/X quad index'
+         notneeded: do jj=1,mqmqa_data%ncat
+            if(temp(ii).lt.mqmqa_data%emquad(jj)) exit notneeded
+!            if(temp(ii).gt.mqmqa_data%emquad(jj)) then
+!               lowa=jj-1
+!               exit notneeded
+!            endif
+         enddo notneeded
+         lowa=jj-1
+! lowa saves the quad index of the A/X quad for the AB/X quad
+!         write(*,*)'3XQ the pair is quad ',ii,lowa
+      else
+         write(*,*)'3XQ convert_y2quads found two pair fractions in a parameter'
+         gx%bmperr=4399; goto 1000
+      endif
+   enddo loop4
+! if lowa=0 we have not found the AB/X quad
+   if(lowa.eq.0) then
+      write(*,*)'3XQ cannot find the AB/X quad',(temp(ii),ii=1,nq3),&
+      ', among ',(mqmqa_data%emquad(ii),ii=1,mqmqa_data%ncat)
+      stop
+   endif
+! set the pair as first quad in pquad; maybe change qorder
+!   write(*,30)pair,lowa,(qorder(ii),ii=1,nq3)
+30 format('3XQ we found the pair: 'i3,', lowa:',i3,', qorder:',15i3)
+!   write(*,40)'3XQ pquad  before:',(pquad(ii),ii=1,nq3)
+!   write(*,40)'3XQ qorder before',(qorder(ii),ii=1,nq3)
+   if(pair.ne.1) then
+! shift positions
+      jj=pquad(1); kk=qorder(1)
+      pquad(1)=pquad(pair); qorder(1)=qorder(pair)
+      pquad(pair)=jj; qorder(pair)=kk
+   endif
+!   write(*,40)'3XQ pquad after:',(pquad(ii),ii=1,nq3)
+!   write(*,40)'3XQ qorder after',(qorder(ii),ii=1,nq3)
+40 format(a,4i3)
+! it seems OK here ..................
+! now pquad(1) is the pair AB/X. make pquad(2) to be A/X and pquad(3) as B/X
+! Probably there is a smart way but I am just fed up with this
+! All other constituents must be single cations: A/X, B/X or C/X
+!   write(*,*)'3XQ value of nq3',nq3
+   if(nq3.eq.3) then
+! It should be sufficient that temp(2) < temp(3)
+! But if there is a 4th quad one has to eliminate the quad without A and B
+      if(pquad(2).gt.pquad(3)) then
+         if(pquad(3).ne.lowa) then
+            write(*,*)'3XQ problems finding A/X quad',lowa,pquad(2)
+            jj=pquad(2); pquad(2)=pquad(3); pquad(3)=jj
+         endif
+      endif
+!      write(*,*)'3XQ order of pquad:',(pquad(kk),kk=1,nq3)
+   else
+! lowa must be the A/X quad because AB/X must be after A/X
+! the difference between quad AB/X and A/X must be related to the B/X
+! pquad(1) is the index of AB/X quad, the A/X quad is lowa
+!      write(*,20)'emquad again',(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
+      highb=pquad(1)-mqmqa_data%emquad(lowa)
+!      write(*,*)'3XQ value of highb',pquad(1),mqmqa_data%emquad(lowa),highb
+! the B/X quad should be highb indices in emquad higher than lowa
+      nbx=mqmqa_data%emquad(lowa+highb)
+!      write(*,*)'3XQ tables are turning:',pquad(3),pquad(4),nbx
+      if(pquad(3).ne.nbx) then
+         if(pquad(4).ne.nbx) then
+            write(*,*)'3XQ circles are square'
+            stop
+         endif
+         jj=pquad(4); pquad(4)=jj; pquad(3)=jj
+      endif
+!      write(*,*)'3XQ order of pquad:',(pquad(kk),kk=1,nq3)
+   endif
+! list everything
+!   write(*,20)'emquad again',(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
+!   write(*,10)'final',(temp(ii),pquad(ii),ii=1,nq3)
+!   write(*,666)(pquad(ii),ii=1,nq3)
+666 format('3XQ fixed MQMQA parameter, quad is ',i3,', asymmetrical: ',10i3)
+!   write(*,*)'3XQ hit return to handle next parameter'
+!   read(*,*)
+!
+1000 continue
+   return
+ end subroutine convert_y2quadx
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine convert_y2quadx_old
+!\begin{verbatim}
+ subroutine convert_y2quadx_old(sem,nint,jord,pquad)
+! This is to fix the constitution variables for an MQMQX excess parameter.
+! It has one AB/X quad index and 2 A/X and B/X quads and possibly a C/X one
+! convert y fraction indexed in sem and jord to quad indices in parquad
+!
+! I am really really fedup with this model
+!
+   implicit none
+   integer sem,nint,jord(2,*),pquad(*)
+!\end{verbatim}
+   integer ii,jj,nq3,kk,pair,qorder(4),lowa,highb,temp(4),nbx
+!
+! input data from database
+!   write(*,*)'3XQ *** fixing MQMQA parameter composition variables',&
+!        size(mqmqa_data%emquad),size(mqmqa_data%con2quad)
+!   write(*,5)sem,jord(2,1:nint)
+5  format('3XQ fixing MQMQA parameter composition variables',10i3)
+!   write(*,20)'emquad',(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
+!   write(*,20)'con2quad',(mqmqa_data%con2quad(jj),jj=1,mqmqa_data%nquad)
+20 format('3XQ ',a,21i3)
+! pquad(1) should be the pair quad AB/X among sem, jord(2,1..nint)
+   temp(1)=mqmqa_data%con2quad(sem)
+! pquad(2) should be the alphabetically first  in quad AB/X, i.e A/X
+! pquad(3) should be the alphabetically second in quad AB/X, i.e B/X
+! pquad(4) should be the 4th quand, not including A or B 
+   temp(2)=mqmqa_data%con2quad(jord(2,1))
+   temp(3)=mqmqa_data%con2quad(jord(2,2))
+! the quad index related to temp(2) and temp(3) should be temp(1) ???
+! check:
+! emquad have the quad indices of all A/X quads, there are ncat of them.
+! The index of a quad (i,j) where j>i is emquad(i)+j-i   
+   write(*,*)'3XQ values temp: ',temp(1),temp(2),temp(3)
+   if(temp(2).gt.temp(3)) then
+      write(*,*)'3XQ parameter has wrong order of A/X and B/X quads'
+      stop 76
+   else
+      ii=mqmqa_data%emquad(temp(2))+temp(3)-temp(2)
+      write(*,*)'3XQ values of mixed quad index: ',temp(1),temp(2),temp(3),ii
+      if(temp(1).ne.ii) then
+         write(*,*)'3XQ problems with quad indices'
+         stop 77
+      endif
+   endif
+   nq3=3
+   if(nint.eq.3) then
+      nq3=4; temp(4)=mqmqa_data%con2quad(jord(2,3))
+   endif
+!   write(*,10)'first',(temp(ii),pquad(ii),ii=1,nq3)
+10 format('3XQ ',a,' quads ',2i3,', first ',2i3,', second ',2i3,', maybe ',2i3)
+! find the AB/X quad and the arrange the others
+! all but one of the quads in temp(1..nq3) should be A/X quads
+! and temp(2) should have the lowest index of the AB/x quad and temp(3)
+! the highest.  Any temp(4) quad should not be A/X or B/X
+! this code is horrible
+!
+   pair=0; lowa=0
+   loop4: do ii=1,nq3
+      pquad(ii)=temp(ii)
+      qorder(ii)=ii
+!
+! qx is quad
+! Calculate: quad(temp(1)*\xi(temp(3),temp(2)**ppow
+!      write(*,*)'3XQ is this the pair?',pquad(ii),qorder(ii)
+      loopax: do jj=1,mqmqa_data%ncat
+!
+! cycle loop4 if temp(ii) is an A/X quad
+!
          if(temp(ii).eq.mqmqa_data%emquad(jj)) cycle loop4
       enddo loopax
 ! if we arrive here temp(ii) is a AB/X quad
@@ -2335,12 +2582,14 @@
 ! list everything
 !   write(*,20)'emquad again',(mqmqa_data%emquad(jj),jj=1,mqmqa_data%ncat)
 !   write(*,10)'final',(temp(ii),pquad(ii),ii=1,nq3)
-   write(*,*)'3XQ hit return to handle next parameter'
-   read(*,*)
+!   write(*,666)(pquad(ii),ii=1,nq3)
+666 format('3XQ fixed MQMQA parameter, quad is ',i3,', asymmetrical: ',10i3)
+!   write(*,*)'3XQ hit return to handle next parameter'
+!   read(*,*)
 !
 1000 continue
    return
- end subroutine convert_y2quadx
+ end subroutine convert_y2quadx_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
@@ -2538,8 +2787,8 @@
 ! varkappa and xi_ijis now part of allinone
 !
 !   if(mqmqa_data%ncat.eq.2) goto 80
-   write(*,67)mqmqa_data%ncat*(mqmqa_data%ncat-1)*mqmqa_data%nan/2
-67 format('3XQ init_excess_asymm allocating compvar array: ',2i5)
+!   write(*,67)mqmqa_data%ncat*(mqmqa_data%ncat-1)*mqmqa_data%nan/2
+67 format('3XQ init_excess_asymm allocating asymmetrical compvar array: ',i5)
 ! we have to intitiate several variables in each compvar
 !   allocate(compvar(ncat*(ncat-1)*nan/2))
 !
@@ -2556,6 +2805,21 @@
       write(*,*)'3XQ should have been done in correlate_const_and_quads'
       gx%bmperr=4399; goto 1000
    endif
+!
+   nseq=0
+   mm=0
+! it would have been better allocate compvar as this ...
+   allocate(mqmqa_data%quad2compvar(mqmqa_data%ncat*(mqmqa_data%ncat+1)/2))
+   dum1: do i=1,mqmqa_data%ncat
+      dum2: do j=i,mqmqa_data%ncat
+         nseq=nseq+1
+         if(i.ne.j) mm=mm+1
+         mqmqa_data%quad2compvar(nseq)=mm
+      enddo dum2
+   enddo dum1
+!   write(*,71)mqmqa_data%quad2compvar
+71 format('3XQ check quad2compvar',50i3)
+!
    nseq=0
    first: do i=1,mqmqa_data%ncat-1
       second: do j=i+1,mqmqa_data%ncat
@@ -3949,7 +4213,7 @@
 !  ... but its elllink is saved in xanione and element index in xanionalpha
 !   
    implicit none
-   integer iph,lokph,loksp,lokcs,nfr,isp,iel,jp,el1,el2,icon,endmem
+   integer iph,lokph,loksp,lokcs,nfr,isp,iel,jp,el1,el2,icon,endmem,mm
    integer cat1,cat2
    integer missing,ll,nocon
    logical noanion
@@ -4102,6 +4366,9 @@
    do isp=1,mqmqa_data%ncat
       mqmqa_data%emquad(isp)=cat1; cat1=cat1+cat2; cat2=cat2-1
    enddo
+! list quads (why?)
+   write(*,68)(mm,mm=1,mqmqa_data%nquad)
+68 format('3XQ quads: ',21i3)
    write(*,57)'3XQ emquads:',(mqmqa_data%emquad(isp),isp=1,mqmqa_data%ncat)
 57 format(a,25i4)
 !
@@ -4250,6 +4517,115 @@
    write(*,*)'The quads are in the alphabetical order of the quad elements'
    return
  end subroutine listconst
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine listpartree
+!\begin{verbatim}
+ subroutine listpartree(lokph)
+! list all endmembers and excess parameter records for a phase
+! in order to understand the MQMQX phase
+   implicit none
+   integer lokph
+!\end{verbatim}
+   !\end{verbatim}
+   type (gtp_endmember), pointer :: endmemrec,em
+   type (gtp_interaction), pointer :: intrec
+   type (gtp_property), pointer :: proprec
+   type (gtp_asymprop), pointer :: asymdata
+   integer intlevel,nofr,fracs(10),npr,intsave,ii,nint,powers(3)
+!   double precision vals(6)
+   character*3 tab1
+   character*6 tab2
+   character*9 tab3
+!
+   type stack
+      type(gtp_interaction), pointer :: current
+   end type stack
+   type(stack), dimension(:), allocatable :: intstack
+!   
+   intlevel=0; fracs=0
+   tab1='---'
+   tab2='------'
+   tab3='---------'
+   allocate(intstack(5))
+   write(*,5)
+5  format('3XQ list of the excess parameter tree')
+!   
+   endmemrec=>phlista(lokph)%ordered
+   !   if(associated(endmemrec)) write(*,*)'3XQ there is an endmember'
+   emloop: do while(associated(endmemrec))
+      nofr=1
+      fracs(nofr)=endmemrec%fraclinks(1,1)
+      intrec=>endmemrec%intpointer
+!
+      intsave=0
+      nofr=nofr+1
+      intloop:do while(associated(intrec))
+         fracs(nofr)=intrec%fraclink(1)
+         proprec=>intrec%propointer
+         if(.not.associated(proprec)) then
+            write(*,*)'3XQ empty interaction record at level',intsave+1
+         else
+            npr=0
+            proploop: do while(associated(proprec))
+               if(.not.associated(proprec%asymdata)) then
+                  powers=0
+               else
+                  powers(1)=proprec%asymdata%ppow
+                  powers(2)=proprec%asymdata%qpow
+                  powers(3)=proprec%asymdata%rpow
+               endif
+               npr=npr+1
+               if(intsave.eq.0) then
+                  write(*,100)' ',intsave+1,npr,powers,(fracs(ii),ii=1,nofr)
+               elseif(intsave.eq.1) then
+                  write(*,100)tab1,intsave+1,npr,powers,(fracs(ii),ii=1,nofr)
+               elseif(intsave.eq.2) then
+                  write(*,100)tab2,intsave+1,npr,powers,(fracs(ii),ii=1,nofr)
+               elseif(intsave.eq.3) then
+                  write(*,100)tab3,intsave+1,npr,powers,(fracs(ii),ii=1,nofr)
+               else
+                  write(*,100)'---',intsave+1,npr,powers,(fracs(ii),ii=1,nofr)
+               endif
+100            format('3XQ ',a,' at level ',i1,', property: ',i2,&
+                    ', powers: ',3i2,', constituents ',9i3)
+               proprec=>proprec%nextpr
+            enddo proploop
+         endif
+         if(associated(intrec%highlink)) then
+! save intrec%nextlink and jump to higher level
+            intsave=intsave+1
+            intstack(intsave)%current=>intrec%nextlink
+            intrec=>intrec%highlink
+            nofr=nofr+1
+            fracs(nofr)=intrec%fraclink(1)
+         else
+! check the nextlink, pop saved if empty
+            intrec=>intrec%nextlink
+            pop: do while(.not.associated(intrec))
+               write(*,*)'3XQ pop stack'
+               if(intsave.gt.0) then
+                  intrec=>intstack(intsave)%current
+                  intsave=intsave-1
+                  nofr=nofr-1
+               else
+                  exit intloop
+               endif
+            enddo pop
+            cycle intloop
+         endif
+! if we come here there are no more interaction records for this endmember
+      enddo intloop
+!
+!      write(*,*)'3XQ next endmember'
+      endmemrec=>endmemrec%nextem
+!
+   enddo emloop
+   write(*,*)'No more parameters'
+1000 continue
+      return
+ end subroutine listpartree
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 

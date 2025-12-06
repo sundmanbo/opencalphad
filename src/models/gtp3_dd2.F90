@@ -1148,6 +1148,7 @@
 !
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   logical mqmqdebug,mqmqdebug2
+  logical :: mqmqtdb=.false.,mqmqxcess=.false.
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! MUST be careful with ncat and nan !!! USED IN MQMQA
 ! this is dangerous ....... move into mqmqa_data
@@ -1688,6 +1689,14 @@
      integer, dimension(:), allocatable :: con2quad ! transfer y to quad order
 ! this is the indices of A/X quads in quad, 1, n, 2n-1 etc.
      integer, dimension(:), allocatable :: emquad 
+! emquad has indices of quads (i,i).  
+! Index of a quad (i,j) where j>=i is emquad(i)+j-i
+!------------------------------------------------------ NEW
+! I realize I need an array tranforming quad indices to compvar indices
+  integer, dimension(:), allocatable :: quad2compvar
+! because the quad index is stored with the parameter and I need
+! to convert this to an index for compvar to know the two cations
+!------------------------------------------------------ NEW
 ! these are constants depending of the elements in the quad
      double precision, dimension(:,:), allocatable :: dy_ik
 ! transfer of fractions from OC fraction array to xquad not needed
@@ -1708,7 +1717,8 @@
 ! separate records for each compset because the liquid may have miscibility gaps
   TYPE gtp_mqmqa_var 
 ! The quadruplet fractions are the "normal" constituent fractions
-! but in a differt order. it is part of the phase_varres record
+! but in a differt order form the alphabetical species names.
+! it is part of the phase_varres record
 ! size of arrays
      integer nquad,npair,ns1,ns2
 !------------------------------------------ data for MQMQA new excess
@@ -1724,9 +1734,9 @@
 ! The e1, e2 etc and el are saved in quadel_i _j _l
 ! The order of xquads is to simplify the handling of Toop/Kohler asymmetries
   double precision, allocatable, dimension(:) :: xquad
-! The fractions in xquad are the same as in yfr bot in differnt order!
+! The fractions in xquad are the same as in yfr but in differnt order!
   type(gtp_allinone), dimension(:), allocatable :: compvar
-! the two arrays above should be in the record (type) mqmqa_var
+! the arrays above should be in the record (type) mqmqa_var
 ! y_ik are the fraction of each cation
   double precision, dimension(:), allocatable :: y_ik
 !  double precision, dimension(:,:), allocatable :: dy_ik  in gtp_mqmqa

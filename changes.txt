@@ -23,6 +23,13 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.12.06 version 6.094. The new implementation of MQMQA is close to
+be finished.  The data structure is done and there are minor bugs
+reading the TDB file and calculating an equilibrium to be fixed.  The
+final test is to compare with the FactSage software if the entropy and
+the asymmetric relations are taken into account in a correct way.  All
+test macros in the examples directory works.
+
 2025.12.02 version 6.093. I am now almost able to include the excess
 parameters when calculating the Gibbs energies for the MQMQA phase.
 There are still some problems to read the parameters from the database

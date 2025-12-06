@@ -1553,6 +1553,8 @@
    mqmqa=.false.
    if(proptype.ge.1000) then
 ! this an MQMQA parameter
+      write(*,*)'3G use special create_mqmqa_proprec'
+      stop
       mqmqa=.true.
 ! an MQMQA model parameters have special asymmetric composition dependence
       write(*,*)'3G special MQMQA excess parameter',proptype,degree
@@ -1655,6 +1657,136 @@
 1000 continue
    return
  end subroutine create_proprec
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine create_mqmqa_proprec
+!\begin{verbatim}
+ subroutine create_mqmqa_proprec(proprec,proptype,degree,lfun,refx)
+! reservs a property record from free list and insert data MQMQA version
+! it is called from enter_parameter in gtp3B.F90
+! if there is already a property record (magnetic, MQMQA etc) for the parameter
+! this record is automatically linked at the end
+   implicit none
+   TYPE(gtp_property), pointer :: proprec
+   integer proptype,degree,lfun
+   character refx*(*)
+!\end{verbatim} %+
+   type(gtp_asymprop) :: asymdata
+   integer j,iref,typty,powers,ppow,qpow
+   character notext*32
+   logical mqmqa
+!
+!   write(*,*)'3G using special MQMQA create_proprec'
+   mqmqa=.false.
+   if(proptype.ge.1000) then
+! this an MQMQA parameter
+      mqmqa=.true.
+! an MQMQA model parameters have special asymmetric composition dependence
+      if(mqmqtdb) write(*,*)'3G special MQMQA excess parameter',proptype,degree
+      typty=proptype/1000
+! this proptype is probably not needed nor useful
+      if(typty.eq.1) then
+         powers=proptype-1000
+         proptype=34     ! GG
+      elseif(typty.eq.2) then
+         powers=proptype-2000
+         proptype=35     !GQ
+      elseif(typty.eq.3) then
+         powers=proptype-3000
+         proptype=36     !GB
+      endif
+!--------------------------
+! modifying the create_proprec for MQMQA crased reading some normal database
+! and I do not really understand how it work any longer
+! so I created a new version for MQMQA databases
+      allocate(proprec)
+! MQMQA has a single function but it can be asymmetric
+      allocate(proprec%degreelink(0:0))
+      nullify(proprec%nextpr)
+! proptype for MQMQA is 34, 35, 36, the modelparameter i just G
+      proprec%proptype=proptype
+! the typty 34, 35 and 36 is kept but changed to G when listing?
+! this typty is used to provide information after the ; in listing
+! 34 is ;G,p,q,r), 35 is ;Q,p,q,r) and 26 is ;B,p,q,r)
+      proprec%modelparamid=propid(1)%symbol
+!      proprec%modelparamid=propid(proptype)%symbol
+      write(*,*)'3G MQMQA parameter ',typty,proprec%proptype,powers
+! the proprec%extra should contains 3 powers, as 100*p + 10*q + r
+! for the equation \varkappa_ij**p * \varkappa_ji**q in Max eq. 23/24
+! The r is for a ternary parameter in eqs. 25/26.  There is just one degree  0
+! NOW THERE IS A MQMQA property record for this
+      proprec%extra=powers
+      proprec%degree=0
+      proprec%degreelink(0)=lfun
+!      write(*,2)proptype,powers,degree,refx
+2     format('3G in create_proprec  ',i2,i7,i3,' refx: ',a)
+! create an addition asymprop record for extra information
+! some of the information in this will be added from the calling routine
+! powers is for example 321 where 3 is ppow, 2 is qpow and 1 is rpow
+! very clumsy but I am tired of this model
+      allocate(proprec%asymdata)
+      proprec%asymdata%ppow=powers/100
+      proprec%asymdata%qpow=(powers-100*proprec%asymdata%ppow)/10
+!      proprec%proprec%asymdata%ppow=ppow
+!      proprec%proprec%asymdata%qpow=qpow
+      proprec%asymdata%rpow=powers-100*proprec%asymdata%ppow-&
+           10*proprec%asymdata%qpow
+!      write(*,*)'3G value of rpow: ',proprec%asymdata%rpow
+!      write(*,7)powers,proprec%asymdata%ppow,proprec%asymdata%qpow,&
+!           proprec%asymdata%rpow
+7     format('3G allocated asymdata: ',i7,5x,3i3)
+! indices in proprec%asymdata%quad_ij _ii, _jj and _33 will be set by 
+! calling routine
+      proprec%reference=adjustl(refx)
+! index of asymdata%quad, %alpha, %beta and %ternary should be set <<<<<<
+      goto 900
+!------------ end of MQMQA specific
+   elseif(degree.lt.0 .or. degree.gt.9) then
+      write(*,10)degree
+10    format('*** Error, degree of a parameter ',i2,'must be between 0 and 9')
+      gx%bmperr=4063
+      goto 1000
+   endif
+! this is for all parameters EXCEPT the MQMQA excess
+   allocate(proprec)
+! enter data in reserved record
+   allocate(proprec%degreelink(0:degree))
+   nullify(proprec%nextpr)
+!   if(proptype.ge.100) write(*,*)'property type: ',proptype
+   proprec%proptype=proptype
+! also save %modelparamid for unformatted files ...
+! this causes problems with the MQMQA ...
+   if(proptype.gt.100) then
+! this is a property with a constituent suffix like MQ&FE
+      proprec%modelparamid=propid(proptype/100)%symbol
+!      write(*,*)'3G proptype ',propid(proptype/100)%symbol,proptype
+   else
+      proprec%modelparamid=propid(proptype)%symbol
+!      write(*,*)'3G proptype ',propid(proptype)%symbol,proptype
+   endif
+   proprec%degree=degree
+   do j=0,degree
+      proprec%degreelink(j)=0
+   enddo
+   proprec%degreelink(degree)=lfun
+   proprec%reference=adjustl(refx)
+   proprec%extra=0
+! create reference record if new, can be amended later
+!------global counter
+   noofprop=noofprop+1
+   proprec%antalprop=noofprop
+!   write(*,11)refx,notext
+!11 format('create proprec: ',a,a)
+! save the reference index
+900 continue
+   call capson(refx)
+!   write(*,*)'3G reference: ',refx
+   notext='*** Not set by database or user '
+   call tdbrefs(refx,notext,0,iref)
+1000 continue
+   return
+ end subroutine create_mqmqa_proprec
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
