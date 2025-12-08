@@ -18,10 +18,19 @@ software.
 There is an installation manual (and an old mainly redundant video on
 You Tube) and if you are not familiar with such procedures please ask
 a local guru for help.  Installation problems depend on your local
-envirionment and we who provide this software for free do not have the
+environment and we who provide this software for free do not have the
 time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
+
+2025.12.08 version 6.095. The new implementation of MQMQA is now going
+to be tested and hopefully become availabe within a month or so unless
+serious problems appears.  This version calculates but does not
+include the asymmetric excess energy in the total Gibbs energy.  For
+that it is necessesary to add first and second partial derivatives.
+It can read a file in the TDB format with the model parameters as
+developed by Nathalie Dupin.  Later the XTDB format will be used but
+all XTDB work has been postponed due to the MQMQA model.
 
 2025.12.06 version 6.094. The new implementation of MQMQA is close to
 be finished.  The data structure is done and there are minor bugs

@@ -2040,8 +2040,9 @@
 !
    character*120 text
    logical :: once=.true.
-   integer ppow,qpow,rpow,intlev,iiz,jj,pairquad,jp,proprecno
-   integer parquad(4),nprr
+   integer ppow,qpow,rpow,intlev,iiz,jj,pairquad,jp
+   integer, save :: proprecno=0
+   integer parquad(4),nprr,nfr
    integer :: nex=0
    integer, dimension(:), allocatable :: ylinks
    integer ncv,icv,nqx,lokcs,lokfun,xq,cxq
@@ -2055,7 +2056,8 @@
       goto 1000
    endif
 ! we are here because this endmember has an intercation link
-   if(mqmqxcess) write(*,5)mqmqj
+!   if(mqmqxcess) write(*,5)mqmqj
+   write(*,5)mqmqj
 5  format(/'3XQ in new_mqmqa_excess with endmember: ',i3)
 ! initiate ylinks for this tree with the endmember fraction
    intrec=>intrecin
@@ -2064,9 +2066,9 @@
 ! not more than 10 interactions ....
    allocate(savedint(10))
    allocate(ylinks(10))
-! this is the constituent from the endmember
+! this is the endmember constituent
+   nfr=1
    ylinks(1)=mqmqj
-   intlev=2
 ! there can only a one quad with two cations (pair) in an interaction
    pairquad=0
 !   ifem: do jj=1,mqmqa_data%ncat
@@ -2116,122 +2118,130 @@
    endif
 !
 ! when we are here intrec must be associated
-100 continue
+   intlev=0
+   intloop: do while(associated(intrec))
 !
-! This has to be developed, first try to list all parameters
+! This has to be developed, intrec must be associated here
 !
 ! there is a single set of sites, save constituent first index
 ! We may come back here for another interaction with same endmember
 ! Set ylinks to be indices of the OC fractions
-   ylinks(intlev)=intrec%fraclink(1)
-   proprec=>intrec%propointer
-   proprecno=0
-   listprop: do while(associated(proprec))
+!      write(*,*)'3XQ Starting intloop with component ',intlev,intrec%fraclink
+      nfr=nfr+1
+      ylinks(nfr)=intrec%fraclink(1)
+      proprec=>intrec%propointer
+      listprop: do while(associated(proprec))
 ! we have found an excess parameter !!!
 ! there can be several property record for the same set of constituents
 ! there is a propointer here! error in gtp3B or empty interaction record
-      proprecno=proprecno+1
-      if(proprec%proptype.eq.34) ptyp1='G'
-      if(proprec%proptype.eq.35) ptyp1='Q'
-      if(proprec%proptype.eq.36) ptyp1='B'
+         proprecno=proprecno+1
+         if(proprec%proptype.eq.34) ptyp1='G'
+         if(proprec%proptype.eq.35) ptyp1='Q'
+         if(proprec%proptype.eq.36) ptyp1='B'
 !
-      ppow=proprec%asymdata%ppow
-      qpow=proprec%asymdata%qpow
-      rpow=proprec%asymdata%rpow
-      if(mqmqxcess) then
+         ppow=proprec%asymdata%ppow
+         qpow=proprec%asymdata%qpow
+         rpow=proprec%asymdata%rpow
+         if(mqmqxcess) then
 ! helps to understand what the parameter it is ....
-         jp=1
-         text=' '
-         call mqmqa_excesspar_name(lokph,intlev,ylinks,text,jp)
-         text(jp-1:)=';'//ptyp1//','//char(ichar('0')+ppow)//&
-              ','//char(ichar('0')+qpow)//','//char(ichar('0')+rpow)//')'
-!         write(*,115)trim(text),proprecno,proprec%antalprop
-         write(*,115)trim(text),ppow,qpow,rpow
-115      format(/'3XQ parameter: ',a,', pqr:',3i2)
+            jp=1
+            text=' '
+            call mqmqa_excesspar_name(lokph,intlev,ylinks,text,jp)
+            text(jp-1:)=';'//ptyp1//','//char(ichar('0')+ppow)//&
+                 ','//char(ichar('0')+qpow)//','//char(ichar('0')+rpow)//')'
+            write(*,115)trim(text),ppow,qpow,rpow
+115         format(/'3XQ parameter: ',a,', pqr:',3i2)
 ! extract the quad pointers
-      endif
+         endif
 !
-      lokfun=proprec%degreelink(0)
-      xq=proprec%asymdata%quad
+         lokfun=proprec%degreelink(0)
+         xq=proprec%asymdata%quad
 ! cxq transforms the quad index to an index in compvar (which as no diagonal)
-      cxq=mqmqa_data%quad2compvar(xq)
+         cxq=mqmqa_data%quad2compvar(xq)
 ! we should not use quad index in compvar.  We should use the index
 ! related to the two elemnts i and j represented by the quad index
 ! and they are NOT
-      if(mqmqxcess) then
-         write(*,117)xq,cxq,lokfun,&
+         if(mqmqxcess) write(*,117)xq,cxq,lokfun,&
               mqf%xquad(xq),mqf%compvar(cxq)%xi_ij,mqf%compvar(cxq)%xi_ji
 117      format('3XQ composition variables: :',2i4,' parameter link: ',i5/&
               'Quad   ',1pe13.6,' \xi_ij ',1pe13.6,' \x_ji',1pe13.6)
-      endif
 ! this return 6 values in vals: G, G.T, G.P,  G.T.T, G.T.P, G.P.P
-      call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
-      if(gx%bmperr.ne.0) goto 1000
+         call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
+         if(gx%bmperr.ne.0) goto 1000
 !--------------------------------------------------------------------
 ! calculate the parameter with composition variables
-      if(ptyp1.eq.'G') then
-         nomin=(mqf%compvar(cxq)%xi_ij)**ppow*(mqf%compvar(cxq)%xi_ji)**qpow
-         divisor=(mqf%compvar(cxq)%xi_ij+mqf%compvar(cxq)%xi_ji)**(ppow+qpow)
-         compprod=mqf%xquad(xq)*nomin/divisor
-         mqmqx_deltag=compprod*vals(1)
-         if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,divisor,compprod
-118      format('3XQ comprod: ',1pe15.8,'*',1pe15.8,'/',1pe15.8,'=',1pe15.8)
-      else
-         write(*,*)'3XQ proptyp not implemented: ',ptyp1
-         stop
-      endif
-!     if(mqmqxcess) write(*,119)vals(1),compprod,mqmqx_deltag
-      write(*,119)vals(1),compprod,mqmqx_deltag
-119   format('3XQ Delta G should be added to G'/&
-           'param: ',(1pe15.8)', comprod: ',1pe15.8,' Delta G: ',1pe15.8)
+         if(ptyp1.eq.'G') then
+            nomin=(mqf%compvar(cxq)%xi_ij)**ppow*(mqf%compvar(cxq)%xi_ji)**qpow
+            divisor=(mqf%compvar(cxq)%xi_ij+mqf%compvar(cxq)%xi_ji)**(ppow+qpow)
+            compprod=mqf%xquad(xq)*nomin/divisor
+            mqmqx_deltag=compprod*vals(1)
+            if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,divisor,compprod
+118         format('3XQ comprod: ',1pe15.8,'*',1pe15.8,'/',1pe15.8,'=',1pe15.8)
+         else
+            write(*,*)'3XQ proptyp not implemented: ',ptyp1
+            stop
+         endif
+         write(*,119)proprec%antalprop,(ylinks(jj),jj=1,nfr)
+         write(*,121)vals(1),compprod,mqmqx_deltag
+119      format('3XQ Delta G to be added to G ',i4,10i4)
+121      format('param: ',(1pe15.8)', comprod: ',1pe15.8,' Delta G: ',1pe15.8)
 !---------------------------------------------------------------------
 ! there can be several parameters for the same set of constituents
 ! They differ by the powers but not the constituents
 !         
-      proprec=>proprec%nextpr
-      if(mqmqxcess) then
-         if(.not.associated(proprec)) then
-            write(*,*)'3XQ no more properties'
-         else
-            write(*,*)'3XQ one more property!'
+         proprec=>proprec%nextpr
+         if(mqmqxcess) then
+            if(.not.associated(proprec)) then
+               write(*,*)'3XQ no more properties'
+            else
+               write(*,*)'3XQ one more property!'
+            endif
          endif
-      endif
-      nex=nex+1
-   enddo listprop
+         nex=nex+1
+      enddo listprop
+!      write(*,*)'Press return to continue',intrec%fraclink(1)
+!      read(*,*)
 !
-! we have listed all property records, try a higher interaction or next
-! first try a higher level of interactio
-!   write(*,997)nprr,intlev,(ylinks(jj),jj=1,intlev)
-!997   format('3XQ interaction with no property: ',i2,' OC fractions ',10i3)
-   pushornext: if(associated(intrec%highlink)) then
-      savedint(intlev)%saved=>intrec%nextlink
-      intlev=intlev+1
-      if(intlev.gt.9) then
-         write(*,*)'Interaction level record overflow',intlev
-         gx%bmperr=4399; goto 1000
-      endif
-      intrec=>intrec%highlink
-      goto 100
-   elseif(associated(intrec%nextlink)) then
-      if(mqmqxcess) write(*,*)'3XQ take link to next parameter on same level'
-      intrec=>intrec%nextlink
-      if(associated(intrec)) goto 100
-   endif pushornext
-! No higher or next link, pop saved intrec
-   popping: do while(intlev.gt.1)
-      intrec=>savedint(intlev)%saved
-      if(mqmqxcess) write(*,98)'3XQ popped intrec off stack',&
-           intlev,associated(intrec)
-98    format(a,i3,2x,l2)
-      pairquad=0
-      intlev=intlev-1
-      if(.not.associated(intrec)) cycle popping
-      goto 100
-   enddo popping
+! we have listed all property records for these constituents
+      push_ornext: if(associated(intrec%highlink)) then
+! first try a higher level of interaction but save link to next
+         intlev=intlev+1
+         if(associated(intrec%nextlink)) then
+!            write(*,97)intlev,intrec%nextlink%fraclink
+97          format('3XQ saved nextlink at intlev: ',2i3)
+            if(intlev.gt.9) then
+               write(*,*)'Interaction level record overflow',intlev
+               gx%bmperr=4399; goto 1000
+            endif
+            savedint(intlev)%saved=>intrec%nextlink
+         else
+            nullify(savedint(intlev)%saved)
+         endif
+         intrec=>intrec%highlink
+      else
+         intrec=>intrec%nextlink
+! too many constituents ...
+         nfr=nfr-1
+         pop: do while(.not.associated(intrec))
+!            write(*,*)'3XQ pop stack',intlev,nfr
+            if(intlev.gt.0) then
+               intrec=>savedint(intlev)%saved
+               intlev=intlev-1
+               nfr=nfr-1
+            else
+               exit intloop
+            endif
+!            if(associated(intrec)) &
+!                 write(*,*)'3XQ take nextlink ',intrec%fraclink(1)
+         enddo pop
+         cycle intloop
+      endif push_ornext
+   enddo intloop
 !
 !------------ return to next endmember
+   
 1000  continue
-   if(mqmqxcess) write(*,1001)
+   if(mqmqxcess) write(*,1001)proprecno
 1001 format('3XQ Back to endmemeber record',i5/)
    return
  end subroutine new_mqmqa_excess
@@ -4553,21 +4563,23 @@
 5  format('3XQ list of the excess parameter tree')
 !   
    endmemrec=>phlista(lokph)%ordered
-   !   if(associated(endmemrec)) write(*,*)'3XQ there is an endmember'
+!   if(associated(endmemrec)) write(*,*)'3XQ there is an endmember'
    emloop: do while(associated(endmemrec))
       nofr=1
       fracs(nofr)=endmemrec%fraclinks(1,1)
       intrec=>endmemrec%intpointer
 !
+      if(associated(intrec)) write(*,10)fracs(1)
+10    format('3XQ interactions from endmember ',i3)
       intsave=0
       nofr=nofr+1
       intloop:do while(associated(intrec))
          fracs(nofr)=intrec%fraclink(1)
          proprec=>intrec%propointer
          if(.not.associated(proprec)) then
-            write(*,*)'3XQ empty interaction record at level',intsave+1
+            write(*,20)intsave+1,fracs(nofr)
+20          format('3XQ interaction record level',i3,', constituent',i3)
          else
-            npr=0
             proploop: do while(associated(proprec))
                if(.not.associated(proprec%asymdata)) then
                   powers=0
@@ -4576,7 +4588,7 @@
                   powers(2)=proprec%asymdata%qpow
                   powers(3)=proprec%asymdata%rpow
                endif
-               npr=npr+1
+               npr=proprec%antalprop
                if(intsave.eq.0) then
                   write(*,100)' ',intsave+1,npr,powers,(fracs(ii),ii=1,nofr)
                elseif(intsave.eq.1) then
@@ -4588,7 +4600,7 @@
                else
                   write(*,100)'---',intsave+1,npr,powers,(fracs(ii),ii=1,nofr)
                endif
-100            format('3XQ ',a,' at level ',i1,', property: ',i2,&
+100            format('3XQ ',a,' at level ',i1,', func: ',i2,&
                     ', powers: ',3i2,', constituents ',9i3)
                proprec=>proprec%nextpr
             enddo proploop

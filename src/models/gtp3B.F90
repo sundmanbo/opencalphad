@@ -3657,6 +3657,7 @@
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
    type(gtp_interaction), pointer :: intrec,lastint,newintrec,linktohigh
+   type(gtp_interaction), pointer :: temp
    type(gtp_property), pointer :: proprec,lastprop,savedproplink
    integer ii,ij,mint,sem,level,first,parquad(5)
 ! The mqmqa excess has no degree and minimum 3 constituents in addition
@@ -3669,9 +3670,14 @@
    mint=0
    sem=endmemrec%fraclinks(1,1)
    intrec=>endmemrec%intpointer
-   if(mqmqtdb) write(*,10)mint,nint,lfun,associated(intrec),&
-        sem,(jord(2,ii),ii=1,nint)
-10 format('3B MQMQA >>> excess start ',2i3,i6,2x,l2,3x,i2,2x,6i3)
+   if(mqmqtdb) then
+     if(associated(intrec)) then
+        write(*,10)mint,nint,lfun,intrec%fraclink(1),sem,(jord(2,ii),ii=1,nint)
+     else
+        write(*,10)mint,nint,lfun,1000,sem,(jord(2,ii),ii=1,nint)
+     endif
+10   format(/'3B At ENDMEMBER: ',2i3,i5,5x,i2,5x,i2,2x,6i3)
+   endif
 !  
 ! intperm, elinks and intlinks not needed here, used for FCC/BCC permutations
    intperm(1)=0
@@ -3679,82 +3685,114 @@
 ! note: endmemrec%intpointer must be nullified when endmember is created
 !
 ! --------------------------------------------------------------------
-! rewritten quite elegantly I think 
 !
    level=-1
-! level -1 means previous record linked from endmember
-!        0 means previous record is on lower level set %nextlink
-!        1 means previous record is on same level  set %highlink
+! level -1 means intrec record linked from endmember and
+!                            intrec%nextlin from current endmember%intpointer
+!        0 means intrec record is on lower level set %nextlink
+!        1 means intrec record is on same level  set %highlink
    nullify(lastint)
 ! level1 is the first level below endmembers
 ! newintrec is allocated and mint index and jord fractions
 ! nint is the number of interactions that must be found or created
    mint=1
 100 continue
-   findint: if((.not.associated(intrec))) then
-!   do while(.not.associated(intrec)) too complicated
+   findint: if(.not.associated(intrec)) then
 ! there is no record, create one ======================================
-! This can be the first interaction for this endmember
-! or it can be added at the end or in the middle of the intrec tree
-!      write(*,150)1,level,mint,nint,lfun,sem,jord(2,mint)
-150   format('3B creating MQMQX intrec :',4i3,5x,5i3)
+! This can be the first interaction for this endmember or it can be
+! added at the end or in the middle of the intrec tree or
+! at a level above the previous record
+! It must be linked from a previous record or the endmember 
+!      if(associated(lastint)) then
+!         write(*,150)1,level,mint,nint,lfun,jord(2,mint),&
+!              lastint%fraclink(1),associated(lastint%nextlink),&
+!              associated(lastint%highlink)
+!150      format('3B creating intrec at ',i1,':',4i3,5x,i5,', lastint:',i3,2l2)
+!      else
+!         write(*,150)1,level,mint,nint,lfun,jord(2,mint)
+!      endif
       call create_interaction(newintrec,mint,jord,intperm,intlinks)
       if(gx%bmperr.ne.0) goto 1000
-!      write(*,*)'3B back from create_interaction',mint,nint,level,&
-!           associated(newintrec),associated(newintrec%nextlink),&
-!           associated(newintrec%highlink)
-! probably not needed
-!      nullify(newintrec%nextlink)
-!      nullify(newintrec%highlink)
+!      write(*,155)level,mint,nint,jord(2,mint)
+!155   format('3B created interaction ',3i3,', for constituent: ',i3)
 ! set the links to this new interaction record 
-      to1: if(level.eq.-1) then
-! if level=-1 this is the first interaction or replace the previous first
+      tohere: if(level.eq.-1) then
+! if level=-1 this is the first interaction or replaces the previous first
+!         if(associated(endmemrec%intpointer)) then
+!            write(*,*)'3B are we here 44?'
+!            write(*,156)endmemrec%intpointer%fraclink(1)
+!156         format('3B Inserting at endmember before interaction to ',i3)
+!         else
+!            write(*,157)endmemrec%fraclinks(1,1)
+!157         format('3B First interaction at endmember',i3)
+!         endif
+!         write(*,*)'3B are we here 17?'
+!         write(*,*)'3B bug? ',associated(newintrec)
          newintrec%nextlink=>endmemrec%intpointer
-         endmemrec%intpointer=>newintrec  ! this should not be needed ....
+         endmemrec%intpointer=>newintrec
+         level=0
+!         write(*,*)'3B endmember interaction set to',jord(2,mint)
       elseif(level.eq.0) then
-! we must be careful with lastint
+! we have added a record on a higher level than previous record
 ! if level=0 the previous record on lower level. set lastint%highlink
-!         write(*,*)'3B is lastint allocated?',associated(lastint)
          if(associated(lastint%highlink)) then
-            write(*,*)'3B highlink already set'
+            write(*,*)'3B highlink already set 2',intrec%fraclink(1)
             stop
          endif
+!         write(*,158)lastint%fraclink(1)
+!158      format('3B Above an interaction to ',i3)
          lastint%highlink=>newintrec
       else
 ! if level=1 we have already found records on this level, set lastint%nextlink
 ! evidently that link was empty otherwise we had found a record
+!         write(*,158)lastint%fraclink(1)
+!159      format('3B After interaction on same level as ',i3)
          lastint%nextlink=>newintrec
-      endif to1
-! we have a new record, maybe add some data or contiue searching
+      endif tohere
+! we have a new record which is linked to previous records
+! maybe add some data or continue searching up or on same level
       intrec=>newintrec
+      lastint=>intrec
 !      write(*,*)'3B do we need more interaction records?',mint,nint
       data1: if(mint.lt.nint) then
-! mint < nint, we need more intrec -----------------------------------------
+! mint < nint, we need higher order intrec -----------------------------------
 ! there are more constituents for this parameter, create higher level
          mint=mint+1
-         lastint=>newintrec
-! the link back is to a lower level
+! the link back will be to a lower level
          level=0
-! this link is nullified here but the link will be created above
+! the highlink should already be nullified and record will be created above
          nullify(intrec%highlink)
          intrec=>intrec%highlink
          goto 100
-! If mint=nint this is the last, add property data --------------------------
       elseif(mint.eq.nint) then
-! we must save data, there is no previous property record
-!         write(*,*)'3B *** SAVE DATA FOR THE PARAMETER',mint,nint,lfun
-!         write(*,332)'3B constituents: ',sem,(jord(2,ii),ii=1,nint)
-!         write(*,333)'3B data: ',typty,ideg,refx
-332      format(a,10i3)
-333      format(a,2i7,2x,a)
+! If mint=nint this is the last, add property data --------------------------
+! we must save data, there can not be any previous property record
          typty=ideg; ideg=0
+         proprec=>intrec%propointer
+         if(associated(proprec)) then
+            do while(associated(proprec%nextpr))
+! there can be several property records
+               proprec=>proprec%nextpr
+            enddo
 ! this routine is in gtp3G.F90
-         call create_mqmqa_proprec(intrec%propointer,typty,ideg,lfun,refx)
+!            write(*,120)typty,lfun,associated(intrec)
+!120         format('3B creating property record 1A',2i5,l2)
+            call create_mqmqa_proprec(proprec%nextpr,typty,ideg,lfun,refx)
+         else
+!            write(*,121)typty,lfun,associated(intrec)
+!121         format('3B creating property record 1B:',2i5,l2)
+            call create_mqmqa_proprec(intrec%propointer,typty,ideg,lfun,refx)
+         endif
          if(gx%bmperr.ne.0) then
-            write(*,*)'3B error code',gx%bmperr
+            write(*,*)'3B error creating property',gx%bmperr
             goto 1000
          endif
+!         write(*,*)'3B Back from create propery record',associated(proprec)
          proprec=>intrec%propointer
+         do while(associated(proprec%nextpr))
+! there can be several property records
+            proprec=>proprec%nextpr
+         enddo
 !         write(*,*)'3B associated? ',associated(proprec)
 ! For a MQMQA excess parameter we need to store the index of the AB/X quad
 ! and which the index of the A/X and B/X (and sometices C/X) quads
@@ -3771,7 +3809,7 @@
          proprec%asymdata%beta=parquad(3)
          proprec%asymdata%ternary=parquad(4)
 !         write(*,335)parquad
-335      format('3B saved in propery quad mm:',5i3)
+!335      format('3B saved in propery quad mm:',5i3)
          exit findint
       else !-----------------------------------------------------------------
 ! we should never have mint lesser than nint !!!
@@ -3780,27 +3818,29 @@
       endif data1
    else  ! here we have found an intrec =====================================
 ! we have found an interaction record, intrec has some data
-      if(mqmqtdb) write(*,*)'3B level ',level,intrec%fraclink(1),jord(2,mint)
+      if(mqmqtdb) write(*,340)level,mint,intrec%fraclink(1),jord(2,mint)
+340   format('3B Found interaction at level ',2i2,3x,2i3)
       order: if(intrec%fraclink(1).lt.jord(2,mint)) then
 ! continue search on this level
+!         write(*,*)'3B next record on same level',associated(intrec%nextlink)
          lastint=>intrec
          intrec=>intrec%nextlink
          level=1
          goto 100
       elseif(intrec%fraclink(1).eq.jord(2,mint)) then
 ! we have found an interaction record with correct constituent on this level
-!         write(*,*)'3B same constituents',intrec%fraclink(1),jord(2,mint)
+!         write(*,344)intrec%fraclink(1),jord(2,mint),mint,nint
+!344      format('3B we have same the constituents',2i3,5x,2i3)
          if(mint.eq.nint) then
 ! we have to add a second property!!
-            write(*,*)'3B parameter exists, add property!',mint,nint
-            if(associated(intrec%propointer)) then
+            proprec=>intrec%propointer
+            do while(associated(proprec%nextpr))
 ! there can be several property records
-               write(*,*)'3B Same constituents, add a property record'
-               proprec=>intrec%propointer
-            endif
+               proprec=>proprec%nextpr
+            enddo
             typty=ideg; ideg=0
 ! add a property record
-            write(*,*)'3B adding a second property record'
+!            write(*,*)'3B adding a second property record 2'
             call create_mqmqa_proprec(proprec%nextpr,typty,ideg,lfun,refx)
             if(gx%bmperr.ne.0) then
                write(*,*)'3B error code',gx%bmperr
@@ -3815,8 +3855,6 @@
             enddo
             call convert_y2quadx(sem,nint,jord,parquad)
             if(gx%bmperr.ne.0) goto 1000
-!            write(*,*)'3B back from convert_y2quadx 2',parquad
-!            write(*,334)'quad',(parquad(ii),ii=1,nint)
             proprec%asymdata%quad=parquad(1)
             proprec%asymdata%alpha=parquad(2)
             proprec%asymdata%beta=parquad(3)
@@ -3825,53 +3863,72 @@
          else
 !--------------------------------------------------------------------------
 ! go to higher level, %highlink can be empty 
-            mint=mint+1; lastint=>intrec; level=0
+!           write(*,234)intrec%fraclink(1),mint,nint,associated(intrec%highlink)
+!234         format('3B goto higher level',3i3,l2)
+            mint=mint+1; level=0
+            lastint=>intrec
             intrec=>intrec%highlink
             goto 100
          endif
       elseif(intrec%fraclink(1).gt.jord(2,mint)) then
-! insert interaction before this one ======================================
-! the new interaction should be before this one, we must insert a record
-         write(*,150)2,level,mint,nint,sem,jord(2,mint)
+! insert new interaction before this one ======================================
+! Maybe also change link from endmember if level=-1
+!         write(*,150)2,level,mint,nint,lun,jord(2,mint)
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-         nullify(newintrec%highlink)
-! the current intrec record should be after this one
-         newintrec%nextlink=>intrec
          if(level.eq.-1) then
 ! this should be the record linked from the endmember
             newintrec%nextlink=>endmemrec%intpointer
             endmemrec%intpointer=>newintrec  ! here it is needed !!!!
+!            write(*,*)'3B endmember interaction set to',jord(2,mint)
          elseif(level.eq.0) then
 ! we found this from a lower level, this whould replace highlink in lastint
-            lastint%highlink=>newintrec
+! and insert that as nextlink in new record
+!            write(*,370)intrec%fraclink(1),mint,nint
+!370         format('3B inserting a constituent ',i3,' before current',2i3)
+            if(associated(lastint%highlink)) then
+               newintrec%nextlink=>lastint%highlink
+               lastint%highlink=>newintrec
+            endif
          else
-! save intrec in nextlink
+! just save the link to the new record  in lastint%nextlink
             lastint%nextlink=>newintrec
          endif
          intrec=>newintrec
-         data2: if(mint.eq.nint) then
-            write(*,*)'3B *** SAVE DATA FOR THE PARAMETER',mint,nint,lfun
-!            write(*,332)'3B constituents: ',sem,(jord(2,ii),ii=1,nint)
-!            write(*,333)'3B data: ',typty,ideg,refx!
-! there can be several property records!!!
-            call create_mqmqa_proprec(lastprop%nextpr,typty,ideg,lfun,refx)
-            if(gx%bmperr.ne.0) goto 1000
-! add particular MQMQA data
+         lastint=>intrec
+         data2: if(mint.lt.nint) then
+            level=0
+            goto 100
+         elseif(mint.eq.nint) then
+!            write(*,*)'3B create property record 3',mint,nint,lfun
+! there can be several property records, this will be added last
             proprec=>intrec%propointer
+            if(associated(proprec%nextpr)) then
+               do while(associated(proprec%nextpr))
+! there can be several property records
+                  proprec=>proprec%nextpr
+               enddo
+               call create_mqmqa_proprec(proprec%nextpr,typty,ideg,lfun,refx)
+            else
+               call create_mqmqa_proprec(intrec%propointer,typty,ideg,lfun,refx)
+            endif
+            if(gx%bmperr.ne.0) goto 1000
+! add particular MQMQA data TO THE LAST RECORD
+            proprec=>intrec%propointer
+            do while(associated(proprec%nextpr))
+! there can be several property records
+               proprec=>proprec%nextpr
+            enddo
             call convert_y2quadx(sem,nint,jord,parquad)
             if(gx%bmperr.ne.0) goto 1000
-!            write(*,*)'3B back from convert_y2quadx 3'
-!            write(*,334)'quad',(parquad(ii),ii=1,nint)
             proprec%asymdata%quad=parquad(1)
             proprec%asymdata%alpha=parquad(2)
             proprec%asymdata%beta=parquad(3)
             proprec%asymdata%ternary=parquad(4)
-!
             exit findint
          else
-            mint=mint+1
-            goto 100
+            write(*,*)'3B Algorithm is wrong'
+            stop
          endif data2
       endif order
    endif findint

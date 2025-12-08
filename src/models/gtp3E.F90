@@ -2056,7 +2056,7 @@
    nooftuples=0
    noofem=0
    noofint=0
-   noofprop=0
+!   noofprop=0
 ! link to phaselist is in 9 (+10, 11, 12, 13)
    call readphases(noofph,iws)
    if(gx%bmperr.ne.0) goto 1000
@@ -4916,11 +4916,11 @@
 406      format(/'Fatal error: ',2i7,': ',a,' around line: ',i7)
          goto 1000
       else
-!         if(dodis.eq.1) write(*,*)'We are here 2'
+!         write(*,*)'3E calling enter_parameter from 3E line 4919'
          call enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
               lrot,refx)
          if(ocv()) write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr
-!         write(*,407)'Entered parameter: ',lokph,typty,gx%bmperr
+!         write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr
          if(gx%bmperr.ne.0) then
 ! error entering parameter, not fatal
 !            if(dodis.eq.1 .and. .not.silent) &

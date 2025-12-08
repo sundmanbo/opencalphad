@@ -1581,7 +1581,7 @@
 ! 34 is ;G,p,q,r), 35 is ;Q,p,q,r) and 26 is ;B,p,q,r)
       proprec%modelparamid=propid(1)%symbol
 !      proprec%modelparamid=propid(proptype)%symbol
-      write(*,*)'3G MQMQA parameter ',typty,proprec%proptype,powers
+!      write(*,*)'3G MQMQA parameter ',typty,proprec%proptype,powers
 ! the proprec%extra should contains 3 powers, as 100*p + 10*q + r
 ! for the equation \varkappa_ij**p * \varkappa_ji**q in Max eq. 23/24
 ! The r is for a ternary parameter in eqs. 25/26.  There is just one degree  0
@@ -1646,8 +1646,8 @@
 !------global counter
    noofprop=noofprop+1
    proprec%antalprop=noofprop
-!   write(*,11)refx,notext
-!11 format('create proprec: ',a,a)
+!   write(*,11)refx,noofprop
+11 format('create proprec: ',a,i7)
 ! save the reference index
 900 continue
    call capson(refx)
@@ -1711,7 +1711,7 @@
 ! 34 is ;G,p,q,r), 35 is ;Q,p,q,r) and 26 is ;B,p,q,r)
       proprec%modelparamid=propid(1)%symbol
 !      proprec%modelparamid=propid(proptype)%symbol
-      write(*,*)'3G MQMQA parameter ',typty,proprec%proptype,powers
+!      write(*,*)'3G MQMQA parameter ',typty,proprec%proptype,powers
 ! the proprec%extra should contains 3 powers, as 100*p + 10*q + r
 ! for the equation \varkappa_ij**p * \varkappa_ji**q in Max eq. 23/24
 ! The r is for a ternary parameter in eqs. 25/26.  There is just one degree  0
@@ -1740,6 +1740,10 @@
 ! calling routine
       proprec%reference=adjustl(refx)
 ! index of asymdata%quad, %alpha, %beta and %ternary should be set <<<<<<
+      noofprop=noofprop+1
+      proprec%antalprop=noofprop
+!      write(*,11)refx,noofprop
+11    format('3G create proprec: ',a,i7)
       goto 900
 !------------ end of MQMQA specific
    elseif(degree.lt.0 .or. degree.gt.9) then
@@ -1776,8 +1780,6 @@
 !------global counter
    noofprop=noofprop+1
    proprec%antalprop=noofprop
-!   write(*,11)refx,notext
-!11 format('create proprec: ',a,a)
 ! save the reference index
 900 continue
    call capson(refx)
