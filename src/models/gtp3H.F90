@@ -3986,8 +3986,10 @@
 !
 !
    tch=5
-   if(tch.ge.3) write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),&
+   write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),&
         tkmode,trim(phlista(lokph)%name)
+!   if(tch.ge.3) write(*,8)trim(species(1)),trim(species(2)),trim(species(3)),&
+!        tkmode,trim(phlista(lokph)%name)
 8  format('3H add_ternary_extrapol ',a,' ',a,' ',a,' using ',a,' in ',a)
    if(phlista(lokph)%noofsubl.gt.1) then
       write(*,*)'3H Kohler/Toop not allowed for phases with sublattices'
@@ -3998,17 +4000,18 @@
       gx%bmperr=4399; goto 1000
    endif
 ! A special case when all ternaries are set as Kohler ....
-   
 ! Note, the order of species will changed below but the
 ! original amend text will be saved in one of the tooprec records for output
-   amend=trim(phlista(lokph)%name)//' TERNARY_EXTRA '//&
-        ' '//trim(species(1))//' '//trim(species(2))//&
-        ' '//trim(species(3))//' '//tkmode//' '
+   if(trim(tkmode).eq.'KKK') then
+      amend=trim(phlista(lokph)%name)//' TERNARY_EXTRA '//&
+           ' '//trim(species(1))//' '//trim(species(2))//&
+           ' '//trim(species(3))//' '//tkmode//' '
 ! no final ! as list on TDB file may include several extrapol
-   write(*,*)'3H Executing; amend ',trim(amend)!
+      write(*,*)'3H Executing KKK amend ',trim(amend)!
+   endif
 !
 !----------------------------------- to be considered   
-! The extrapolation method is given in the order of binaries A-B, A-C and B-C
+! The asymmetric method is given in the order of binaries A-B, A-C and B-C
 ! by 3 letters T, K or M.  
 ! The letter T must be followed by a number 1ndicating which of the 3
 ! constituents that is the Toop element, for example T1T1K
@@ -4024,6 +4027,27 @@
 ! T1MM has Toop for A-B and ;uggianu for A-C and B-C
 ! The relevant information is stored locally for each binary A-B, A-C and B-C
 ! 
+! this routine in gtp3X stores the asymmetry data in the asymmetry record'   
+!
+! modified 111225/BoS to use subroutine set_ternary_asymmetry
+!                     also used when from reading from TDB/XTDB file
+   call capson(species(1))
+   call capson(species(2))
+   call capson(species(3))
+   call capson(tkmode)
+   amend=trim(phlista(lokph)%name)//' '//trim(species(1))//' '//&
+        trim(species(2))//' '//trim(species(3))//' '//trim(tkmode)//' ! '
+   write(*,77)trim(amend)
+77 format('3H calling set_ternary_asymmetry in gtp3XQ with'/'"',a,'"')
+!
+!   write(*,*)'3H This subroutine add_ternary_extrapol_method does not work yet'
+!   gx%bmperr=4399; goto 1000
+!
+   call set_ternary_asymmetry(amend)
+   goto 1000
+!
+! code below redundant ------------------------------------
+!
 ! For each binary the constituent indices are stored, indicating in the
 ! and if any of them is a Toop element and if the third elemt is Kohler
 ! A constituent can be Toop or Kohler in different ternaries
@@ -4092,7 +4116,7 @@
       goto 1000
    endif
 !----------------------------
-! find the 3 constituents, store their constituent index in conind
+! find the 3 asymmetric constituents, store their constituent index in conind
    conx=0
 !   write(*,'(a,3i3,1x,3i3,1x,3a2)')'3H looking for constituents: ',conx,&
 !        xter3,xmode
@@ -4189,11 +4213,12 @@
       jj=xter3(2); xter3(2)=xter3(3); xter3(3)=jj
       ch1=xmode(2); xmode(2)=xmode(3); xmode(3)=ch1
       jj=toopcon(2); toopcon(2)=toopcon(3); toopcon(3)=jj
-      if(tch.ge.3) write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 3:  ',conx,&
+!      if(tch.ge.3) write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 3:  ',conx,&
+      write(*,'(a,3(3i3,1x),3a2)')'3H Rearranged step 3:  ',conx,&
            xter3,toopcon,xmode
    endif
-!**************** after here
-!   write(*,'("3H The constituents in alphabetical order: ",3i3)')conx
+!**************** redundant after here
+   write(*,'("3H The constituents in alphabetical order: ",3i3)')conx
 ! The conx order is the (alphabetical) order of the constituents
 ! The endmembers are in that order.  The interactions are not ordered
 ! xter3 is the original input order, conx is in alphabetical order
@@ -4299,8 +4324,7 @@
 111   format('3H Found binary interaction records for ',3(i2,'-',i2),3x,3l2)
       write(*,*)'3H Allocate tooprecords!'
    endif
-!=================== now we create the tooprec recotds =====================
-
+!=================== now we create the tooprec records =====================
 ! In  gtp_phaserecord pointers toopfirst, tooplast include all tooprec records
 ! It is needed to list the ternary extrapolation.  It also has lasttoopid
 ! The gtp_intrec has a tooprec pointer with tooprec data for that interaction

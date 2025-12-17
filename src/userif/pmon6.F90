@@ -5303,14 +5303,14 @@ contains
              ts: if(allocated(tersys)) then
                 write(*,3101)size(tersys)
 3101  format(/'Listing of the ',i3,' ternary systems and their asymmetry',&
-          /'  i  seq   el1 el2 el3       T/0 T/0 T/0    asymmetry code')
+          /'  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
                 do iz=1,size(tersys)
                    write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
                         tersys(iz)%isasym,tersys(iz)%asymm
-3201               format(i3,i5,2x,3(1x,i3),5x,3i4,5x,a)
+3201               format(i3,i5,2x,3(1x,i4),5x,3i4,5x,a)
                 enddo
                 write(*,3301)
-3301 format(/'Number in T/0 column is actual asymmetric cation'/)
+3301 format('Number in T/0 column is actual asymmetric cation'/)
              else
                 write(kou,*)'No ternary asymmetry data available'
              endif ts
@@ -5330,18 +5330,25 @@ contains
                 write(kou,4124)mqmqa_data%nquad,mqmqa_data%ncat
 4124 format(/'The ',i3,' quads for ',i2,' cations are arranged ',&
           'in order of the n cations:'/&
-          'Quad   1  2 ... n | n+1 .. 2n-1 | 2n .. | n(n+1)/2'/&
-          'Cation 1  1 ... 1 | 2   ..  2   | 3  .. | n'/&
-          'Cation 2  2 ... n | 2   ..  n   | 3  .. | n'/)
-!             
-            write(kou,308)'Fractions in OC order   ',(i2,i2=1,mqmqa_data%nquad)
-                write(kou,308)'FRactions in Quad order ',&
+          'Quad  ',9x,'1   2  ...  n | n+1 n+2 ... 2n-1 | 2n .. | n(n+1)/2'/&
+          'Cation',9x,'1   1  ...  1 | 2   2   ...  2   | 3  .. | n'/&
+          'Cation',9x,'1   2  ...  n | 2   3   ...  n   | 3  .. | n')
+                write(kou,4126)mqmqa_data%quad2compvar
+4126            format('quad2compvar: ',21(1x,i2))
+                write(kou,4127)mqmqa_data%emquad
+4127            format('em2quad: ',21(1x,i2))
+! just a blank line
+                write(kou,*)
+                write(kou,308)'Fractions in OC order   ',&
+                     (i2,i2=1,mqmqa_data%nquad)
+                write(kou,308)'Fractions in Quad order ',&
                      (mqmqa_data%con2quad(i2),i2=1,mqmqa_data%nquad)
 308             format(a,15i3)
 !
                 write(kou,410)newXupdate
-410          format(/'List of binary asymmetric composition variables',i5&
-            /'  i  j  seq    varkappa_ij varkappa_ji  xi_ij       xi_ji')
+410             format(/'List of compvar, the binary asymmetric composition',&
+                     ' variables, last update:',i5/&
+             ' cat_i cat_j  seq    varkappa_ij varkappa_ji  xi_ij       xi_ji')
 ! calculate varkappaij and varkappaji correcting for all ternaries
 !                mqmqavar=>ceq%phase_varres(lokcs)%mqmqaf
 !                call calcasymvar(ceq%phase_varres(lokcs))
@@ -5359,14 +5366,16 @@ contains
                         ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%xi_ji
 !                   write(kou,412)i1,i2,j4,compvar(j4)%vk_ij,compvar(j4)%vk_ji,&
 !                        compvar(j4)%xi_ij,compvar(j4)%xi_ji
-412                format(2i3,i5,3x,4(1PE12.4))
+412                format(2i6,i5,3x,4(1PE12.4))
                   enddo cat2
                enddo cat1
             endif noq
 !
             write(kou,444)'Values of y_i/k: ',&
                  (ceq%phase_varres(lokcs)%mqmqaf%y_ik(i1),i1=1,mqmqa_data%ncat)
-444         format(/a,(10f7.4)/)
+444         format(/a,(10f7.4))
+! an empty line last
+            write(kou,*)
 !
 !...........................................................
 ! DEBUG for implementation of asymmetric models
@@ -5389,12 +5398,17 @@ contains
                   'Value of cation*(cation+1)/2: ',i4/)
 !
              i2=0
+             write(*,1688)
+1688         format('Debug settings:'/'0 no debug'/'1 debug asymmetry'/&
+                  '2 debug some more'/&
+                  '3 debug reading TDB'/'4 debug parameter calculation')
              call gparidx('Set mqmqa debug?',cline,last,i1,i2,'?MQMQA debug')
              mqmqdebug=.false.
              mqmqdebug2=.false.
              mqmqtdb=.false.
              mqmqxcess=.false.
              if(i1.eq.1) then
+! asymmetry debug
                 mqmqdebug=.true.
              elseif(i1.eq.2) then
                 mqmqdebug2=.true.

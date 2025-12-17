@@ -1429,6 +1429,11 @@
 ! NOTE some of them may not have a reference energy parameter
 ! This is to allocate csumx for handling quads with small fractions.
    isumx=0
+! debug output of G for check of excess
+   if(mqmqxcess) then
+      write(*,288)(phres%gval(itp,1),itp=1,4)
+288   format('3XQ before excess:'/'G, dG/dT dG/dP d2G/dT2:',4(1pe14.6))
+   endif
 !
    mqmqj=0
    endmemrec=>phlista(lokph)%ordered
@@ -1441,10 +1446,9 @@
          exit endmemloop2
       endif
       kend=mqmqa_data%contyp(5,mqmqj)
-!      if(tch.ge.3) write(*,311)mqmqj,mqmqa_data%nconst,kend,&
-!      write(*,311)mqmqj,mqmqa_data%nconst,kend,&
-!           associated(endmemrec%intpointer)
-!311   format(/'3XQ in loop for excess parameters: ',3i5,l2)
+      if(tch.ge.3) write(*,311)mqmqj,mqmqa_data%nconst,kend,&
+           associated(endmemrec%intpointer)
+311   format(/'3XQ in loop for excess parameters: ',3i5,l2)
       intrec=>endmemrec%intpointer
 ! interaction parameters are NOT linked from SNN endmembers ?? really?
 ! They are stored in alphabetical order of the constituents
@@ -1453,16 +1457,15 @@
 ! if we cycle here the results are the same as without excess parameters
 !      cycle endmemloop2
 !
-!      write(*,*)'3XQ looking for excess parameters',associated(intrec)
       if(.not.associated(intrec)) then
          cycle endmemloop2
       endif
 !
-      if(mqmqxcess) then
+!      if(mqmqxcess) then
 ! if parameter errors in interactions below these are the endmemberquads A/X
-         write(*,313)(mqmqa_data%emquad(iiz),iiz=1,mqmqa_data%ncat)
+!         write(*,313)(mqmqa_data%emquad(iiz),iiz=1,mqmqa_data%ncat)
 313      format('3XQ endmember quads: ',15i3)
-      endif
+!      endif
 !  
 ! mqmqj is NOT the mqmqa constituent index, it is just an endmember counter
 ! look for the constituent in fraction record, sublattice 1, constituent 1
@@ -1476,19 +1479,51 @@
 !      write(*,315)phlista(lokph)%constitlist
 315   format('3XQ constituents: ',20i3)
 !      
+      if(mqmqxcess) write(*,318)phres%gval(1,ipy),&
+           (phres%dgval(1,jq,ipy),jq=1,gz%nofc)
+!
       noofex=noofex+1
-!      write(*,*)'3XQ excess with endmember constituent: ',mqmqjy
+      if(mqmqxcess) write(*,*)'3XQ excess with endmember constituent: ',&
+           mqmqjy,ipy
       call new_mqmqa_excess(lokph,intrec,mqmqjy,vals,dvals,d2vals,gz,ceq)
       if(gx%bmperr.ne.0) goto 1000
-! for the moment add vals(1) to G and vales(2) to G.T
-      
-! if new_mqmqa_excess used then intrec will be nullified on return
+! intrec is nullified inside new_mqmqa_excess
+      if(mqmqxcess) write(*,*)'3XQ back with excess from endmember ',mqmqjy,&
+           associated(endmemrec)
+      if(mqmqxcess) write(*,317)gz%nofc,vals(1),vals(2),&
+           (dvals(1,jq),jq=1,gz%nofc)
+317   format('3XQ excess:  ',i3,2(1pe12.4)/6(1pe12.4))
+!
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~      
+! BIG STEP ... add vals, dvals to G and dG/dy
+! what about aff?
+!
+      if(mqmqxcess) write(*,318)phres%gval(1,ipy),&
+           (phres%dgval(1,jq,ipy),jq=1,gz%nofc)
+318   format('3XQ G & G.y: ',1pe12.4/6(1pe12.4))
+      do itp=1,6
+! loop for G, G.T, G.P, G.T.T, G.T.P, G.P.P
+         phres%gval(itp,ipy)=phres%gval(itp,ipy)+vals(itp)
+      enddo
+      do jq=1,gz%nofc
+! skip loop for dG/dy, d2G/dydT, d2G/dydP, only for constituents
+!         do itp=1,3
+         itp=1
+         phres%dgval(itp,jq,ipy)=phres%dgval(itp,jq,ipy)+dvals(itp,jq)
+!         enddo
+      enddo
+!      
+! ignore 2nd derivatives as not calculated for excess
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~      
+!
       if(.not.associated(intrec)) cycle endmemloop2
 !
 !*************** remove all code below when excess code above OK *******
 !******************* new code above should replace code below *******
 !
 ! There are excess parameters, any Tooprecords?
+      write(*,319)
+319   format(//'3XQ *** this is the old mqmqa excess model **'//)
       if(associated(intrec%tooprec)) then
 ! the allocatable arrays Toop1, Toop2 and Kohler have all same size
 ! equal to the number of binary combination of constituents
@@ -2016,7 +2051,12 @@
  !\begin{verbatim}
  ! subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
  subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
-! dvals and d2vals are composition derivatives, what is gz?
+! vals(1..6) are G, dG.T, dG.P, d2G.T.T, d2G.T.P and d2G.P.P for parameter
+! dvals(1,i) are first derivatives wrt fracton and 2nd wrt fraction, T or P
+!          dvals(1,i) is dG.yi, dval2(2,i) is d2G.yi.T, dvals(3,i) is d2G.yi.P
+! d2vals(i,j) are second derivatives to 2 fractions, IGNORED HERE
+! gz%nofc is number of fraction variables multiplied with this parameter(?)
+!
 ! To be written using the gtp_allinone data structure for asymmetric excess
    implicit none
 ! mqmqj is index of first constituent in endmemberrecord
@@ -2037,19 +2077,37 @@
    TYPE(gtp_phase_add), pointer :: addrec
    TYPE(gtp_terdata), pointer :: ternaries
    TYPE(gtp_property), pointer :: proprec
+!   type(gtp_allinone), pointer :: compvar
 !
    character*120 text
+   double precision :: rtg
    logical :: once=.true.
    integer ppow,qpow,rpow,intlev,iiz,jj,pairquad,jp
    integer, save :: proprecno=0
    integer parquad(4),nprr,nfr
    integer :: nex=0
-   integer, dimension(:), allocatable :: ylinks
-   integer ncv,icv,nqx,lokcs,lokfun,xq,cxq
-   double precision mqmqx_deltag,compprod,nomin,divisor
+   integer, dimension(:), allocatable :: ylinks,qlinks
+   integer ncv,icv,nqx,lokcs,lokfun,xq,cxq,mm
+   double precision mqmqx_deltag,compprod,nomin,divisor,ternary
+!
+   logical, save :: ternaryonce=.true.
+!
+! composition derivatives are only relative to quads  !!!!!!!
+! the composition variables for a parameters are expressions using asymmetric
+! y_ik, \xi or \varkappa which depend on quads
+! we have to sort out how this affects the derivatives
+! dy_ik are factors for y_ik relative to quads, can be 1 or less
+! dxi_ij and dx_ji and  dvk_ij and dvk_ji are the same.
+! a parameter P multiplied with vk_ij(ij) has several contributions to the
+! derivatives dP(zz), dvk_ij(ij,zz),zz=1,nquad
+  integer idyix(5,mqmqa_data%nquad)
+  integer zkij
+  double precision haha,one1
+  double precision dyix(5,mqmqa_data%nquad)
+!
    character*1 ptyp1
 ! The previous MQMQA excess implementation arrive here
-! If mqmqa_data%exlevel is zero we should return and that code will still work.
+! If mqmqa_data%exlevel is zero we should return and old code will still work.
    if(mqmqa_data%exlevel.eq.0) then
 !      if(once) write(*,6)mqmqa_data%exlevel
 6     format('3XQ *** this system use the old excess model ***',i5)
@@ -2057,15 +2115,20 @@
    endif
 ! we are here because this endmember has an intercation link
 !   if(mqmqxcess) write(*,5)mqmqj
-   write(*,5)mqmqj
+!   write(*,5)mqmqj
 5  format(/'3XQ in new_mqmqa_excess with endmember: ',i3)
 ! initiate ylinks for this tree with the endmember fraction
    intrec=>intrecin
 ! this is needed to move to next endmemeber
    nullify(intrecin)
+!
+! divide values with rtg?
+   rtg=globaldata%rgas*ceq%tpval(1)
+!---------------------------------
 ! not more than 10 interactions ....
    allocate(savedint(10))
    allocate(ylinks(10))
+   allocate(qlinks(10))
 ! this is the endmember constituent
    nfr=1
    ylinks(1)=mqmqj
@@ -2078,7 +2141,7 @@
 !   pairquad=ylinks(1)
 17 continue
 !
-! THIS IS THE CALCULATION ROUTINE WITH DEBUG LISTING ADDED
+! THIS IS THE CALCULATION ROUTINE WITH extensive DEBUG LISTING ADDED
 !
 ! loop here until all excess records from this endmember calculated
 ! The new excess model implementation using allinone etc below
@@ -2094,7 +2157,7 @@
 !   if(btest(phlista(lokph)%status1,PHMQMQX)) then
    if(.false.) then
 ! these variables are in the TYPE GTP_MQMQA_VAR
-      write(*,*)'3XQ Check we have access to xquad, compvar etc?'
+!      write(*,*)'3XQ this is a check we have access to xquad, compvar etc?'
 !
       nqx=mqmqa_data%nquad
       write(*,82)nqx
@@ -2127,9 +2190,11 @@
 ! We may come back here for another interaction with same endmember
 ! Set ylinks to be indices of the OC fractions
 !      write(*,*)'3XQ Starting intloop with component ',intlev,intrec%fraclink
+! save name of interacting constituent even if no property
       nfr=nfr+1
       ylinks(nfr)=intrec%fraclink(1)
       proprec=>intrec%propointer
+! loop for all property records
       listprop: do while(associated(proprec))
 ! we have found an excess parameter !!!
 ! there can be several property record for the same set of constituents
@@ -2139,6 +2204,7 @@
          if(proprec%proptype.eq.35) ptyp1='Q'
          if(proprec%proptype.eq.36) ptyp1='B'
 !
+         ternary=1.0D0
          ppow=proprec%asymdata%ppow
          qpow=proprec%asymdata%qpow
          rpow=proprec%asymdata%rpow
@@ -2146,11 +2212,11 @@
 ! helps to understand what the parameter it is ....
             jp=1
             text=' '
-            call mqmqa_excesspar_name(lokph,intlev,ylinks,text,jp)
+            call mqmqa_excesspar_name(lokph,intlev,nfr,ylinks,text,jp)
             text(jp-1:)=';'//ptyp1//','//char(ichar('0')+ppow)//&
                  ','//char(ichar('0')+qpow)//','//char(ichar('0')+rpow)//')'
             write(*,115)trim(text),ppow,qpow,rpow
-115         format(/'3XQ parameter: ',a,', pqr:',3i2)
+115         format(/'3XQ param: ',a,', pqr:',3i2)
 ! extract the quad pointers
          endif
 !
@@ -2158,33 +2224,113 @@
          xq=proprec%asymdata%quad
 ! cxq transforms the quad index to an index in compvar (which as no diagonal)
          cxq=mqmqa_data%quad2compvar(xq)
-! we should not use quad index in compvar.  We should use the index
+         par3: if(nfr.gt.3) then
+            if(ternaryonce) write(*,116)
+116         format(/'3XQ *** ternary parameter not implemented ***'/)
+            ternaryonce=.false.
+            mqmqx_deltag=0.0d0
+            vals=0.0d0
+            dvals=0.0d0
+            goto 800
+! code below skipped            
+! note ylinks(nfr) is not the correct ternary fraction, it should be the quad
+! which is neither equal to xq, or the two quads in vk_ij or x_ij
+            call ternary_factor(xq,mqf%compvar(cxq)%cat1,mqf%compvar(cxq)%cat2,&
+                 ylinks,mm,ternary,proprec)
+            if(gx%bmperr.ne.0) goto 1000
+! mm is the index of the cation in the C/X quad, the factor is
+!  y_ik/(\xi_ij) if mm is \gamma in i-j-\gamma or
+!  y_ik/(\xi_ji) if mm is \nu in    i-j-\nu or just
+!  y_ik          if neither
+! we can check this in compvar(cxq) .... later
+            write(*,104)mm
+104         format('3XQ *** no check if the ternary i-j-',i2,' is asymmetric')
+            ternary=mqf%y_ik(mm)
+!            write(*,106)mm,ternary
+106         format('3XQ *** ternary factor "y_m/(\xi_ij)", m=',i2,5x,1pe13.6)
+         endif par3
+! we cannot use quad index in compvar.  We should use the index
 ! related to the two elemnts i and j represented by the quad index
-! and they are NOT
-         if(mqmqxcess) write(*,117)xq,cxq,lokfun,&
-              mqf%xquad(xq),mqf%compvar(cxq)%xi_ij,mqf%compvar(cxq)%xi_ji
-117      format('3XQ composition variables: :',2i4,' parameter link: ',i5/&
-              'Quad   ',1pe13.6,' \xi_ij ',1pe13.6,' \x_ji',1pe13.6)
+! cxq=quad2comvar(xq) converts the xq index for AB/X to the two quads A/X B/X 
+!         if(mqmqxcess) write(*,117)xq,cxq,nfr,intlev,lokfun,&
+         if(mqmqxcess) then
+            if(ptyp1.eq.'G') then
+               write(*,117)xq,cxq,nfr,lokfun,mqf%xquad(xq),&
+                    mqf%compvar(cxq)%vk_ij,mqf%compvar(cxq)%vk_ji,ternary
+117            format('3XQ quad, compvar:',2i3,', nfr ',i3,&
+                    ', parameter link: ',i5/&
+                    '3XQ Quad ',1pe11.4,' \vk_ij ',1pe11.4,' \vk_ji',1pe11.4,&
+                    ' tern ',1pe11.4)
+            elseif(ptyp1.eq.'Q') then
+               write(*,112)xq,cxq,nfr,lokfun,mqf%xquad(xq),&
+                    mqf%compvar(cxq)%xi_ij,mqf%compvar(cxq)%xi_ji,ternary
+112            format('3XQ quad, compvar:',2i3,', nfr ',i3,&
+                    ', parameter link: ',i5/&
+                    '3XQ Quad ',1pe11.4,' \xi_ij ',1pe11.4,' \xi_ji',1pe11.4,&
+                    ' tern ',1pe11.4)
+            else
+               write(*,*)'3XQ Unknown equation'
+            endif
+         endif
 ! this return 6 values in vals: G, G.T, G.P,  G.T.T, G.T.P, G.P.P
          call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
          if(gx%bmperr.ne.0) goto 1000
 !--------------------------------------------------------------------
+! divide all parameter values with rtg!!
+         vals=vals/rtg
+!--------------------------------------------------------------------
 ! calculate the parameter with composition variables
          if(ptyp1.eq.'G') then
+            nomin=(mqf%compvar(cxq)%vk_ij)**ppow*(mqf%compvar(cxq)%vk_ji)**qpow
+            compprod=mqf%xquad(xq)*nomin*ternary
+            mqmqx_deltag=compprod*vals(1)
+            if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,1.0d0,compprod
+118         format('3XQ comprod: ',1pe15.8,'*',1pe15.8,'/',1pe15.8,' =',1pe15.8)
+! partial derivative begin, we have to loop for all quads <<<<<<<<<<<<<<<<<<<<
+!            if(mqmqxcess) write(*,301)dvals(1,1),dvals(1,2),dvals(1,3)
+!            write(*,301)dvals(1,1),dvals(1,2),dvals(1,3),&
+!                 allocated(mqf%compvar(1)%ivk_ij),&
+!                 allocated(mqf%compvar(1)%dvk_ij)
+301         format('3XQ partial derivatives:',3(1pe12.4),2l2)
+!            write(*,302)size(mqf%compvar(1)%dvk_ij),&
+!                 mqf%compvar(1)%dvk_ij,mqf%compvar(1)%dvk_ji
+302         format('3XQ dvk: ',i3,6(1pe12.4))
+            do zkij=1,mqmqa_data%nquad
+! loop for all quads, one addad if zkij=xq; cxq is index of varkappa
+! All mqf%compvar(cxq)%dvk_ij are already calculated ??!!  one is global 1.0D0
+               one1=0.0d0
+               if(zkij.eq.xq) then
+                  one1=one
+               endif
+               haha=one1+&
+                    ppow*mqf%compvar(cxq)%dvk_ij(xq)/mqf%compvar(cxq)%vk_ij+&
+                    qpow*mqf%compvar(cxq)%dvk_ji(xq)/mqf%compvar(cxq)%vk_ji
+!               if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,1.0d0,compprod
+               if(mqmqxcess) then
+                  write(*,310)zkij,mqf%compvar(cxq)%dvk_ij(xq),&
+                       mqf%compvar(cxq)%dvk_ji(xq),haha,vals
+310               format('3XQ dvk_ij/ji: ',i3,4(1pe12.4))
+               endif
+               dvals(1,zkij)=dvals(1,zkij)+haha*vals(1)
+               dvals(2,zkij)=dvals(2,zkij)+haha*vals(2)
+            enddo
+! partial derivative end >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+         elseif(ptyp1.eq.'Q') then
             nomin=(mqf%compvar(cxq)%xi_ij)**ppow*(mqf%compvar(cxq)%xi_ji)**qpow
             divisor=(mqf%compvar(cxq)%xi_ij+mqf%compvar(cxq)%xi_ji)**(ppow+qpow)
-            compprod=mqf%xquad(xq)*nomin/divisor
+            compprod=mqf%xquad(xq)*nomin*ternary/divisor
             mqmqx_deltag=compprod*vals(1)
             if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,divisor,compprod
-118         format('3XQ comprod: ',1pe15.8,'*',1pe15.8,'/',1pe15.8,'=',1pe15.8)
          else
-            write(*,*)'3XQ proptyp not implemented: ',ptyp1
+            write(*,*)'3XQ proptyp B is not implemented: ',ptyp1
             stop
          endif
-         write(*,119)proprec%antalprop,(ylinks(jj),jj=1,nfr)
-         write(*,121)vals(1),compprod,mqmqx_deltag
-119      format('3XQ Delta G to be added to G ',i4,10i4)
-121      format('param: ',(1pe15.8)', comprod: ',1pe15.8,' Delta G: ',1pe15.8)
+! we have to add values to the derivatives as well as function
+800      continue
+         if(mqmqxcess) write(*,119)proprec%antalprop,(ylinks(jj),jj=1,nfr)
+         if(mqmqxcess) write(*,121)vals(1),compprod,mqmqx_deltag
+119      format('3XQ Delta G to be added to G, propid:',i4,', yix:',10i4)
+121      format('3XQ param ',1pe15.8,', comprod ',1pe15.8,', Delta G ',1pe15.8)
 !---------------------------------------------------------------------
 ! there can be several parameters for the same set of constituents
 ! They differ by the powers but not the constituents
@@ -2242,32 +2388,37 @@
    
 1000  continue
    if(mqmqxcess) write(*,1001)proprecno
-1001 format('3XQ Back to endmemeber record',i5/)
+1001 format('3XQ Back to endmemeber record',i5)
    return
  end subroutine new_mqmqa_excess
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
- subroutine mqmqa_excesspar_name(lokph,intlev,ylinks,text,jp)
-   integer lokph,intlev
+!\addtotable subroutine convert_y2quadx
+!\begin{verbatim}
+ subroutine mqmqa_excesspar_name(lokph,intlev,nfr,ylinks,text,jp)
+!
+   integer lokph,intlev,nfr
    integer ylinks(*),jp
    character text*(*)
 ! write the set of constituents, complex as ylinks are quadindex
 ! and ylinks are constiuent order (which may be the same but not always)
+!\end{verbatim}
    integer ii,jj,kk
    character*24, dimension(10) :: const
-!   write(*,10)intlev,ylinks
+! strange intlev is 1 here, it is 0 in calling routine ... only endmember quad
+!   write(*,10)nfr,(ylinks(ii),ii=1,nfr)
 !10 format('3XQ *** no of const: ',i2,', ylinks: ',10i3)
 !   write(*,20)phlista(lokph)%constitlist
 !20 format('3XQ *** phase const: ',25i3)
 ! phlista(lokph)%constitlist is index in splista <<<<<<<<<<<<<<<
 !   write(*,30)trim(splista(phlista(lokph)%constitlist(1))%symbol)
-30 format('3XQ *** phase const names: ',a)
+!30 format('3XQ *** phase const names: ',a)
 !
 ! A useful excersize to remember how data in OC are stored!!!
 !
    text='G(MSCL,'; jp=8
-   do jj=1,intlev
+   do jj=1,nfr
     text(jp:)=trim(splista(phlista(lokph)%constitlist(ylinks(jj)))%symbol)//','
     jp=len_trim(text)+1
    enddo
@@ -2278,6 +2429,40 @@
 !
    return
  end subroutine mqmqa_excesspar_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine ternary_factor
+!\begin{verbatim}
+ subroutine ternary_factor(xq,cat1,cat2,ylinks,mm,hejhopp,proprec)
+! calculates the ternary factor of a parameter
+   integer xq,cat1,cat2,mm,ylinks(*)
+   double precision hejhopp
+   type(gtp_property), pointer :: proprec
+!\end{verbatim}
+! xq is the AB/X quad index
+! cxq in the index in compvar which gives 2 quad indices for A/X and B/X
+! ylinks are the OC fraction indices
+! mm is the unknown 4th quad
+! hejhopp is the value to return, possibly 1.0D0
+   integer ii
+!   write(*,'(a,3i3,2x,10i3)')'3XQ trying to find mm',xq,cat1,cat2,&
+!        (ylinks(ii),ii=1,4)
+! but ylinks are OC fraction indices, not necessarily same as quad indices
+! BUT at present, check which one of the last 2 in ylinks that is an A/X quad
+   do ii=1,size(mqmqa_data%emquad)
+      if(ylinks(3).eq.mqmqa_data%emquad(ii)) goto 100
+   enddo
+   do ii=1,size(mqmqa_data%emquad)
+      if(ylinks(4).eq.mqmqa_data%emquad(ii)) goto 100
+   enddo
+   write(*,*)'3XQ cannot find the ternary C/X quad'
+   gx%bmperr=4399; goto 1000
+! return the index of the cation in the C/X quad
+100 mm=ii
+1000 continue
+   return
+ end subroutine ternary_factor
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
@@ -2823,8 +3008,12 @@
    dum1: do i=1,mqmqa_data%ncat
       dum2: do j=i,mqmqa_data%ncat
          nseq=nseq+1
-         if(i.ne.j) mm=mm+1
-         mqmqa_data%quad2compvar(nseq)=mm
+         if(i.ne.j) then
+            mm=mm+1
+            mqmqa_data%quad2compvar(nseq)=mm
+         else
+            mqmqa_data%quad2compvar(nseq)=10000
+         endif
       enddo dum2
    enddo dum1
 !   write(*,71)mqmqa_data%quad2compvar
@@ -2974,11 +3163,11 @@
       enddo
    enddo
 ! a lot of trouble but it seems to work now ....
-! These y_ik are for symmetrical systems
+! These y_ik are for symmetrical systems ....unsure if this fnnsnn used ???
    do i=1,mqmqa_data%ncat
       mqf%y_ik(i)=yfs(i)/sum2
    enddo
-!  write(*,*)'Calculated y_i/k from quad fractions'
+   write(*,*)'3XQ line 3021 Calculated y_i/k from quad fractions',mqf%y_ik(1)
    if(list) then
       write(*,10)'\etafs   ',mqmqa_data%qfnnsnn,sum2
       write(*,10)'y_i/k:   ',mqf%y_ik,sum1
@@ -3513,8 +3702,23 @@
 !   type(gtp_mqmqa_var), pointer :: mqf
 ! attempt to move mqmqa variables into the mqmqa_var record
 !   ceq=>firsteq
+!
+! I may have forgotten to set y_ik !!!!
 ! maybe problem with the array here ...
    mqf=>phres%mqmqaf
+!   write(*,*)'3XQ line 3560 updating vk_ij, xi_ij and y_ik with new quad fracs'
+!   write(*,10)'3XQ old',(mqf%y_ik(v),v=1,mqmqa_data%ncat)
+10 format(a,' values of y_ik:',15(f8.3))
+   do v=1,mqmqa_data%ncat
+      mqf%y_ik(v)=0.0d0
+!      write(*,20)'3XQ dy_ik',(mqmqa_data%dy_ik(v,w),w=1,mqmqa_data%nquad)
+20    format(a,(20F5.2))
+      do w=1,mqmqa_data%nquad
+         mqf%y_ik(v)=mqf%y_ik(v)+mqmqa_data%dy_ik(v,w)*mqf%xquad(w)
+      enddo
+   enddo
+!   write(*,10)'3XQ new',(mqf%y_ik(v),v=1,mqmqa_data%ncat)
+!
 !   write(*,*)'3XQ in varkappa1',seq
 !   write(*,*)'3XQ in varkappa1',mqf%nquad
    if(.not.allocated(mqf%compvar)) then
@@ -3585,6 +3789,7 @@
 ! this is not a debug variable, just for test output!!
       asymmetric=.false.
 !
+!      write(*,*)'3QX in varkappa1'
       vzloop: do vz=1,mqmqa_data%ncat
 ! loop for all ternary systems to find with asymmetric i-j-vz and j-i-vz
          if(vz.eq.icat .or. vz.eq.jcat) cycle vzloop
@@ -3747,6 +3952,8 @@
 !--------------------------------------------------------------------
 !
 ! Now use the structures ivk_ij, jvk_ji, kvk_ijk and dxi_ij, dxi_ji
+!   write(*,*)'3QX in varkappa1 line 3900',allocated(box%ivk_ij),&
+!        allocated(box%dvk_ij)
    varkappaij=0.0d0; varkappaji=0.0d0; sum=0.0d0; nugamma=0.0d0
    do ii=1,size(box%ivk_ij)
       varkappaij=varkappaij+mqf%xquad(box%ivk_ij(ii))
@@ -3790,7 +3997,7 @@
 !
 ! debug output, ivk_ij, jvk_ji, kvk_ijk, dxi_ij, dxi_ji ---------------------
 !    
-   if(mqmqdebug) then
+   if(mqmqdebug .or. mqmqxcess) then
       nn1=size(box%ivk_ij); nn2=size(box%jvk_ji); nn3=size(box%kvk_ijk)
       nn4=mqmqa_data%nquad; nn5=mqmqa_data%nquad;
       nn6=size(box%asymm_nu); nn7=size(box%asymm_gamma)
@@ -3818,6 +4025,11 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
 ! this code use the updated data structure to calculate quickly
+! This should be called by set constitution!!
+!   write(*,*)'Calling dexcess_dq to allocate and set %dvk_ij etc'
+   call dexcess_dq(box)
+!   write(*,800)allocated(box%dvk_ij)
+800 format(' *** Back from dexcess_dq to allocate %dvk_ij etc',l2)
    goto 900
 !
 500 continue    
@@ -3887,7 +4099,7 @@
 ! vk_ij is the sum of those quads.  Many dvk_ij should be zero
 ! the denominator always depend on the same fractions as the numerator
    box%dvk_ij=0.0d0
-   write(*,10)box%seq,box%all_ijk
+!   write(*,10)box%seq,box%all_ijk
 10 format('In dexcess_dq: allinone ',i3,' depend on quads: ',2x,20i3)
    kloop: do k=1,mqmqa_data%nquad
 ! we have to check all_ijk if vk depend on quad k
@@ -3933,10 +4145,12 @@
       box%dvk_ji(k)=(d_ji - box%vk_ji)/box%denominator
    enddo kloop
 ! debug output of the derivatives
-   do k=1,mqmqa_data%nquad
-      write(*,100)k,box%dvk_ij(k),box%dvk_ji(k)
-   enddo
-100 format('In dexcess_dq: dvk_ij, dvk_ji wrt quad: ',i3,2(1pe14.6))
+   if(mqmqdebug) then
+      do k=1,mqmqa_data%nquad
+         write(*,100)k,box%dvk_ij(k),box%dvk_ji(k)
+      enddo
+100   format('In dexcess_dq: dvk_ij, dvk_ji wrt quad: ',i3,2(1pe14.6))
+   endif
 ! now derivatives of xi
 !
    return
@@ -4050,7 +4264,7 @@
       enddo
 !      write(*,100)trim(phase),icc(1),icc(2),icc(3),trim(asymcode)
 100   format('3XQ asymmetric ternary in ',a,' elements ',3i4,5x,a)
-! convert Nathalies asymmetry to OC
+! convert full asymmetry to OC
       call convert_asymm(asymcode,asymoc,icc,toop)
 ! output from convert_asymm seems OK but with some redundat data
 ! there can be several asymmetric ternaries
@@ -4061,6 +4275,10 @@
       if(gx%bmperr.ne.0) goto 1000
 !      stop 'debug'
    enddo extract_asymmetries
+!
+   newXupdate=newXupdate+1
+! tersym is declared globally, it should be within a phase record
+! as each phase can have ternary symmetries
 !
 1000 continue
    return
@@ -4122,6 +4340,9 @@
    implicit none
    integer iph,icc(3), toop(3)
    character*3 kkk
+! 
+! REDUNDANT AS INTEGRATED IN PMON6.F90
+!
 !\end{verbatim}
    integer i,j,k,dim3,ntercat
    integer a,b,c,mm,v
@@ -4185,12 +4406,12 @@
 ! for debugging list whole array
 !   write(*,310)dim3
 310 format(/'Listing of the ',i3,' ternary systems and their asymmetry',&
-         /'  i  seq   el1 el2 el3       T/0 T/0 T/0    asymmetry code')
+         /'  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
 !   ntercat=mqmqa_data%ncat*(mqmqa_data%ncat-1)*(mqmqma_data%ncat-2)/6
 !   do i=1,ntercat
 !      write(*,320)i,tersys(i)%seq,(tersys(i)%el(j),j=1,3),&
 !           tersys(i)%isasym,tersys(i)%asymm
-320   format(i3,i5,2x,3(1x,i3),5x,3i4,5x,a)
+320   format(i3,i5,2x,3(1x,i4),5x,3i4,5x,a)
 !   enddo
 !   write(*,330)
 330 format(/'Number in T/0 column is actual asymmetric element')
@@ -4449,9 +4670,9 @@
    if(kk.eq.0) then
       write(*,*)'You have a strange MQMQA system without any anion'
    else
-      write(*,4)ellista(kk)%symbol,mqmqa_data%xanionalpha,&
+      write(*,4)ellista(elements(kk))%symbol,mqmqa_data%xanionalpha,&
            mqmqa_data%xanione
-4     format('The anion element name, index and link: ',a,2i3)
+4     format('3XQ The anion element name, index and link: ',a,2i3)
    endif
 !
    return
@@ -4493,7 +4714,7 @@
 !   mqmqa_data%xanione=splista(j4)%ellinks(nel)   
 !   write(kou,5)lokcs,mqmqa_data%xanione,mqmqa_data%xanionalpha
    write(kou,5)
-5  format(/'Con  Quad Nel Elements   ',7x,'Elem index',2x,'Species name',&
+5  format(/'Con  Quad Nel Elements      Elem index',2x,'Species name',&
         15x,'Cations')
    specie: do jp=1,phlista(lokph)%nooffr(1)
       isp=isp+1

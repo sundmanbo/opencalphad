@@ -23,6 +23,10 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2025.12.08 version 6.096. The new implementation of the MQMQA excess
+parameters can now calculate equilibria but needs further testing and
+some ternary parameters are still missing.
+
 2025.12.08 version 6.095. The new implementation of MQMQA is now going
 to be tested and hopefully become availabe within a month or so unless
 serious problems appears.  This version calculates but does not
