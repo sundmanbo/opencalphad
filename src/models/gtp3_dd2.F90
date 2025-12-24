@@ -1624,7 +1624,7 @@
 !     integer :: nquad,ncat,nan,lcat,lan
      integer :: nquad,ncat,nan,lan
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-! these variables are also defined globally as ncat,nan,nquad ... confusing
+! some variables are also defined globally as ncat,nan,nquad ... confusing
 ! 2025/11/06 This seems OK but a lot of data missing for excess
 ! contyp(1..4,const) 1,2 species in first sublattice, -1,-2 in second sublattice
 ! contyp(5,const) non-zero for PAIR AA/XX, value same as pair index YES !!

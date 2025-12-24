@@ -777,12 +777,18 @@
             deallocate(phdyn%mqmqaf%pair)
             deallocate(phdyn%mqmqaf%dpair)
             phdyn%mqmqaf%nquad=0
+!            write(*,*)'3A cleaning up some mqmqa data'
          endif
 ! set phstate and phlink to zero to avoid segmentation fault when plotting
 ! after several MAP or STEP commands with different composition sets
          phdyn%phstate=0
          phdyn%phlink=0
       enddo
+! new implementation of MQMQA
+      if(allocated(phdyn%mqmqaf%xquad)) then
+         deallocate(phdyn%mqmqaf%xquad)
+         deallocate(phdyn%mqmqaf%compvar)
+      endif
 !      write(*,*)'3E No segmentation error C8',j
 !      deallocate(ceq%phase_varres)
    enddo
@@ -825,16 +831,24 @@
 !------ parameter property records
    deallocate(propid)
 !------ other things such as mqmq_data arrays, I cannot deallocate here
-!   if(allocated(mqmqa_data)) deallocate(mqmqa_data)
 ! probably many more mqmqa data must be deallocated
    if(allocated(mqmqa_data%contyp)) then
       deallocate(mqmqa_data%contyp)
-      deallocate(mqmqa_data%constoi)
-      deallocate(mqmqa_data%totstoi)
+      if(allocated(mqmqa_data%constoi)) deallocate(mqmqa_data%constoi)
+      if(allocated(mqmqa_data%totstoi)) deallocate(mqmqa_data%totstoi)
+      if(allocated(mqmqa_data%el2ancat)) deallocate(mqmqa_data%el2ancat)
+      if(allocated(mqmqa_data%con2quad)) deallocate(mqmqa_data%con2quad)
+      if(allocated(mqmqa_data%quad2compvar)) deallocate(mqmqa_data%quad2compvar)
+      if(allocated(mqmqa_data%emquad)) deallocate(mqmqa_data%emquad)
+      if(allocated(mqmqa_data%dy_ik)) deallocate(mqmqa_data%dy_ik)
       mqmqa_data%nconst=0
       mqmqa_data%ncon1=0
       mqmqa_data%ncon2=0
       mqmqa_data%npair=0
+! more to deallocate ......... see also at line 780 above
+      if(allocated(tersys)) deallocate(tersys)
+!      mqf=>phres%mqmqaf
+!      write(*,*)'3A cleaning up some more mqmqa data'
    endif
    if(allocated(mqmqa_data%pinq)) then
       deallocate(mqmqa_data%pinq)
@@ -937,7 +951,7 @@
 !   write(*,*)'3E In delphase',lokph
    if(btest(phlista(lokph)%status1,PHMQMQX)) then
       write(*,12)phlista(lokph)%name
-12    format('The phase ',a,' cannot be deleted, reinitiate fails')
+12    format('The phase ',a,' is present, reinitiate may fail')
       goto 1000
    endif
    allocate(stack(5))

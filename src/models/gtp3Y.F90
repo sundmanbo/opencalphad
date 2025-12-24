@@ -5393,7 +5393,8 @@
    ggloop: do iph=1,nrph
 ! include all phases with any composition set entered (but only once!)
       if(test_phase_status_bit(iph,PHMQMQA)) then
-         write(*,*)'3Y MQMQA excluded from global test'
+         write(*,7)
+7        format('3Y MQMQA phase excluded from global test')
          cycle ggloop
       endif
       do ics=1,noofcs(iph)

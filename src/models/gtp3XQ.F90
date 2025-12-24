@@ -204,7 +204,9 @@
    sumfrac: do s1=1,ncon
       conname=connames(s1)
       if(mqmqa_data%contyp(10,s1).ne.s1) then
-         write(*,*)'3X mqmqa_data%contyp(10,s1) not redundant'
+         write(*,*)'3XQ mqmqa_data%contyp(10,s1) not redundant'
+! emergecy fix 17/12 2025 does not work 
+!         mqmqa_data%contyp(10,s1)=s1
       endif
       s3=mqmqa_data%contyp(5,s1)
       typ: if(s3.gt.0) then
@@ -1237,7 +1239,7 @@
 80       format(2x,2(1pe16.8),5x,2(1pe16.8))
       enddo
       write(*,86)mqmqa_data%ncat,(mqf%y_ik(icv),icv=1,mqmqa_data%ncat)
-86    format(/'3XQ y_i/k:',i2,3x,7F9.6)
+86    format(/'3XQ y_i/k ',i2,': ',(7F9.6))
    endif
 !--------------------------------------
 ! first loop over ALL endmembers
@@ -1459,6 +1461,11 @@
 !
       if(.not.associated(intrec)) then
          cycle endmemloop2
+      endif 
+      if(.not.btest(phlista(lokph)%status1,PHMQMQX)) then
+! this is the first MQMQA implementation with correct reference energy and
+! configurational entropy but very messy Toop/Kohler implementation
+         goto 499
       endif
 !
 !      if(mqmqxcess) then
@@ -1490,27 +1497,30 @@
 ! intrec is nullified inside new_mqmqa_excess
       if(mqmqxcess) write(*,*)'3XQ back with excess from endmember ',mqmqjy,&
            associated(endmemrec)
-      if(mqmqxcess) write(*,317)gz%nofc,vals(1),vals(2),&
-           (dvals(1,jq),jq=1,gz%nofc)
-317   format('3XQ excess:  ',i3,2(1pe12.4)/6(1pe12.4))
+!      if(mqmqxcess) write(*,317)gz%nofc,vals(1),vals(2),&
+!      write(*,317)gz%nofc,rtg*vals(1),rtg*vals(2),&
+!           (rtg*dvals(1,jq),jq=1,gz%nofc)
+317   format('3XQ Back from new_mqmqa:  ',i3,2(1pe12.4)/6(1pe12.4))
 !
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~      
 ! BIG STEP ... add vals, dvals to G and dG/dy
 ! what about aff?
 !
+! what is ipy? It is the property 1 is G, 2 is BMAGN or something else
+      ipy=1
       if(mqmqxcess) write(*,318)phres%gval(1,ipy),&
            (phres%dgval(1,jq,ipy),jq=1,gz%nofc)
 318   format('3XQ G & G.y: ',1pe12.4/6(1pe12.4))
       do itp=1,6
-! loop for G, G.T, G.P, G.T.T, G.T.P, G.P.P
+! loop for G, G.T, G.P, G.T.T, G.T.P, G.P.P to add excess contribution
          phres%gval(itp,ipy)=phres%gval(itp,ipy)+vals(itp)
       enddo
+! TEMPORARILY REMOVED SOME LOOPS
       do jq=1,gz%nofc
 ! skip loop for dG/dy, d2G/dydT, d2G/dydP, only for constituents
-!         do itp=1,3
-         itp=1
-         phres%dgval(itp,jq,ipy)=phres%dgval(itp,jq,ipy)+dvals(itp,jq)
-!         enddo
+         do itp=1,3
+            phres%dgval(itp,jq,ipy)=phres%dgval(itp,jq,ipy)+dvals(itp,jq)
+         enddo
       enddo
 !      
 ! ignore 2nd derivatives as not calculated for excess
@@ -1522,11 +1532,13 @@
 !******************* new code above should replace code below *******
 !
 ! There are excess parameters, any Tooprecords?
-      write(*,319)
+499      continue
+!      write(*,319)
 319   format(//'3XQ *** this is the old mqmqa excess model **'//)
       if(associated(intrec%tooprec)) then
 ! the allocatable arrays Toop1, Toop2 and Kohler have all same size
 ! equal to the number of binary combination of constituents
+!
          tooprec=>intrec%tooprec
          if(tch.ge.3) then
             write(*,'(a,2i3,l2)')'3XQ A Toop/Kohler record, id:',&
@@ -1694,6 +1706,8 @@
 !----------------------------------------------------- end SNN loop
 800 continue
 !   write(*,990)'3XQ exit calc_mqmqa G:',phres%gval(1,1),&
+!        (phres%dgval(1,s1,1),s1=1,gz%nofc)
+!   write(*,990)'3XQ exit calc_mqmqa G:',rtg*phres%gval(1,1),rtg*vals(1)
 !        (phres%dgval(1,s1,1),s1=1,gz%nofc)
 990 format(a,5(1pe14.6))
 1000 continue
@@ -2097,7 +2111,7 @@
 ! y_ik, \xi or \varkappa which depend on quads
 ! we have to sort out how this affects the derivatives
 ! dy_ik are factors for y_ik relative to quads, can be 1 or less
-! dxi_ij and dx_ji and  dvk_ij and dvk_ji are the same.
+! dxi_ij and dx_ji and  dvk_ij and dvk_ji are 1 or less
 ! a parameter P multiplied with vk_ij(ij) has several contributions to the
 ! derivatives dP(zz), dvk_ij(ij,zz),zz=1,nquad
   integer idyix(5,mqmqa_data%nquad)
@@ -2226,7 +2240,7 @@
          cxq=mqmqa_data%quad2compvar(xq)
          par3: if(nfr.gt.3) then
             if(ternaryonce) write(*,116)
-116         format(/'3XQ *** ternary parameter not implemented ***'/)
+116         format(/'3XQ *** ternary parameter not yet implemented ***'/)
             ternaryonce=.false.
             mqmqx_deltag=0.0d0
             vals=0.0d0
@@ -2281,38 +2295,48 @@
 !--------------------------------------------------------------------
 ! calculate the parameter with composition variables
          if(ptyp1.eq.'G') then
-            nomin=(mqf%compvar(cxq)%vk_ij)**ppow*(mqf%compvar(cxq)%vk_ji)**qpow
+! ppow is for ij or ji ? USING varkappa
+!            write(*,*)'3XQ ppow: ',ppow,qpow
+            nomin=(mqf%compvar(cxq)%vk_ij)**ppow*&
+                 (mqf%compvar(cxq)%vk_ji)**qpow
+!
             compprod=mqf%xquad(xq)*nomin*ternary
             mqmqx_deltag=compprod*vals(1)
+!            write(*,120)xq,cxq,ppow,qpow,mqf%xquad(xq),&
+!                 mqf%compvar(cxq)%vk_ij,mqf%compvar(cxq)%vk_ji,vals(1),&
+!                 mqmqx_deltag
+120         format('3XQ Quad, compvar :',2i3,', powers ',2i3,' quad ',1pe11.4/&
+                 ' \vk_ij ',1pe11.4,' \vk_ji',1pe11.4,' para ',1pe11.4,&
+                 ' Delta G ',1pe12.5)
             if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,1.0d0,compprod
 118         format('3XQ comprod: ',1pe15.8,'*',1pe15.8,'/',1pe15.8,' =',1pe15.8)
 ! partial derivative begin, we have to loop for all quads <<<<<<<<<<<<<<<<<<<<
-!            if(mqmqxcess) write(*,301)dvals(1,1),dvals(1,2),dvals(1,3)
-!            write(*,301)dvals(1,1),dvals(1,2),dvals(1,3),&
-!                 allocated(mqf%compvar(1)%ivk_ij),&
-!                 allocated(mqf%compvar(1)%dvk_ij)
-301         format('3XQ partial derivatives:',3(1pe12.4),2l2)
-!            write(*,302)size(mqf%compvar(1)%dvk_ij),&
-!                 mqf%compvar(1)%dvk_ij,mqf%compvar(1)%dvk_ji
-302         format('3XQ dvk: ',i3,6(1pe12.4))
             do zkij=1,mqmqa_data%nquad
-! loop for all quads, one addad if zkij=xq; cxq is index of varkappa
+! loop for all quads, one added if zkij=xq; cxq is index of varkappa
 ! All mqf%compvar(cxq)%dvk_ij are already calculated ??!!  one is global 1.0D0
                one1=0.0d0
                if(zkij.eq.xq) then
-                  one1=one
+                  one1=one/xq
                endif
-               haha=one1+&
+! the partial derivative of quad*(\vk_ij**ppow)*(\vk_ji)**qpow*L
+! (dq/dz + pdvk_ij/dz + qdvk_ji/dz )*(vk_ij**ppow)*(vk_ji**qpow)*L
+!
+               haha=one1/xq+&
                     ppow*mqf%compvar(cxq)%dvk_ij(xq)/mqf%compvar(cxq)%vk_ij+&
                     qpow*mqf%compvar(cxq)%dvk_ji(xq)/mqf%compvar(cxq)%vk_ji
-!               if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,1.0d0,compprod
+!
+!               write(*,308)haha,one1,ppow,mqf%compvar(cxq)%dvk_ij(xq),&
+!                    mqf%compvar(cxq)%vk_ij,qpow,mqf%compvar(cxq)%dvk_ji(xq),&
+!                    mqf%compvar(cxq)%vk_ji
+308            format('3xQ haha: ',2(1pe11.3),i2,2(e11.3),i2,2(e11.3))
+!
                if(mqmqxcess) then
-                  write(*,310)zkij,mqf%compvar(cxq)%dvk_ij(xq),&
-                       mqf%compvar(cxq)%dvk_ji(xq),haha,vals
-310               format('3XQ dvk_ij/ji: ',i3,4(1pe12.4))
+                  write(*,310)zkij,xq,mqf%compvar(cxq)%dvk_ij(xq),&
+                       mqf%compvar(cxq)%dvk_ji(xq),haha,vals(1),vals(2)
+310               format('3XQ dvk_ij/ji: ',2i3,5(F8.4))
                endif
-               dvals(1,zkij)=dvals(1,zkij)+haha*vals(1)
-               dvals(2,zkij)=dvals(2,zkij)+haha*vals(2)
+               dvals(1,zkij)=dvals(1,zkij)+(haha-one1)*vals(1)
+               dvals(2,zkij)=dvals(2,zkij)+(haha-one1)*vals(2)
             enddo
 ! partial derivative end >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
          elseif(ptyp1.eq.'Q') then
@@ -2320,15 +2344,21 @@
             divisor=(mqf%compvar(cxq)%xi_ij+mqf%compvar(cxq)%xi_ji)**(ppow+qpow)
             compprod=mqf%xquad(xq)*nomin*ternary/divisor
             mqmqx_deltag=compprod*vals(1)
-            if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,divisor,compprod
+! loop for all quads has to be added
+            write(*,*)'3XQ \xi excess derivatives missing'
          else
             write(*,*)'3XQ proptyp B is not implemented: ',ptyp1
             stop
          endif
+! vals is the returned value
+         vals(1)=compprod*vals(1)
+         vals(2)=compprod*vals(2)
+         if(mqmqxcess) write(*,118)mqf%xquad(xq),nomin,divisor,compprod
 ! we have to add values to the derivatives as well as function
 800      continue
          if(mqmqxcess) write(*,119)proprec%antalprop,(ylinks(jj),jj=1,nfr)
          if(mqmqxcess) write(*,121)vals(1),compprod,mqmqx_deltag
+!         write(*,121)vals(1),compprod,mqmqx_deltag
 119      format('3XQ Delta G to be added to G, propid:',i4,', yix:',10i4)
 121      format('3XQ param ',1pe15.8,', comprod ',1pe15.8,', Delta G ',1pe15.8)
 !---------------------------------------------------------------------
@@ -3075,10 +3105,12 @@
 !
 !   write(*,90)mqmqa_data%ncat*mqmqa_data%nan
 90 format('Allocating pair fraction array y_i/k: ',i4)
+! y_ik varies with the current constitution
    allocate(mqf%y_ik(mqmqa_data%ncat*mqmqa_data%nan))
 ! with multiple anion derivatives add dimension nan also
 ! its content is set in varkappa1
 !   write(*,*)'3XQ allocating mqf%dy_ik: ',ncat,nan,nquad, assume nan=1
+! dy_ik is a structure information, independent of current constitution
    allocate(mqmqa_data%dy_ik(mqmqa_data%ncat,mqmqa_data%nquad))
    call pairfracs(.false.,mqf)
 !
@@ -3167,7 +3199,7 @@
    do i=1,mqmqa_data%ncat
       mqf%y_ik(i)=yfs(i)/sum2
    enddo
-   write(*,*)'3XQ line 3021 Calculated y_i/k from quad fractions',mqf%y_ik(1)
+   write(*,*)'3XQ line 3179 Calculated y_i/k from quad fractions',mqf%y_ik(1)
    if(list) then
       write(*,10)'\etafs   ',mqmqa_data%qfnnsnn,sum2
       write(*,10)'y_i/k:   ',mqf%y_ik,sum1
@@ -3703,12 +3735,12 @@
 ! attempt to move mqmqa variables into the mqmqa_var record
 !   ceq=>firsteq
 !
-! I may have forgotten to set y_ik !!!!
+! I have forgotten to set y_ik !!!!
 ! maybe problem with the array here ...
    mqf=>phres%mqmqaf
 !   write(*,*)'3XQ line 3560 updating vk_ij, xi_ij and y_ik with new quad fracs'
 !   write(*,10)'3XQ old',(mqf%y_ik(v),v=1,mqmqa_data%ncat)
-10 format(a,' values of y_ik:',15(f8.3))
+10 format(a,15(f8.5))
    do v=1,mqmqa_data%ncat
       mqf%y_ik(v)=0.0d0
 !      write(*,20)'3XQ dy_ik',(mqmqa_data%dy_ik(v,w),w=1,mqmqa_data%nquad)
@@ -3717,7 +3749,7 @@
          mqf%y_ik(v)=mqf%y_ik(v)+mqmqa_data%dy_ik(v,w)*mqf%xquad(w)
       enddo
    enddo
-!   write(*,10)'3XQ new',(mqf%y_ik(v),v=1,mqmqa_data%ncat)
+!   write(*,10)'3XQ line 3731 y_ik:',(mqf%y_ik(v),v=1,mqmqa_data%ncat)
 !
 !   write(*,*)'3XQ in varkappa1',seq
 !   write(*,*)'3XQ in varkappa1',mqf%nquad
@@ -3745,6 +3777,9 @@
    mii=ijklx(icat,icat,ia,ia)
    mij=ijklx(icat,jcat,ia,ia)
    mjj=ijklx(jcat,jcat,ia,ia)
+! how to deallocate box%asymm_nu and box%asymm_gamma?
+!   deallocate(box%asymm_nu)
+!   deallocate(box%asymm_gamma)
 !
    nysym=.false.
    if(newXupdate.gt.box%lastupdate) then
@@ -4000,7 +4035,16 @@
    if(mqmqdebug .or. mqmqxcess) then
       nn1=size(box%ivk_ij); nn2=size(box%jvk_ji); nn3=size(box%kvk_ijk)
       nn4=mqmqa_data%nquad; nn5=mqmqa_data%nquad;
-      nn6=size(box%asymm_nu); nn7=size(box%asymm_gamma)
+      if(allocated(box%asymm_nu)) then
+         nn6=size(box%asymm_nu)
+      else
+         nn6=0
+      endif
+      if(allocated(box%asymm_gamma)) then
+         nn7=size(box%asymm_gamma)
+      else
+         nn7=0
+      endif
       write(*,700)2,nn1,nn2,nn3,nn4,nn5,nn6,nn7,nugamma
 700   format('3XQ Sizes: ',i1,': ',7i3,1pe12.4)
       write(*,710)'ivk_ij  ',(box%ivk_ij(i),i=1,nn1)
@@ -4008,8 +4052,8 @@
       write(*,710)'kvk_ijk ',(box%kvk_ijk(i),i=1,nn3)
       write(*,709)'dxi_ij  ',(box%dxi_ij(i),i=1,nn4)
       write(*,709)'dxi_ji  ',(box%dxi_ji(i),i=1,nn5)
-      write(*,708)'nu      ',(box%asymm_nu(i),i=1,nn6)
-      write(*,708)'gamma   ',(box%asymm_gamma(i),i=1,nn7)
+      if(nn6.gt.0) write(*,708)'nu      ',(box%asymm_nu(i),i=1,nn6)
+      if(nn7.gt.0) write(*,708)'gamma   ',(box%asymm_gamma(i),i=1,nn7)
 709   format('Factors ',a,': ',10f6.3)
 708   format('Ternary quad asymmetry ',a,': ',5i4)
 710   format('Quad in ',a,': ',5i4)
@@ -4149,9 +4193,9 @@
       do k=1,mqmqa_data%nquad
          write(*,100)k,box%dvk_ij(k),box%dvk_ji(k)
       enddo
-100   format('In dexcess_dq: dvk_ij, dvk_ji wrt quad: ',i3,2(1pe14.6))
+100   format('3XQ In dexcess_dq: dvk_ij, dvk_ji wrt quad: ',i3,2(1pe14.6))
    endif
-! now derivatives of xi
+! now derivatives of xi with respect to quads      NOT DONE ???????
 !
    return
  end subroutine dexcess_dq
