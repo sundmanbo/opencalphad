@@ -2524,6 +2524,11 @@
 ! pquad(3) should be the alphabetically second in quad AB/X, i.e B/X
 ! pquad(4) should be the 4th quand, not including A or B 
    temp(2)=mqmqa_data%con2quad(jord(2,1))
+! one may have jord(2,2)=0 here if vacancies
+   if(jord(2,2).eq.0) then
+      write(*,*)'3XQ Vacancy not allowed in MQMQA quad'
+      gx%bmperr=4399; goto 1000
+   endif
    temp(3)=mqmqa_data%con2quad(jord(2,2))
 ! the quad index related to temp(2) and temp(3) should be temp(1) ???
 ! check:
@@ -4903,6 +4908,131 @@
 1000 continue
       return
  end subroutine listpartree
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!addtotable subroutine varkappa
+!\begin(verbatim} subroutine varkappa
+ subroutine varkappadefs(phres)
+! subroutine to list \varakappa, \xi and y_ik definitions
+   type(gtp_phase_varres), pointer :: phres
+!   type(gtp_phase_varres), pointer :: mqmqavar
+!\end{verbatim}
+   integer nv,cat1,cat2,i,j,k,ip,i0,jp
+   type(gtp_mqmqa_var), pointer :: mqf
+   type(gtp_allinone), pointer :: box
+   character*80 line1,line2,qline
+   character*2, dimension(:), allocatable :: quadcat
+!
+   mqf=>phres%mqmqaf
+! copied from pmon
+!   write(kou,4124)mqmqa_data%nquad,mqmqa_data%ncat
+4124 format(/'The ',i3,' quads for ',i2,' cations are arranged ',&
+          'in order of the n cations:'/&
+          'Quad  ',9x,'1   2  ...  n | n+1 n+2 ... 2n-1 | 2n .. | n(n+1)/2'/&
+          'Cation',9x,'1   1  ...  1 | 2   2   ...  2   | 3  .. | n'/&
+          'Cation',9x,'1   2  ...  n | 2   3   ...  n   | 3  .. | n')
+!
+! identify the actual cations in all quads as above
+!   write(*,50)(i,i=1,mqmqa_data%nquad)
+   allocate(quadcat(mqmqa_data%nquad))
+   line1='Cat1:'
+   ip=6
+   i0=ichar('0')
+   k=1
+   do i=1,mqmqa_data%ncat
+      do j=i,mqmqa_data%ncat
+         line1(ip:ip+2)='  '//char(i0+i)
+         quadcat(k)(1:1)=char(i0+i)
+         k=k+1
+         ip=ip+3
+      enddo
+      ip=ip+1
+   enddo
+51 format(a)
+   line2='Cat2:'
+   qline='Quad:'
+   ip=6
+   k=1
+   i0=ichar('0')
+   do i=1,mqmqa_data%ncat
+      do j=i,mqmqa_data%ncat
+         line2(ip:ip+2)='  '//char(i0+j)
+         quadcat(k)(2:2)=char(i0+j)
+         if(k.lt.10) then
+            qline(ip:ip+2)='  '//char(i0+k)
+         else
+            qline(ip:ip+2)=' 1'//char(i0+k-10)
+         endif
+         ip=ip+3
+         k=k+1
+      enddo
+      ip=ip+1
+   enddo
+   write(*,51)trim(qline)
+   write(*,51)trim(line1)
+   write(*,51)trim(line2)
+!
+! quadcat(k)(1:2) are the 2 cation indices (as characters) in quad k
+! ivk_ij, ivk_ji, kvk_ijk arrays of quad indices indices
+!   vkloop: do nv=1,size(mqf%compvar)
+!      box=>mqf%compvar(nv)
+! box%ivk_ij(1..n) are indices of quads to be added 
+!      write(*,100)'vk_ij',(box%ivk_ij(cat1),cat1=1,size(box%ivk_ij))
+!      write(*,100)'vk_ji',(box%jvk_ji(cat1),cat1=1,size(box%jvk_ji))
+!      write(*,100)'denom',(box%kvk_ijk(cat1),cat1=1,size(box%kvk_ijk))
+!100   format(a,10i3)
+!   enddo vkloop
+   write(*,*)
+   vkloop2: do nv=1,size(mqf%compvar)
+! _ij
+      box=>mqf%compvar(nv)
+      line1='x_'//quadcat(box%ivk_ij(1))
+      ip=len_trim(line1)+1
+      k=2
+      do while(k.le.size(box%ivk_ij))
+         line1(ip:)=' +x_'//quadcat(box%ivk_ij(k))
+         k=k+1
+         ip=ip+6
+      enddo
+      write(*,105)'vk_'//char(i0+box%cat1)//char(i0+box%cat2)//' = '//&
+           trim(line1)
+! _ji
+      line2='x_'//quadcat(box%jvk_ji(1))
+      ip=len_trim(line2)+1
+      k=2
+      do while(k.le.size(box%jvk_ji))
+         line2(ip:)=' +x_'//quadcat(box%jvk_ji(k))
+         k=k+1
+         ip=ip+6
+      enddo
+      write(*,105)'vk_'//char(i0+box%cat2)//char(i0+box%cat1)//' = '//&
+           trim(line2)
+! _denom
+      qline=trim(line1)//'+'//trim(line2)//' +x_'//quadcat(box%kvk_ijk(1))
+      ip=len_trim(qline)+1
+      k=2
+      do while(k.le.size(box%kvk_ijk))
+         qline(ip:)=' +x_'//quadcat(box%kvk_ijk(k))
+         k=k+1
+         ip=ip+6
+      enddo
+      write(*,105)'denom = '//trim(qline)
+105   format(a)
+!
+!      write(*,110)'vk_',box%cat1,box%cat2,quadcat(box%ivk_ij(1)),
+!           ((quadcat(box%jvk_ji(cat1)),cat1=2,size(box%jvk_ji))
+!
+!      write(*,110)'vk_',box%cat1,box%cat2,&
+!           (quadcat(box%jvk_ji(cat1)),cat1=1,size(box%jvk_ji))
+!      write(*,120)'denom = vk_ij+vk_ji + ',&
+!           (quadcat(box%kvk_ijk(cat1)),cat1=1,size(box%kvk_ijk))
+!110   format(a,2i1,' = x_',a,'+'))
+!120   format(a,20('x_',a,'+'))
+   enddo vkloop2
+1000 continue
+   return
+ end subroutine varkappadefs
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 

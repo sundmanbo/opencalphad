@@ -306,7 +306,7 @@ contains
 ! subsubcommands to LIST MQMQA_SPECIALS
     character (len=16), dimension(mqmqacc) :: mqmqalist=&
         ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
-         'EXCESS          ','                ','                ']
+         'EXCESS          ','VARKAPPA        ','                ']
 !------------------- subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
@@ -5218,7 +5218,7 @@ contains
 ! list MQMQA_SPECIAL
 !    character (len=16), dimension(mqmqacc) :: mqmqalist=&
 !        ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
-!         'EXCESS          ','                ','                ']
+!         'EXCESS          ','VARKAPPA        ','                ']
        case(22)
 ! allow output file
 !          lut=optionsset%lut
@@ -5312,7 +5312,7 @@ contains
                 write(*,3301)
 3301 format('Number in T/0 column is actual asymmetric cation'/)
              else
-                write(kou,*)'No ternary asymmetry data available'
+                write(kou,*)'No ternary asymmetry data allocated'
              endif ts
 !
 ! listing of fraction in alphbetical order
@@ -5320,6 +5320,7 @@ contains
                   (ceq%phase_varres(lokcs)%yfr(i1),i1=1,mqmqa_data%nquad)
 4123         format('Fractions ',i2,' in species OC alphabetical order:',/&
                   (12F6.3))
+! mqmqaf defined globally
              noq: if(.not.allocated(ceq%phase_varres(lokcs)%mqmqaf%xquad)) then
                 write(*,*)'Quads not allocated'
              else
@@ -5350,9 +5351,6 @@ contains
                      ' variables, last update:',i5/&
              ' cat_i cat_j  seq    varkappa_ij varkappa_ji  xi_ij       xi_ji')
 ! calculate varkappaij and varkappaji correcting for all ternaries
-!                mqmqavar=>ceq%phase_varres(lokcs)%mqmqaf
-!                call calcasymvar(ceq%phase_varres(lokcs))
-!                call calcasymvar(ceq%phase_varres(lokcs))
                 mqmqavar=>ceq%phase_varres(lokcs)
                 call calcasymvar(mqmqavar)
                 j4=0
@@ -5374,8 +5372,14 @@ contains
             write(kou,444)'Values of y_i/k: ',&
                  (ceq%phase_varres(lokcs)%mqmqaf%y_ik(i1),i1=1,mqmqa_data%ncat)
 444         format(/a,(10f7.4))
-! an empty line last
             write(kou,*)
+! an empty line last
+            call gparcdx('Details on varkappa?',cline,last,1,ch1,'N',&
+                 '?Varkappa')
+            if(ch1.ne.'N') then
+               mqmqavar=>ceq%phase_varres(lokcs)
+               call varkappadefs(mqmqavar)
+            endif
 !
 !...........................................................
 ! DEBUG for implementation of asymmetric models
@@ -5427,9 +5431,10 @@ contains
              call listpartree(lokph)
 
 !...........................................................
-! 
+! list varkappa definitions 
           case(5)
-             write(kou,*)'Not implemented yet'
+!
+!             write(kou,*)'Not implemented yet'
 
 !...........................................................
 ! 
