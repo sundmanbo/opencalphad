@@ -1676,6 +1676,7 @@ contains
 !         ['ONLY_G          ','G_AND_DGDY      ','ALL_DERIVATIVES ',&
 !          'CONSTITUTION_ADJ','DIFFUSION_COEFF ','QUIT            ']
 !
+          defcp=1
           kom3=submenu('Calculate what for phase?',cline,last,ccph,nccph,defcp,&
                '?TOPHLP')
 !        if(kom2.le.0) goto 100
@@ -1716,9 +1717,10 @@ contains
              parres=>ceq%phase_varres(lokres)
              nofc=noconst(iph,ics,firsteq)
              write(lut,2031)(cpham*rgast*parres%gval(j4,1),j4=1,4)
+             write(lut,2033)
+2033         format('dG/dy: ... dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!')
              write(lut,2041)(rgast*parres%dgval(1,j4,1),j4=1,nofc)
-2041         format('dG/dy:   ',4(1PE16.8),(/9x,4e16.8)/&
-                  ' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!')
+2041         format(9x,5e14.4)
 !.......................................................
           case(3) ! calculate phase < > all derivatives
              call gparidx('Number of times: ',cline,last,times,1,&
@@ -5302,7 +5304,7 @@ contains
 ! tersys is global data
              ts: if(allocated(tersys)) then
                 write(*,3101)size(tersys)
-3101  format(/'Listing of the ',i3,' ternary systems and their asymmetry',&
+3101  format(/'Listing of the ',i3,' ternary systems and their asymmetries',&
           /'  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
                 do iz=1,size(tersys)
                    write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
@@ -5357,7 +5359,7 @@ contains
                 cat1: do i1=1,mqmqa_data%ncat-1
                    cat2: do i2=i1+1,mqmqa_data%ncat
                       j4=j4+1
-                   write(kou,412)i1,i2,j4,&
+                      write(kou,412)i1,i2,j4,&
                         ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%vk_ij,&
                         ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%vk_ji,&
                         ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%xi_ij,&
@@ -5365,21 +5367,32 @@ contains
 !                   write(kou,412)i1,i2,j4,compvar(j4)%vk_ij,compvar(j4)%vk_ji,&
 !                        compvar(j4)%xi_ij,compvar(j4)%xi_ji
 412                format(2i6,i5,3x,4(1PE12.4))
-                  enddo cat2
-               enddo cat1
-            endif noq
+                   enddo cat2
+                enddo cat1
+             endif noq
 !
-            write(kou,444)'Values of y_i/k: ',&
+             write(kou,444)'Values of y_i/k: ',&
                  (ceq%phase_varres(lokcs)%mqmqaf%y_ik(i1),i1=1,mqmqa_data%ncat)
-444         format(/a,(10f7.4))
-            write(kou,*)
-! an empty line last
-            call gparcdx('Details on varkappa?',cline,last,1,ch1,'N',&
-                 '?Varkappa')
-            if(ch1.ne.'N') then
-               mqmqavar=>ceq%phase_varres(lokcs)
-               call varkappadefs(mqmqavar)
-            endif
+444          format(/a,(10f7.4))
+             write(kou,*)
+! an empty line before extended information
+             call gparcdx('Details on varkappa?',cline,last,1,ch1,'N',&
+                  '?Varkappa')
+             if(ch1.ne.'N') then
+                mqmqavar=>ceq%phase_varres(lokcs)
+                call varkappadefs(mqmqavar)
+             endif
+! repeat the asymmetries
+             if(allocated(tersys)) then
+                write(*,3101)size(tersys)
+                do iz=1,size(tersys)
+                   write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
+                        tersys(iz)%isasym,tersys(iz)%asymm
+                enddo
+                write(*,3301)
+             else
+                write(kou,*)'No ternary asymmetry data allocated'
+             endif
 !
 !...........................................................
 ! DEBUG for implementation of asymmetric models

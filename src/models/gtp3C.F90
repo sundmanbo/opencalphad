@@ -3824,6 +3824,7 @@
             jp=jp+2
 !            write(*,50)1,jp,ch1,trim(constarr),ideg
 50          format('3C MQMQA excess ',i1,i5,' "',a,'" "',a,'" ideg',i5)
+            call capson(ch1)
             if(ch1.eq.'G') then
                ideg=1000
             elseif(ch1.eq.'Q') then

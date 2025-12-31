@@ -2116,7 +2116,7 @@
 ! derivatives dP(zz), dvk_ij(ij,zz),zz=1,nquad
   integer idyix(5,mqmqa_data%nquad)
   integer zkij
-  double precision haha,one1
+  double precision haha,one1,dnomin,ddivisor,dternary
   double precision dyix(5,mqmqa_data%nquad)
 !
    character*1 ptyp1
@@ -2240,7 +2240,7 @@
          cxq=mqmqa_data%quad2compvar(xq)
          par3: if(nfr.gt.3) then
             if(ternaryonce) write(*,116)
-116         format(/'3XQ *** ternary parameter not yet implemented ***'/)
+116         format(/'3XQ *** ternary parameters not yet implemented ***'/)
             ternaryonce=.false.
             mqmqx_deltag=0.0d0
             vals=0.0d0
@@ -2316,12 +2316,14 @@
 ! All mqf%compvar(cxq)%dvk_ij are already calculated ??!!  one is global 1.0D0
                one1=0.0d0
                if(zkij.eq.xq) then
-                  one1=one/xq
+!                  one1=one/xq
+                  one1=one/mqf%xquad(xq)
                endif
 ! the partial derivative of quad*(\vk_ij**ppow)*(\vk_ji)**qpow*L
 ! (dq/dz + pdvk_ij/dz + qdvk_ji/dz )*(vk_ij**ppow)*(vk_ji**qpow)*L
 !
-               haha=one1/xq+&
+!               haha=one1/xq+&
+               haha=one1+&
                     ppow*mqf%compvar(cxq)%dvk_ij(xq)/mqf%compvar(cxq)%vk_ij+&
                     qpow*mqf%compvar(cxq)%dvk_ji(xq)/mqf%compvar(cxq)%vk_ji
 !
@@ -2335,6 +2337,7 @@
                        mqf%compvar(cxq)%dvk_ji(xq),haha,vals(1),vals(2)
 310               format('3XQ dvk_ij/ji: ',2i3,5(F8.4))
                endif
+! dvals(1,xq) is derivative wrt zkij, dvals(2,xq) is derivative wrt zkij and T
                dvals(1,zkij)=dvals(1,zkij)+(haha-one1)*vals(1)
                dvals(2,zkij)=dvals(2,zkij)+(haha-one1)*vals(2)
             enddo
@@ -2344,8 +2347,24 @@
             divisor=(mqf%compvar(cxq)%xi_ij+mqf%compvar(cxq)%xi_ji)**(ppow+qpow)
             compprod=mqf%xquad(xq)*nomin*ternary/divisor
             mqmqx_deltag=compprod*vals(1)
+            do zkij=1,mqmqa_data%nquad
 ! loop for all quads has to be added
-            write(*,*)'3XQ \xi excess derivatives missing'
+               one1=1.0d0
+               if(zkij.eq.xq) then
+!                  one1=one/xq
+                  one1=one/mqf%xquad(xq)
+               endif
+! excess is quad(xq)*\xi_ij**ppow\xi_ji**qpow/(\xi_ij+\xi_ji)**(ppow+qpow)
+! next line is the derivative of compprod, nomin and divisor above wrt quad(xq) 
+         dnomin=(ppow*mqf%compvar(cxq)%dxi_ij(xq)/mqf%compvar(cxq)%xi_ij+&
+                 qpow*mqf%compvar(cxq)%dxi_ij(xq)/mqf%compvar(cxq)%xi_ji)*nomin
+               ddivisor=(ppow+qpow)*(mqf%compvar(cxq)%dxi_ij(xq)+&
+                                     mqf%compvar(cxq)%dxi_ji(xq))*divisor
+               haha=one1+(dnomin/divisor-nomin*ddivisor/divisor**2)
+               dvals(1,zkij)=dvals(1,zkij)+(haha-one1)*vals(1)
+               dvals(2,zkij)=dvals(2,zkij)+(haha-one1)*vals(2)
+            enddo
+!            write(*,*)'3XQ \xi excess derivatives missing'
          else
             write(*,*)'3XQ proptyp B is not implemented: ',ptyp1
             stop
@@ -3122,7 +3141,7 @@
 1000 continue
 !
 ! REMOVE ncat from global data structure
-!  write(*,99)mqmqa_data%ncat,mqmqa_data%nquad,size(phres%yfr),size(mqf%compvar)
+  write(*,99)mqmqa_data%ncat,mqmqa_data%nquad,size(phres%yfr),size(mqf%compvar)
 99 format(/'3QX **** leaving init_excess_asym : ',10i4/)
 !
    return
@@ -3204,7 +3223,7 @@
    do i=1,mqmqa_data%ncat
       mqf%y_ik(i)=yfs(i)/sum2
    enddo
-   write(*,*)'3XQ line 3179 Calculated y_i/k from quad fractions',mqf%y_ik(1)
+!   write(*,*)'3XQ line 3179 Calculated y_i/k from quad fractions',mqf%y_ik(1)
    if(list) then
       write(*,10)'\etafs   ',mqmqa_data%qfnnsnn,sum2
       write(*,10)'y_i/k:   ',mqf%y_ik,sum1
@@ -3627,11 +3646,13 @@
 !   type(gtp_mqmqa_var), pointer :: mqmqavar
 !   type(gtp_mqmqa_var), pointer :: mqmqavar
 !\end{verbatim}
-   integer i,j,ia,seq
+   integer i,j,ia,seq,k,l,m
+   type(gtp_mqmqa_var), pointer :: mqf
 ! how to create xquad mm when we need a pointer to gtp_phase_varres?
 !   type(gtp_equilibrium_data), pointer :: ceq
 !   type(gtp_phase_varres), pointer :: phres
 !   type(gtp_mqmqa_var), pointer :: mqf
+   type(gtp_allinone), pointer :: box
 ! attempt to move mqmqa variables into the mqmqa_var record
 !   phres=>ceq%phase_varres(lokvar)
 !   mqf=>phres%mqmqaf
@@ -3667,6 +3688,47 @@
          call varkappa1(seq,phres)
       enddo
    enddo
+! inside varkappa1 one adds quads to vk_ij and vk_ji and 
+! if one has ijklx(vz1,vz1,ia,ia) in vk_ij and ijklx(vz2,vz2,ia,ia) in vk_ij
+! then the %kvk_ij needs an additional ijkl(vz1,vz2,ia,ia)
+! Check that here .... (this is due to bad initial programming)
+   mqf=>phres%mqmqaf
+!   write(*,790)mqmqa_data%emquad
+790 format('3XQ em2quad: ',25i3)
+   do i=1,size(mqf%compvar)
+!  if in vk_ij one has added (vz1,vz1,ia,ia)
+!  and in vk_ji added        (vz2,vz2,ia,ia)
+! one must add (vz1,vz2,ia,ia) to the kvk_ij (now done in calling routine)
+      box=>mqf%compvar(i)
+!      write(*,800)i,box%cat1,box%cat2
+!      write(*,805)'ivk_ij  ',box%ivk_ij
+!      write(*,805)'jvk_ij  ',box%jvk_ji
+!      write(*,805)'kvk_ijk ',box%kvk_ijk
+      do j=2,size(box%ivk_ij)
+         do k=1,size(mqmqa_data%emquad)
+            if(box%ivk_ij(j).eq.mqmqa_data%emquad(k)) then
+! we have an endmember quad in ivk_ij (in addition to the first)
+! Check if we have another endmember quad in jvk_ji
+               do l=1,size(box%jvk_ji)
+                  do m=1,size(mqmqa_data%emquad)
+                     if(box%jvk_ji(l).eq.mqmqa_data%emquad(m)) then
+                        if(k.ne.m) then
+! we have 2 different endmember quads in ivk_ij and jvk_ji, add mixed quad
+                           box%kvk_ijk=[box%kvk_ijk, ijklx(k,m,ia,ia)]
+!                           write(*,806)i,k,m,ijklx(k,m,ia,ia)
+!                           write(*,805)'kvk_ijk ',box%kvk_ijk
+                        endif
+                     endif
+                  enddo
+               enddo
+            endif
+         enddo
+      enddo
+! a quad representing a vz,vz,ia,ia quad is part of emquad
+   enddo
+800 format('3XQ compvar: ',i3,2x,2i3)
+805 format(a,20i3)
+806 format('3XQ adding mixed quad to kvk_ijk',i3,2x,2i3,2x,i3)
 1000 continue
    return
  end subroutine calcasymvar
@@ -3689,7 +3751,6 @@
    integer seq
    type(gtp_phase_varres), pointer :: phres
 !   type(gtp_mqmqa_var), pointer :: 
-   type(gtp_mqmqa_var), pointer :: mqf
 !\end{verbatim}
 !
 ! replaced original i and j by icat and jcat below!!    integer i,j,ia,bin
@@ -3697,6 +3758,7 @@
 ! these are quad indices of i,i, i,j abd j,j
    integer mii,mij,mjj,ia
    type(gtp_allinone), pointer :: box
+   type(gtp_mqmqa_var), pointer :: mqf
 !
 ! ia represent the single anion
 ! varkappaij and varkappaji are the 2 composition variables to be multiplied
@@ -3725,6 +3787,8 @@
 ! If a binary i-j is part of 2 or more asymmetric ternaries i-j-\nu, i-j-\gamma
 ! the quad fraction x_\nu\gamma should be added to kvk_ijk (the denomonator)
 ! of kvk_ijk
+! saving separate asymmetrical cations for a binary
+!   integer, dimension(:), allocatable :: savevz
 ! debug output
    integer nn1,nn2,nn3,nn4,nn5,nn6,nn7
    logical nysym
@@ -3743,7 +3807,7 @@
 ! I have forgotten to set y_ik !!!!
 ! maybe problem with the array here ...
    mqf=>phres%mqmqaf
-!   write(*,*)'3XQ line 3560 updating vk_ij, xi_ij and y_ik with new quad fracs'
+!   write(*,*)'3XQ line 3767 updating vk_ij, xi_ij and y_ik with new quad fracs'
 !   write(*,10)'3XQ old',(mqf%y_ik(v),v=1,mqmqa_data%ncat)
 10 format(a,15(f8.5))
    do v=1,mqmqa_data%ncat
@@ -3809,7 +3873,7 @@
          box%dxi_ij(di)=mqmqa_data%dy_ik(icat,di)
          box%dxi_ji(di)=mqmqa_data%dy_ik(jcat,di)
       enddo
-! calculare xi_  ... why??
+! calculate xi_  ... why??
       box%xi_ij=0.0d0; box%xi_ji=0.0d0
       do di=1,mqmqa_data%nquad
          box%xi_ij=box%xi_ij+box%dxi_ij(di)*mqf%xquad(di)
@@ -3817,6 +3881,10 @@
       enddo
 ! *** end of symmetric initialization of vk_ij, vk_ji, xi_ij and xi_ji
 !
+!  if in vk_ij one has added (vz1,vz1,ia,ia)
+!  and in vk_ji added        (vz2,vz2,ia,ia)
+! one must add (vz1,vz2,ia,ia) to the kvk_ij (now done in calling routine)
+!         allocate(savevz(mqmqa_data%ncat,mqmqa_data%ncat))
 ! Now take care of asymmetries and update for later use
 ! Asymmetric vk and xi are updated in the vz loop AND at the end of the loop
 ! Nathalie correction initialized <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -3832,18 +3900,22 @@
 !      write(*,*)'3QX in varkappa1'
       vzloop: do vz=1,mqmqa_data%ncat
 ! loop for all ternary systems to find with asymmetric i-j-vz and j-i-vz
+!         write(*,403)'3XQ in vzloop 1: ',vz,icat,jcat
+403      format(a,i3,2x,2i3,2x,i3,2x,5i3)
          if(vz.eq.icat .or. vz.eq.jcat) cycle vzloop
 ! check the ternary icat-jcat-vz exists
 !         ternary=terind(icat,jcat,vz,ncat)
          ternary=terind(icat,jcat,vz)
+!         write(*,403)'3XQ in vzloop 2: ',vz,icat,jcat,ternary
          if(ternary.le.0) goto 1100
 !
          selectij=asymm(ternary,icat,jcat,vz)
+!         write(*,403)'3XQ in vzloop 3: ',vz,icat,jcat,ternary,selectij
 ! asymm returns 1 if icat is an asymmetric element in icat-jcat-vz  (gamma)
 ! asymm returns 2 if jcat is an asymmetric element in icat-jcat-vz  (nu)
 ! asymm returns 3 if both icat and jcat are asymmetric in icat-jcat-vz
 ! to be considered:  asymmetric i-j-nu and i-j-gamma requires x_\nu\gamma
-!                    in the denominator
+!                    in the denominator.  For this the savevz is used
 !
 ! ********* selectij=0 means no asymmetry in this ternary***************
          if(selectij.eq.0) cycle vzloop
@@ -3860,8 +3932,9 @@
          case default
             write(*,*)'Illegal asymmetry ',selectij
             stop
-! icat is asymmetric, save in ivk_ij ************************************
-         case(1)
+!-------------------------------------------------------------------
+         case(1) ! *************************************************
+! icat is asymmetric, save in ivk_ij 
 ! an elegant Fortran assignment of an additional items in an allocatable
             box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! All quad fractions added to ivk_ij must also be added to denominator
@@ -3874,39 +3947,16 @@
                box%dxi_ji(nnn)=box%dxi_ji(nnn)+mqmqa_data%dy_ik(vz,nnn)
             enddo
 !
-            exit asymmetry
-! asymm_gamma/nu set to select one of 3 alternatives for Max eq.25 and 26
-            if(.not.allocated(box%asymm_gamma)) then
-! this means to use Y_jcat/k in the asymmetrical element
-               box%asymm_gamma=[icat]
-            else
-               box%asymm_gamma=[box%asymm_gamma, icat]
-            endif
-! This is to handle when icat is asymmetric element in several ternaries
-            if(.not.allocated(mixnugamma)) then
-! add element vz to mixnugamma as icat is asymmetric
-               mixnugamma=[vz]
-            else
-! we should add all quads with cation vz and other cations in mixnugamma
-               do nnn=1,size(mixnugamma)
-! the index of the quad with elements (vz,qz)=(qz,vz) is calculated by ijklx
-! 1            | 2               | 3         | 4         ... | n
-! 1 2 3 4 .. n | 2   3 4 .. n    | 3  4 .. n | 4 5 ...n      | n*(n+1)/2
-                  qz1=mixnugamma(nnn)
-                  qz2=ijklx(qz1,vz,1,1)
-                  box%kvk_ijk=[ box%kvk_ijk, qz2 ]
-                  box%all_ijk=[ box%all_ijk, qz2 ]
-                  write(*,*)'Added \nu\gamma quad: ',qz2
-               enddo
-               mixnugamma=[mixnugamma,vz]
-            endif
+!            exit asymmetry
 !---------------------------------------------------------------------
+         case(2) ! ***************************************************
 ! jcat is asymmetric, same as for icat just change icat to jcat!!!!
 ! and save in jvk_ji ...
-         case(2) ! **************************************************
             box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! why not            box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]
-            box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]
+!            box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]
+! Nath noted missing  ijklx(vz1,vz2,ia,ia) if icat and jcat are asymmetrical
+            box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]  ! missing
             box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
                  ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! The asymmetric xi is depend on y_ik update dxi_ij and dxi_ji
@@ -3915,35 +3965,19 @@
                box%dxi_ij(nnn)=box%dxi_ij(nnn)+mqmqa_data%dy_ik(vz,nnn)
             enddo
 !
-            exit asymmetry
-! asymm_gamma set to select one of 3 alternatives for Max eq.25 and 26
-            if(.not.allocated(box%asymm_nu)) then
-! this means to use Y_jcat/k in the asymmetrical element
-               box%asymm_nu=[jcat]
-            else
-               box%asymm_nu=[box%asymm_nu, jcat]
-            endif
-! This is to handle when jcat is asymmetric element in several ternaries
-            if(.not.allocated(mixnugamma)) then
-               mixnugamma=[vz]
-            else
-               do nnn=1,size(mixnugamma)
-                  qz1=mixnugamma(nnn)
-                  qz2=ijklx(qz1,vz,1,1)
-                  box%kvk_ijk=[ box%kvk_ijk, qz2 ]
-                  box%all_ijk=[ box%all_ijk, qz2 ]
-                  write(*,*)'Added \nu\gamma quad: ',qz2
-               enddo
-               mixnugamma=[mixnugamma,vz]
-            endif
+!            exit asymmetry
 !---------------------------------------------------------------------
-! Both icat and jcat are asymmetric
          case(3) ! **************************************************
+! Both icat and jcat are asymmetric
             box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
             box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! add ijklx(vz,vz,ia,ia) only once
-            box%kvk_ijk=[box%kvk_ijk, ijklx(icat,vz,ia,ia), &
-                 ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+! This is complicated, do not add ijklx(icat,vz,ia,ia), ijklx(jcat,vz,ia,ia)
+! and only once ijkl(vz,vz,ia,ia) .....
+! maybe not at all ?????????????
+!            box%kvk_ijk=[box%kvk_ijk, ijklx(vz,vz,ia,ia)]
+!            box%kvk_ijk=[box%kvk_ijk, ijklx(icat,vz,ia,ia), &
+!                 ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+! BUT x_(vz,vz,ia,ia) appears twice in the denominator ....(and twice on top)
             box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
                  ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! The asymmetric xi is depend on y_ik update dxi_ij and dxu_ji
@@ -3952,31 +3986,7 @@
                box%dxi_ji(nnn)=box%dxi_ji(nnn)+mqmqa_data%dy_ik(jcat,nnn)
             enddo
 !
-            exit asymmetry
-!----------------------------
-            if(.not.allocated(box%asymm_gamma)) then
-               box%asymm_gamma=[jcat]
-            else
-               box%asymm_gamma=[box%asymm_gamma, jcat]
-            endif
-            if(.not.allocated(box%asymm_nu)) then
-               box%asymm_nu=[icat]
-            else
-               box%asymm_nu=[box%asymm_nu, icat]
-            endif
-! This is when jcat and icat are asymmetric elements in several ternaries
-            if(.not.allocated(mixnugamma)) then
-               mixnugamma=[vz]
-            else
-               do nnn=1,size(mixnugamma)
-                  qz1=mixnugamma(nnn)
-                  qz2=ijklx(qz1,vz,1,1)
-                  box%kvk_ijk=[ box%kvk_ijk, qz2 ]
-                  box%all_ijk=[ box%all_ijk, qz2 ]
-                  write(*,*)'Added \nu\gamma quad: ',qz2
-               enddo
-               mixnugamma=[mixnugamma,vz]
-            endif
+!            exit asymmetry
          end select asymmetry
 ! if selectij is 1 the asymmetry fixed for this ternary, if 2 or 3 continue
       enddo vzloop
@@ -3985,7 +3995,7 @@
 !--------------------------------------------------------------------
 !
    endif ! end of update loop
-!
+
 !--------------------------------------------------------------------
 ! Below arrays box%ivk_ij, box%jvk_ji, box%dxi_ij are used to
 ! calculate \varkappa and \xi and their derivatives
@@ -4935,6 +4945,7 @@
 !
 ! identify the actual cations in all quads as above
 !   write(*,50)(i,i=1,mqmqa_data%nquad)
+! create the quadcat indeices used for the vk_ij quad dependences 
    allocate(quadcat(mqmqa_data%nquad))
    line1='Cat1:'
    ip=6
@@ -4969,6 +4980,7 @@
       enddo
       ip=ip+1
    enddo
+! nice output of quads and cation dependencies
    write(*,51)trim(qline)
    write(*,51)trim(line1)
    write(*,51)trim(line2)
@@ -4983,7 +4995,8 @@
 !      write(*,100)'denom',(box%kvk_ijk(cat1),cat1=1,size(box%kvk_ijk))
 !100   format(a,10i3)
 !   enddo vkloop
-   write(*,*)
+   write(*,99)
+99 format('3XQ some ternary asymmetries may still be wrong')
    vkloop2: do nv=1,size(mqf%compvar)
 ! _ij
       box=>mqf%compvar(nv)
@@ -4991,9 +5004,9 @@
       ip=len_trim(line1)+1
       k=2
       do while(k.le.size(box%ivk_ij))
-         line1(ip:)=' +x_'//quadcat(box%ivk_ij(k))
+         line1(ip:)='+x_'//quadcat(box%ivk_ij(k))
          k=k+1
-         ip=ip+6
+         ip=ip+5
       enddo
       write(*,105)'vk_'//char(i0+box%cat1)//char(i0+box%cat2)//' = '//&
            trim(line1)
@@ -5002,20 +5015,21 @@
       ip=len_trim(line2)+1
       k=2
       do while(k.le.size(box%jvk_ji))
-         line2(ip:)=' +x_'//quadcat(box%jvk_ji(k))
+         line2(ip:)='+x_'//quadcat(box%jvk_ji(k))
          k=k+1
-         ip=ip+6
+         ip=ip+5
       enddo
       write(*,105)'vk_'//char(i0+box%cat2)//char(i0+box%cat1)//' = '//&
            trim(line2)
 ! _denom
+! NOTE some quad fractions appear twice!! should be removed
       qline=trim(line1)//'+'//trim(line2)//' +x_'//quadcat(box%kvk_ijk(1))
       ip=len_trim(qline)+1
       k=2
       do while(k.le.size(box%kvk_ijk))
-         qline(ip:)=' +x_'//quadcat(box%kvk_ijk(k))
+         qline(ip:)='+x_'//quadcat(box%kvk_ijk(k))
          k=k+1
-         ip=ip+6
+         ip=ip+5
       enddo
       write(*,105)'denom = '//trim(qline)
 105   format(a)
