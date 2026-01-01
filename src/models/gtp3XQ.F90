@@ -3646,7 +3646,7 @@
 !   type(gtp_mqmqa_var), pointer :: mqmqavar
 !   type(gtp_mqmqa_var), pointer :: mqmqavar
 !\end{verbatim}
-   integer i,j,ia,seq,k,l,m
+   integer i,j,ia,seq,k,l,m,ny,abrakadabra
    type(gtp_mqmqa_var), pointer :: mqf
 ! how to create xquad mm when we need a pointer to gtp_phase_varres?
 !   type(gtp_equilibrium_data), pointer :: ceq
@@ -3693,13 +3693,27 @@
 ! then the %kvk_ij needs an additional ijkl(vz1,vz2,ia,ia)
 ! Check that here .... (this is due to bad initial programming)
    mqf=>phres%mqmqaf
-!   write(*,790)mqmqa_data%emquad
-790 format('3XQ em2quad: ',25i3)
+!   write(*,790)
+790 format('3XQ **** DOUBLE CHECK KVK_IJK')
+!   box%lastupdate=-1
+!   write(*,*)'3XQ box%lastupdate: ',box%lastupdate
+!   if(box%lastupdate.ne.newXupdate) then
+!      box%lastupdate=newXupdate
+!      write(*,1001)box%seq,box%lastupdate,newXupdate
+!1001  format('3XQ allinone record ',i3,' updated to new asymmetries ',i5)
+   goto 1000
+!
+! Code below seems to be redundant ... but strange numerical problems persist
+   write(*,791)mqmqa_data%emquad
+791 format('3XQ Attempt to add mixed quads, em2quad: ',25i3)
    do i=1,size(mqf%compvar)
 !  if in vk_ij one has added (vz1,vz1,ia,ia)
 !  and in vk_ji added        (vz2,vz2,ia,ia)
 ! one must add (vz1,vz2,ia,ia) to the kvk_ij (now done in calling routine)
+! BUT this quad may already be present  !!!!!!!!!!!
       box=>mqf%compvar(i)
+      write(*,792)box%seq,box%lastupdate,newXupdate
+792   format('3XQ newXupdate: ',i3,2i5)
 !      write(*,800)i,box%cat1,box%cat2
 !      write(*,805)'ivk_ij  ',box%ivk_ij
 !      write(*,805)'jvk_ij  ',box%jvk_ji
@@ -3710,25 +3724,34 @@
 ! we have an endmember quad in ivk_ij (in addition to the first)
 ! Check if we have another endmember quad in jvk_ji
                do l=1,size(box%jvk_ji)
-                  do m=1,size(mqmqa_data%emquad)
+                  neverending: do m=1,size(mqmqa_data%emquad)
                      if(box%jvk_ji(l).eq.mqmqa_data%emquad(m)) then
                         if(k.ne.m) then
-! we have 2 different endmember quads in ivk_ij and jvk_ji, add mixed quad
+! we have 2 different endmember quads in ivk_ij and jvk_ji, 
+! if the mixed quad is not alreay present add it
+                           ny=ijklx(k,m,ia,ia)
+                           do abrakadabra=1,size(box%kvk_ijk)
+! check if this quad not already in box_kvk_ijk
+                           if(box%kvk_ijk(abrakadabra).eq.ny) exit neverending
+                           enddo
+! add this quad !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                            box%kvk_ijk=[box%kvk_ijk, ijklx(k,m,ia,ia)]
 !                           write(*,806)i,k,m,ijklx(k,m,ia,ia)
 !                           write(*,805)'kvk_ijk ',box%kvk_ijk
                         endif
                      endif
-                  enddo
+                  enddo neverending
                enddo
             endif
          enddo
       enddo
 ! a quad representing a vz,vz,ia,ia quad is part of emquad
+      box%lastupdate=newXupdate
    enddo
 800 format('3XQ compvar: ',i3,2x,2i3)
 805 format(a,20i3)
 806 format('3XQ adding mixed quad to kvk_ijk',i3,2x,2i3,2x,i3)
+!
 1000 continue
    return
  end subroutine calcasymvar

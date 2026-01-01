@@ -23,6 +23,8 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.01.01 version 6.100. Yet another bug eliminated.
+
 2025.12.31 version 6.099. The (last?) bug for the asymmetry relations
 of quad fractions fixed with the help of Nathalie.
 
