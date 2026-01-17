@@ -5298,7 +5298,7 @@ contains
 ! note: tersys, xquad, compvar are not linked from the phase!!!
           case(2)
 ! copied from gtp3XQ listconst
-! list element names, numbers and quad indices
+! list element names, numbers and quad indices, i1 set to number of quads
              call list_quads(i1)
 !
 ! tersys is global data
@@ -5351,7 +5351,7 @@ contains
                 write(kou,410)newXupdate
 410             format(/'List of compvar, the binary asymmetric composition',&
                      ' variables, last update:',i5/&
-             ' cat_i cat_j  seq    varkappa_ij varkappa_ji  xi_ij       xi_ji')
+             '  seq cat_i cat_j    varkappa_ij varkappa_ji  xi_ij       xi_ji')
 ! calculate varkappaij and varkappaji correcting for all ternaries
                 mqmqavar=>ceq%phase_varres(lokcs)
                 call calcasymvar(mqmqavar)
@@ -5359,14 +5359,14 @@ contains
                 cat1: do i1=1,mqmqa_data%ncat-1
                    cat2: do i2=i1+1,mqmqa_data%ncat
                       j4=j4+1
-                      write(kou,412)i1,i2,j4,&
+                      write(kou,412)j4,i1,i2,&
                         ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%vk_ij,&
                         ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%vk_ji,&
                         ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%xi_ij,&
                         ceq%phase_varres(lokcs)%mqmqaf%compvar(j4)%xi_ji
 !                   write(kou,412)i1,i2,j4,compvar(j4)%vk_ij,compvar(j4)%vk_ji,&
 !                        compvar(j4)%xi_ij,compvar(j4)%xi_ji
-412                format(2i6,i5,3x,4(1PE12.4))
+412                format(i5,2i6,3x,4(1PE12.4))
                    enddo cat2
                 enddo cat1
              endif noq
@@ -5390,6 +5390,8 @@ contains
                         tersys(iz)%isasym,tersys(iz)%asymm
                 enddo
                 write(*,3301)
+! list again element names, numbers and quad indices
+                call list_quads(i1)
              else
                 write(kou,*)'No ternary asymmetry data allocated'
              endif

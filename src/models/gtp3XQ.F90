@@ -204,7 +204,8 @@
    sumfrac: do s1=1,ncon
       conname=connames(s1)
       if(mqmqa_data%contyp(10,s1).ne.s1) then
-         write(*,*)'3XQ mqmqa_data%contyp(10,s1) not redundant'
+         write(*,212)s1,mqmqa_data%contyp(10,s1)
+212      format('3XQ Warning: mqmqa_data%contyp(10,s1) =/= s1:',2i4)
 ! emergecy fix 17/12 2025 does not work 
 !         mqmqa_data%contyp(10,s1)=s1
       endif
@@ -974,9 +975,10 @@
 ! replaced s1 by q1
    quadloop: do q1=1,ncon
       if(q1.ne.mqmqa_data%contyp(10,q1)) then
-! TEST: the value in contyp(10,q1) should be q1 ...
-         write(*,*)'3X problems in %contyp with quad indexing 7'
-         gx%bmperr=4399; goto 1000
+! TEST: the value in contyp(10,q1) should be q1 ...  260111/BoS WHY??
+         write(*,441)q1,mqmqa_data%contyp(10,q1),mqmqa_data%contyp(14,q1)
+441      format('3X problems in %contyp with quad indexing:',3i5)
+!         gx%bmperr=4399; goto 1000
       endif
       lsub=zero
 ! New code for the general case
@@ -3692,18 +3694,25 @@
 ! if one has ijklx(vz1,vz1,ia,ia) in vk_ij and ijklx(vz2,vz2,ia,ia) in vk_ij
 ! then the %kvk_ij needs an additional ijkl(vz1,vz2,ia,ia)
 ! Check that here .... (this is due to bad initial programming)
-   mqf=>phres%mqmqaf
-!   write(*,790)
-790 format('3XQ **** DOUBLE CHECK KVK_IJK')
+!   write(*,790)1
+790 format('3XQ **** DOUBLE CHECK KVK_IJK',i3)
+!   mqf=>phres%mqmqaf
 !   box%lastupdate=-1
 !   write(*,*)'3XQ box%lastupdate: ',box%lastupdate
+!   write(*,790)
 !   if(box%lastupdate.ne.newXupdate) then
 !      box%lastupdate=newXupdate
 !      write(*,1001)box%seq,box%lastupdate,newXupdate
 !1001  format('3XQ allinone record ',i3,' updated to new asymmetries ',i5)
-   goto 1000
+!   else
+!      write(*,*)'3XQ line 3707: mixed asymmetries added'
+!   endif
 !
-! Code below seems to be redundant ... but strange numerical problems persist
+!   write(*,*)'3XQ code below skipped as moved to varkappa1'
+   goto 1000
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+! Code below moved to varkappa1 ... but some numerical problems persist ...
+   write(*,790)2
    write(*,791)mqmqa_data%emquad
 791 format('3XQ Attempt to add mixed quads, em2quad: ',25i3)
    do i=1,size(mqf%compvar)
@@ -3732,12 +3741,12 @@
                            ny=ijklx(k,m,ia,ia)
                            do abrakadabra=1,size(box%kvk_ijk)
 ! check if this quad not already in box_kvk_ijk
-                           if(box%kvk_ijk(abrakadabra).eq.ny) exit neverending
+
                            enddo
 ! add this quad !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                            box%kvk_ijk=[box%kvk_ijk, ijklx(k,m,ia,ia)]
-!                           write(*,806)i,k,m,ijklx(k,m,ia,ia)
-!                           write(*,805)'kvk_ijk ',box%kvk_ijk
+                           write(*,806)i,k,m,ijklx(k,m,ia,ia)
+                           write(*,805)'kvk_ijk ',box%kvk_ijk
                         endif
                      endif
                   enddo neverending
@@ -3807,6 +3816,8 @@
 ! because their mixed quad fractions should be added to kvk_ijk
    integer, dimension(:), allocatable :: mixnugamma
    integer selectij,qz1,qz2
+! mixed update
+   integer j,k,l,m,ny,abrakadabra
 ! If a binary i-j is part of 2 or more asymmetric ternaries i-j-\nu, i-j-\gamma
 ! the quad fraction x_\nu\gamma should be added to kvk_ijk (the denomonator)
 ! of kvk_ijk
@@ -3875,7 +3886,7 @@
 !
    nysym=.false.
    if(newXupdate.gt.box%lastupdate) then
-!       write(*,5)box%seq,box%lastupdate,newupdate
+      write(*,5)box%seq,box%lastupdate,newXupdate
 5     format(/'Updating allinone record ',i5,' from ',i5,' to ',i5)
 ! *** this code part needed only once when all asymmetries are defined
 ! the arrays below are allocated, the initial 0 is overwritten if used
@@ -4012,7 +4023,45 @@
 !            exit asymmetry
          end select asymmetry
 ! if selectij is 1 the asymmetry fixed for this ternary, if 2 or 3 continue
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! code handling kvk_ijk terms due to extra x_ii and x_jj in ivk_ij and jvk_ji
+! copied from end of calcasymvar to avoid it is repeted at all calculations
+! skip first ivk_ij
+         addkvkterm: do j=2,size(box%ivk_ij)
+            do k=1,size(mqmqa_data%emquad)
+               if(box%ivk_ij(j).eq.mqmqa_data%emquad(k)) then
+! we have an endmember quad in ivk_ij (in addition to the first)
+! Check if we have another endmember quad in jvk_ji, skip first jvk_ji
+!                  do l=1,size(box%jvk_ji)
+                  do l=2,size(box%jvk_ji)
+                     neverending: do m=1,size(mqmqa_data%emquad)
+                        if(box%jvk_ji(l).eq.mqmqa_data%emquad(m)) then
+                           if(k.ne.m) then
+! we have 2 different endmember quads in ivk_ij and jvk_ji, 
+! if the mixed quad is not alreay present add it
+                              ny=ijklx(k,m,ia,ia)
+                              do abrakadabra=1,size(box%kvk_ijk)
+! check if this quad not already in box_kvk_ijk
+                                 write(*,*)'3XQ check duplicate line 4041 !!'
+                              enddo
+! add this quad !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                              box%kvk_ijk=[box%kvk_ijk, ijklx(k,m,ia,ia)]
+                              write(*,806)i,k,m,ijklx(k,m,ia,ia)
+                              write(*,805)'kvk_ijk ',box%kvk_ijk
+                           endif
+                        endif
+                     enddo neverending
+                  enddo
+               endif
+            enddo
+         enddo addkvkterm
+805 format(a,20i3)
+806      format('3XQ adding mixed quad to kvk_ijk',i3,2x,2i3,2x,i3)
+! end copied code
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       enddo vzloop
+! the loop above should only be done whenever the asymmetry changes
+      write(*,*)'3XQ line 4063, asymmetry updated for: ',box%cat1,box%cat2
 !--------------------------------------------------------------------
 ! end of asymmetry detection loop
 !--------------------------------------------------------------------
@@ -4974,6 +5023,7 @@
    ip=6
    i0=ichar('0')
    k=1
+! To fix problems here see around line 4100 about box%ivk_ij, %jvk_ji %kvk_ijk
    do i=1,mqmqa_data%ncat
       do j=i,mqmqa_data%ncat
          line1(ip:ip+2)='  '//char(i0+i)
@@ -5031,6 +5081,7 @@
          k=k+1
          ip=ip+5
       enddo
+! To fix problems here see around line 4100 about box%ivk_ij, %jvk_ji %kvk_ijk
       write(*,105)'vk_'//char(i0+box%cat1)//char(i0+box%cat2)//' = '//&
            trim(line1)
 ! _ji

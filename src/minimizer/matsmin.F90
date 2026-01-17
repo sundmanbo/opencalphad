@@ -6815,7 +6815,7 @@ if(meqrec%noofits.eq.1) then
 ! phases have the same Gibbs energy using the calc_tzero routine!
 ! Assuming the conditions are not too involved ... but we are dealing with a
 ! system with tie-lines in the plane, binary or ternary.
-! use the vaiables tzph1 and tzph2 (in matsmin) to specify the phases involved
+! use the variables tzph1 and tzph2 (in matsmin) to specify the phases involved
 ! DOES NOT WORK IN PARALLEL!!
     tzph1=irem; tzph2=iadd
     phases=' '
@@ -6865,7 +6865,9 @@ if(meqrec%noofits.eq.1) then
 ! This is T, the axis condition, set as active with calculated value of T
           pcond%prescribed=xv(1)
           if(pcond%active.ne.0) then
-             write(*,*)'Error, the condition on T not inactivated!'
+             write(*,77)xv(1)
+77           format('Two identical stoichiometric phases want to be stable ',&
+                  'at T=',F10.3)
              gx%bmperr=4399; goto 1000
           endif
           pcond%active=0
