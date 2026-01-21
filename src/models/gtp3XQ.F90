@@ -3975,8 +3975,10 @@
 373            format('3XQ ',a,' asymmetry terms',i3,2x,10i3)
 374            format(a,' x_',2i1)
                do gg=1,size(savevz)
-                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
-                  write(*,374)'3XQ added ',vz,savevz(gg)
+                  box%jvk_ji=[box%jvk_ji, ijklx(vz,savevz(gg),ia,ia)]
+!                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
+                  box%all_ijk=[box%all_ijk, ijklx(vz,savevz(gg),ia,ia)]
+                  write(*,374)'3XQ added ji',vz,savevz(gg)
                enddo
                savevz=[savevz, vz ]
             else
@@ -4005,8 +4007,10 @@
             if(allocated(savevz)) then
                write(*,373)'use',size(savevz),savevz
                do gg=1,size(savevz)
-                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
-                  write(*,374)'3XQ added ',vz,savevz(gg)
+                  box%ivk_ij=[box%ivk_ij, ijklx(vz,savevz(gg),ia,ia)]
+!                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
+                  box%all_ijk=[box%all_ijk, ijklx(vz,savevz(gg),ia,ia)]
+                  write(*,374)'3XQ added ij',vz,savevz(gg)
                enddo
                savevz=[savevz, vz ]
             else
@@ -4023,6 +4027,8 @@
 !---------------------------------------------------------------------
          case(3) ! **************************************************
 ! Both icat and jcat are asymmetric
+            write(*,788)icat,jcat,vz
+788         format('3XQ *** Warning, 2 asymmetric cations ',2i3,' with ',i3)
             box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
             box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! This is complicated, do not add ijklx(icat,vz,ia,ia), ijklx(jcat,vz,ia,ia)
@@ -4038,8 +4044,11 @@
             if(allocated(savevz)) then
                write(*,373)'use',size(savevz),savevz
                do gg=1,size(savevz)
-                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
-                  write(*,374)'3XQ added ',vz,savevz(gg)
+                  box%ivk_ij=[box%ivk_ij, ijklx(vz,savevz(gg),ia,ia)]
+                  box%jvk_ji=[box%jvk_ji, ijklx(vz,savevz(gg),ia,ia)]
+!                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
+                  box%all_ijk=[box%all_ijk, ijklx(vz,savevz(gg),ia,ia)]
+                  write(*,374)'3XQ added 3',vz,savevz(gg)
                enddo
                savevz=[savevz, vz ]
             else
