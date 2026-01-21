@@ -1,7 +1,7 @@
 ! second test program of OC-TQ
 program octq2
 !
-  use liboctq
+  use liboctqa
 !
   implicit none
 ! maxel and maxph defined in pmod package

@@ -1,0 +1,135 @@
+name: Build and Release OC6P (MSYS2 and NSIS)
+
+on:
+  push:
+    branches:
+      - github-actions
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: |
+            base-devel
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gcc-fortran
+
+      - name: Add MSYS2 to Path
+        run: |
+          echo "C:/msys64/usr/bin" >> $GITHUB_PATH
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+
+      - name: Build with CMake and MinGW Makefiles (MSYS2)
+        run: |
+          mkdir build
+          cd build
+          cmake -G "MinGW Makefiles" ../
+          mingw32-make -j4
+
+      - name: Prepare Release Folder
+        shell: bash
+        run: |
+          mkdir -p release/bin
+          cp build/oc6p.exe release/bin/
+          deps=$(ldd ./build/oc6p.exe | awk '{if (match($3,/mingw64/)) print $3}')
+          cp -L -n $deps ./release/bin/
+          cp OC_logo_black_transparent.ico release/favicon.ico
+
+      - name: Install NSIS
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
+
+      - name: Create NSIS Installer Script
+        run: |
+          echo '
+          !include "MUI2.nsh"
+          Name "OC6P"
+          OutFile "OC6P_Installer.exe"
+          InstallDir "$PROGRAMFILES\OC6P"
+          
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          
+          !insertmacro MUI_UNPAGE_CONFIRM
+          !insertmacro MUI_UNPAGE_INSTFILES
+          
+          !insertmacro MUI_LANGUAGE "English"
+          
+          Section "Install"
+
+            SetOutPath "$INSTDIR"
+            File /r "release\*.*"
+            WriteUninstaller "$INSTDIR\uninstall.exe"
+            
+            CreateDirectory "$SMPROGRAMS\OC6P"
+            # CreateShortcut "$SMPROGRAMS\OC6P\OC6P.lnk" "$INSTDIR\bin\oc6p.exe"
+            CreateShortCut "$DESKTOP\OC6P.lnk" "$INSTDIR\bin\oc6p.exe" "" "$INSTDIR\favicon.ico"
+            CreateShortcut "$SMPROGRAMS\OC6P\Uninstall.lnk" "$INSTDIR\uninstall.exe"
+          SectionEnd
+          
+          Section "Uninstall"
+            RMDir /r "$INSTDIR"
+            Delete "$DESKTOP\OC6P.lnk"
+            Delete "$SMPROGRAMS\OC6P\Uninstall.lnk"
+            RMDir "$SMPROGRAMS\OC6P"
+          SectionEnd
+          ' > installer.nsi
+
+      - name: Build NSIS Installer
+        run: makensis installer.nsi
+
+      - name: Upload Installer Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: oc6p-installer
+          path: OC6P_Installer.exe
+
+  release:
+    needs: build
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Download Installer Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: oc6p-installer
+          path: artifacts
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Installer as Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/OC6P_Installer.exe
+          asset_name: OC6P_Installer.exe
+          asset_content_type: application/vnd.microsoft.portable-executable

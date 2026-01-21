@@ -35,6 +35,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use ocnum
   use metlib
   use ocparam
+  use oclablas
 !
 !! overall OC version number
   character (len=8), parameter :: version='  6.101 '

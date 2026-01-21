@@ -46,8 +46,8 @@ module liboctqisoc
 
     TYPE, bind(c) :: c_gtp_equilibrium_data
         integer(c_int) :: status,multiuse,eqno,next
-        character(c_char) :: eqname*24
-        character(c_char) :: comment*72
+        character(kind=c_char, len=1) :: eqname(24)
+        character(kind=c_char, len=1) :: comment(72)
         real(c_double) :: tpval(2)
         real(c_double) :: rtn
         real(c_double) :: weight
@@ -63,7 +63,7 @@ module liboctqisoc
         real(c_double) :: xconv
         real(c_double) :: gmindif=-5.0D-2
         integer(c_int) :: maxiter
-        character(c_char) :: eqextra*80
+        character(kind=c_char, len=1) :: eqextra(80)
         integer(c_int) :: sysmatdim=0
         integer(c_int) :: nfixmu=0
         integer(c_int) :: nfixph=0
