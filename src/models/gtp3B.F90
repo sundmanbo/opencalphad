@@ -1220,8 +1220,8 @@
                ll=ll+1
             endif
          enddo
-         write(*,555)'todo ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14),&
-              trim(splista(phlista(nyfas)%constitlist(kkk))%symbol)
+!         write(*,555)'todo ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14),&
+!              trim(splista(phlista(nyfas)%constitlist(kkk))%symbol)
          if(mqmqa_data%contyp(5,kkk).gt.0) then
 ! fix sublattice index for pair constituents
             s1=1
@@ -1248,8 +1248,8 @@
 !            mqmqa_data%contyp(11,kkk)=0
 !            mqmqa_data%contyp(12,kkk)=0
          endif
-         write(*,555)'done ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14)
-555      format('3B ',a,i2,4i3,2i4,3i3,i4,2x,4i3,1x,a)
+!         write(*,555)'done ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14)
+555      format('3B mqmqa ',a,i2,4i3,2i4,3i3,i4,2x,4i3,1x,a)
       enddo contyp1
       if(ll.ne.size(phlista(nyfas)%constitlist)) then
          write(*,*)'3B MQMQA constituent fractions problems',ll,&

@@ -3609,7 +3609,7 @@
    integer a,selectij
 !    testasym=.true.
 ! the TDB format KKK or T3KK has been converted to element index
-!   write(*,10)t,tersys(t)%isasym,i,j
+   write(*,10)t,tersys(t)%isasym,i,j
 10 format('3XQ In asymm: ternary ',i3,' asymmetry: ',3i3,' binary ',2i3,' OK')
    selectij=0
    do a=1,3
@@ -3711,10 +3711,12 @@
 !   write(*,*)'3XQ code below skipped as moved to varkappa1'
    goto 1000
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-! Code below moved to varkappa1 ... but some numerical problems persist ...
+! Code below moved to varkappa1 ... but some problems persist ...
    write(*,790)2
    write(*,791)mqmqa_data%emquad
-791 format('3XQ Attempt to add mixed quads, em2quad: ',25i3)
+791 format('3XQ THIS CODE SHOULD NOT BE USED: ',25i3)
+   stop 'THIS CODE SHOULD NOT BE USED'
+!
    do i=1,size(mqf%compvar)
 !  if in vk_ij one has added (vz1,vz1,ia,ia)
 !  and in vk_ji added        (vz2,vz2,ia,ia)
@@ -3821,10 +3823,10 @@
 ! If a binary i-j is part of 2 or more asymmetric ternaries i-j-\nu, i-j-\gamma
 ! the quad fraction x_\nu\gamma should be added to kvk_ijk (the denomonator)
 ! of kvk_ijk
-! saving separate asymmetrical cations for a binary
-!   integer, dimension(:), allocatable :: savevz
+! saving multiple asymmetrical cations for a binary
+   integer, dimension(:), allocatable :: savevz
 ! debug output
-   integer nn1,nn2,nn3,nn4,nn5,nn6,nn7
+   integer nn1,nn2,nn3,nn4,nn5,nn6,nn7,gg
    logical nysym
 ! local variables used for updating quad indices for iasymm, jasymm, etc
 !    integer, dimension(:), allocatable :: vk_ij,vk_ji,vk_ijk,xi_ij,xi_ji
@@ -3894,6 +3896,7 @@
 ! Setting an allocatable array to single value means previous values deleted
 !      box%ivk_ij=[0]; box%jvk_ji=[0]; box%kvk_ijk=[0]
 !
+      if(allocated(savevz)) deallocate(savevz)
 ! vk derivatives are quad indices, also denominator (same vk_ij and vk_ji)
 ! the statements below allocate and assign initial quad index
       box%ivk_ij=[mii]; box%jvk_ji=[mjj]; box%kvk_ijk=[mij]
@@ -3917,28 +3920,19 @@
 !
 !  if in vk_ij one has added (vz1,vz1,ia,ia)
 !  and in vk_ji added        (vz2,vz2,ia,ia)
-! one must add (vz1,vz2,ia,ia) to the kvk_ij (now done in calling routine)
-!         allocate(savevz(mqmqa_data%ncat,mqmqa_data%ncat))
 ! Now take care of asymmetries and update for later use
 ! Asymmetric vk and xi are updated in the vz loop AND at the end of the loop
-! Nathalie correction initialized <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-! The term above the division line for varkappa is same but in the denominator
-! (below the division line) one quad fraction is added.  
-! Either x(vz,i) or x(vz,j) where i or j is the element missing in Bosses
-! expression
-!       nugamma=0.0d0
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! this is not a debug variable, just for test output!!
       asymmetric=.false.
 !
-!      write(*,*)'3QX in varkappa1'
+      write(*,*)'3QX in varkappa1',icat,jcat
       vzloop: do vz=1,mqmqa_data%ncat
 ! loop for all ternary systems to find with asymmetric i-j-vz and j-i-vz
 !         write(*,403)'3XQ in vzloop 1: ',vz,icat,jcat
 403      format(a,i3,2x,2i3,2x,i3,2x,5i3)
          if(vz.eq.icat .or. vz.eq.jcat) cycle vzloop
 ! check the ternary icat-jcat-vz exists
-!         ternary=terind(icat,jcat,vz,ncat)
          ternary=terind(icat,jcat,vz)
 !         write(*,403)'3XQ in vzloop 2: ',vz,icat,jcat,ternary
          if(ternary.le.0) goto 1100
@@ -3971,17 +3965,31 @@
 ! icat is asymmetric, save in ivk_ij 
 ! an elegant Fortran assignment of an additional items in an allocatable
             box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! All quad fractions added to ivk_ij must also be added to denominator
+! Below quad fractions added to jvk_ij added to denominator, add ijklx(icat,vz
             box%kvk_ijk=[box%kvk_ijk, ijklx(icat,vz,ia,ia)]
             box%all_ijk=[box%all_ijk, ijklx(jcat,vz,ia,ia), &
                  ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+! if savevz allocated we must add terms to kvk_ijk
+            if(allocated(savevz)) then
+               write(*,373)'use',size(savevz),savevz
+373            format('3XQ ',a,' asymmetry terms',i3,2x,10i3)
+374            format(a,' x_',2i1)
+               do gg=1,size(savevz)
+                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
+                  write(*,374)'3XQ added ',vz,savevz(gg)
+               enddo
+               savevz=[savevz, vz ]
+            else
+! and we must add vz to savevz
+               savevz=[vz]
+               write(*,373)'saved i ',size(savevz),savevz
+            endif
 ! The asymmetric xi is depend on y_ik update dxi_ij and dxi_ji
             do nnn=1,mqmqa_data%nquad
 !                box%dxi_ij(nnn)=box%dxi_ij(nnn)+dy_ik(icat,nnn)
                box%dxi_ji(nnn)=box%dxi_ji(nnn)+mqmqa_data%dy_ik(vz,nnn)
             enddo
 !
-!            exit asymmetry
 !---------------------------------------------------------------------
          case(2) ! ***************************************************
 ! jcat is asymmetric, same as for icat just change icat to jcat!!!!
@@ -3993,13 +4001,25 @@
             box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]  ! missing
             box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
                  ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+! if savevz allocated we must add terms to kvk_ijk
+            if(allocated(savevz)) then
+               write(*,373)'use',size(savevz),savevz
+               do gg=1,size(savevz)
+                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
+                  write(*,374)'3XQ added ',vz,savevz(gg)
+               enddo
+               savevz=[savevz, vz ]
+            else
+! and we must add vz to savevz
+               savevz=[ vz ]
+               write(*,373)'saved j ',size(savevz),savevz
+            endif
 ! The asymmetric xi is depend on y_ik update dxi_ij and dxi_ji
             do nnn=1,mqmqa_data%nquad
 !                box%dxi_ij(nnn)=box%dxi_ij(nnn)+dy_ik(jcat,nnn)
                box%dxi_ij(nnn)=box%dxi_ij(nnn)+mqmqa_data%dy_ik(vz,nnn)
             enddo
 !
-!            exit asymmetry
 !---------------------------------------------------------------------
          case(3) ! **************************************************
 ! Both icat and jcat are asymmetric
@@ -4014,16 +4034,29 @@
 ! BUT x_(vz,vz,ia,ia) appears twice in the denominator ....(and twice on top)
             box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
                  ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+! if savevz allocated we must add terms to kvk_ijk
+            if(allocated(savevz)) then
+               write(*,373)'use',size(savevz),savevz
+               do gg=1,size(savevz)
+                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
+                  write(*,374)'3XQ added ',vz,savevz(gg)
+               enddo
+               savevz=[savevz, vz ]
+            else
+! and we must add vz to savevz
+               savevz=[ vz ]
+               write(*,373)'save i&j ',size(savevz),savevz
+            endif
 ! The asymmetric xi is depend on y_ik update dxi_ij and dxu_ji
             do nnn=1,mqmqa_data%nquad
                box%dxi_ij(nnn)=box%dxi_ij(nnn)+mqmqa_data%dy_ik(icat,nnn)
                box%dxi_ji(nnn)=box%dxi_ji(nnn)+mqmqa_data%dy_ik(jcat,nnn)
             enddo
 !
-!            exit asymmetry
          end select asymmetry
-! if selectij is 1 the asymmetry fixed for this ternary, if 2 or 3 continue
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         goto 747
+! loops below now redundant when we added savevz loops above ..... ????
 ! code handling kvk_ijk terms due to extra x_ii and x_jj in ivk_ij and jvk_ji
 ! copied from end of calcasymvar to avoid it is repeted at all calculations
 ! skip first ivk_ij
@@ -4059,14 +4092,15 @@
 806      format('3XQ adding mixed quad to kvk_ijk',i3,2x,2i3,2x,i3)
 ! end copied code
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+747      continue
       enddo vzloop
-! the loop above should only be done whenever the asymmetry changes
-      write(*,*)'3XQ line 4063, asymmetry updated for: ',box%cat1,box%cat2
+! the vzloop above should be done whenever the asymmetry changes
+      write(*,*)'3XQ line 4066, asymmetry updated for: ',box%cat1,box%cat2
 !--------------------------------------------------------------------
 ! end of asymmetry detection loop
 !--------------------------------------------------------------------
 !
-   endif ! end of update loop
+   endif ! end of vzloop update
 
 !--------------------------------------------------------------------
 ! Below arrays box%ivk_ij, box%jvk_ji, box%dxi_ij are used to
@@ -4456,8 +4490,8 @@
       endif
 !      write(*,10)code1,code2,iv,icc
    enddo
-!   write(*,10)code1,code2,icc,toop
-10 format('3XQ asymm: "',a,'" to "',a,'" cations: ',3i2,' Toop: ',3i3)
+   write(*,10)code1,code2,icc,toop
+10 format('3XQ convert_asymm: "',a,'" to "',a,'" cations: ',3i2,' Toop: ',3i3)
    return
  end subroutine convert_asymm
 
@@ -4996,7 +5030,7 @@
 !addtotable subroutine varkappa
 !\begin(verbatim} subroutine varkappa
  subroutine varkappadefs(phres)
-! subroutine to list \varakappa, \xi and y_ik definitions
+! subroutine to list \varkappa, \xi and y_ik definitions
    type(gtp_phase_varres), pointer :: phres
 !   type(gtp_phase_varres), pointer :: mqmqavar
 !\end{verbatim}
@@ -5110,7 +5144,7 @@
 !
 !      write(*,110)'vk_',box%cat1,box%cat2,quadcat(box%ivk_ij(1)),
 !           ((quadcat(box%jvk_ji(cat1)),cat1=2,size(box%jvk_ji))
-!
+! 
 !      write(*,110)'vk_',box%cat1,box%cat2,&
 !           (quadcat(box%jvk_ji(cat1)),cat1=1,size(box%jvk_ji))
 !      write(*,120)'denom = vk_ij+vk_ji + ',&
@@ -5124,3 +5158,45 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
+ ! asymmetry code
+ ! j is the Toop element in i-j-\nu
+ ! i is the Toop element in i-j-\gamma
+ !
+ !                 \sum_a=(i,\nu) \sum_b=(i,\nu) x_ab/kk                ivk_ij
+ ! vk_ij/kk = ------------------------------------------------------- = -------
+ !            \sum_a=(i,j,\nu,\gamma) \sum_b=(i,j,\nu,\gamma) x_ab/kk   denom_ij
+ !
+ !                 \sum_a=(j,\gamma) \sum_b=(j,\gamma) x_ab/kk          jvk_ji
+ ! vk_ji/kk = ------------------------------------------------------- = ------
+ !            \sum_a=(i,j,\nu,\gamma) \sum_b=(i,j,\nu,\gamma) x_ab/kk   denom_ij
+ !
+ ! NOTE x_ij = x_ji and occures only once in sums !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ ! ivk_ij = x_i,i + x_i,\nu + x_\nu,\nu
+ ! jvk_ji = x_j,j + x_j,\gamma + x_\gamma,\gamma
+ ! denom  = x_i,j + x_i,\nu+x_j,\gamma+x_\nu,\nu+x_\nu,\gamma+x_gamma,gamma
+ !
+ ! initiate: ivk_ij=[x_ii]; jvk_ji=[x_jj]; denom=[x_ij]
+ !
+ ! extradenom=[ ]
+ ! binary loop vk: do i-j
+ !   ternary loop: do g=1,n   ------------------   g can be \nu, \gamma or both
+ !     if(g=i or g=j) cycle ternary loop
+ !     if(i is Toop in i-j-g) then  ...............g is \gamma
+ !       jvk_ij=[ jvk_ij , x_gg, x_jg ]
+ ! denom will at the end have jvk_ji and ivk_ij added.  Add only x_ig
+ !       denom_ij = [ denom_ij, x_ig]
+ !       if(j is Toop in i-j-g) then ..............g is both \nu and \gamma
+ !         ivj_ji=[ ivk_ij, x_gg, x_ig, x_jg ]
+ !       endif
+ ! there can have been previous \gamma or \nu, add extra x_\gamma,\nu
+ !       do h=1,size(extradenom)
+ !         denom_ij = [ denom_ij, x_gh ]
+ !       enddo
+ !       extradenom = [extradenom, g ]
+ !-----------
+ !     elseif(j is Toop in i-j-g) then ...........g is \nu
+ !       ivj_ji=      [ ivk_ij, x_gg, x_jg ]
+ !       denom_ij = [ denom_ij, x_gg, x_jg, x_ig ]
+ !     endif
+ !   enddo ternary loop
+ ! enddo binary loop

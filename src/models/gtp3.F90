@@ -37,7 +37,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use ocparam
 !
 !! overall OC version number
-  character (len=8), parameter :: version='  6.101 '
+  character (len=8), parameter :: version='  6.102 '
 !
 !
 ! data structure for non-encrypted TP functions
@@ -78,6 +78,7 @@ CONTAINS
 
 ! 9B: Read/write XML
 !include "gtp3EX.F90"
+!include "gtp3EY.F90"
 #include "gtp3EX.F90"
 #include "gtp3EY.F90"
 
