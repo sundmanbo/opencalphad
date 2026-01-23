@@ -3824,7 +3824,9 @@
 ! the quad fraction x_\nu\gamma should be added to kvk_ijk (the denomonator)
 ! of kvk_ijk
 ! saving multiple asymmetrical cations for a binary
-   integer, dimension(:), allocatable :: savevz
+!   integer, dimension(:), allocatable :: savevz
+   integer, dimension(:), allocatable :: savenu
+   integer, dimension(:), allocatable :: savegamma
 ! debug output
    integer nn1,nn2,nn3,nn4,nn5,nn6,nn7,gg
    logical nysym
@@ -3896,7 +3898,9 @@
 ! Setting an allocatable array to single value means previous values deleted
 !      box%ivk_ij=[0]; box%jvk_ji=[0]; box%kvk_ijk=[0]
 !
-      if(allocated(savevz)) deallocate(savevz)
+!      if(allocated(savevz)) deallocate(savevz)
+      if(allocated(savenu)) deallocate(savenu)
+      if(allocated(savegamma)) deallocate(savegamma)
 ! vk derivatives are quad indices, also denominator (same vk_ij and vk_ji)
 ! the statements below allocate and assign initial quad index
       box%ivk_ij=[mii]; box%jvk_ji=[mjj]; box%kvk_ijk=[mij]
@@ -3943,7 +3947,7 @@
 ! asymm returns 2 if jcat is an asymmetric element in icat-jcat-vz  (nu)
 ! asymm returns 3 if both icat and jcat are asymmetric in icat-jcat-vz
 ! to be considered:  asymmetric i-j-nu and i-j-gamma requires x_\nu\gamma
-!                    in the denominator.  For this the savevz is used
+!                    in the denominator.  For this the savenu/gamma is used
 !
 ! ********* selectij=0 means no asymmetry in this ternary***************
          if(selectij.eq.0) cycle vzloop
@@ -3953,8 +3957,8 @@
          endif
 !
 !******************** asymmetric ternary *****************************
-!         write(*,420)selectij,icat,jcat,vz
-420      format('3XQ Asymmetric ternary ',i2,3i3)
+         write(*,420)selectij,icat,jcat,vz
+420      format('3XQ Asymmetric ternary typ:',i2,' cations: ',3i3)
          asymmetry: select case(selectij)
 !
          case default
@@ -3962,29 +3966,47 @@
             stop
 !-------------------------------------------------------------------
          case(1) ! *************************************************
-! icat is asymmetric, save in ivk_ij 
+! icat is asymmetric, save in jvk_ij and in savenu
 ! an elegant Fortran assignment of an additional items in an allocatable
             box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! Below quad fractions added to jvk_ij added to denominator, add ijklx(icat,vz
             box%kvk_ijk=[box%kvk_ijk, ijklx(icat,vz,ia,ia)]
             box%all_ijk=[box%all_ijk, ijklx(jcat,vz,ia,ia), &
                  ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! if savevz allocated we must add terms to kvk_ijk
-            if(allocated(savevz)) then
-               write(*,373)'use',size(savevz),savevz
-373            format('3XQ ',a,' asymmetry terms',i3,2x,10i3)
+! savenu is related to ij, savegamma to ji
+            if(allocated(savenu)) then
+               write(*,373)'case 1 use \nu',size(savenu),savenu
+373            format('3XQ ',a,' mixed asymmetry terms',i3,': ',10i3)
 374            format(a,' x_',2i1)
-               do gg=1,size(savevz)
-                  box%jvk_ji=[box%jvk_ji, ijklx(vz,savevz(gg),ia,ia)]
-!                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
-                  box%all_ijk=[box%all_ijk, ijklx(vz,savevz(gg),ia,ia)]
-                  write(*,374)'3XQ added ji',vz,savevz(gg)
+               do gg=1,size(savenu)
+! the mixed terms with \nu should should be added to jvk_ji
+                  box%all_ijk=[box%all_ijk, ijklx(vz,savenu(gg),ia,ia)]
+                  write(*,374)'3XQ added ji',savenu(gg),vz
+                  write(*,375)'jvk_ji ',box%jvk_ji
+375               format('3XQ ',a,'=',10i4)
                enddo
-               savevz=[savevz, vz ]
+               savenu=[savenu, vz ]
             else
-! and we must add vz to savevz
-               savevz=[vz]
-               write(*,373)'saved i ',size(savevz),savevz
+! otherwize just add vz to savenu
+               savenu=[vz]
+               write(*,373)'savednu i ',size(savenu),savenu
+            endif
+! savegamma is related to ji, maybe add denominator terms
+            if(allocated(savegamma)) then
+               write(*,373)'case 1 use \gamma',size(savegamma),savegamma
+               do gg=1,size(savegamma)
+! the mixed terms with \gamma should should be added to kvk_ijk
+                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savegamma(gg),ia,ia)]
+                  box%all_ijk=[box%all_ijk, ijklx(vz,savegamma(gg),ia,ia)]
+                  write(*,374)'3XQ added kvk_ijk',savegamma(gg),vz
+                  write(*,375)'kvk_ji ',box%kvk_ijk
+               enddo
+! do not save vz as it does no relates to ij
+!               savegamma=[savegamma, vz ]
+!            else
+! and we must add vz to savegamma
+!               savegamma=[vz]
+!               write(*,373)'saved i ',size(savevz),savevz
             endif
 ! The asymmetric xi is depend on y_ik update dxi_ij and dxi_ji
             do nnn=1,mqmqa_data%nquad
@@ -3997,26 +4019,35 @@
 ! jcat is asymmetric, same as for icat just change icat to jcat!!!!
 ! and save in jvk_ji ...
             box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! why not            box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]
-!            box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]
 ! Nath noted missing  ijklx(vz1,vz2,ia,ia) if icat and jcat are asymmetrical
-            box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]  ! missing
+            box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]
             box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
                  ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! if savevz allocated we must add terms to kvk_ijk
-            if(allocated(savevz)) then
-               write(*,373)'use',size(savevz),savevz
-               do gg=1,size(savevz)
-                  box%ivk_ij=[box%ivk_ij, ijklx(vz,savevz(gg),ia,ia)]
-!                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
-                  box%all_ijk=[box%all_ijk, ijklx(vz,savevz(gg),ia,ia)]
-                  write(*,374)'3XQ added ij',vz,savevz(gg)
+! if savegamma allocated we must add terms to jvk_ijk
+            if(allocated(savegamma)) then
+               write(*,373)'case 2 use \gamma',size(savegamma),savegamma
+               do gg=1,size(savegamma)
+                  box%ivk_ij=[box%ivk_ij, ijklx(vz,savegamma(gg),ia,ia)]
+                  box%all_ijk=[box%all_ijk, ijklx(vz,savegamma(gg),ia,ia)]
+                  write(*,374)'3XQ added ij',savegamma(gg),vz
+                  write(*,375)'ivk_ij ',box%ivk_ij
                enddo
-               savevz=[savevz, vz ]
+               savegamma=[savegamma, vz ]
             else
 ! and we must add vz to savevz
-               savevz=[ vz ]
-               write(*,373)'saved j ',size(savevz),savevz
+               savegamma=[ vz ]
+               write(*,373)'savedgamma j ',size(savegamma),savegamma
+            endif
+! savenu is related to ij, maybe add denominator terms
+            if(allocated(savenu)) then
+               write(*,373)'case 2 use \nu',size(savenu),savenu
+               do gg=1,size(savegamma)
+! the mixed terms with \nu should should be added to kvk_ijk
+                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savenu(gg),ia,ia)]
+                  box%all_ijk=[box%all_ijk, ijklx(vz,savenu(gg),ia,ia)]
+                  write(*,374)'3XQ added kvk_ijk',savenu(gg),vz
+                  write(*,375)'jvk_ji ',box%kvk_ijk
+               enddo
             endif
 ! The asymmetric xi is depend on y_ik update dxi_ij and dxi_ji
             do nnn=1,mqmqa_data%nquad
@@ -4026,9 +4057,11 @@
 !
 !---------------------------------------------------------------------
          case(3) ! **************************************************
-! Both icat and jcat are asymmetric
+! Both icat and jcat are asymmetric NOT IMPLEMENTED
             write(*,788)icat,jcat,vz
 788         format('3XQ *** Warning, 2 asymmetric cations ',2i3,' with ',i3)
+            gx%bmperr=4399; goto 1000
+! tentative code below
             box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
             box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! This is complicated, do not add ijklx(icat,vz,ia,ia), ijklx(jcat,vz,ia,ia)
@@ -4040,22 +4073,6 @@
 ! BUT x_(vz,vz,ia,ia) appears twice in the denominator ....(and twice on top)
             box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
                  ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! if savevz allocated we must add terms to kvk_ijk
-            if(allocated(savevz)) then
-               write(*,373)'use',size(savevz),savevz
-               do gg=1,size(savevz)
-                  box%ivk_ij=[box%ivk_ij, ijklx(vz,savevz(gg),ia,ia)]
-                  box%jvk_ji=[box%jvk_ji, ijklx(vz,savevz(gg),ia,ia)]
-!                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savevz(gg),ia,ia)]
-                  box%all_ijk=[box%all_ijk, ijklx(vz,savevz(gg),ia,ia)]
-                  write(*,374)'3XQ added 3',vz,savevz(gg)
-               enddo
-               savevz=[savevz, vz ]
-            else
-! and we must add vz to savevz
-               savevz=[ vz ]
-               write(*,373)'save i&j ',size(savevz),savevz
-            endif
 ! The asymmetric xi is depend on y_ik update dxi_ij and dxu_ji
             do nnn=1,mqmqa_data%nquad
                box%dxi_ij(nnn)=box%dxi_ij(nnn)+mqmqa_data%dy_ik(icat,nnn)

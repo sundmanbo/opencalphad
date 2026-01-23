@@ -1878,6 +1878,16 @@ contains
           goto 100
 !-----------------------------------------------------------
        case(6) ! calculate global grid minimum
+! This command is depreciated as it has been misunderstood
+          write(*,2101)
+2101      format('This command has been removed as it has been misunderstood.',&
+               /'It calculated points on the Gibbs energy curves of the ',&
+               ' different phases'/'to be used as start points for the',&
+               ' actual minimization.'/'It is replaced by the command ',&
+               '"CALCULATE ONLY_GRIDMIN".'//&
+               'In order to calculate the equilibrium use "C E".'/)
+               goto 100
+!
 ! extract values for mass balance calculation from conditions
           call extract_massbalcond(ceq%tpval,xknown,totam,ceq)
           if(gx%bmperr.ne.0) goto 990
