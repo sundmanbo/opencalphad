@@ -5348,8 +5348,10 @@ contains
           'Cation',9x,'1   2  ...  n | 2   3   ...  n   | 3  .. | n')
                 write(kou,4126)mqmqa_data%quad2compvar
 4126            format('quad2compvar: ',21(1x,i2))
-                write(kou,4127)mqmqa_data%emquad
-4127            format('em2quad: ',21(1x,i2))
+                write(kou,4127)mqmqa_data%emquad*(mqmqa_data%emquad-1),&
+                     mqmqa_data%emquad
+4127       format('Number of varkappa_ij asymmetry variables, n*(n-1)/2: ',i3/&
+                'em2quad: ',21(1x,i2))
 ! just a blank line
                 write(kou,*)
                 write(kou,308)'Fractions in OC order   ',&
@@ -5430,12 +5432,15 @@ contains
              write(*,1688)
 1688         format('Debug settings:'/'0 no debug'/'1 debug asymmetry'/&
                   '2 debug some more'/&
-                  '3 debug reading TDB'/'4 debug parameter calculation')
+                  '3 debug reading TDB'/&
+                  '4 debug parameter calculation'/&
+                  '5 debug partial derivative calculation')
              call gparidx('Set mqmqa debug?',cline,last,i1,i2,'?MQMQA debug')
              mqmqdebug=.false.
              mqmqdebug2=.false.
              mqmqtdb=.false.
              mqmqxcess=.false.
+             mqmqder=.false.
              if(i1.eq.1) then
 ! asymmetry debug
                 mqmqdebug=.true.
@@ -5447,6 +5452,9 @@ contains
              elseif(i1.eq.4) then
 ! calculation debug
                 mqmqxcess=.true.
+             elseif(i1.eq.5) then
+! partial derivative debug
+                mqmqder=.true.
              endif
 !
 !...........................................................
@@ -7906,7 +7914,7 @@ contains
 !          endif
 ! check file exits, convert csv to plt, and add .plt if necessary ...
           jp=max(index(filename,'.csv '),index(filename,'.CSV '))
-          write(*,*)'File extention is: ',trim(filename)
+          write(*,*)'Full file name: ',trim(filename)
           if(jp.gt.0) then
 ! the csv file must be converted to a plt file ------------- csv special begin
 ! default separator in FactSage is ";"

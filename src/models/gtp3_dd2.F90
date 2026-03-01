@@ -1123,7 +1123,7 @@
 !  (the denominator is the same for vk_ij and vk_ji)
 !
 ! the derivatives of vk_ij are stored in dvk_ij and dvk_ji
-! they are calculated using ivk_ij, jvk_ji, kvk_ijk
+! they are calculated WHERE? using ivk_ij, jvk_ji, kvk_ijk at each iteration
      double precision, allocatable, dimension(:) :: dvk_ij,dvk_ji
 !     type(zquad), allocatable, dimension(:) :: dvkq_ij, dvkq_ji
 ! second derivatives ... suck
@@ -1148,6 +1148,7 @@
 !
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   logical mqmqdebug,mqmqdebug2
+  logical :: mqmqder=.false.
   logical :: mqmqtdb=.false.,mqmqxcess=.false.
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! MUST be careful with ncat and nan !!! USED IN MQMQA
@@ -1681,9 +1682,10 @@
 !     double precision, dimension(:), allocatable :: xquad  only one mqmqaphase 
 !                                             but there can be miscibility gaps
 ! convert from xquad index to constarray index and back
-! in xquad the order is sequentail in the cation order
-!    1   2   3   4  ..  n   ! n+1 n+2 .. 2n-1 ! 2n     ! ... ! n(n+1)/2
-!    1/1 1/2 1/3 1/4    1/n ! 2/2 2/3 .. 2/n  ! 3/3 .. ! ... ! n/n   
+! in xquad the order is sequentail in the cation order:
+!    1   2   3   4  ..  n ! n+1 n+2 .. 2n-1 ! 2n         ! ... ! n(n+1)/2
+!    1   1   1   1      1 ! 2   2 ..   2    ! 3   3 ..   ! ... ! n   
+!    1   2   3   4      n ! 2   3 ..   n    ! 3   4 ..   ! ... ! n   
 ! where 1..n are cation indices i.e. element indices ignoring anions
 ! transfer of fractions from OC yfr to quad use
      integer, dimension(:), allocatable :: con2quad ! transfer y to quad order

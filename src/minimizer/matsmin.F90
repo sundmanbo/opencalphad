@@ -2103,9 +2103,9 @@ CONTAINS
 !-----------------------------------------------------------------------
 ! Development based on the work of Joao Pedro Carvalho Teuber 12/2020
 ! Jacobi preconditioning if allowed
-    if((inmap.eq.0).and.(ceq%splitsolver.gt.0).and.&
-         (meqrec%nrel.eq.meqrec%nstph)) then
-       call precond(nz1,nz2,smat,badmat)
+!BS    if((inmap.eq.0).and.(ceq%splitsolver.gt.0).and.&
+!BS         (meqrec%nrel.eq.meqrec%nstph)) then
+!BS       call precond(nz1,nz2,smat,badmat)
 ! added due to problems with parallel1 and parallel2, 20200220/BoS
 ! PRECOND has found a zero diagonal element but just use lingld and skip split
 !        if(badmat) then
@@ -2126,12 +2126,12 @@ CONTAINS
 ! when the number of component is equal to the number of stable phases
 ! (conditions giving square mass matric)
 ! ís this OK if BADNAT is TRUE??
-       if(badmat) write(*,*)'MEQ_SAMESET: matrix has a diagonal element zero'
-       call lingldSplit(nz1,nz2,smat,svar,nz1,ierr,meqrec%nrel,meqrec%nstph)
-    else
+!BS       if(badmat) write(*,*)'MEQ_SAMESET: matrix has a diagonal element zero'
+!BS       call lingldSplit(nz1,nz2,smat,svar,nz1,ierr,meqrec%nrel,meqrec%nstph)
+!BS    else
 ! this used when equilibrium is NOT invariant
         call lingld(nz1,nz2,smat,svar,nz1,ierr)
-    endif
+!BS    endif
 !-----------------------------------------------------------------------
 !    write(*,*)'MM meq_sameset: back from lingld'
 !

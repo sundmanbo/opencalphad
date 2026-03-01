@@ -62,6 +62,11 @@
    if(gx%bmperr.ne.0) goto 1000
    call get_phase_data(iph,ics,nsl,knl,knr,yarr,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
+!--------------------
+! strange error 2026.02.10
+!   write(*,55)(yarr(ll),ll=1,knr(1))
+!55 format(' bug: ',15(f8.5))
+!--------------------
 ! ask for amount of formula units, default is current amount
    yyy=ceq%phase_varres(lokcs)%amfu
    quest='Amount of '//name1

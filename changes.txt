@@ -23,6 +23,10 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.03.01 version 6.105. Added partial derivatives to the calculation
+of the Gibbs energy for the MQMQA model.  Some improvements but
+debugging continues.  This is still very fragile.
+
 2026.01.23 version 6.104. Yet another asymmentry bug eliminated.
 
 2026.01.21 version 6.103. Yet another asymmentry bug eliminated.

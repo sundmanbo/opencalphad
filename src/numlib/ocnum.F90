@@ -52,65 +52,70 @@ use oclablas
 ! declaration above must follow after USE
 !
 CONTAINS
-    !
-    !CCI
-    !-----------------------------------------------------------------------
-    !-----------------------------------------------------------------------
-    ! Development based on the work of Joao Pedro Carvalho Teuber 12/2020
-    ! Linear system solved by splitting approch for conditions giving square
-    ! mass matrix. Otherwise lingld is used
-    SUBROUTINE lingldSplit(ND1,ND2,RMAT,X,N,M,NCONST,NPH)
-        !-----------------------------------------------------------------------
-        !     Solving a system of n linear equations with n unknowns
-        !     | Masse  0      |  |X| = | Gibbs  |
-        !     | Ca     MasseT |  | |   | Cig    |
-        !-----------------------------------------------------------------------
-        implicit none
-        integer M,N,ND1,ND2, NPH, NCONST
-        double precision RMAT(ND1,ND2),X(ND1)
-        !-----------------------------------------------------------------------
-        character trans*1
-        integer i,j,k,nrhs,lda,ldb,info
-        integer ipiv1(n), ipiv2(n), ipiv(n)
-        double precision, allocatable :: a(:,:),Masse(:, :), Gibbs(:),MasseT(:, :), Cig(:)
-        !
-        allocate(a(n,n))
-        allocate(Cig(NCONST))
-        allocate(Masse(NPH, NCONST))
-        allocate(Gibbs(NPH))
-        allocate(MasseT(NCONST, NPH))
-        !
-        ipiv=0
-        ipiv1=0
-        ipiv2=0
-        nrhs=1
-        trans='N'
-        lda=n
-        ldb=n
-        !
-        do j=1,N
-            do k=1,N
-                a(j,k)=rmat(j,k)
-            enddo
-            x(j)=rmat(j,n+1)
-        enddo
-        do j=1,NPH
-            do k=1, NCONST
-                Masse(j,k) = a(j,k)
-                Gibbs(j) = x(j)
-            enddo
-        enddo
-        MasseT = transpose(Masse)
-        ! Solve first part of the system
-        call DGETRF(NPH, NCONST,Masse, NPH,IPIV1,INFO)
-        if(info.ne.0) then
-            write(*,*)'lingldSplit: Error return from dgetrf',info
-            goto 900
-        endif
-        call DGETRS(TRANS,NPH,NRHS,Masse,NPH,IPIV1,Gibbs,NPH,INFO)
-        ! Solve second part of the system
-        ! Ca = a(j+NPH,1:NCONST)
-        do j=1, NCONST
+!
+!CCI
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+! Development based on the work of Joao Pedro Carvalho Teuber 12/2020
+! Linear system solved by splitting approch for conditions giving square
+! mass matrix. Otherwise lingld is used
+  SUBROUTINE lingldSplit(ND1,ND2,RMAT,X,N,M,NCONST,NPH)
+!-----------------------------------------------------------------------
+!     Solving a system of n linear equations with n unknowns
+!     | Masse  0      |  |X| = | Gibbs  |
+!     | Ca     MasseT |  | |   | Cig    |
+!-----------------------------------------------------------------------
+    implicit none
+    integer M,N,ND1,ND2, NPH, NCONST
+    double precision RMAT(ND1,ND2),X(ND1)
+!-----------------------------------------------------------------------
+    character trans*1
+    integer i,j,k,nrhs,lda,ldb,info
+    integer ipiv1(n), ipiv2(n), ipiv(n)
+    double precision, allocatable :: a(:,:),Masse(:, :), Gibbs(:),&
+         MasseT(:, :), Cig(:)
+!
+    allocate(a(n,n))
+    allocate(Cig(NCONST))
+    allocate(Masse(NPH, NCONST))
+    allocate(Gibbs(NPH))
+    allocate(MasseT(NCONST, NPH))
+!
+    ipiv=0
+    ipiv1=0
+    ipiv2=0
+    nrhs=1
+    trans='N'
+    lda=n
+    ldb=n
+!
+    do j=1,N
+       do k=1,N
+          a(j,k)=rmat(j,k)
+       enddo
+       x(j)=rmat(j,n+1)
+    enddo
+    do j=1,NPH
+       do k=1, NCONST
+          Masse(j,k) = a(j,k)
+          Gibbs(j) = x(j)
+       enddo
+    enddo
+    MasseT = transpose(Masse)
+! Solve first part of the system
+    call DGETRF(NPH, NCONST,Masse, NPH,IPIV1,INFO)
+    if(info.ne.0) then
+       write(*,*)'lingldSplit: Error return from dgetrf',info
+       goto 900
+    endif
+    call DGETRS(TRANS,NPH,NRHS,Masse,NPH,IPIV1,Gibbs,NPH,INFO)
+! Solve second part of the system
+! Ca = a(j+NPH,1:NCONST)
+!***********************************/BoS
+! for MQMQA calculations with fix gas phase error here
+! index of j larger than dimension of x
+!***********************************
+    do j=1, NCONST
             Cig(j) = x(j+NPH) - DOT_PRODUCT(a(j+NPH,1:NCONST), Gibbs)
         enddo
         call DGETRF(NCONST, NPH, MasseT, NCONST,IPIV2,INFO)
