@@ -2618,148 +2618,6 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
-!\addtotable subroutine dvkij_2_dzijk
-!\begin{verbatim}
- subroutine dvkij_2_dzijk(mqf,cxq,dvkijk)
-! calculates all partial derivatives of a parameter multiplied with
-!          xquad * varkappa**ppow * varkappa**qpow
-   implicit none
-!   type(gtp_phase_varres), pointer :: phres
-   type(gtp_mqmqa_var), pointer :: mqf
-   type(gtp_allinone), pointer :: box
-   integer cxq
-! return values for 2*mqmqa_data%nquad vk_ij and vk_ji derivatives 
-   double precision dvkijk(2,mqmqa_data%nquad)
-! cxq is the current varkappa index
-! dvkijk is the the 2D array with derivatives of vk_ij and vk_ji with respect
-! to all quad fractions.  Many of them will be zero
-!\end{verbatim}
-   integer ijkl,vkix,vkdenom,kk,mxq,di,dj,dk
-! this is to indicate which fraction indices are included in ivk, jvk and kvk
-   integer dvkdx(3,mqmqa_data%nquad)
-   double precision sumi, sumj, sumk, dvkij, dvkji, dvkdenom
-   logical skip,more
-!
-! derivative of a quotient  d(g/h) = 1/h*dg/dx - (g/h**2)*dh/dx = 
-!              = (h*dg/dx - g*dh/dx)/h**2
-!
-! This routine calculates both d(vk_ij)/dx and d(vk_ji)/dx   
-! with respect to all quadrupole fractions
-! 
-   mxq=mqmqa_data%nquad
-   box=>mqf%compvar(cxq)
-! set all partical derivatives to zero as default return
-   if(mqmqder) then
-      write(*,*)'3XQ in dvkij_dzijkl',cxq,mxq
-      write(*,10)box%ivk_ij
-      write(*,20)box%jvk_ji
-      write(*,30)box%kvk_ijk
-10    format('3XQ ivk_ij: ',10i3)
-20    format('3XQ jvk_ji: ',10i3)
-30    format('3XQ kvk_ijk:',10i3)
-40    format('3XQ kvk_all:',10i3)
-      mqmqder=.false.
-   endif
-! zero the result array
-   dvkijk=zero
-!
-   allquads: do ijkl=1,mxq
-! this loop calculate all contributions to derivatives wrt quad inkl
-!
-!   vk_ij = \sum_i xquad(ivk_ij) / (\sum_k xquad(kvk_ijk)+\sum_i xquad(ivk_ij))
-!   vk_ji = \sum_i xquad(jvk_ji) / (\sum_k xquad(kvk_ijk)+\sum_j xquad(jvk_ji))
-!
-! one must sum xquads as they may be used in the derivative
-!
-      skip=.true.
-! sumk is sum of quad fractions in kvk_ijk
-      sumk=zero
-! we cannot use box%all_ijk because it includes quad indices ivk_ij and jvk_ji
-!      ksum: do kk=1,size(box%all_ijk)
-      more=.true.
-      kk=1
-      denominator: do while(more)
-! the denominator include also the nominator ...
-! a quad fraction term can only apper once in ivk_ij etc
-         vkix=box%kvk_ijk(kk)
-         sumk=sumk+mqf%xquad(vkix)
-! listing of derivative calculations
-!                    1   2      3          4  
-         if(mqmqder) write(*,50)'k',cxq, ')%kvk_ijk(', kk,') ',&
-              ijkl,'k',sumk,1,vkix,ijkl
-!              5    6   7   8  9    10
-!
-!                      1                          2  3   4 
-50       format('3XQ ',a,'loop for mqf%compvar(',i2, a, i2,a,&
-                             i4,' sum',a,': ',1pe12.4,2x,3i2)
-!                             5        6       7      8-10
-!  mqf%compvar(cxq)%kvk_ijk(kk),ijkl,  sumk         
-         if(mqf%compvar(cxq)%all_ijk(kk).eq.ijkl) then
-! this varkappa depend on quad ijkl
-             skip=.false.
-          endif
-       enddo denominator
-!
-! if sumk is zero there are no derivatives
-      if(skip) then
-         write(*,55)cxq,ijkl
-55       format('3XQ vk(',i2,') does not depend on quad ',i2)
-      endif
-! We have to calculate the derivatives of varkappa_ij and varkappa_ji      
-      sumi=zero
-      nominator1: do kk=1,size(box%ivk_ij)
-         vkix=box%ivk_ij(kk)
-         if(mqf%compvar(cxq)%ivk_ij(kk).eq.ijkl) then
-            sumi=sumi+mqf%xquad(vkix)
-!                       1   2      3          4  
-            if(mqmqder) write(*,50)'i',cxq, ')%vk_ij(', kk,')   ',&
-                 ijkl,'i',sumi,1,vkix,ijkl
-!                 5    6   7   8  9    10
-         endif
-      enddo nominator1
-! note sumi and/or sumj can be zero
-      sumj=zero
-      nominator2: do kk=1,size(box%jvk_ji)
-         vkix=box%jvk_ji(kk)
-         if(mqf%compvar(cxq)%jvk_ji(kk).eq.ijkl) then
-            sumj=sumj+mqf%xquad(vkix)
-!                    1   2      3          4  
-            if(mqmqder) write(*,50)'j',cxq, ')%vk_ji(', kk,')   ',&
-                 ijkl,'j',sumj,1,vkix,ijkl
-!              5    6   7   8  9    10
-         endif
-      enddo nominator2
-!
-! derivative of a quotient  d(g/h) = 1/h*dg/dx - (g/h**2)*dh/dx = 
-!              = (h*dg/dx - g*dh/dx)/h**2
-!
-! the derivarive value g=sumi/sumk; h=sumj/sumk;  di and dj can be zero  
-!
-! the derivarive value dj*sumi-di*sumj
-! 
-      if(sumk.eq.zero) then
-         write(*,*)'3XQ line 2646, division by zero, values adjusted'
-         sumk=1.0d0
-      endif
-      if(abs(sumi).gt.zero) dvkijk(1,ijkl)=(sumk-sumi)/sumk**2
-      if(abs(sumj).gt.zero) dvkijk(2,ijkl)=(sumk-sumj)/sumk**2
-      if(mqmqder) write(*,70)ijkl,sumi,sumj,sumk,dvkijk(1,ijkl),dvkijk(2,ijkl)
-70    format('3XQ dvk: ',i3,3(1pe12.4),2x,2(1pe12.4))
-   enddo allquads
-!
-! return all derivatives of vk(ceq)/dxquad
-   if(mqmqder) then
-      write(*,90)cxq,(dvkijk(1,ijkl),ijkl=1,mxq)
-      write(*,90)cxq,(dvkijk(2,ijkl),ijkl=1,mxq)
-90    format('3XQ dvk(',i2,')/dq: ',20(1pe11.3))
-      write(*,*)'3XQ exit dvkij_dzijk'
-   endif
-1000 continue
-   return
- end subroutine dvkij_2_dzijk
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
-
 !\addtotable subroutine dvkij_dzijk
 !\begin{verbatim}
  subroutine dvkij_dzijk(mqf,cxq,dvkijk)
@@ -2778,7 +2636,7 @@
 !\end{verbatim}
    integer ijkl,vkix,vkdenom,kk,mxq,dgij,dgji,dijk
    double precision sumi, sumj, sumk, dvkij, dvkji, dvkdenom
-   logical skip
+   logical skip,dksum
 !
 ! derivative of a quotient  d(g/h) = 1/h*dg/dx - (g/h**2)*dh/dx = 
 !              = (h*dg/dx - g*dh/dx)/h**2
@@ -2806,19 +2664,25 @@
    endif
 ! initiate all derivaties to zero
    dvkijk=zero
+   dksum=.true.
+   sumi=zero
+   sumj=zero
 !
-   denominator: do ijkl=1,mxq
 !   vk_ij = \sum_i xquad(ivk_ij) / (\sum_k xquad(kvk_ijk)+\sum_k xquad(ivk_ij))
 !   vk_ji = \sum_i xquad(jvk_ji) / (\sum_k xquad(kvk_ijk)+\sum_k xquad(jvk_ji))
-! the sum_k include all fractions in \sum_i and \sum_j
+   denominator: do ijkl=1,mxq
+! The loop for ksum needed only once ....................
+      do_dksum: if(dksum) then
 ! if derivative of sum_k xquad(kvk_ijk), if zero all derivatives zero
-      skip=.true.
-      sumk=zero
-      dijk=0
-      ksum: do kk=1,size(box%all_ijk)
+! the sumk include sum of all fractions in \sum_i and \sum_j
+         sumk=zero
+! derivative of denominator is zero or one
+         dijk=0
+         skip=.true.
+         ksum: do kk=1,size(box%all_ijk)
 ! a quad fraction term can only apper once
-         vkix=box%all_ijk(kk)
-         sumk=sumk+mqf%xquad(vkix)
+            vkix=box%all_ijk(kk)
+            sumk=sumk+mqf%xquad(vkix)
 ! listing of derivative calculations
 ! 3XQ kloop for mqf%compvar( 1)%all_ijk( 1)    1 sum  3.5933E-02 1 1 1
 ! 3XQ kloop for mqf%compvar( 1)%all_ijk( 2)    1 sum  6.7187E-01 1 3 1
@@ -2827,22 +2691,24 @@
 ! 3XQ jloop for mqf%compvar( 1)%jvk_ji( 1)     1 sum  6.3593E-01 0 3 1
 ! 3XQ dvk:   1 1 0  3.5933E-02  6.3593E-01  1.0000E+00    9.6407E-01 -6.3593E-01
 ! 3XQ kloop for mqf%compvar( 1)%all_ijk( 1)    2 sum  3.5933E-02 1 1 1
-!                    1   2      3          4  
-         if(mqmqder) write(*,50)'k',cxq, ')%all_ijk(', kk,') ',&
-              ijkl,'k',sumk,1,vkix,ijkl
-!              5    6   7   8  9    10
+!                                   1   2      3          4  
+            if(mqmqder) write(*,50)'k',cxq, ')%all_ijk(', kk,') ',&
+                 ijkl,'k',sumk,1,vkix,ijkl
+!                 5    6   7   8  9    10
 !
-!                      1                          2  3   4 
-50       format('3XQ ',a,'loop for mqf%compvar(',i2, a, i2,a,&
-                             i4,' sum',a,': ',1pe12.4,2x,3i2)
-!                             5        6       7      8-10
+!                         1                          2  3   4 
+50          format('3XQ ',a,'loop for mqf%compvar(',i2, a, i2,a,&
+                 i4,' sum',a,': ',1pe12.4,2x,3i2)
+!                 5        6       7      8-10
 !  mqf%compvar(cxq)%all_ijk(kk),ijkl,  sumk         
-         if(mqf%compvar(cxq)%all_ijk(kk).eq.ijkl) then
+            if(mqf%compvar(cxq)%all_ijk(kk).eq.ijkl) then
 ! this varkappa depends on quad ijkl
-             skip=.false.
-             dijk=1
-          endif
-      enddo ksum
+               skip=.false.
+               dijk=1
+            endif
+         enddo ksum
+         dksum=.false.
+      endif do_dksum
 ! if sumk is zero there are no derivatives of the denominator, return zero
       if(skip) then
          write(*,55)cxq,ijkl
@@ -2850,32 +2716,34 @@
          exit denominator
       endif
 ! We have to calculate the derivatives of varkappa_ij and varkappa_ji      
-      sumi=zero
+!      sumi=zero
       dgij=0
       nominator1: do kk=1,size(box%ivk_ij)
          vkix=box%ivk_ij(kk)
+         sumi=sumi+mqf%xquad(vkix)
          if(mqf%compvar(cxq)%ivk_ij(kk).eq.ijkl) then
             dgij=1
-            sumi=sumi+mqf%xquad(vkix)
-!                       1   2      3          4  
-            if(mqmqder) write(*,50)'i',cxq, ')%vk_ij(', kk,')   ',&
-                 ijkl,'i',sumi,1,vkix,ijkl
-!                 5    6   7   8  9    10
          endif
+!                                1   2      3          4  
+         if(mqmqder) write(*,50)'i',cxq, ')%vk_ij(', kk,')   ',&
+              ijkl,'i',sumi,1,vkix,ijkl
+!              5    6   7   8  9    10
       enddo nominator1
 ! note sumi and/or sumj can be zero
-      sumj=zero
+!      sumj=zero
       dgji=0
+      if(mqmqder) write(*,56)ijkl,size(box%jvk_ji)
+56    format('3XQ derivative of jvk_ji',2i3)
       nominator2: do kk=1,size(box%jvk_ji)
          vkix=box%jvk_ji(kk)
          if(mqf%compvar(cxq)%jvk_ji(kk).eq.ijkl) then
             dgji=1
-            sumj=sumj+mqf%xquad(vkix)
-!                    1   2      3          4  
-            if(mqmqder) write(*,50)'j',cxq, ')%vk_ji(', kk,')   ',&
-                 ijkl,'j',sumj,1,vkix,ijkl
-!              5    6   7   8  9    10
          endif
+         sumj=sumj+mqf%xquad(vkix)
+!                                1   2      3          4  
+         if(mqmqder) write(*,50)'j',cxq, ')%vk_ji(', kk,')   ',&
+              ijkl,'j',sumj,1,vkix,ijkl
+!              5    6   7   8  9    10
       enddo nominator2
 !
 ! derivative of a quotient  d(g/h) = 1/h*dg/dx - (g/h**2)*dh/dx = 
@@ -2901,9 +2769,9 @@
 !---------------------------------------------------------
 ! return all derivatives of vk(ceq)/dxquad
    if(mqmqder) then
-      write(*,90)cxq,(dvkijk(1,ijkl),ijkl=1,mxq)
-      write(*,90)cxq,(dvkijk(2,ijkl),ijkl=1,mxq)
-90    format('3XQ dvk(',i2,')/dq: ',20(1pe11.3))
+      write(*,90)cxq,1,(dvkijk(1,ijkl),ijkl=1,mxq)
+      write(*,90)cxq,2,(dvkijk(2,ijkl),ijkl=1,mxq)
+90    format('3XQ dvk(',i2,',',i2,')/dq: ',20(1pe11.3))
       write(*,*)'3XQ exit dvkij_dzijk'
    endif
 1000 continue
