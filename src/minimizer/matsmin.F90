@@ -8241,7 +8241,7 @@ if(meqrec%noofits.eq.1) then
 !   addremloop
     iel=size(svar)
 !    write(*,18)(svar(jj),jj=1,iel)
-18  format('svar: ',6(1pe12.4)(6x,6e12.4))
+18  format('svar: ',6(1pe12.4),(6x,6e12.4))
     if(iel.eq.1) then
 ! iel=1 means a single stoichiometrc phase stable, svar(1) is CP/RT/T ??
 ! There can be a phase specification ...       

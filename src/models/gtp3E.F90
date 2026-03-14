@@ -4944,6 +4944,9 @@
                   noparref=noparref+1
                   tdbwarning=.TRUE.
 !                  write(*,*)'3E tdbwarning set true 12'
+               else
+                  write(*,4091)gx%bmperr,nl
+4091               format('3E Error ',i5,' occured around line ',i6)
                endif
             else
 ! Other errors than 4096, 4066 and 4154 are fatal

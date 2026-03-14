@@ -292,7 +292,7 @@
       write(lut,100)trim(ellista(ia)%symbol),trim(ellista(ia)%ref_state),&
            ellista(ia)%mass,ellista(ia)%h298_h0,ellista(ia)%s298
 100   format(2x,'<Element Id="',a,'" Refstate="',a,'" Mass="',1PE12.6,&
-           '" H298="',1PE12.6,'" S298="',1PE12.6'" />')
+           '" H298="',1PE12.6,'" S298="',1PE12.6,'" />')
       nl=nl+1
    enddo
 ! list alse elements as species

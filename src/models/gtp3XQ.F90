@@ -1178,6 +1178,8 @@
    double precision dksi(3),d2ksi(3)
 !   logical calc_alldvkij
 !   logical ddebug
+   logical :: oldmqmqa_model = .true.
+!   save oldmqmqa_model
 !------------------------------------- 
 ! tch is level of debug output, 0=none, 3=max
    tch=0
@@ -1587,9 +1589,12 @@
 !
 !******************* new code above should replace code below *******
 499      continue
-      write(*,319)
-319   format(//'3XQ *** this is the old mqmqa excess model **'//)
-      stop "gtp3XQ line 1542"
+      if(oldmqmqa_model) then
+         write(*,319)
+319      format(//'3XQ *** this is the old mqmqa excess model **'//)
+!      stop "gtp3XQ line 1542"
+      endif
+!
       if(associated(intrec%tooprec)) then
 ! the allocatable arrays Toop1, Toop2 and Kohler have all same size
 ! equal to the number of binary combination of constituents
@@ -2711,7 +2716,8 @@
       endif do_dksum
 ! if sumk is zero there are no derivatives of the denominator, return zero
       if(skip) then
-         write(*,55)cxq,ijkl
+! this is not an error, just a debug check
+!         write(*,55)cxq,ijkl
 55       format('3XQ vk(',i2,') does not depend on quad ',i2)
          exit denominator
       endif
@@ -3107,7 +3113,7 @@
    endif
 ! set the pair as first quad in pquad; maybe change qorder
 !   write(*,30)pair,lowa,(qorder(ii),ii=1,nq3)
-30 format('3XQ we found the pair: 'i3,', lowa:',i3,', qorder:',15i3)
+30 format('3XQ we found the pair: ',i3,', lowa:',i3,', qorder:',15i3)
 !   write(*,40)'3XQ pquad  before:',(pquad(ii),ii=1,nq3)
 !   write(*,40)'3XQ qorder before',(qorder(ii),ii=1,nq3)
    if(pair.ne.1) then
@@ -3268,7 +3274,7 @@
    endif
 ! set the pair as first quad in pquad; maybe change qorder
 !   write(*,30)pair,lowa,(qorder(ii),ii=1,nq3)
-30 format('3XQ we found the pair: 'i3,', lowa:',i3,', qorder:',15i3)
+30 format('3XQ we found the pair: ',i3,', lowa:',i3,', qorder:',15i3)
 !   write(*,40)'3XQ pquad  before:',(pquad(ii),ii=1,nq3)
 !   write(*,40)'3XQ qorder before',(qorder(ii),ii=1,nq3)
    if(pair.ne.1) then
@@ -3783,18 +3789,21 @@
    if(iquad.gt.mqmqa_data%nconst) goto 1000
    ijklx=iquad
 !   write(*,*)'Return from ijklx with:',iquad
+!
+77 continue
    return
-! error
+! errors 
 1000 write(*,1010)i,j,k,l,mqmqa_data%ncon1,mqmqa_data%ncon2,mqmqa_data%lcat,&
           kquad,iquad
 1010 format(' *** Indexing error in ijklx',4i4,2x,7i5,/'Stop!!!!')
-   stop
-!   read(*,*)iquad
-!   ijklx=iquad
-   !   return
+   gx%bmperr=4399
+   goto 77
+!  
 2000 continue
-   write(*,*)'Values outside limits',i,j,k,l
-   stop
+   write(*,2010)i,j,k,l,mqmqa_data%ncon1,mqmqa_data%ncon2
+2010 format('3XQ Quad indices outside limits',4i3,5x,2i3)
+   gx%bmperr=4399
+   goto 77
  end function ijklx
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
@@ -4093,7 +4102,7 @@
    integer a,selectij
 !    testasym=.true.
 ! the TDB format KKK or T3KK has been converted to element index
-   write(*,10)t,tersys(t)%isasym,i,j
+!   write(*,10)t,tersys(t)%isasym,i,j
 10 format('3XQ In asymm: ternary ',i3,' asymmetry: ',3i3,' binary ',2i3,' OK')
    selectij=0
    do a=1,3
@@ -4375,7 +4384,7 @@
 !
    nysym=.false.
    if(newXupdate.gt.box%lastupdate) then
-      write(*,5)box%seq,box%lastupdate,newXupdate
+      if(mqmqder) write(*,5)box%seq,box%lastupdate,newXupdate
 5     format(/'3XQ *** Updating allinone record ',i5,' from ',i5,' to ',i5/)
 ! *** this code part needed only once when all asymmetries are defined
 ! the arrays below are allocated, the initial 0 is overwritten if used
@@ -4415,7 +4424,7 @@
 ! this is not a debug variable, just for test output!!
       asymmetric=.false.
 !
-      write(*,*)'3QX in varkappa1',icat,jcat
+      if(mqmqder) write(*,*)'3XQ in varkappa1',icat,jcat
       vzloop: do vz=1,mqmqa_data%ncat
 ! loop for all ternary systems to find with asymmetric i-j-vz and j-i-vz
 !         write(*,403)'3XQ in vzloop 1: ',vz,icat,jcat
@@ -4606,7 +4615,8 @@
 747      continue
       enddo vzloop
 ! the vzloop above should be done whenever the asymmetry changes
-      write(*,*)'3XQ Updated asymmetry done for: ',box%cat1,box%cat2
+      write(*,748)box%cat1,box%cat2
+748   format('3XQ Asymmetry updated for varkappa_ij: ',2i3)
 !--------------------------------------------------------------------
 ! end of asymmetry detection loop
 !--------------------------------------------------------------------
@@ -4858,6 +4868,7 @@
 ! to set asymmetries in a text
 !\end{verbatim}
    integer i,j,ip,iq,ia,ib,ic,mm,icc(3),nc,kk,vz,toop(3)
+   integer missasym
    integer iph,ics,icon,ipm
    double precision mass
    character missingcon*60
@@ -4865,8 +4876,9 @@
    type(gtp_phaserecord), pointer :: phrec
 !
    phase=' '
+   missasym=0
 ! called from gtp3E around line 5493
-   write(*,10)trim(line)
+   if(mqmqdebug) write(*,10)trim(line)
 10 format('3XQ set_ternary_asymmetry called from gtp3E: "',a,'"')
 !   write(*,*)'3E set_ternary_asymmetry to be fixed'
 ! extract constituent indices and call setsym'
@@ -4874,7 +4886,7 @@
 ! first the phase, then 3 constituents finally the asymcode
    ip=0
    call getext(line,ip,2,phase,' ',iq)
-   write(*,20)trim(phase),iq
+!   write(*,20)trim(phase),iq
 20 format('3XQ Phase name: ',a,5x,i3)
    if(phase(1:1).ne.' ') then
       call find_phase_by_name(phase,iph,ics)
@@ -4950,7 +4962,8 @@
 ! if any icc is 0 skip
       do j=1,3
          if(icc(j).eq.0) then
-            write(*,*)'3XQ missing asymmetry constituents: ',trim(missingcon)
+!            write(*,*)'3XQ missing asymmetry constituents: ',trim(missingcon)
+            missasym=missasym+1
             cycle extract_asymmetries
          endif
       enddo
@@ -4973,6 +4986,12 @@
 ! as each phase can have ternary symmetries
 !
 1000 continue
+   if(missasym.gt.0) then
+      write(*,1010)trim(phase),missasym
+1010  format('3XQ Phase ',a,&
+           ' has ',i3,' ternary asymmetries for nonselected constituents')
+   endif
+! phase
    return
 1100 write(*,1110)line(min(1,ip-10):ip+10)
 1110 format('Problem extracting ternary asymmetry: ',a)
@@ -5564,7 +5583,7 @@
    integer nv,cat1,cat2,i,j,k,ip,i0,jp
    type(gtp_mqmqa_var), pointer :: mqf
    type(gtp_allinone), pointer :: box
-   character*80 line1,line2,qline
+   character*300 line1,line2,qline
    character*2, dimension(:), allocatable :: quadcat
 !
    mqf=>phres%mqmqaf

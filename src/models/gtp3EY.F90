@@ -726,7 +726,7 @@
           endif
        enddo findtag
 !       write(*,99)tagname(1:lk),tagno,fline,level,matt
-99     format('99 Tag: ',a,', number',i3', line: ',i7,', level: ',2i3)
+99     format('99 Tag: ',a,', number',i3,', line: ',i7,', level: ',2i3)
 !
 !
 ! detect tag
@@ -1376,7 +1376,7 @@
     write(*,311)
 311 format(//'Elements:')
     write(*,10)(selel(nn)%elname,nn=1,nselel)
-10  format('Elements entered: '20(a,1x))
+10  format('Elements entered: ',20(a,1x))
 !
 ! list all species --------------------------------------------------
     write(*,299)
@@ -2602,7 +2602,7 @@
              ion=.true.; ddot=.true.
 ! This is an ion, set a default charge 1
 !             write(*,300)trim(spstoi),ip,nel,(coef(kk),kk=1,nel)
-300          format('Ion 1: "',a,'" '2i3,10F8.3)
+300          format('Ion 1: "',a,'" ',2i3,10F8.3)
              el(nel)=spstoi(ip-1:ip)
              coef(nel)=one
 ! jump to extract a digit, the valence must be the end of an ion
@@ -2955,7 +2955,7 @@
           if(ic.eq.0) exit ord1
        enddo ord1
 !       write(*,10)(selel(nn)%elname,nn=1,nselel)
-10     format('Elements entered: '20(a,1x))
+10     format('Elements entered: ',20(a,1x))
 ! this is very clumsy
 !       write(*,*)'Order species alphabetically in selspord'
 !       allocate(selspord(nselsp+1))

@@ -1837,7 +1837,7 @@
        do kk=1,nlinesep-1
           call replace_uwh(phaseline(kk))
           write(21,2000)inline,colord,kk,trim(phaseline(kk)),backslash
-2000      format('# ',a,' using 'a,' with lines ls ',i2,' title "',a,'"',a)
+2000      format('# ',a,' using ',a,' with lines ls ',i2,' title "',a,'"',a)
           inline='""'
           if(kk.eq.nlinesep-2) backslash=' '
        enddo
@@ -1873,7 +1873,7 @@
        do kk=1,nlinesep-1
           call replace_uwh(phaseline(kk))
           write(21,1999)applot,colord,kk,trim(phaseline(kk)),backslash
- 1999      format(a,' using 'a,' with lines ls ',i2,' title "',a,'"',a)
+ 1999      format(a,' using ',a,' with lines ls ',i2,' title "',a,'"',a)
           applot='""'
 ! remove backslash at last line
           if(kk.eq.nlinesep-2) backslash=' '
@@ -2791,7 +2791,7 @@
 128 format('#set title "',a,' \n #',a,'" font "',a,',10"')
 129 format('set title "',a,' \n ',a,'" font "',a,',10"')
 130 format('set origin 0.0, 0.0 '/&
-         'set size ',F8.4', ',F8.4/&
+         'set size ',F8.4,', ',F8.4/&
          'set xlabel "',a,'"'/&
          'set key ',a)
     call replace_uwh(pltax(2))

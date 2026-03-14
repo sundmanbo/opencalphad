@@ -23,6 +23,11 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.03.14 version 6.107.  A lot of debug output related to MQMQA
+removed.  Tests of symmetrical MQMQA excess parameter works.
+
+2026.03.03 version 6.106. Corrected partial derivatve bug for MQMQA.
+
 2026.03.01 version 6.105. Added partial derivatives to the calculation
 of the Gibbs energy for the MQMQA model.  Some improvements but
 debugging continues.  This is still very fragile.

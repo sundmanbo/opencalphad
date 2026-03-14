@@ -696,7 +696,7 @@
                  csrec%abnorm(1),csrec%dgm/csrec%abnorm(1),&
                  phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2,ch1
 ! 230709 shorter
-111         format(i3,i4,1x,a24,'       0.0',1x0PF8.2,1PE10.2,1x,2(0p,z8),a1)
+111         format(i3,i4,1x,a24,'       0.0',1x,0PF8.2,1PE10.2,1x,2(0p,z8),a1)
 !111         format(2i4,1x,a24,'       0.0',1x0PF8.2,1PE10.2,2(0p,z8),a1)
 !111         format(2i4,1x,a24,'       0.0',1x0PF9.2,1PE10.2,2(0p,z8))
          endif
@@ -1057,7 +1057,7 @@
 19    format(' *** Warning: illegal  phase name: ',10i5)
    endif
 !X   write(lut,20)phname,status,ceq%phase_varres(lokcs)%dgm
-20  format(/'Phase: ',A,' Status: 'A,' Driving force: ',1PE12.4)
+20  format(/'Phase: ',A,' Status: ',A,' Driving force: ',1PE12.4)
 !------------------------
 !   xmol=zero
 !   wmass=zero
@@ -2561,7 +2561,7 @@
             endif
             kk=len_trim(text)+2
 !         write(*,997)1,text(1:kk),kk
-997         format('3C ternary: ',i1,' "',a,'"'i4)
+997         format('3C ternary: ',i1,' "',a,'"',i4)
 ! This text is written by the commands list data and list phase xxx data
 ! Output from "save tdb" is written by list_phase_data2
          endif

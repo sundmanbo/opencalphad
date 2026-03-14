@@ -4266,7 +4266,7 @@
       write(*,*)'3Y Opening ocgrid.dat to write grid solution'
       open(31,file='ocgrid.dat ',access='sequential')
       write(31,700)nrel,kp,(xknown(inuse),inuse=1,nrel)
-700   format('Output from OC gridmin'/' Elements: ',i2,', gridpoints: 'i5,&
+700   format('Output from OC gridmin'/' Elements: ',i2,', gridpoints: ',i5,&
            ', composition: '/6(F7.4))
       write(31,*)' Gridpoints in use: '
       do inuse=1,kp

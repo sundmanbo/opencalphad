@@ -658,7 +658,7 @@
    mqm=.FALSE.
    uniquac=.FALSE.
 !   write(*,4)trim(name),nsl,(const(jk),jk=1,nsl)
-4  format('3B In enter_phase: 'a,2x,i1,' "',9a,'"')
+4  format('3B In enter_phase: ',a,2x,i1,' "',9a,'"')
 ! phase with tetrahedron CVM configurational entropy
    cvmtfs=.FALSE.
    cvmtfl=.FALSE.
@@ -1464,6 +1464,10 @@
    mqmqa_data%ncat=mqmqa_data%ncon1
    mqmqa_data%nan=mqmqa_data%ncon2
    mqmqa_data%lcat=mqmqa_data%ncat*(mqmqa_data%ncat+1)/2
+   if(mqmqa_data%ncat.gt.9) then
+      write(*,6)mqmqa_data%ncat,10
+6     format('3B **** Warning, too many cations: ',i2,' code assume max ',i2)
+   endif
 !
 !   write(*,5)'second',mqmqa_data%nconst,mqmqa_data%ncon1,mqmqa_data%ncon2,&
 !        mqmqa_data%lcat,mqmqa_data%nquad,mqmqa_data%ncat,&
@@ -2791,7 +2795,8 @@
 ! wildcard, sorted at the end
          iord(ll)=-99
       else
-!         write(*,*)'3B error in enter_parameter ',endm(ll)
+         write(*,1211)trim(phlista(lokph)%name),ll
+1211     format('3B error in enter_parameter ',a,i5)
 !         gx%bmperr=4096; goto 1000
          gx%bmperr=4096; goto 2000
       endif
@@ -2924,7 +2929,7 @@
 ! looking for bug entering 4 sublattice interaction parammeters ...
 !   write(*,116)'3B: endm & int: ',(iord(ii),ii=1,nsl),&
 !        (jord(1,ii),jord(2,ii),ii=1,nint)
-116 format(a,4i3' : ',2i3,2x,2i3)
+116 format(a,4i3,' : ',2i3,2x,2i3)
 !   endif
    nullify(lastem)
 !---------------------------------------------
@@ -3639,7 +3644,7 @@
 !     write(*,*)'without properties',associated(endmemrec%intpointer%propointer)
 !   endif
    if(gx%bmperr.ne.0) then
-      write(*,*)'Leaving enter_parameter with error ',gx%bmperr
+      write(*,*)'3B Leaving enter_parameter with error ',gx%bmperr
    endif
    return
  end subroutine enter_parameter
@@ -7677,7 +7682,7 @@
 ! Species representing different valencies of an element have names as UQ4 
 ! fnnquads store names of FNN quadruplets
    integer nfnnq,nsnnq,pair,qorder(maxconst),haha
-   integer, parameter :: mfnnq=20
+   integer, parameter :: mfnnq=40
    character (len=24) :: fnnquads(mfnnq),snnrefs(4,maxconst-mfnnq)
 ! this save is probably redundant
    save seqnum,nfnnq,nsnnq,fnnquads,snnrefs
@@ -7836,7 +7841,12 @@
       nfnnq=nfnnq+1
 ! qorder is used when rearranging the quads in alphabetical order
       qorder(mqmqa_data%nconst+1)=nfnnq
-!      write(*,61)nfnnq,trim(quadname)
+      if(nfnnq.gt.size(fnnquads)) then
+         write(*,61)nfnnq,size(fnnquads)
+61       format('3B Too many quads in MQMQA liquid ',2i3)
+         gx%bmperr=4399
+         goto 1000
+      endif
       fnnquads(nfnnq)=quadname
    else
       nsnnq=nsnnq+1
@@ -7865,6 +7875,11 @@
 !----------------------------------------------------------
 ! we have found all species, we have a new quadrupol
    mqmqa_data%nconst=mqmqa_data%nconst+1
+   if(mqmqa_data%nconst.gt.maxquads) then
+      write(*,777)maxquads
+777   format('3XQ Too many quadrupoles, max ',i3)
+      gx%bmperr=4399; goto 1000
+   endif
    thiscon=mqmqa_data%nconst
 !   write(*,*)'3B thiscon: ',thiscon
    if(thiscon.ge.maxconst) then
@@ -8535,6 +8550,7 @@
 !           (mqmqa_data%constoi(s2,s1),s2=1,4)
 !   enddo
 ! cations and anions
+   write(*,*)'3B Number of cations and anions ',ncon1,ncon2
    mqmqa_data%ncon1=ncon1
    mqmqa_data%ncon2=ncon2
 ! copy the value in constoi(3,s1) for all pairs to qfnnsnn

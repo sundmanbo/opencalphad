@@ -5070,7 +5070,7 @@ contains
           call gparidx('Error code: ',cline,last,i1,i2,'?List error msg')
           if(i1.ge.4000 .and. i1.le.nooferm) then
              write(kou,4999)i1,bmperrmess(i1)
-4999         format('The error code ',i4', means: '/a)
+4999         format('The error code ',i4,', means: '/a)
           else
              write(kou,*)'Not a standard OC error message'
           endif
@@ -8505,7 +8505,7 @@ contains
 558    format(/'*************************************************************'/&
             '>>>   Start of optimization using LMDIF'/&
             '>>>   with ',i4,' experiments and ',i3,' coefficients.',/&
-            '>>>   Workspace needed ',i6', out of allocated ',i6/&
+            '>>>   Workspace needed ',i6,', out of allocated ',i6/&
             '*************************************************************')
 !
        j4=nopt
