@@ -7922,10 +7922,10 @@ contains
              call gparcdx('Separating character (, ; or ?)',cline,last,&
                   1,ch1,';','?CSV separator')
              write(*,21205)trim(filename)
-21205        format('Converting csv file: ',a,' to csvappend.plt')
+21205        format(/'Converting csv file: ',a,' to csvappend.plt')
              open(23,file=filename,status='old',access='sequential',err=21300)
 ! First column is x-axis, the remaining columns are y-axis
-             write(*,*)'Converting CSV file to GNUPLOT file: csvappend.plt'
+!             write(*,*)'Converting CSV file to GNUPLOT file: csvappend.plt'
 ! create a new file for the GNUPLOT, overwrite any old
              open(31,file='csvappend.plt',status='unknown',access='sequential',&
                   err=21300)

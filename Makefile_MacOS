@@ -30,7 +30,8 @@ FCOPT= -O2 -fopenmp -fPIC
 # no parallel
 #FCOPT= -O2
 #FC=ifort
-#FCOPT= -check bounds -zero
+# Compiler options for debug, -O1 reduces memory/register operations
+#FCOPT= -O1 -fbounds-check -g -finit-local-zero
 
 #=============================================================================#
 

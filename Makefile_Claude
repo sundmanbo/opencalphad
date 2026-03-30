@@ -1,0 +1,162 @@
+#
+# Makefile for Open Calphad (OC) - Claude version
+#
+# Targets: all, debug, clean
+#
+# ************************************
+# OC now requires GNUPLOT 5.2 or later
+# ************************************
+
+EXE    = oc7C
+LIBS_A = libs/liboceq.a
+
+#==============================================================================
+# Compiler selection
+#==============================================================================
+FC  = gfortran
+CPP = g++
+
+# Auto-detect OS
+# Override any variable on the command line, e.g.:  make PLOTFLAG=-Daqplt
+UNAME := $(shell uname)
+
+ifeq ($(UNAME), Darwin)
+  C         = cc
+  GETKEY_OS = -DBSD
+  HELPFLAG  = -Dmachlp
+  PLOTFLAG  = -Dqtplt      # Qt driver; use -Daqplt for Aqua
+  WINFLAG   = -Dnotwin
+else ifneq (,$(findstring CYGWIN, $(UNAME)))
+  C         = gcc
+  GETKEY_OS = -DCYGWIN
+  HELPFLAG  =              # no browser help on Cygwin
+  PLOTFLAG  =              # wxt is gnuplot default; no flag needed
+  WINFLAG   =              # Windows spawning: do NOT define notwin
+else
+  # Linux and other Unix
+  C         = gcc
+  GETKEY_OS = -DLinux
+  HELPFLAG  = -Dlixhlp
+  PLOTFLAG  =              # wxt is gnuplot default; no flag needed
+  WINFLAG   = -Dnotwin
+  # Other UNIX (AIX, HP-UX, etc.): override with  make GETKEY_OS=-DG77
+endif
+
+#==============================================================================
+# Compiler flags — gfortran (default) or ifort
+#==============================================================================
+ifneq (,$(findstring ifort, $(FC)))
+  # Intel Fortran
+  FCOMP  = -O2 -qopenmp -fPIC -zero
+  FCDEBUG = -check bounds -zero
+else
+  # GNU Fortran (gfortran)
+  FCOMP  = -O2 -fopenmp -fPIC -finit-local-zero
+  FCDEBUG = -O1 -fopenmp -fbounds-check -finit-local-zero
+endif
+
+FCOPT = $(FCOMP)
+
+#==============================================================================
+# Object files (in link order)
+#==============================================================================
+OBJS = getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o \
+       ocparam.o metlib4.o oclablas.o ocnum.o minpack1.o \
+       gtp3.o matsmin.o smp2.o pmon6.o
+
+#==============================================================================
+# gtp3.F90 pulls in these files via #include — list them so a change
+# to any sub-file triggers recompilation of gtp3.o
+#==============================================================================
+GTP3_INCS = \
+  src/models/gtp3_dd1.F90  src/models/gtp3_dd2.F90  src/models/gtp3_xml.F90 \
+  src/models/gtp3A.F90     src/models/gtp3B.F90      src/models/gtp3C.F90  \
+  src/models/gtp3D.F90     src/models/gtp3E.F90      src/models/gtp3EX.F90 \
+  src/models/gtp3EY.F90    src/models/gtp3F.F90      src/models/gtp3G.F90  \
+  src/models/gtp3H.F90     src/models/gtp3X.F90      src/models/gtp3XQ.F90 \
+  src/models/gtp3Y.F90     src/models/gtp3Z.F90
+
+# smp2.F90 pulls in these files via #include
+SMP2_INCS = src/stepmapplot/smp2A.F90 src/stepmapplot/smp2B.F90
+
+#==============================================================================
+.PHONY: all debug clean
+
+all: $(EXE)
+
+# Debug build: make debug
+debug: FCOPT = $(FCDEBUG)
+debug: all
+
+#==============================================================================
+# C / utility objects
+#==============================================================================
+getkey.o: src/utilities/GETKEY/getkey.c
+	$(C) -c $(GETKEY_OS) src/utilities/GETKEY/getkey.c
+
+M_getkey.o: src/utilities/GETKEY/M_getkey.F90
+	$(FC) -c $(FCOPT) src/utilities/GETKEY/M_getkey.F90
+
+tinyfiledialogs.o: src/utilities/TINYFILEDIALOGS/tinyfiledialogs.c
+	$(C) -c src/utilities/TINYFILEDIALOGS/tinyfiledialogs.c
+
+tinyopen.o: src/utilities/TINYFILEDIALOGS/tinyopen.c
+	$(C) -c src/utilities/TINYFILEDIALOGS/tinyopen.c
+
+ftinyopen.o: src/utilities/TINYFILEDIALOGS/ftinyopen.F90
+	$(FC) -c $(FCOPT) src/utilities/TINYFILEDIALOGS/ftinyopen.F90
+
+#==============================================================================
+# Fortran modules (in dependency order)
+#==============================================================================
+ocparam.o: src/models/ocparam.F90
+	$(FC) -c $(FCOPT) src/models/ocparam.F90
+
+# metlib4 needs ocparam.mod (from ocparam.o) and M_getkey.mod
+metlib4.o: src/utilities/metlib4.F90 ocparam.o M_getkey.o ftinyopen.o
+	$(FC) -c $(FCOPT) -Dlixed -Dtinyfd $(HELPFLAG) src/utilities/metlib4.F90
+
+oclablas.o: src/numlib/oclablas.F90
+	$(FC) -c $(FCOPT) src/numlib/oclablas.F90
+
+ocnum.o: src/numlib/ocnum.F90
+	$(FC) -c $(FCOPT) -DNOLAPACK src/numlib/ocnum.F90
+
+minpack1.o: src/numlib/minpack1.F90
+	$(FC) -c $(FCOPT) src/numlib/minpack1.F90
+
+# gtp3 depends on all its #included sub-files plus the modules it USEs
+gtp3.o: src/models/gtp3.F90 $(GTP3_INCS) ocparam.o ocnum.o metlib4.o
+	$(FC) -c $(FCOPT) src/models/gtp3.F90
+
+matsmin.o: src/minimizer/matsmin.F90 gtp3.o minpack1.o
+	$(FC) -c $(FCOPT) src/minimizer/matsmin.F90
+
+# WINFLAG=-Dnotwin on non-Windows; empty on Cygwin/Windows
+smp2.o: src/stepmapplot/smp2.F90 $(SMP2_INCS) matsmin.o
+	$(FC) -c $(FCOPT) $(WINFLAG) src/stepmapplot/smp2.F90
+
+# PLOTFLAG: -Dqtplt (Darwin/Qt), -Daqplt (Aqua), or empty (wxt default)
+pmon6.o: src/userif/pmon6.F90 smp2.o
+	$(FC) -c $(FCOPT) $(PLOTFLAG) $(HELPFLAG) src/userif/pmon6.F90
+
+#==============================================================================
+# Link
+#==============================================================================
+$(EXE): $(OBJS)
+	# Stamp today's date into pmain1.F90
+	cp src/pmain1.F90 src/pmain1-save.F90
+	$(FC) -o linkoc src/linkocdate.F90
+	./linkoc
+	rm src/pmain1-save.F90
+	# Build static library
+	mkdir -p libs
+	ar sq $(LIBS_A) metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
+	# Link final executable
+	$(FC) -o $(EXE) $(FCOPT) src/pmain1.F90 $(OBJS) $(LIBS_A)
+
+#==============================================================================
+clean:
+	rm -f *.o *.mod linkoc $(EXE)
+	rm -f src/pmain1-save.F90
+	rm -rf libs

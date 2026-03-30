@@ -23,8 +23,70 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.03.22 version 6.108.  This version works for the MQMQA model for
+some ternary systems but probably there are still problems with
+others.  You are welcome to send me problematic calculations (also for
+other systems) together with an OCM and TDB file to reproduce the problem.
+
+There has been total confusion implementing the MQMQA model.  Suddenly
+the STEP and MAP commands gives up after first calculated equilibria
+also for other cases.  I had also messed up the user i/f because I had
+forgotten there was already a SET ADV WORKSPACE and added a new
+similar command.  I had also made other changes and I whatever I
+changed I could not completely make sure that the STEP/MAP worked.
+
+I renamed my own src/ directory to src-bad and created a new src/ by
+copying the files from the saved version 6.107 on my directory
+GitHub/opencalphad/src/ I renamed the version to 6.108 in the file
+OC/OC7/src/models/gtp3.F90.
+
++ Then I tested that all the examples/macros/ worked.  Puh
+
+- Testing the my own Systems/CeMgCl/master2.OCM failed first time but
+  worked running the micro a second time (without restarting OC).
+  This is the same behaviour I found earlier with the deleted
+  version.  In the deleted version today it failed all the times.
+  Testing CEA/Systems/KLiNa-master.OCM worked first (and second) time.
+
+- To find the problem with the "sometimes" failed STEP/MAP I had
+  modified in src/stepmapplot/smp2A.F90 the call to the
+  meq_sameset(irem,iadd,...  (which is in matsmin.F90) by setting
+  iadd=-1 in the call.  This is a feature activates debug output
+  inside meq_sameset and may help to find the problem.  I had
+  forgotten this feature ... and I suspect an uninitiated variable
+  or something else set wrongly when using an MQMQA phase.
+
+  Searching for this problem in the deleted 108 version may have made
+  things worse.  At the end of working with the now deleted version I
+  had this problem also when calculating systems without the MQMQA
+  phase.  I had already made minor changes in many files so that is
+  why I gave up on this version and restart from the previous one.
+
+The work to fix the bugs continues.  I installed Claude AI and asked
+for help.  After analyzing the code and the problem the final
+suggestion was that it was a rounding off problem and the debug
+version of OC (compiled with -O0 or rather no optimization) was more
+likely to have roundoff errors of the order 1E-6 than the the code
+compiled with -O2 and -fopenmp.  The convergence criteria for the
+equilibrium is 1E-6.  Normally I use the debug version for testing but
+I think I have had convergence problems also withe the optimized code.
+Anyway Claude suggested using -O1 should avoid some problems with
+roundoff errors and all tests seems to work since I added that.  When
+asking for advice on the Internet Fortran forum, this advice was
+questioned but it seems to work for OC and me.
+
+This has been a rather horrible experience because modifying the MQMQA
+code created unrelated errors for the convergence.  Finally I was
+modifying code all over to try to eliminate the problem.
+
+In the GitHub version of Makefile_MacOS I compile with -O2 but I have
+now added a Makefile created by Claude which include the clean and
+debug options.
+
 2026.03.14 version 6.107.  A lot of debug output related to MQMQA
-removed.  Tests of symmetrical MQMQA excess parameter works.
+removed.  Tests of symmetrical MQMQA excess parameter works.  Some
+modifications suggested by Claude (AI) has improved the stability of
+the MAP/STEP commands, usually they are imcomplete after a few macros.
 
 2026.03.03 version 6.106. Corrected partial derivatve bug for MQMQA.
 

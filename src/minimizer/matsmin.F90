@@ -893,7 +893,8 @@ CONTAINS
 ! add this phase as stable, check that not too many stable phases ...
 ! meqrec%nv is the current number of stable phases
        if(meqrec%nv.eq.meqrec%maxsph) then
-          write(*,*)'MM Too many stable phases'
+          write(*,69)'MM Too many stable phases',meqrec%nv,meqrec%maxsph
+69        format(a,2i5)
           gx%bmperr=4193; goto 1000
        endif
 !       write(*,*)'Adding fix phase to stable phase set',&
