@@ -871,13 +871,14 @@
 ! sysparam are variables for different things
 ! sysparam(1) unused
 ! sysparam(2) number of equilibria between each check of spinodal at STEP/MAP??
-! sysparem(3-10) unused ...
+! sysparam(3-10) unused ...
 ! sysreal(1) is the minimum T for EET check (equi-entopy T, Hickel)
-!            if zero no EET c
+!            if zero no EET check
+! sysreal(2..10) unused ... some used in debug
      integer status
      integer :: encrypted=0
      character name*24
-     double precision rgas,rgasuser,pnorm
+     double precision rgas,rgasuser,pnorm,mqmqa1
 ! these are explicitly set to zero in new_gtp
      double precision, dimension(10) :: sysreal=zero
      integer :: sysparam(10)=0
@@ -1055,7 +1056,9 @@
 ! In the ternary the binary order is 1-2, 1-3, 2-3.
 ! asymm is a simple way to specify the asymmetric element for each binary
      character*3 asymm  !  KKK: totally symmetrical
-!           TKK: element 3 is asymmetrical in 1-2. 1-3 and 2-3 are symmetrical
+!       TKK: element 3 is asymmetrical in 1-2 but 1-3 and 2-3 are symmetrical
+!       KTK: element 2 is asymmetrical in 1-3 but 1-2 and 1-3 are symmetrical
+!       KKT: element 1 is asymmetrical in 2-3 but 1-2 and 1-3 are symmetrical
 ! This is read from database an used to initiate isasym but kept for backup
 ! for simple check of asymmetry of an element use this array
 ! seq is ternary system index, el are element index how to know which elements
@@ -1063,7 +1066,8 @@
 ! and isasym is 0 if no asymmetry, isasym(1) is  
      integer isasym(3) ! isasym(1,2,3) initially 0 but can be set to the 
 !         aymmetric element index (element index change for different systems)
-! Note all 3 element can be asymmetric,   
+! >>>> Note all 3 element can be asymmetric,   
+! ONLY one asymmetric element in each ternary
 !
   end type gtp_terdata
 !\end{verbatim}

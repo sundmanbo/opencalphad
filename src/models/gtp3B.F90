@@ -1192,6 +1192,9 @@
 !============================= start of MQMQA constituents
       write(*,*)'3B entering MQMQA phase',mqm,mqmqa_data%nconst
       phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
+! set the globaldata$mqmqa1 if MQMQX
+      globaldata%mqmqa1=1.0D4
+      write(kou,*)'3B setting mqmqa1',globaldata%mqmqa1
 !      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHFACTCE)
 !      write(*,*)'gtp3B line 1186: "',model(1:6),'" ',ch1
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHMQMQA)
@@ -1339,7 +1342,7 @@
 66       format('3B Calling create_asymmetry from enter_phase',i5,2x,a)
 !              
          call create_asymmetry(nyfas,knr,const,phtype)
-
+!
 ! In this routine we create xquad with indices to constituents
 ! create ternary asymmetric records
 ! create the binary allinone and initiate varkappa etc.

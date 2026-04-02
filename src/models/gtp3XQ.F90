@@ -1591,7 +1591,7 @@
 499      continue
       if(oldmqmqa_model) then
          write(*,319)
-319      format(//'3XQ *** this is the old mqmqa excess model **'//)
+319      format(/'3XQ *** this is the old mqmqa excess model **'/)
 !      stop "gtp3XQ line 1542"
       endif
 !
@@ -4145,6 +4145,8 @@
 !\begin{verbatim}
 ! subroutine varkappa1(seq,mqf)
  subroutine varkappa1(seq,phres)
+! seq is the index of varkappa in mqf%compvar array of varkappas
+! phres is pointer to gtp_phase_varres for the mqmqa phase
 ! box is a record of the type(gtp_allinone)
 ! this routine may initiate, calculate and store varkappaij, varkappaji, xiij
 ! and xiji for symmetric and asymmetric systems with Kohler/Toop
@@ -4262,6 +4264,9 @@
 !   deallocate(box%asymm_gamma)
 !
    nysym=.false.
+! deafult is 0, to update set box%lastupdate to -1
+!   write(*,*)'3XQ update if differnt: ',newXupdate,box%lastupdate
+
    if(newXupdate.gt.box%lastupdate) then
       if(mqmqder) write(*,5)box%seq,box%lastupdate,newXupdate
 5     format(/'3XQ *** Updating allinone record ',i5,' from ',i5,' to ',i5/)

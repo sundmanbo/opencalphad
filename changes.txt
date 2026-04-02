@@ -4,11 +4,16 @@ earlier.  This log started 2016-03-03.
 For general information please read the intro-OC7.pdf and the
 macros-OC7.pdf.
 
-There is an old precompiled installation of OC for Windows on the
-OpenCalphad web page.  It includes an introduction, on-line help and
-examples with macro files and some small databases.  For graphics the
-free GNUPLOT software must be installed separately from Sourceforge or
-a similar website.
+There is an 8 years old precompiled installation of OC for Windows on
+the OpenCalphad web page.  This year I will try to update this
+version.  Probably I will no longer add anything new to OC, just clean
+up the code and work on the documentation.  Using the AI Claude I may
+be able to make the code easier to understand, simpler and faster.
+
+It includes an introduction, on-line help and examples with macro
+files and some small databases.  For graphics the free GNUPLOT
+software must be installed separately from Sourceforge or a similar
+website.
 
 A recent Fortran compiler is needed, OC uses features from the new
 Fortran 2018 standard.  On Linux, MacOS and other OS the installation
@@ -22,6 +27,165 @@ environment and we who provide this software for free do not have the
 time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
+
+2026.04.01 version 6.110.  The MQMQA ternary has now also been tested
+using a Toop ternary excess model, previously the Kohler ternary model
+was used.  Both works and a this now available for further testing.
+
+However, the MQMQA model requires some less restrictive convergence
+criteria and these were not comparible with other case studies.  Thus
+one subroutine, meq_sameset in the matsmin.F90 file has been doubled.
+Eventually this can be removed but for the time being this will
+hopefully work
+
+There are many more tests needed and please send me problemantic
+systems including macro OCM files and excell cvs files with the data
+which should be correct.
+
+
+The selection of Toop/Kohler model is normally made in the TDB file
+but can be made interactively using the command
+"LIST MQMQA <phase name> AMEND".
+
+Use the command LIST MQMQA ASYM YES first and find the index of the
+ternay with the Toop element.  One must specify the index of the
+ternary with a Toop element and specify the cation constituent in this
+ternary which is the Toop element.  There can only be one TOOP element
+in a ternary.  The other cations in the ternary are set as symmetric.
+
+An example is given below (as there will be some time before the
+User Guide will be available ...)
+
+--->OC6:l mq ms asym y                              <<<< user command
+
+Listing of the   1 ternary systems and their asymmetries
+  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
+  1    1      1    2    3        1   0   0     TKK
+Number in T/0 column is actual asymmetric cation
+
+Fractions  6 in species OC alphabetical order:
+ 0.085 0.152 0.178 0.035 0.277 0.272
+Fractions  6 in Quad order: 
+ 0.085 0.152 0.178 0.035 0.277 0.272
+
+The   6 quads for  3 cations are arranged in order of the n cations:
+Quad           1   2  ...  n | n+1 n+2 ... 2n-1 | 2n .. | n(n+1)/2
+Cation         1   1  ...  1 | 2   2   ...  2   | 3  .. | n
+Cation         1   2  ...  n | 2   3   ...  n   | 3  .. | n
+quad2compvar:  **  1  2 **  3 **
+Number of varkappa_ij asymmetry variables, n*(n-1)/2:   0
+em2quad:  12 30  1  4  6
+
+Fractions in OC order     1  2  3  4  5  6
+Fractions in Quad order   1  2  3  4  5  6
+
+List of compvar, the binary asymmetric composition variables, last update:    0
+  seq cat_i cat_j    varkappa_ij varkappa_ji  xi_ij       xi_ji
+    1     1     2     3.1179E-01  1.3009E-01  2.5000E-01  2.5000E-01
+    2     1     3     1.5864E-01  5.0879E-01  2.5000E-01  5.0000E-01
+    3     2     3     6.0588E-02  4.6573E-01  2.5000E-01  5.0000E-01
+
+Values of y_i/k:  0.2500 0.2500 0.5000
+
+Quad:  1  2  3   4  5   6
+Cat1:  1  1  1   2  2   3
+Cat2:  1  2  3   2  3   3
+
+vk_12 = x_11
+vk_21 = x_22
+denom = x_11+x_22 +x_12
+vk_13 = x_11
+vk_31 = x_33
+denom = x_11+x_33 +x_13
+vk_23 = x_22
+vk_32 = x_33
+denom = x_22+x_33 +x_23
+
+Listing of the   1 ternary systems and their asymmetries
+  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
+  1    1      1    2    3        0   0   0     KKK
+Number in T/0 column is actual asymmetric cation
+
+             ^^^^^^^^^^^^^^^^^^^^^^^^^ above listing is a Kohler ternary
+
+--->OC6:l mq ms AMEND-VAR      <<<<<<<<<<<<<< user command to change asymmetry
+
+Listing of the   1 ternary systems and their asymmetries
+  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
+  1    1      1    2    3        0   0   0     KKK
+Number in T/0 column is actual asymmetric cation
+
+ This is only implemented for a single ternary!
+Specify Toop constitutent index /1/: ... echo: 1
+  1    1      1    2    3        1   0   0     TKK
+
+--->OC6:l mq ms asym                     <<<<<<<<<<<<<< user command
+
+Listing of the   1 ternary systems and their asymmetries
+  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
+  1    1      1    2    3        1   0   0     TKK
+Number in T/0 column is actual asymmetric cation
+
+Fractions  6 in species OC alphabetical order:
+ 0.085 0.152 0.178 0.035 0.277 0.272
+Fractions  6 in Quad order: 
+ 0.085 0.152 0.178 0.035 0.277 0.272
+
+The   6 quads for  3 cations are arranged in order of the n cations:
+Quad           1   2  ...  n | n+1 n+2 ... 2n-1 | 2n .. | n(n+1)/2
+Cation         1   1  ...  1 | 2   2   ...  2   | 3  .. | n
+Cation         1   2  ...  n | 2   3   ...  n   | 3  .. | n
+quad2compvar:  **  1  2 **  3 **
+Number of varkappa_ij asymmetry variables, n*(n-1)/2:   0
+em2quad:  12 30  1  4  6
+
+Fractions in OC order     1  2  3  4  5  6
+Fractions in Quad order   1  2  3  4  5  6
+
+List of compvar, the binary asymmetric composition variables, last update:    0
+  seq cat_i cat_j    varkappa_ij varkappa_ji  xi_ij       xi_ji
+    1     1     2     8.4941E-02  5.8494E-01  2.5000E-01  7.5000E-01
+    2     1     3     1.5864E-01  5.0879E-01  2.5000E-01  5.0000E-01
+    3     2     3     6.0588E-02  4.6573E-01  2.5000E-01  5.0000E-01
+
+Values of y_i/k:  0.2500 0.2500 0.5000
+
+Details on varkappa? /N/: y                     <<<<<< user input
+... echo: y
+Quad:  1  2  3   4  5   6
+Cat1:  1  1  1   2  2   3
+Cat2:  1  2  3   2  3   3
+
+vk_12 = x_11
+vk_21 = x_22+x_23+x_33
+denom = x_11+x_22+x_23+x_33 +x_12+x_13
+vk_13 = x_11
+vk_31 = x_33
+denom = x_11+x_33 +x_13
+vk_23 = x_22
+vk_32 = x_33
+denom = x_22+x_33 +x_23
+
+Listing of the   1 ternary systems and their asymmetries
+  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
+  1    1      1    2    3        1   0   0     TKK
+Number in T/0 column is actual asymmetric cation
+
+        ^^^^^^^^^^^^^^^^^ Listing above show cation 1 is Toop element
+
+2026.04.01 version 6.109.  By changing some of the criteria for
+convergence the STEP command now works for the complete range of
+compositions of a ternary test case for the MQMQA phase with values
+exactly the same as calculated by FactSage.  I believe that the
+convergence problem is due to the fact that for one of the components
+must use an arbitrary activity condition in order to calculate the
+pseudo-equilibrim.  The calculated value of this activity is more or
+less random and may have any value.
+
+But changing the convergence criteria may cause problems for other
+systems so I have tested that all my 35 test cases works.  But please
+check that your important calculations with this version gives the
+same results as with the previous and please report any differences.
 
 2026.03.22 version 6.108.  This version works for the MQMQA model for
 some ternary systems but probably there are still problems with

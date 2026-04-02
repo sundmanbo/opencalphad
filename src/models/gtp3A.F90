@@ -878,6 +878,13 @@
 ! Maybe these need initiating?
    globaldata%sysreal=zero
    globaldata%sysparam=0
+! For EEC sysreal(1) is set to a value of T
+! the MQMQA phase require reduced accuracy for a test in matsmin.F90 
+! around line 2223.  Sysreal(2) is set to unity here
+   globaldata%mqmqa1=1.0D0
+!   globaldata%sysreal(2)=1.0D4
+! But if a MQMQA model phase involved it is set to 1.0D4
+!
 !   write(*,*)'3E globaldata%encrypted: ',globaldata%encrypted
 ! initiate Toop/Kohler record counter
 !   uniqid=0

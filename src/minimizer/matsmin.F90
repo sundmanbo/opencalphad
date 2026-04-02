@@ -1827,6 +1827,28 @@ CONTAINS
     TYPE(meq_phase), dimension(*), target :: phr
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+    if(globaldata%mqmqa1.eq.1.0d0) then
+       call meq_sameset_okmap4(irem,iadd,mapx,meqrec,phr,inmap,ceq)
+    else
+       call meq_sameset_okmqmqa(irem,iadd,mapx,meqrec,phr,inmap,ceq)
+    endif
+    return
+  end subroutine meq_sameset
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine meq_sameset_okmap4
+!\begin{verbatim}
+  recursive subroutine meq_sameset_okmap4(irem,iadd,mapx,meqrec,phr,inmap,ceq)
+! iterate until phase set change, converged or error (incl too many its)
+! iadd = -1 indicates called from calculating a sequence of equilibria
+! mapx is used when calling meq_sameset from step/map
+    implicit none
+    integer irem,iadd,inmap,mapx
+    TYPE(meq_setup) :: meqrec
+    TYPE(meq_phase), dimension(*), target :: phr
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
     integer increase,ioff,ik,jj,jph,ie,ierr,jmaxy
     integer kk,kkz,level3,mph,negam,negamph,nj,nk,nl
     integer nz1,nz2
@@ -2199,7 +2221,13 @@ CONTAINS
           endif
        endif
 !       if(abs(svar(iz)-ceq%cmuval(ik)).gt.ceq%xconv) then
-       if(abs(svar(iz)-ceq%cmuval(ik)).gt.abs(ceq%xconv*ceq%cmuval(ik))) then
+! attempt to handle problem with MQMQA phase convergence
+!       if(abs(svar(iz)-ceq%cmuval(ik)).gt.abs(ceq%xconv*ceq%cmuval(ik))) then
+       if(abs(svar(iz)-ceq%cmuval(ik)).gt.&
+            abs(globaldata%mqmqa1*ceq%xconv*ceq%cmuval(ik))) then
+! when MQMQA phase is involved globaldata%mqmqa1 is 1.0D4, otherwise 1.0D0
+!          write(*,*)'MM mqmqa1:',globaldata%mqmqa1
+!
 !          if(vbug) write(*,387)'Unconverged pot: ',iz,ik,&
           if(nophasechange.gt.100) then
 ! Attempt to improve convergence for a 15 component system ... failed
@@ -3262,8 +3290,1528 @@ if(meqrec%noofits.eq.1) then
 !    write(*,*)'Too many iterations: ',meqrec%noofits,ceq%maxiter
     gx%bmperr=4204
     goto 1000
-  end subroutine meq_sameset
+  end subroutine meq_sameset_okmap4
   
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine meq_sameset_okmqmqa
+!\begin{verbatim}
+  recursive subroutine meq_sameset_okmqmqa(irem,iadd,mapx,meqrec,phr,inmap,ceq)
+! iterate until phase set change, converged or error (incl too many its)
+! iadd = -1 indicates called from calculating a sequence of equilibria
+! mapx is used when calling meq_sameset from step/map
+!
+! used for mqmqa
+!
+    implicit none
+    integer irem,iadd,inmap,mapx
+    TYPE(meq_setup) :: meqrec
+    TYPE(meq_phase), dimension(*), target :: phr
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer increase,ioff,ik,jj,jph,ie,ierr,jmaxy
+    integer kk,kkz,level3,mph,negam,negamph,nj,nk,nl
+    integer nz1,nz2
+    TYPE(meq_phase), pointer :: pmi
+! Using SAVE not possible for parallel calculations here once is just warning
+    logical, save :: once=.true.
+    double precision, dimension(5) :: qq
+    double precision, dimension(maxconst) :: ycormax
+    double precision, dimension(:,:), allocatable :: smat
+    double precision, dimension(:), allocatable :: svar
+! these arrays should maybe be allocated ....
+    double precision, dimension(maxconst) :: ycorr,yarr
+    integer converged,jz
+    double precision chargefact,chargerr
+    double precision dgm,summ,dgmmax,gsurf,phf,phs
+    double precision prevmaxycorr,pv,signerr
+    double precision xxx,ycormax2,yprev,ys,ysmm,ysmt,yss,yst
+    double precision yvar1,yvar2
+    double precision maxphch
+    double precision sum
+    double precision, dimension(:), allocatable :: cit
+    double precision deltat,deltap,deltaam,yfact
+
+! to check if we are calculating a single almost stoichiometric phase ...
+    integer iz,tcol,pcol,nophasechange,notagain
+    double precision maxphasechange,molesofatoms,factconv
+    double precision lastdeltat,deltatycond,phfmin,value
+    integer notf,dncol,iy,jy,iremsave,phasechangeok,nextch,iremax,srem,errall
+    character phnames*50
+    double precision, dimension(:), allocatable :: lastdeltaam
+    logical vbug,stoikph,badmat
+!CCI
+    integer cmix(22), cmode
+    double precision cvalue, maxprescribed, sumprescribed, ccf(5)
+    TYPE(gtp_condition), pointer :: conditionScale, lastcondScale
+!CCI
+! NOTE using save cannot be reconciled with parallel calculations
+    save notagain
+!
+! do not allow return unless meqrec%noofits greater or equal to nextch
+    mapx=0
+    nextch=meqrec%noofits+4
+    stoikph=.true.
+    nophasechange=0
+    maxphasechange=zero
+! this is set each time the set of phases changes, controls change in T
+! when there is a condition on y
+!CCI
+    deltaTycond=default_deltaTycond
+!CCI
+    if(iadd.eq.-1 .or. ocv()) then
+       write(*,*)'Debug output in meq_sameset'
+       vbug=.TRUE.; iadd=0
+    else
+       vbug=.FALSE.
+    endif
+!    vbug=.TRUE.
+    if(vbug)write(*,*)'entering meq_sameset',meqrec%nphase,irem
+!    write(*,*)'MM entering meq_sameset',meqrec%nphase,irem
+    iremsave=irem
+! this is max correction of constituent fraction for each phases
+    ycormax=zero
+! magic trying to force decreasing step in fractions
+!    ymagic=one
+!    nmagic=0
+! this is an attempt to decrease variation in phase amount corrections
+    allocate(lastdeltaam(meqrec%nstph),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 9: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
+    lastdeltaam=zero
+! dimension matrix for conditions, components+stable phases
+    nz1=meqrec%nrel-meqrec%nfixmu+meqrec%nstph-meqrec%nfixph
+    if(meqrec%tpindep(1)) nz1=nz1+1
+    if(meqrec%tpindep(2)) nz1=nz1+1
+    if(ocv()) write(*,11)meqrec%nrel,meqrec%nfixmu,meqrec%nstph,&
+         meqrec%nfixph,meqrec%tpindep,nz1,ceq%tpval(1)
+11  format('In meq_sameset, sysmat: ',4i7,2l2,i5,1pe12.4)
+    nz2=nz1+1
+    if(vbug) write(*,*)'Allocating smat: ',nz1
+    allocate(smat(nz1,nz2),stat=errall)
+    allocate(svar(nz1),stat=errall)
+    if(errall.ne.0) then
+       write(*,*)'MM Allocation error 10: ',errall
+       gx%bmperr=4370; goto 1000
+    endif
+! check if constituent fraction correction in stable phases increases
+! for each iteration.  Needed for the Re-V case ....
+    prevmaxycorr=zero
+    increase=0
+    level3=0
+! this is set TRUE after 3 iterations
+    phasechangeok=meqrec%noofits
+    if(phasechangeok.eq.1) then
+       notagain=0
+    endif
+! debugging problem with changing axis in mapping
+    if(ocv() .and. meqrec%tpindep(1)) write(*,*)'variable T: ',ceq%tpval(1)
+!-------------------------------------------------------------
+! return here until converged or phase set change
+100 continue
+    meqrec%noofits=meqrec%noofits+1
+    cerr%flag=0
+! nonzero flag means error output below
+!    cerr%flag=1
+!CCI
+    if(nophasechange.gt.default_nophasechange) then
+       if(maxphasechange.lt.default_maxphaseamountchange) then
+!CCI
+! if we have not changed the set of stable phases for many iterations
+! and the changes in phase amounts is small maybe we are calculationg an
+! almost stoichiometric phase?  Changes in MU can be large!
+          if(stoikph .and. meqrec%nphase.gt.1) then
+! write this message if VERBOSE is set
+             if(btest(globaldata%status,GSVERBOSE)) write(*,30)nophasechange,&
+                  converged,cerr%nvs,ceq%tpval(1)
+30           format('Slow converge at ',3i3,F10.2)
+             if(cerr%flag.ne.0) then
+                write(*,31)(cerr%typ(iz),cerr%val(iz),cerr%dif(iz),&
+                     iz=1,cerr%nvs)
+31              format('MM 31: ',3(i3,1pe12.4,e10.2))
+             endif
+! write message only (once for each minimization)
+             stoikph=.false.
+! if this happends during step/map give error message to force smaller steps
+             if(inmap.eq.1 .and. meqrec%noofits.eq.ceq%maxiter) then
+                gx%bmperr=4359; goto 1000
+             endif
+          endif
+!+          converged=0
+!+          goto 1000
+!       else
+! maybe use this to improve concergence??
+!          if(.not.allocated(loopfact)) then
+!             allocate(loopfact(meqrec%nrel))
+!          endif
+       endif
+    endif
+    nophasechange=nophasechange+1
+    cerr%nvs=0
+    cerr%mconverged=0
+! this is magic ....
+!    nmagic=nmagic+1
+!    if(mod(nmagic,5).eq.0) ymagic=0.5*ymagic
+!    if(mod(nmagic,25).eq.0) ymagic=one
+! end of magic
+!101 format(a)
+!    write(*,*)'Iteration: ',meqrec%noofits,' ----------------------------- '
+    if(ocv()) write(*,199)meqrec%noofits,ceq%tpval(1),meqrec%nstph,&
+         (meqrec%stphl(jz),jz=1,meqrec%nstph)
+!199 format(/'Equil iter: ',i3,f8.2,', stable phases: ',i3,2x,10i3)
+199 format(/'Equil iter: ',i3,f8.2,', stable phases: ',i3,2x,100i3)
+    if(meqrec%noofits.gt.ceq%maxiter) then
+! try to extract some more information when too many iterations
+       write(*,1190)meqrec%noofits,ceq%maxiter,converged
+!            btest(globaldata%status,GSSILENT),&
+!            btest(globaldata%status,GSVERBOSE)
+1190   format('MM Iteration: ',3i5)
+! converged means
+! converged=1 or 2 means constituent fraction in metastable phase not converged
+! converged 3 means large change constituent fraction of unstable phase
+! converged 4 means a constituent fraction of a stable phase change a lot
+! converged=5 means a condition not fullfilled
+! converged=6 means charge balance not converged or large phase fraction change
+! converged=7 means large change in chemical potentials
+! converged=8 means large change T or P
+!       if(btest(globaldata%status,GSSILENT)) then
+!       endif
+       goto 1200
+    endif
+    converged=0
+    if(vbug) write(*,*)'Iteration: ',meqrec%noofits,converged
+! loop for all phases and composition sets, loop over phr
+!    if(meqrec%tpindep(1)) write(*,*)'variable T: ',meqrec%noofits,ceq%tpval(1)
+!
+! >>>>>>>>>>>> here we can parallelize 
+!
+!-$omp parallel do private(pmi) shared(meqrec)
+! nullify liquid pointer
+    nullify(meqrec%pmiliq)
+!    write(*,*)'MM meq_sameset: begin loop for all phases'
+    parallel: do mph=1,meqrec%nphase
+       pmi=>phr(mph)
+! this routine calculates G and derivatives, the phase matrix and inverts it.
+! it also calculates the amounts of moles of components in the phase
+!-$     write(*,*)'Phase and tread: ',mph,omp_get_thread_num()
+! to set correct pmiliq we must calculate all liquids first!!
+!       write(*,*)'MM call onephase: ',pmi%iph,pmi%ics
+       call meq_onephase(meqrec,pmi,ceq)
+!       write(*,*)'MM back from onephase: ',gx%bmperr
+       if(gx%bmperr.ne.0) then
+! using LAPCK gives severe problems if we do not stop
+          goto 1000
+          if(pmi%stable.eq.0) then
+! if this happends for an unstable phase just continue but ensure it will
+! not be stable (in a very crude way)
+!             write(*,*)'Matrix inversion error for unstable phase',pmi%iph
+             pmi%curd%gval(1,1)=one
+             gx%bmperr=0
+          else
+! Inversion error for stable phase is fatal, error code already set
+             if(once) then
+                write(*,*)'Warning, matrix inversion problem: ',pmi%iph
+                once=.false.
+             else
+                goto 1000
+             endif
+             gx%bmperr=0
+          endif
+       endif
+!107       format(a,6(1pe12.3))
+! end of pmi% scope
+    enddo parallel
+!    hejhopp
+!    write(*,*)'MM meq_sameset: end loop for all phases'
+!-$omp end parallel do
+!
+!=======================================================================
+! step 2: calculation of equil matrix
+! Solve for chemical potentials and conditions using all stable phases
+! The EQUIL MATRIX (smat) has one row for each stable phase and
+! one row for each component representing a condition
+! (If a fix phase condition or chem.pot. condition slightly different??)
+!----------------------------------------
+300 continue
+!    if(vbug) write(*,301)'MM Calculating general equil matrix',meqrec%nfixmu,&
+!    write(*,301)'MM Calculating general equil matrix',meqrec%nfixmu,&
+!         meqrec%nfixph,meqrec%tpindep,meqrec%noofits
+301 format(a,2i2,2l2,i5)
+! some arguments here are redundant but kept for some
+    call setup_equilmatrix(meqrec,phr,nz1,smat,tcol,pcol,&
+         dncol,converged,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+!    write(*,*)'MM Back from setup_equilmatrix',tcol
+!=====================================================================
+! debug output of equil matrix, last column is right hand side
+!380 continue
+!    open(33,file='eqmat.dat ',access='sequential',status='unknown')
+!    write(33,*)'Equilibrium matrix',nz1
+!    do iz=1,nz1
+!       write(33,112)iz,(smat(iz,jz),jz=1,nz2)
+!112 format('>',i4,1x,4(1pe15.6))
+!    enddo
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> debug
+! debug output to follow the minimization: all mu_i, and 
+! for all stable phases np^alpha, G^alpha, and x^alpha_i
+!    call calc_molmass(xdum,wdum,tmdum,wmdum,ceq)
+!    write(*,116)'MM mu:',meqrec%nstph,(ceq%cmuval(iz),iz=1,meqrec%nrel),&
+!         (xdum(iz),iz=1,meqrec%nrel)
+!116 format(a,i3,6(1pe12.4))
+!    do iz=1,meqrec%nstph
+!       jj=meqrec%stphl(iz)
+!       call calc_phase_molmass(phr(jj)%iph,phr(jj)%ics,&
+!            xdum,wdum,tmdum,wmdum,dumdum,ceq)
+!       if(gx%bmperr.ne.0) stop 'debug'
+! amount of phase, G of phase, x_i of phase
+!       write(*,116)'MM ph:',jj,phr(jj)%curd%amfu,smat(iz,nz2),&
+!            (xdum(ioff),ioff=1,meqrec%nrel)
+!    enddo
+! end debug output
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    if(vbug) then
+! when convergence problem list smat here and (and svar below) and study!!!
+       call list_conditions(kou,ceq)
+       do iz=1,nz1
+          write(*,228)'smat1:',(smat(iz,jz),jz=1,nz2)
+       enddo
+    endif
+228 format(a,6(1pe12.4),(8x,6e12.4))
+! This is an emergecy check that the smat matrix does not contain
+! values >default_bigvalues.  We should test for Infinity and NaN but how??
+    do iz=1,nz1
+       do jz=1,nz2
+!CCI
+          if(abs(smat(iz,jz)).gt.default_bigvalues) then
+!CCI
+             write(*,118)iz,jz
+118          format('meq_sameset has illegal values in equilibrium matrix',2i4)
+             gx%bmperr=4354; goto 990
+          endif
+       enddo
+    enddo
+! HERE new values of chemical potentials and and amount of phases
+!    call lingld(nz1,nz2,smat,svar,nz1,ierr)
+!    goto 119
+
+! Rearranged the IF statements/BoS
+!    if(inmap.eq.0 and ceq%splitsolver .eq. 1) then
+!CCI
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+! Development based on the work of Joao Pedro Carvalho Teuber 12/2020
+! Jacobi preconditioning if allowed
+!BS    if((inmap.eq.0).and.(ceq%splitsolver.gt.0).and.&
+!BS         (meqrec%nrel.eq.meqrec%nstph)) then
+!BS       call precond(nz1,nz2,smat,badmat)
+! added due to problems with parallel1 and parallel2, 20200220/BoS
+! PRECOND has found a zero diagonal element but just use lingld and skip split
+!        if(badmat) then
+!           write(*,112)nz1,nz2
+112        format('MEQ_SAMESET: phase matrix illconditioned',2i3)
+! debug output
+!           do iz=1,nz1
+!              write(*,113)iz,(smat(iz,jz),jz=1,nz1)
+!           enddo
+113        format(i3,20(1pe11.3))
+!           call lingld(nz1,nz2,smat,svar,nz1,ierr)
+!           goto 119
+!        end if
+!    endif
+!    if((inmap.eq.0).and.(ceq%splitsolver.gt.0).and.&
+!         .not.badmat .and. (meqrec%nrel.eq.meqrec%nstph)) then
+! Splitting is possible for given T, P, composition and
+! when the number of component is equal to the number of stable phases
+! (conditions giving square mass matric)
+! ís this OK if BADNAT is TRUE??
+!BS       if(badmat) write(*,*)'MEQ_SAMESET: matrix has a diagonal element zero'
+!BS       call lingldSplit(nz1,nz2,smat,svar,nz1,ierr,meqrec%nrel,meqrec%nstph)
+!BS    else
+! this used when equilibrium is NOT invariant
+        call lingld(nz1,nz2,smat,svar,nz1,ierr)
+!BS    endif
+!-----------------------------------------------------------------------
+!    write(*,*)'MM meq_sameset: back from lingld'
+!
+119 continue
+    if(ierr.ne.0) then
+       if(vbug) write(*,*)'Error solving equil matrix 1',meqrec%noofits,ierr,&
+            iremsave
+       if(iremsave.gt.0) then
+! parallel2 goes into a loop here when phase iremsave has been suspended
+! after at has been set suspended .... fixed by not returning nonzero irem 
+! equil matrix wrong at first iteration after removing a phase
+! This can be caused by having no phase with solubility of an element
+! (happened in Fe-O-U-Zr calculation with just C1_MO2 stable and C1 does not
+! dissolve Fe).  Try to set back the last phase removed!!
+          if(.not.btest(meqrec%status,MMQUIET)) then
+             kk=meqrec%phr(iremsave)%phtupix
+             phnames=' '
+             call get_phasetup_name(kk,phnames)
+             write(*,*)'Error, restoring previously removed phase: ',&
+                  trim(phnames)
+          endif
+! NOTE: it should also be removed from the dormant list!!
+          iadd=iremsave
+          notagain=iremsave
+          goto 1100
+       endif
+       if(vbug) then
+          do iz=1,nz1
+             write(*,228)'smat2:',(smat(iz,jz),jz=1,nz2)
+          enddo
+       endif
+! debug output ...
+!       write(*,229)'ce:',meqrec%noofits
+!       call list_conditions(kou,ceq)
+!       do iz=1,nz1
+!          write(*,228)'smat2:',(smat(iz,jz),jz=1,nz2)
+!       enddo
+!       gx%bmperr=4203; goto 1000
+    endif
+! when problems output svar here !! (and smat1: above)
+!    write(33,*)'Solution'
+!    write(*,228)'PHMAT: ',(svar(jz),jz=1,nz1)
+!    close(33)
+!    write(*,228)'svar1:',(svar(jz),jz=1,nz1)
+    if(vbug) write(*,228)'svar1:',(svar(jz),jz=1,nz1)
+!
+! if no error at first calculation after phase set change iremsave=0
+    iremsave=0
+    if(vbug) write(*,229)'pm: ',meqrec%noofits,(svar(iz),iz=1,nz1)
+!    write(*,229)'pm: ',meqrec%noofits,(svar(iz),iz=1,nz1)
+229 format(a,i3,6(1pe12.4))
+!---------
+! copy the chemical potentials, take care of fixed values ....
+! new potentials are in svar(1..meqrec%nrel-meqrec%nfixmu)
+    iz=1
+    notf=1
+    setmu: do ik=1,meqrec%nrel
+       if(notf.le.meqrec%nfixmu) then
+          if(ik.eq.meqrec%mufixel(notf)) then
+! this potential is fixed, no incrementing "iz", ceq%cmuval(ik) is a condition
+             ceq%complist(ik)%chempot(1)=meqrec%mufixval(1)*ceq%rtn
+             notf=notf+1
+             cycle setmu
+          endif
+       endif
+!--------------------------------------------------------------------------
+!       if(abs(svar(iz)-ceq%cmuval(ik)).gt.ceq%xconv) then
+! MQMQA convergence problem fix ?
+! Here ceq%xconv normally is 1.0D-6
+       if(abs(svar(iz)-ceq%cmuval(ik)).gt.&
+!            abs(1.0D4*ceq%xconv*ceq%cmuval(ik))) then
+            abs(globaldata%mqmqa1*ceq%xconv*ceq%cmuval(ik))) then
+! convergence problems with MQMQA better with a factor 1.0D4
+! By default mqmqa1 is 1.0D0, when MQMQX phase involved set to 1.0D4
+!
+! MQMQA problem here with K-Li-Na/Cl with KLIN100=-25000 and N(NA)>0.6
+! changing ceq%xconv from 1.0e-6 to 0.01 fixes this problem and seems OK 
+! for the MQMQA case it OK over the whole composition range
+! Does it work in general?  Defaly ceq$xconv=1.0D-6, try 1.0D4 larger ...
+!
+! Tested all examples/macros/ and they worked except map11 for Cr-Fe
+!     modified the start equilibria and then it worked
+! So I will keep this reduced convergence criteria, there are more
+!    important below.
+!
+!--------------------------------------------------------------------------
+!          if(vbug) write(*,387)'Unconverged pot: ',iz,ik,&
+!          if(nophasechange.gt.100) then
+! Attempt to improve convergence for a 15 component system ... failed
+!             xxx=0.25D0*(3.0D0*svar(iz)+1.0D0*ceq%cmuval(ik))
+          xxx=globaldata%mqmqa1
+!          write(*,387)'Uncnv pot: ',iz,ik,&
+!               svar(iz),ceq%cmuval(ik),xxx,abs(svar(iz)-ceq%cmuval(ik)),&
+!               abs(ceq%xconv*ceq%cmuval(ik))
+387       format(a,2i3,3(1pe14.5),2(1pe10.2))
+! take mean value ... DO NOT TRY THIS IF IT IS NOT ALMOST CONVERGED!!!
+!             svar(iz)=xxx
+!          endif
+          converged=7
+          cerr%mconverged=converged
+!----------------------------------------- debug output start
+!          write(*,388)iz,ik,svar(iz),1.0D4*ceq%xconv,ceq%cmuval(ik),&
+!               abs(svar(iz)-ceq%cmuval(ik)),abs(1.0D4*ceq%xconv*ceq%cmuval(ik))
+388       format('MM conv=7:',2i3,5(1pe11.3))
+!----------------------------------------- debug output end
+       elseif(mqmqder) then
+! Setting the mqmqa derivative bug gives this output
+! debug test to discover the ratios, these do not indicate any problem
+          write(*,389)meqrec%noofits,svar(iz),ceq%cmuval(ik),ceq%xconv,&
+               abs(svar(iz)-ceq%cmuval(ik))/ceq%cmuval(ik)
+389       format('MM convergenge 7 accuracy: ',i3,4(1pe12.4))
+       endif
+       ceq%cmuval(ik)=svar(iz)
+! svar(iz) is mu/RT, chemput is mu
+       ceq%complist(ik)%chempot(1)=svar(iz)*ceq%rtn
+       iz=iz+1
+    enddo setmu
+    ioff=meqrec%nrel-meqrec%nfixmu+1
+!------------
+! update T and P if variable
+    if(meqrec%tpindep(1)) then
+       xxx=ceq%tpval(1)
+! check convergence
+!       write(*,*)'Delta T: ',svar(ioff),1.0D2*ceq%xconv
+!       if(abs(svar(ioff)).gt.1.0D2*ceq%xconv) then
+! this convergece criteria needed for the CHO-gas calculation!!!
+! but causes problem calculating phase diagrams ... inmap=1 for step/map
+! OBS svar(ioff) is Delta T, not absolute value
+!CCI
+       if(inmap.eq.0 .and. abs(svar(ioff)).gt.default_deltaT*ceq%xconv) then
+!CCI
+          converged=8
+          cerr%mconverged=converged
+       endif
+!CCI
+! limit changes in T to +/- 20% of current value (see default_limitchangesT)
+       if(abs(svar(ioff)/ceq%tpval(1)).gt.default_limitchangesT) then
+          svar(ioff)=sign(default_limitchangesT*ceq%tpval(1),svar(ioff))
+       endif
+!CCI
+! limit change in T when there is condition on y
+       if(ycondTlimit) then
+          deltat=svar(ioff)
+! Suck it happend that svar(ioff) changed sign each iteration ....
+          if(lastdeltat*deltat.lt.zero) then
+             deltatycond=max(deltatycond-one,one)
+! never increase during one minimization ...
+!          else
+!             deltatycond=2.5D1
+          endif
+          if(abs(svar(ioff)).gt.deltatycond) then
+             if(svar(ioff).gt.zero) then
+                svar(ioff)=deltatycond
+             else
+                svar(ioff)=-deltatycond
+             endif
+             write(*,*)'MM ycondTlimit: ',deltat,svar(ioff)
+             lastdeltat=svar(ioff)
+          endif
+       endif
+       deltat=svar(ioff)
+! limit maximum change in deltat
+       if(abs(deltat).gt.meqrec%tpmaxdelta(1)) then
+          deltat=sign(meqrec%tpmaxdelta(1),deltat)
+          if(ocv()) write(*,386)'limit the change in T: ',&
+               ceq%tpval(1),deltat,svar(ioff)
+386       format(a,3(1pe12.4))
+       endif
+       ceq%tpval(1)=ceq%tpval(1)+deltat
+! problems here when -finit-local-zero is removed
+       if(vbug) write(*,*)'T and deltaT:',ceq%tpval(1),deltat
+!CCI
+       if(ceq%tpval(1).le.default_minimalchangesT) then
+          write(*,*)'Attempt to set a temperature less than ',&
+               default_minimalchangesT,' K !!!'
+!CCI
+          gx%bmperr=4187; goto 1000
+       endif
+       ioff=ioff+1
+    endif
+    if(meqrec%tpindep(2)) then
+! if pressure variable
+       xxx=ceq%tpval(2)
+! check convergence
+! ??? svar(ioff) much too small!! why? add a factor ...
+!       svar(ioff)=1.0D2*svar(ioff)
+!CCI
+       if(abs(svar(ioff)).gt.default_deltaP*ceq%xconv) then
+!CCI
+          converged=8
+          cerr%mconverged=converged
+       endif
+!       write(*,389)'HMS pv: ',ioff,converged,svar(ioff),ceq%tpval(2)
+!389    format(a,2i3,4(1pe12.4))
+!CCI
+       if(abs(svar(ioff)/ceq%tpval(2)).gt.default_limitchangesP) then
+          svar(ioff)=sign(default_limitchangesP*ceq%tpval(2),svar(ioff))
+       endif
+!CCI
+       deltap=svar(ioff)
+! limit the changes in P
+       if(abs(deltap).gt.meqrec%tpmaxdelta(2)) then
+          deltap=sign(meqrec%tpmaxdelta(2),deltap)
+          if(ocv()) write(*,386)'limit the change in P: ',&
+               ceq%tpval(2),deltap,svar(ioff)
+       endif
+       ceq%tpval(2)=ceq%tpval(2)+svar(ioff)
+!CCI
+       if(ceq%tpval(2).le.default_minimalchangesP) then
+!CCI
+          write(*,*)'Attempt to set pressure lower than ',default_minimalchangesP,' Pa!!!'
+          gx%bmperr=4187; goto 1000
+       endif
+       ioff=ioff+1
+    endif
+!------------
+! update phase amounts, take care of fixed phases ....
+! the change in amounts are in svar(ioff+...)
+    negamph=0
+    negam=0
+    irem=0
+    iremax=0
+    phfmin=zero
+! dncol+1 should be the first Delta_phase-amount
+    ioff=dncol+1
+! scale all changes in phase amount with total number of atoms. At present
+! assume this is unity.  Without scaling phase changes can be +/-1E+11 or more
+! which creates instabilities
+    maxphch=zero
+!    normphchange: do jph=1,meqrec%nstph
+    normphchange: do jph=1,meqrec%nstph-meqrec%nfixph
+       if(abs(svar(ioff+jph-1)).gt.maxphch) maxphch=abs(svar(ioff+jph-1))
+    enddo normphchange
+
+!CCI
+! By default, ceq%scale_change_phase_amount equals to one.
+! Such a value is changed by the user in
+!-------------------------------------------------------
+!-------------------------------------------------------
+if(meqrec%noofits.eq.1) then 
+  if(ceq%type_change_phase_amount.gt.0) then
+    ! whenever prescribed values are too big or differ greatly in order of magnitude
+    ! Only cmix(1)=5 is interesting here. potentials already cared for
+    ! loop if not the last condition
+    ! This is the condition, cvalue is the prescibed value
+    ! cmode and cmix contain information how to calculate its current value
+    lastcondScale=>ceq%lastcondition
+    conditionScale=>lastcondScale
+    conditionScale=>conditionScale%next
+    !---
+    ! loop over all conditions and stops when the pointer condition is empty
+    ! (use of apply_condition_value subroutine in gtp3D.F90)
+    !---
+    cmode=-1
+    cmix=0
+    maxprescribed = one
+    sumprescribed = zero
+    do while(.not.associated(conditionScale,lastcondScale))
+        call apply_condition_value(conditionScale,cmode,cvalue,cmix,ccf,ceq)
+        if (cmix(1).eq.5) then
+            cvalue = conditionScale%prescribed
+            if (cvalue.gt. maxprescribed ) then
+                maxprescribed = cvalue
+            endif
+            sumprescribed = sumprescribed + cvalue
+        endif
+        conditionScale=>conditionScale%next
+    enddo
+    sumprescribed = sumprescribed - one
+    sumprescribed = abs(sumprescribed)
+    if(sumprescribed.lt.one) then
+        sumprescribed = sumprescribed + one
+    endif
+    if(ceq%type_change_phase_amount.eq.1) ceq%scale_change_phase_amount=sumprescribed
+    if(ceq%type_change_phase_amount.eq.2) ceq%scale_change_phase_amount=maxprescribed
+  else 
+    ceq%scale_change_phase_amount=default_scalechangephaseamount
+  endif
+ endif
+!-------------------------------------------------------
+!-------------------------------------------------------
+    if(maxphch.gt.ceq%scale_change_phase_amount) then
+       ioff=dncol+1
+       do jph=1,meqrec%nstph-meqrec%nfixph
+          svar(ioff+jph-1)=svar(ioff+jph-1)*ceq%scale_change_phase_amount/maxphch
+       enddo
+    endif
+!CCI
+!
+    ioff=dncol+1
+! do not change phase amounts the first iteration
+!    write(*,554)svar
+!554 format('MM svar: ',6(1pe12.4))
+!    if(meqrec%noofits.eq.1) then
+!       goto 555
+!    endif
+    phamount2: do jph=1,meqrec%nstph
+! loop for all stable phases
+       jj=meqrec%stphl(jph)
+!       phr(jj)%curd%damount=zero
+!       kkz=test_phase_status(phr(jj)%iph,phr(jj)%ics,xxx,ceq)
+       kkz=phr(jj)%phasestatus
+! new -4=hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
+       if(kkz.ge.PHENTUNST .and. kkz.le.PHENTSTAB) then
+! phase is entered so its amount can change, -svar(ioff) is the change
+          phs=phr(jj)%curd%amfu
+          if(ioff.gt.size(svar)) then
+! error here calculating Fe-Si-C with 2 phases set fix zero
+! setting w(si)=w(c)=none and fix T; should have w(si) fix and T=none
+             write(*,42)'MM Too many phases with variable amount',ioff,&
+                  size(svar),meqrec%nstph,phr(jj)%iph
+42           format(a,10i4)
+            gx%bmperr=4193; goto 1000
+          endif
+          deltaam=svar(ioff)
+! Sigli convergence problem, bad guess of start amount of phases??
+! NOTE sign! -deltaam is the change in amount of phase, 
+!          write(*,43)'Deltaam: ',meqrec%noofits,jj,deltaam,lastdeltaam(jph),&
+!               phr(jj)%curd%amfu,phr(jj)%curd%amfu-deltaam
+!43        format(a,2i3,6(1pe12.4))
+! tried to avoid too large changes in phase amount, just made things worse
+!          if(meqrec%noofits.lt.3 .and. &
+!               abs(deltaam).gt.0.5D0*phr(jj)%curd%amfu) then
+!             deltaam=sign(0.1D0*phr(jj)%curd%amfu,deltaam)
+!             write(*,43)'Modified: ',meqrec%noofits,jj,deltaam
+!          endif
+! limit change in amount of phase
+          if(abs(deltaam).gt.ceq%xconv) then
+! For the equil O-U with conditions on N(O) and N(U) there is no problem
+! with the amount of C1 but with N= and x(O)= the phase amount change varies
+! with sign and converges very slowly.  Probably an interference with the
+! charge balance criteria.
+             if(lastdeltaam(jph)*deltaam.lt.zero) then
+! wow, this seems to work ... other attmepts interfere directly with the
+! charge balance so one should carefully check how they are connected...
+!                deltaam=5.0D-1*deltaam
+! The half worked to C1+tetragonal, it did not work for ionic liquid misc. gap
+! and in that case there is no charge balance criteria ... suck
+!                deltaam=5.0D-1*deltaam
+! Dubbelt wow ... 0.2 works for both cases ... why?? More iterations though .. 
+                deltaam=2.0D-1*deltaam
+                if(ocv()) write(*,3)'Phase amount sign change: ',&
+                     meqrec%noofits,jph,jj,phs,lastdeltaam(jph),deltaam
+!                write(*,3)'Phase amount sign change: ',&
+!                     meqrec%noofits,jph,jj,phs,lastdeltaam(jph),deltaam
+3               format(a,3i3,6(1pe12.4))
+             endif
+             if(converged.lt.6) then
+                converged=6
+                cerr%mconverged=converged
+             endif
+             if(vbug) write(*,381)'Phase amount change: ',meqrec%noofits,jj,&
+!             write(*,381)'MM Phase amount change: ',meqrec%noofits,jj,&
+                  phs,deltaam
+381          format(a,2i3,4(1pe12.4))
+          endif
+          lastdeltaam(jph)=deltaam
+          if(phr(jj)%curd%amfu-deltaam.le.zero) then
+             if(meqrec%nstph.eq.1) then
+! this is the only stable phase!  cannot have negative or zero amount!
+                deltaam=phr(jj)%curd%amfu-1.0D-2
+             endif
+          endif
+!          if(-deltaam.gt.one) then
+!CCI Useless if type_change_phase_amount>0 (0 also??)
+!          if(abs(deltaam).gt.one) then
+         if(abs(deltaam).gt.one .and. ceq%type_change_phase_amount.eq.0) then
+!CCI Useless if type_change_phase_amount>0 (0 also??) ) then
+! try to prevent too large increase/decrease in phase amounts.
+! Should be related to total amount of components.
+             if(.not.btest(meqrec%status,MMQUIET)) &
+                  write(*,*)'Large change in phase amount: ',deltaam
+!             deltaam=-one
+             deltaam=sign(0.5D0,deltaam)
+          endif
+!CCI
+          if(abs(deltaam).gt.maxphasechange) then
+! to allow checks when phase set does not change and amount changes are small
+! like when calculating an almost stoichiometric composition like UO2 with
+! n(o)=2 and n(u)=1 at low T
+             maxphasechange=abs(deltaam)
+          endif
+! special test for Al-Ni fcc/fcc#2 two-phase
+! Calculations with Al-Ni T=1000, x(al)=.2 gives just a single FCC phase
+! possible problems that we change the amounts of the wrong composition set?
+! HOWEVER, I found the error is the second derivatives are wrong!!
+!          if(meqrec%noofits.lt.10) deltaam=0.1*deltaam
+!          write(*,383)'MM phase change: ',meqrec%noofits,jj,&
+!               phr(jj)%iph,phr(jj)%ics,phr(jj)%curd%amfu,deltaam,svar(ioff)
+!383       format(a,2i3,2x,2i3,3(1pe12.4))
+          phf=phr(jj)%curd%amfu-deltaam
+          if(phs.gt.0.2D0 .and. phf.le.zero) then
+! violent change of phase fractions in Siglis case, liquid change from 1 to 0
+! Prevent changes larger than 0.1 if value larger than 0.5
+! old value of amfu in phs
+             phf=0.1D0
+          endif
+!          write(*,363)' >>>> Stable phase: ',jj,phr(jj)%iph,&
+!               phr(jj)%ics,phf,phs,deltaam,sum
+363          format(a,3i3,6(1pe12.4))
+!          phr(jj)%curd%damount=deltaam
+          ioff=ioff+1
+       elseif(kkz.eq.PHFIXED) then
+! phase is fix, there is no change in its amounts
+          phf=phr(jj)%curd%amfu
+!          write(*,*)'Fixed phase: ',jj,phf
+       else
+! phase is dormant or suspended, must not be stable!!!!
+          call get_phase_name(phr(jj)%iph,phr(jj)%ics,phnames)
+          if(gx%bmperr.ne.0) goto 1000
+!          write(*,373)phr(jj)%iph,phr(jj)%ics,kkz
+!          write(*,373)trim(phnames),kkz
+373       format('MM The phase ',a,' cannot vary its amount:',3i7)
+          gx%bmperr=4194; goto 1000
+       endif
+! problem with Fe-O-U-Zr convergence, all phases disappear ??
+!       write(*,364)'Stable phase: ',meqrec%noofits,jj,phr(jj)%iph,&
+!       phr(jj)%ics,phf,phs,phr(jj)%prevam
+!364    format(a,4i3,6(1pe12.4))
+! make sure the driving force of stable phases to zero
+       phr(jj)%curd%dgm=zero
+       if(phf.lt.zero) then
+! phase has negative amount, NOT ALLOWED if it is the only stable phase 
+          if(meqrec%nstph-meqrec%nfixph.eq.1) then
+!             write(*,367)'Trying to remove the only stable phase ',jj,&
+!                  phr(jj)%curd%amfu
+367          format(a,i3,1pe14.6)
+             phf=0.5D0*phr(jj)%curd%amfu
+             gx%bmperr=4195; goto 1000
+          else
+! select phase with most negative amount
+             if(phf.lt.phfmin) then
+                phfmin=phf
+                iremax=jj
+             endif
+! trying to improve convergence by allowing phases to be removed quicker
+!             write(*,363)'Phase with negative amount: ',jj,meqrec%noofits,0,&
+!                  phf,phs,phr(jj)%prevam
+!             if(phf.lt.-1.0D-2) phf=zero
+             if(jj.ne.notagain .and. phr(jj)%prevam.lt.zero) then
+! remove this phase if negative amount previous iteration also
+                irem=jj
+!                write(*,376)'meq_sameset remove: ',meqrec%noofits,nextch,&
+!                     jj,notagain
+376             format(a,4i4)
+! jumping to 1000 here means constitutions not changed in this iteration
+                goto 1000
+             else
+! mark this phase had negative amount this iteration
+! PROBLEM removing one of two composition sets of the same phase,
+! (miscibility gap), they may change which have negative amount each iteration
+                phr(jj)%prevam=-one
+                phf=zero
+             endif
+          endif
+       else ! phase has positive amount, mark in prevam
+          phr(jj)%prevam=one
+       endif
+! store the new phase fraction (moles formula units)
+       phr(jj)%curd%amfu=phf
+    enddo phamount2 ! end of loop for jph=1,meqrec%nstph
+!555 continue
+!
+!    if(iremax.gt.0) then
+!       write(*,*)'meq_sameset remove?',meqrec%noofits,iremax,phfmin
+!    endif
+    if(vbug) write(*,*)'finished updating phase amounts: ',&
+         meqrec%noofits,phasechangeok,irem
+!    if(meqrec%nfixmu.gt.0) then
+!       write(*,33)'mu1: ',(ceq%cmuval(nj),nj=1,meqrec%nrel)
+!       write(*,33)'mu2: ',(ceq%complist(nj)%chempot(1),nj=1,meqrec%nrel)
+!       write(*,33)'mu3: ',(ceq%complist(nj)%chempot(2),nj=1,meqrec%nrel)
+!       write(*,33)'mu4: ',(svar(nj),nj=1,meqrec%nrel)
+!33     format(a,6(1pe12.4))
+!    endif
+!-------------------------------------------------------
+! After solving the equil matrix and updating the chemical potentials,
+! the phase amounts and possibly T and P we correct constitions of all phases
+! - Now calculate correction of constituent fractions for all phases
+! See BoJ thesis eq. 30 (also in metastable phases) (paper I)
+! At the same time calculate the driving force for metastable phases
+    ycorr=zero
+    ycormax2=zero
+! to handle charge balance correction of constituent fractions
+    chargerr=zero
+! chargerr fitted to fastest convergence using the ou test case
+!    chargefact=1.0D-1 requires more than 100 iterations
+!    chargefact=one requires more than 100 iterations
+! this value requires about 40 iteration
+!CCI
+    chargefact=0.5*default_chargefact
+!CCI
+!    chargefact=1.0D-1
+! kk is used to check if a charged phase is stable,
+! it is incremented for each stable phase
+    kk=1
+! iadd is set to the unstable phase with largest positive driving force
+! dgmmax is the largest psoitive driving force
+    iadd=0
+    dgmmax=zero
+    ysmm=zero
+!-----------------------------------------------------
+!CCI
+! Update the constitutions.  If irem>0 remove this phase unless
+! we have made at least 'default_noremove' (see ocparam.F90) iterations
+! with the current phase set
+    if(irem.gt.0 .and. meqrec%noofits-phasechangeok.gt.default_noremove) &
+         goto 1000
+!CCI
+!--------------------------
+! These are needed to avoid several phases have exactly the same fracions
+! if the start guess is very bad and limitations are used
+       yvar1=default_yvar1
+       yvar2=default_yvar2
+!-----------------------------------------
+    lap: do jj=1,meqrec%nphase
+! The current chemical potentials are in ceq%cmuval(i)
+!       if(vbug) write(*,*)'Phase: ',phr(jj)%iph,phr(jj)%ics,&
+!              phr(jj)%curd%amfu
+       if(jj.eq.meqrec%stphl(kk)) then
+! jj is stable, increment kk but do not make it larger than meqrec%nstph
+! save index in meqrec%stphl in jph !!!!!!!!!!! kk never used !!!!!!!!!
+          jph=kk
+          kk=min(kk+1,meqrec%nstph)
+!          if(meqrec%noofits.le.2) write(*,83)'dy1: ',jj,jph,kk
+!83        format(a,3i3,6(1pe12.4))
+       else ! phase is not stable
+! calculate driving force for unstable phases. First calculate the sum
+! of the current phase composition and the calculated chemical potentials
+          jph=0
+          gsurf=zero; summ=zero
+          do ie=1,meqrec%nrel
+! fatal parallel execution error once here
+! index '1' of dimension 1 of array 'phr' above upper bound of 0
+             gsurf=gsurf+phr(jj)%xmol(ie)*ceq%cmuval(ie)
+             summ=summ+phr(jj)%xmol(ie)
+          enddo
+          gsurf=gsurf/summ
+! calculate G_m plus any deltat and deltap terms
+          dgm=phr(jj)%curd%gval(1,1)
+          if(meqrec%tpindep(1)) then
+             dgm=dgm+phr(jj)%curd%gval(2,1)*deltat
+          endif
+          if(meqrec%tpindep(2)) then
+             dgm=dgm+phr(jj)%curd%gval(3,1)*deltap
+          endif
+! scale dgm per mole atoms
+          molesofatoms=phr(jj)%curd%abnorm(1)
+          if(molesofatoms.lt.0.3D0) then
+! problem when a phase is stable with just vacancies !!!!!!!!!!!!
+             if(phr(jj)%phasestatus.gt.0) then
+                write(*,'(a,i3,a,F8.4)')'MM Phase: ',jj,&
+                     ' moles of atoms: ',molesofatoms
+             endif
+          endif
+!          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
+          dgm=gsurf-dgm/molesofatoms
+          if(phr(jj)%phasestatus.gt.0) then
+! we should be here only for UNSTABLE phases, phr(jj)%phasestatus<=0
+! For some reason a phase has entered/fixed status (>0) THAT IS AN ERROR
+! It happened in SMP2A when mapping Al-Ni and correcting too long step in T
+             write(*,'(a,i4,i3)')'MM phase status reset:',jj,phr(jj)%phasestatus
+             phr(jj)%phasestatus=0
+          endif
+          if(dgm.gt.dgmmax) then
+             if(phr(jj)%phasestatus.ge.PHENTUNST .and. &
+                phr(jj)%phasestatus.le.PHENTERED) then
+! phase is entered, can have status changed
+! if this is another constitution set of an already stable phase then check
+! below if the constitution of this phase is very similar to the stable one
+                iadd=jj
+                dgmmax=dgm
+!                write(*,379)'meq_sameset add: ',meqrec%noofits,nextch,&
+!                     iadd,dgmmax
+379             format(a,3i4,4(1pe12.4))
+             endif
+          endif
+! The difference between previous and current DGM is used to check for
+! convergence below.  Very important to check if continue iterating!!
+          phr(jj)%prevdg=phr(jj)%curd%dgm
+          phr(jj)%curd%dgm=dgm
+       endif
+! Update constituent fractions for ALL phases, stable or not
+! if phr(jj)%xdone=1 then phase has no composition variation
+       if(phr(jj)%xdone.eq.1) cycle
+!----------------------------------------------------
+       allocate(cit(phr(jj)%idim),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 11: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
+       cit=zero
+       if(meqrec%tpindep(1)) then
+! variable T, code copied from calc_dgdyterms, cit(nj) used below
+!          write(*,44)'index 1: ',jj,phr(jj)%ncc,phr(jj)%idim,&
+!               size(phr(jj)%invmat)
+          do jy=1,phr(jj)%ncc
+             sum=zero
+             do iy=1,phr(jj)%ncc
+                sum=sum+phr(jj)%invmat(iy,jy)*&
+                     phr(jj)%curd%dgval(2,iy,1)
+             enddo
+             cit(iy)=sum*deltat
+!             write(*,44)'index 2: ',jj,jy,iy,0,sum
+!44           format(a,4i3,6(1pe12.4))
+          enddo
+!! end copy
+!          write(*,*)'Adding contribution from variable T to delta-y',&
+!               phr(jj)%ncc
+! missing code for correction due to variable P?????
+       endif
+! These are used to introduce some variation in fractions when the values
+! exceed limits.  Otherwise one can as Sigli found have two stable phases
+! with exactly the same fractions and have a crash
+!
+       moody: do nj=1,phr(jj)%ncc
+          ys=zero
+          do nk=1,phr(jj)%ncc
+             pv=zero
+             do nl=1,meqrec%nrel
+! ceq%cmuval(nl) is the chemical potential of element nl (divided by RT)
+! phr(jj)%dxmol(nl,nk) is the derivative of component nl
+! wrt constituent nk
+!                write(*,*)'ycorr: ',nl,ceq%complist(nl)%chempot(1)/ceq%rtn
+!                write(*,612)'MM y1: ',nk,nl,&
+!                     ceq%complist(nl)%chempot(1)/ceq%rtn,ceq%cmuval(nl)
+!612             format(a,2i4,6(1pe12.4))
+                pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
+!                write(*,111)'pvx: ',nj,pv,ceq%complist(nl)%chempot(1),&
+!                     ceq%rtn,phr(jj)%dxmol(nl,nk)
+!                pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
+!                pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
+             enddo
+             pv=pv-phr(jj)%curd%dgval(1,nk,1)
+             ys=ys+phr(jj)%invmat(nj,nk)*pv
+!             write(*,111)'pvx: ',nj,ys,pv,phr(1)%curd%dgval(1,nk,1),&
+!                  phr(1)%invmat(nj,nk)
+!111          format(a,i2,6(1pe12.4))
+          enddo
+          if(phr(jj)%chargebal.eq.1) then
+! For charged phases add a term 
+! phr(jj)%invmat(phr(jj)%idim,phr(jj)%idim)*Q
+             ys=ys-chargefact*phr(jj)%invmat(nj,phr(jj)%idim)*&
+                  phr(jj)%curd%netcharge
+!             ys=ys-chargefact*phr(jj)%invmat(nj,phr(jj)%idim)*&
+!                  phr(jj)%charge
+! jph is nonzero only for stable phases
+             if(jph.gt.0 .and. &
+!             if(jj.eq.meqrec%stphl(kk) .and. &
+! Hm, is this check correct?  kk is updated above to be the next stable phase..
+!                  abs(phr(jj)%charge).gt.chargerr) then
+!                chargerr=abs(phr(jj)%charge)
+!                signerr=phr(jj)%charge
+                  abs(phr(jj)%curd%netcharge).gt.chargerr) then
+                chargerr=abs(phr(jj)%curd%netcharge)
+                signerr=phr(jj)%curd%netcharge
+             endif
+!             write(*,*)'Charge: ',jj,phr(jj)%netcharge
+          else
+! enshure charge is zero!!             
+             if(phr(jj)%curd%netcharge.ne.zero) &
+                  write(*,*)'MM neutral phase with charge: ',&
+                  phr(jj)%curd%phlink,phr(jj)%curd%netcharge
+             phr(jj)%curd%netcharge=zero
+          endif
+! when T is variable
+          ycorr(nj)=ys+cit(nj)
+          if(abs(ycorr(nj)).gt.ycormax2) then
+             ycormax2=ycorr(nj)
+          endif
+! Sigli converge problem, fixed by changing stable phases in different order
+!          write(*,111)converged,jj,nj,ys
+!111       format('Y corr: cc/ph/cons/y: ',i2,2i4,1pe12.4)
+! should possibly be ycorr(nj) instead of ys (ycorrmax)
+          abssys: if(abs(ys).gt.ceq%xconv) then
+! if the change in any constituent fraction larger than xconv continue iterate
+!             write(*,*)'Convergence criteria, phase/const: ',jj,nk
+             if(phr(jj)%stable.eq.0) then
+! Phase is not stable
+! Handle convergence criteria different if inmap=1 or not
+                mapping7: if(inmap.eq.0) then
+!----------------------------------------- reduce indentation
+! we are NOT in STEP/MAP, increase convergence criteria to handle
+! the Mo-Ni-Re 3 phase equilibria
+!CCI
+           if(abs(ys).gt.default_correctionfactorYS*phr(jj)%curd%yfr(nj)) then
+!CCI
+! for unstable phases the corrections must be smaller than ...????
+              if(converged.lt.3) then
+                 converged=3
+                 cerr%mconverged=converged
+                 yss=ys
+                 yst=phr(jj)%curd%yfr(nj)
+              endif
+!CCI
+           elseif(abs(ys).gt.default_correctionfactorXCONV*ceq%xconv) then
+!CCI
+!212                   format(a,3i3,i4,4(1pe12.4))
+              if(converged.lt.4) then
+!CCI
+                 factconv=default_correctionfactorDGM
+                 if(phr(jj)%ncc.gt.10) then
+! Calculation with the COST507 database and 20 elements too many iterations
+! ... allow larger gdconv(1) 
+                    factconv=10.0*factconv
+                 endif
+!CCI
+                 if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.&
+                      factconv*ceq%gdconv(1)) then
+! Must be less than this  if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.5.0E-3) then
+                    converged=4
+                    cerr%mconverged=converged
+                    yss=ys
+                    yst=phr(jj)%curd%yfr(nj)
+                 endif
+              endif
+           else
+              if(converged.eq.0) then
+                 converged=1
+                 cerr%mconverged=converged
+                 yss=ys
+                 yst=phr(jj)%curd%yfr(nj)
+              endif
+           endif
+!----------------------- else of mapping7
+                else
+! we are doing step/map NO CHANGE, use old convergence criteria
+! otherwise step1 and mmap4 are incompatible with those above ...
+!CCI
+           if(abs(ys).gt.default_correctionfactorYS*phr(jj)%curd%yfr(nj)) then
+! for unstable phases the corrections must be smaller than ...????
+              if(converged.lt.3) then
+                 converged=3
+                 cerr%mconverged=converged
+                 yss=ys
+                 yst=phr(jj)%curd%yfr(nj)
+              endif
+           elseif(abs(ys).gt.default_correctionfactorXCONV*ceq%xconv) then
+!CCI
+! maybe accept 100 times larger correction than for stable phases
+!                   write(*,107)'metast ph ycorr: ',ys,&
+!                        phr(jj)%curd%yfr(nj)
+              if(converged.lt.2) then
+                 converged=2
+                 cerr%mconverged=converged
+                 yss=ys
+                 yst=phr(jj)%curd%yfr(nj)
+              endif
+           else
+              if(converged.eq.0) then
+                 converged=1
+                 cerr%mconverged=converged
+                 yss=ys
+                 yst=phr(jj)%curd%yfr(nj)
+              endif
+           endif
+        endif mapping7
+!----------------------------------- return to original indentation
+!  elseif of abssy
+             elseif(converged.lt.4) then
+! large correction in fraction of constituent fraction of stable phase
+! Problem here with CVMSRO model, ys=0.00272 when x(b)=.5
+!                write(*,*)'MM converged 4A: ',jj,nj,ys
+! Problem here also with MQMQA, the KLiNa step calculation with N(Na)>.6
+!                write(*,*)'MM problem 1 with MQMQA? line 2904 ignored'
+! just ignoring it works OK
+!                converged=4
+!                cerr%mconverged=converged
+!                yss=ys
+!                yst=phr(jj)%curd%yfr(nj)
+             endif
+          elseif(phr(jj)%stable.eq.1) then
+! check to find good convergence criteria in Re-V test case
+             if(abs(ycorr(nj)).gt.ysmm) then
+                jmaxy=jj
+                ysmm=abs(ycorr(nj))
+                ysmt=phr(jj)%curd%yfr(nj)
+             endif
+! check if the change in any fraction is larger than the fraction ...
+             if(ycorr(nj).gt.phr(jj)%curd%yfr(nj)) then
+!                write(*,612)'MM y2: ',jj,nj,ycorr(nj),phr(jj)%curd%yfr(nj)
+                if(converged.lt.4) then
+!                   write(*,*)'MM problem 2 with MQMQA? line 2921'
+                   converged=4
+                   cerr%mconverged=converged
+                endif
+             endif
+          endif abssys
+       enddo moody
+! end of correction of y fractions
+!---------------------------------
+! Limit change in fractions .... all ycorr(nj) multiplied with same factor
+! keeping the sum of corrections in all sublattices as zero
+!       if(converged.ge.4) then
+! Added to underetand convergence problem with CVMSRO
+!          write(*,*)'MM CVMSRO convergence: ',meqrec%noofits,jj,converged
+! converged=1 or 2 means constituent fraction in metastable phase not converged
+! converged 3 means large change constituent fraction of unstable phase
+! converged 4 means a constituent fraction of a stable phase change a lot
+! converged=5 means a condition not fullfilled
+! converged=6 means charge balance not converged or large phase fraction change
+! converged=7 means large change in chemical potentials
+! converged=8 means large change T or P
+!       endif
+       if(vbug) write(*,74)'maximum corr: ',&
+            meqrec%noofits,jj,ycormax2,ycormax(jj)
+74     format(a,2i3,2(1pe12.4))
+       if(ycormax(jj)*ycormax2.le.zero) then
+! the condition is zero at first step, limit that
+          yfact=one/(2.0D0+abs(ycormax2))
+          ycormax2=yfact*ycormax2
+!CCI
+       elseif(phr(jj)%ionliq.gt.0 .and. ycormax2.lt.default_upperycormax2) then
+!CCI
+! step seems to be very small ... try to decrease number of iteration
+          yfact=2.0d0
+       else
+          yfact=one
+       endif
+       moody2: do nj=1,phr(jj)%ncc
+! all corrections of constituent fractions in ycorr(1..phr(jj)%ncc)
+! ymagic is halfed every 5th iteration when same phase set, after 5 times reset
+          yprev=phr(jj)%curd%yfr(nj)
+!          yarr(nj)=yprev+ycorr(nj)
+          if(phr(jj)%ionliq.gt.0) then
+! For ionic liquids, an even smaller step is allowed ...
+! The O-Pu-U test case converged up to 2800 without any particular factor
+! with a factor 0.4 it converged up to 3000K (~150 its), yfact does not
+! has any significant influence. 
+!             yarr(nj)=yprev+4.0D-1*ycorr(nj)*yfact
+! tafidbug, 0.2 created problems
+!             yarr(nj)=yprev+2.0D-1*ycorr(nj)*yfact
+!             yarr(nj)=yprev+3.0D-1*ycorr(nj)*yfact
+!CCI
+             yarr(nj)=yprev+default_ionliqyfact*ycorr(nj)*yfact
+!CCI
+!             yarr(nj)=yprev+ycorr(nj)*yfact
+!             write(*,281)'ycorr: ',nj,yfact,yprev,yarr(nj)
+!281           format(a,i3,6(1pe12.4))
+          else
+             yarr(nj)=yprev+ycorr(nj)*yfact
+          endif
+!          if(vbug) then
+! output to check reasons for bad convergence
+!             write(*,57)'MM y&dy ',phr(jj)%iph,phr(jj)%ics,&
+!                  phr(jj)%stable,nj,&
+!                  ys,cit(nj),phr(jj)%curd%yfr(nj),yarr(nj),ycorr(nj)
+!57           format(a,3i2,i3,5(1pe12.4))
+!          endif
+!CCI
+          if(yarr(nj).lt.default_ymin) then
+!CCI
+! this added to avoid too drastic jumps in small fractions
+! The test case ccrfe1.OCM needs this
+!CCI
+             if(yprev.gt.default_ylow) then
+!CCI
+!                write(*,*)'Applying fraction change limitation 4 ',jj
+!CCI
+                yarr(nj)=0.9*default_ylow
+!CCI
+             elseif(test_phase_status_bit(phr(jj)%iph,PHGAS)) then
+! for gas phase one must allow smaller constituent fractions
+!CCI
+                if(yarr(nj).lt.default_ymingas) then
+                   yarr(nj)=default_ymingas
+                endif
+!CCI
+             else
+!                write(*,*)'Applying fraction change limitation 5 ',jj
+!CCI
+                yarr(nj)=default_ymin+yvar2
+!CCI
+                yvar2=2.0D0*yvar2
+                if(yvar2.gt.default_upperyvar2) yvar2=default_yvar2
+!CCI
+             endif
+          endif
+          if(yarr(nj).gt.one) then
+!             write(*,*)'Applying fraction change limitation 6 ',jj
+             yarr(nj)=one-yvar1
+             yvar1=2.0D0*yvar1
+!CCI
+             if(yvar1.gt.default_upperyvar1) yvar1=default_yvar1
+!CCI
+          endif
+       enddo moody2 ! end loop for all constituents nj in phase jj
+!
+       ycormax(jj)=ycormax2
+! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
+!       if(meqrec%noofits.le.2) write(*,83)'dy2: ',jj,phr(jj)%iph,kk,&
+!            (yarr(nj),nj=1,phr(jj)%ncc)
+!       write(*,114)'YARR: ',jj,phr(jj)%ics,(yarr(nj),nj=1,phr(jj)%ncc)
+!114       format(a,2i3,8(F7.4))
+!       write(*,*)'MM calling set_constitution 1:',phr(jj)%iph,phr(jj)%ics
+       call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+!  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+       deallocate(cit)
+    enddo lap
+! finished correction of all constituent fractions in all phases
+!-------------------------------------------------------
+!    do jph=1,meqrec%nstph
+!       jj=meqrec%stphl(jph)
+!       write(*,393)'Stable phase: ',phr(jj)%iph,phr(jj)%ics,&
+!            phr(jj)%curd%amfu
+!    enddo
+!393 format(a,2i4,6(1pe12.4))
+! check if fraction corrections in stable phases increases
+! it solved a problem in ReV when fractions initially changed very little
+! but the change increased each iteration
+    if(meqrec%noofits.gt.8) then
+! this means minimum 8 iterations!!
+       increase=0
+    elseif(abs(ysmm).gt.prevmaxycorr) then
+! do this check only for the first 8 iterations
+       increase=1
+!       write(*,265)increase,ysmm,prevmaxycorr
+!265    format('*** max stable phase ycorr: ',i3,2(1pe12.4))
+    endif
+    prevmaxycorr=abs(ysmm)
+!-------------------------------------------------------
+! check charge balance, must be 100 times better than fractions
+! otherwise strange chemical potentials, why??
+! The request for 100 times better than ceq%xconv is OK with conditions 
+! N(U)= N(O)= but not with N= x(O)=
+!    if(chargerr.gt.1.0D-2*ceq%xconv) then
+! strengthen charge balance convergence criteria
+    if(chargerr.gt.ceq%xconv) then
+!       if(ocv()) write(*,654)'Charge error: ',signerr,chargerr,ceq%xconv
+       write(*,654)'MM charge error: ',signerr,chargerr,ceq%xconv
+654    format(a,6(1pe12.4))
+       if(converged.lt.6) then
+          converged=6
+          cerr%mconverged=converged
+       endif
+    endif
+!-------------------------------------------------------
+    if(converged.eq.3) then
+! force one extra iterations with large fraction variations in unstable phases
+!       write(*,267)'End of iteration: ',meqrec%noofits,converged,&
+!            increase,yss,yst
+       level3=level3+1
+    elseif(converged.eq.4) then
+! this means large fraction variations in stable phases
+!       write(*,267)'End of iteration: ',meqrec%noofits,converged,&
+!            increase,yss,yst
+!267    format(a,3i4,2(1pe12.4))
+       level3=0
+    else
+!       write(*,267)'End of iteration: ',meqrec%noofits,converged,increase
+       level3=0
+    endif
+!----------------------------------------------
+! continue iterate if phase change or not converged
+!    call get_state_var_value('X(O) ',value,phnames,ceq)
+! trying to understand how STEP/MAP sets fix phases ....
+!    write(*,*)'MM Fraction of O: ',value
+    if(iadd.gt.0) then
+! check if phase to be added is already stable as another composition set
+! This check should maybe be above as maybe another phase want to be stable??
+       if(same_composition(iadd,phr,meqrec,ceq,dgm)) iadd=0
+    endif
+! check if phase iadd is stoichiometric and if so check of any stable phase
+! phase that is stoichiometric has the same composition!!  IF SO
+! remove that phase at the same time ...
+    srem=0
+    if(meqrec%nrel.gt.1 .and. iadd.gt.0) then
+! skip this for unary system!!!
+       jy=meqrec%phr(iadd)%phtupix
+       samestoi: do nj=1,meqrec%nstph
+! loop through all stable phases for other phase with same stoichiometry
+          jj=meqrec%stphl(nj)
+          if(jj.ne.iadd) then
+             iy=meqrec%phr(jj)%phtupix
+! check if same composition ... how? same_stoik in gtp3Y.F90
+             if(same_stoik(jy,iy)) then
+                srem=jj
+                exit samestoi
+             endif
+          endif
+       enddo samestoi
+    endif
+    if(srem.gt.0) then
+       jy=meqrec%phr(iadd)%phtupix
+       call get_phasetup_name(jy,phnames)
+       iz=len_trim(phnames)+2
+       call get_phasetup_name(iy,phnames(iz:))
+!       write(*,*)'MM Same stoichiometry: ',trim(phnames),inmap,value
+! try to handle this by calculating the T when the two stochiometric phases
+! has the same Gibbs energy.  Use this only if maping and T is not a condition
+       if(inmap.ne.0) then
+! inmap=0 if we are not in a step/map calculation
+! I do not understand why iy and jy here ?? I think iadd and srem ...
+          call two_stoich_same_comp(iy,jy,mapx,meqrec,inmap,ceq)
+       endif
+       iadd=iy; irem=jy
+!       write(*,*)'Phases: ',iadd,irem
+! after this routine set the error code to return to mapping
+!       stop 'same stoichimetries'
+
+! to be handelled either by map/step routines or meq_phaseset
+       gx%bmperr=4364; goto 1000
+    endif
+!    if(meqrec%noofits.gt.2 .and. (irem.gt.0 .or. iadd.gt.0)) then
+    if(irem.ne.0 .or. iadd.ne.0) then
+       goto 1100
+    endif
+!--------------------------------------------------------------------
+!    write(*,*)'Iterations and convergence: ',meqrec%noofits,converged
+!--------------------------------------------------------------------
+! check convergence
+!    if(meqrec%noofits.gt.400) then
+!       write(*,778)'Test converged: ',meqrec%noofits,converged
+!778    format(a,2i4)
+!    endif
+!------------------------------------------------------------
+! This output gives a good indication for convergence problem
+    if(vbug) write(*,*)'Convergence criteria: ',converged,level3
+! converged=1 or 2 means constituent fraction in metastable phase not converged
+    if(converged.gt.3) goto 100
+! converged 3 means large change conts. fraction of unstable phase change a lot
+! level3 is nuber of previous iteration with converged=3
+! with allcost I had the correct equilibrium but occational converged=4
+! probably because a metastable liquid with almost identical composition
+! as the stable interfeared. Accept converged=3 twice in a row as correct!!
+!    if(converged.eq.3 .and. level3.lt.4) goto 100
+    if(converged.eq.3 .and. level3.lt.2) goto 100
+! converged 4 means a constituent fraction of a stable phase change a lot
+! converged=5 means a condition not fullfilled
+! converged=6 means charge balance not converged or large phase fraction change
+! converged=7 means large change in chemical potentials
+! converged=8 means large change T or P
+! always force 4 iterations, there is a minimum above forcing 9 iterations.
+!CCI
+    if(meqrec%noofits.lt.default_minimaliterations) goto 100
+!CCI
+    if(increase.ne.0) then
+! continue if corrections in constituent fractions in stable phases increases
+! This is needed to change fractions in a gas from 1E-20 to some significant
+! value
+       goto 100
+    endif
+!------------------------
+! equilibrium calculation converged, do some common thing
+!    write(*,*)'Converged: ',converged
+    goto 800
+!
+!==============================================================
+! equilibrium calculation converged, save chemical potentials (svar*RT)
+800 continue
+!------------------------------------------------------
+! do not save system matrix but save -dimension for use with derivatives
+    ceq%sysmatdim=-nz1
+! but save components with fix mu and fix phases
+    ceq%nfixmu=meqrec%nfixmu
+    if(allocated(ceq%fixmu)) deallocate(ceq%fixmu)
+    if(ceq%nfixmu.gt.0) then
+       allocate(ceq%fixmu(ceq%nfixmu),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 12: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
+       do ie=1,ceq%nfixmu
+          ceq%fixmu(ie)=meqrec%mufixel(ie)
+       enddo
+    endif
+    ceq%nfixph=meqrec%nfixph
+    if(allocated(ceq%fixph)) deallocate(ceq%fixph)
+    if(ceq%nfixph.gt.0) then
+       allocate(ceq%fixph(2,ceq%nfixph),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 13: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
+       do ie=1,ceq%nfixph
+! phase and composition set numbers
+          ceq%fixph(1,ie)=meqrec%fixph(1,ie)
+          ceq%fixph(2,ie)=meqrec%fixph(2,ie)
+       enddo
+    endif
+!-------------------------------------
+    if(vbug) write(*,*)'At 800 in meq_sameset: ',meqrec%nrel
+    ceq%rtn=globaldata%rgas*ceq%tpval(1)
+    do ie=1,meqrec%nrel
+       ceq%complist(ie)%chempot(1)=ceq%cmuval(ie)*ceq%rtn
+!       write(*,*)'Chempot/RT: ',cea%cmuval(ie),svar(ie)
+    enddo
+! list stable phases on exit
+!    do jph=1,meqrec%nstph
+!       jj=meqrec%stphl(jph)
+!       write(*,393)'Stable phase Z: ',phr(jj)%iph,phr(jj)%ics,&
+!            phr(jj)%curd%amfu
+!    enddo
+! set status of the stable phases on exit
+    do jph=1,meqrec%nstph
+       jj=meqrec%stphl(jph)
+       call mark_stable_phase(phr(jj)%iph,phr(jj)%ics,ceq)
+!       write(*,393)'Stable phase Z: ',phr(jj)%iph,phr(jj)%ics,&
+!            phr(jj)%curd%amfu
+    enddo
+!----------------------
+! save inverted phase matrix and more for future use when calculating H.T etc
+! If already allocated then dealloc/alloc as number of constituents can change
+!    if(vbug) write(*,*)'allocate/deallocate in meq_sameset: ',meqrec%nphase
+    do jj=1,meqrec%nphase
+       if(allocated(phr(jj)%curd%cinvy)) then
+          deallocate(phr(jj)%curd%cinvy)
+          deallocate(phr(jj)%curd%cxmol)
+          deallocate(phr(jj)%curd%cdxmol)
+       endif
+! why is the dimension if invmat so different???
+       ie=phr(jj)%idim
+       if(vbug) write(*,*)'Save inverted phase matrix in meq_sameset: ',jj,ie
+!       ie=int(sqrt(real(size(phr(jj)%invmat)))+0.1)
+!       write(*,*)'Size: ',ie,phr(jj)%ncc
+       allocate(phr(jj)%curd%cinvy(ie,ie),stat=errall)
+       allocate(phr(jj)%curd%cxmol(meqrec%nrel),stat=errall)
+       allocate(phr(jj)%curd%cdxmol(meqrec%nrel,phr(jj)%ncc),stat=errall)
+       if(errall.ne.0) then
+          write(*,*)'MM Allocation error 14: ',errall
+          gx%bmperr=4370; goto 1000
+       endif
+       phr(jj)%curd%cinvy=phr(jj)%invmat
+       phr(jj)%curd%cxmol=phr(jj)%xmol
+       phr(jj)%curd%cdxmol=phr(jj)%dxmol
+!----------------------
+    enddo
+    goto 1000
+! output of equilibrium matrix when error return
+990 continue
+    do iz=1,nz1
+       write(*,228)'smat1:',(smat(iz,jz),jz=1,nz2)
+    enddo
+!
+1000 continue
+    if(gx%bmperr.ne.0) then
+       ceq%status=ibset(ceq%status,EQFAIL)
+!      write(*,*)'minimization error: ',gx%bmperr
+!   elseif(irem.eq.0 .and. iadd.eq.0) then
+    endif
+! jump here if phase change
+1100 continue
+! trying to extract the configuratinal entropy of MQMQA
+!    write(*,'("MM leaving meq_sameset",1pe14.4)')sconfmqmqa
+! DEBUG output for testing when phase change, Christines probkem
+!    write(*,*)'MM iadd and irem: ',iadd,irem
+!    if(iadd.gt.0) then
+!       jy=meqrec%phr(iadd)%phtupix
+!       call get_phasetup_name(jy,phnames)
+!       write(*,'(a,i4,2x,a,1pe12.4)')'MM found new stable phase: ',jy,&
+!            trim(phnames),ceq%phase_varres(phasetuple(jy)%lokvares)%dgm
+!       call list_conditions(kou,ceq)
+!    elseif(irem.ne.0) then
+!       jy=meqrec%phr(abs(irem))%phtupix
+!       call get_phasetup_name(jy,phnames)
+!       write(*,*)'MM found unstable phase: ',trim(phnames),jy,&
+!            trim(phnames),ceq%phase_varres(phasetuple(jy)%lokvares)%dgm
+!       call list_conditions(kou,ceq)
+!    endif
+    if(vbug) write(*,*)'Deallocating smat and svar'
+    deallocate(smat)
+    deallocate(svar)
+    if(vbug) write(*,*)'Final return from meq_sameset'
+!    if(gx%bmperr.ne.0) write(*,*)'Error return from meq_sameset',gx%bmperr
+!    if(irem*iadd.gt.0) write(*,*)'Leaving meq_sameset: ',irem,iadd
+!    write(*,*)'Exit meq_sameset'
+    return
+! too many iterations
+1200 continue
+!    write(*,*)'Too many iterations: ',meqrec%noofits,ceq%maxiter
+!    if(btest(globaldata%status,GSVERBOSE)) then
+! some extra indication of problem
+!       write(*,1210)converged
+1210   format('MM why: ',i5)
+!    endif
+    gx%bmperr=4204
+    goto 1000
+  end subroutine meq_sameset_okmqmqa
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine setup_comp2cons
@@ -3546,7 +5094,7 @@ if(meqrec%noofits.eq.1) then
     nz2=nz1+1
     smat=zero
     ycondTlimit=.false.
-! CCI Bugfixes by Clemnet Introini indicated by CCI    2018.02.20
+! CCI Bugfixes by Clement Introini indicated by CCI    2018.02.20
     evalue=zero
 !    dncol=0
 !    write(*,*)'in setup_equil: ',converged,nz1,meqrec%tpindep
