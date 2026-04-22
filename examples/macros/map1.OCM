@@ -38,7 +38,7 @@ set cond t=1000 p=1e5 n=1 x(cu)=.2
 
 c e
 
-l r 1
+l r 2
 
 @&
 
@@ -51,6 +51,7 @@ l sh
 
 set ref ag fcc,,,,,
 set ref cu fcc,,,,,
+
 
 @&
 

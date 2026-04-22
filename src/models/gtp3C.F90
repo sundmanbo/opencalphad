@@ -139,7 +139,9 @@
    text(ipos+49:ipos+49)=' '
    write(text(ipos+50:ipos+56),100)splista(spno)%mass
    write(text(ipos+57:ipos+62),105)splista(spno)%charge
-100 format(F7.3)
+!100 format(F7.3)
+! some MQMQA species are more than 1000 g
+100 format(F7.2)
 105 format(F6.2)
    text(ipos+66:)=' '
 !    write(*,120)splista(spno)%status
@@ -192,7 +194,9 @@
 ! mqmqa  SPECIES MG/CL-Q MG/CL 6 3 4 !
 !   write(text(ipos+50:ipos+59),100)splista(loksp)%mass
 !   write(text(ipos+60:ipos+65),105)splista(loksp)%charge
-100 format(F10.3)
+!100 format(F10.3)
+! Some MQMQA species are more than 1000 g
+100 format(F10.2)
 105 format(F6.1)
 !   text(ipos+66:)=' '
 !    write(*,120)splista(loksp)%status

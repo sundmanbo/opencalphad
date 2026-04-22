@@ -17,7 +17,7 @@ set echo Y
 @$
 @$
 @$
-@$
+@$>
 @$
 @$
 @$
@@ -551,6 +551,13 @@ debug symbol x(fcc,c) 0.463272739
 debug symbol tc(bcc) 1033.90240
 @&
 
+@$
+@$ =================================================================
+@$ 2026-03-19 with OC6-108
+@$ on my Mac Pro with 14 threads calculating 400 equilibria
+@$   0.4 seconds CPU and 410 clockcykles with  1 thread
+@$   0.8 seconds CPU and  71 clockcykles with 14 threads, 
+@$                       factor 5.77 faster 
 @$ =================================================================
 @$  end of parallel2 macro
 @$ =================================================================
@@ -586,5 +593,10 @@ set inter
 @$ on my DELL 5511 Latitude with Intel core i7-1085H 10 gen 2.27 GHz, 16 GB RAM
 @$   8.16 seconds CPU and 8156 clockcykles with  1 thread
 @$  18.83 seconds CPU and 1671 clockcykles with 12 threads, factor 4.88 faster 
+@$ ==============================================
+@$ Running OC6-108 2026-03-19 
+@$ on my Mac Pro with 14 threads calculating 400 equilibria
+@$   0.4 seconds CPU and 410 clockcykles with  1 thread
+@$   0.8 seconds CPU and  71 clockcykles with 14 threads, factor 5.77 faster 
 @$ ==============================================
 

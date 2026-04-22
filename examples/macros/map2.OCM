@@ -61,7 +61,7 @@ title map 2 fig 1
 render
 
 @&
-set cond t=2500 x(mo)=.4
+set cond t=2500 x(mo)=.3
 c e
 
 map

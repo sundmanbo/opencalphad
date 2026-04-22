@@ -33,10 +33,10 @@ set echo Y
 @$ using partition and permutations
 @$
 @$ NOTE in this case we use the option to set FCC_PERMUTATIONS
-@$ so each unique parameters is enetegerd only once (compare with map4.OCM)
+@$ so each unique parameters is entered only once (compare with map4.OCM)
 @$
 @$ We also set the bit 23 of the phase not to subtract the ordered part
-@& as disordered.  This the disordered part has just a regular parameter,
+@& as disordered.  Thus the disordered part has just a regular parameter,
 @$ we do not have to add the ordered part as disordered as in map4.OCM.
 @$ =========================================================================
 @&

@@ -58,7 +58,7 @@ set ax 1 x(cr)
 
 set ax 2 t
 400
-2300
+2500
 25
 
 @$ Set this as start point with a direction
@@ -67,7 +67,7 @@ set as_start 0
 @&
 @$ Add one more start point for the gamma loop
 
-set c t=1400 x(cr)=.1
+set c t=1200 x(cr)=.1
 
 c e
 
@@ -76,7 +76,7 @@ set as_start 1
 
 @$ Add one more for the liquidus
 
-set c t=2000
+set c x(cr)=.5 t=2200
 
 c e
 
@@ -88,6 +88,12 @@ set as_start -2
 
 set adv map
 2
+
+
+@&
+
+li equil
+
 
 
 @&

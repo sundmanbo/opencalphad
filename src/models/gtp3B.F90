@@ -8008,11 +8008,20 @@
          notnew: do ee=1,nel
             if(ielno(jp).eq.jelno(ee)) then
 ! debug info
-               write(*,'(a,a,a,2x,2i3,2x,2i3)')'3B same element twice',&
-                    ', as cation or anion in: ',trim(quadname),jp,nspel,ee,nel
-               write(*,'(a,4(1pe15.6))')'3B factors: ',&
-                    (mqmqa_data%constoi(pair,s1),pair=1,4)
-! Problems here if species has 2 or more elements
+! Problems here if species has more than 2 cations ............
+               write(kou,3001)trim(quadname),jp,nspel,ee,nel
+3001           format('3B same element twice as cation or anion in: ',&
+                    a,2x,2i3,2x,2i3)
+               write(*,3005)thiscon
+3005           format('3B constituent index: ',i3)
+!               write(kou,3002)(mqmqa_data%constoi(pair,s1),pair=1,4)
+! same cation twice in a quad should not be a problem, it will should a 
+! different stoichiometry relative to the element by itself and should
+! be treated as a quadruplet by itself and form separate mixed quadruplets
+! so it must have some kind of unique identifier.
+! Example Fe+2 and Fe+3: FeCl2 and FeCl3
+               write(kou,3010)(mqmqa_data%constoi(pair,thiscon),pair=1,4)
+3010           format('3B factors: ',4(1pe15.6))
 ! Or if the same element occur in two anion/cation species, such as Fe+2/Fe+3
 ! we must treat all elements as new??
 !               exit notnew

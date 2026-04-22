@@ -1051,23 +1051,24 @@
 ! a linear structure for ternary data, indexing by element order i<j<m 
 ! There are ncat*(ncat-1)*(ncat-2)/6 combinations with a single anion
 ! with 4 elements there are 4 ternaries: (1,2,3) (1,2,4) (1,3,4) (2,3,4)
-! First ternary is 1-2-3, second is 1-2-4, third 1-3-4, fourth 2-3-4
+! First ternary is 1-2-3, second is 1-2-4, third 1-3-4, fourth 2-3-4 etc
      integer seq,el(3)
+! seq is ternary system index, el are quad indices.  How to know which elements?
 ! In the ternary the binary order is 1-2, 1-3, 2-3.
 ! asymm is a simple way to specify the asymmetric element for each binary
      character*3 asymm  !  KKK: totally symmetrical
+! Use asymm for a text T1, T2 and T3 where the digit is the asymmetric element
+! DO NOT USE THIS OLD original idea 
 !       TKK: element 3 is asymmetrical in 1-2 but 1-3 and 2-3 are symmetrical
 !       KTK: element 2 is asymmetrical in 1-3 but 1-2 and 1-3 are symmetrical
 !       KKT: element 1 is asymmetrical in 2-3 but 1-2 and 1-3 are symmetrical
-! This is read from database an used to initiate isasym but kept for backup
+! The asymmetry set by database, used to initiate isasym and kept for backup
 ! for simple check of asymmetry of an element use this array
-! seq is ternary system index, el are element index how to know which elements
-! involved in this ternary  isasym must be initiated reading the database
-! and isasym is 0 if no asymmetry, isasym(1) is  
-     integer isasym(3) ! isasym(1,2,3) initially 0 but can be set to the 
+! if all isasym=0 no asymmetry, isasym(1, 2, 3) is 1, 2 or 3 (not very smart)
 !         aymmetric element index (element index change for different systems)
-! >>>> Note all 3 element can be asymmetric,   
-! ONLY one asymmetric element in each ternary
+     integer isasym(3) ! isasym(1,2,3) initially 0 but can be set to 1, 2 o 3
+! to indicate the (only!) asymmetric constituent.
+! This is in the tersys array
 !
   end type gtp_terdata
 !\end{verbatim}
@@ -1186,7 +1187,7 @@
 ! data below is common for all mqmqa composition sets
   integer, allocatable, dimension(:) :: quadel_i,quadel_j,quadel_k,quadel_l
 !
-! tersys and compvar are related to asymmetries, maybe other phases need also?
+! tersys and compvar are related to mqmqa asymmetries
   type(gtp_terdata), dimension(:), allocatable :: tersys 
 ! quadz are the stoichiometric factors of a quad NOTE ALREADY IN MQMQA_DATA
 !  double precision, dimension(:), allocatable :: quadz

@@ -28,6 +28,16 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.04.22 version 6.111.  The MQMQA model should now working also
+with asymmetric ternaries.  Only one Toop element per ternary allowed,
+it seems meaningless to have several Toop elements in a ternary.
+There is a command AMEND PHASE .. ASYM to specify the asymmetric
+ternary and quad.  The award way to use LIST to set the asymmetry has
+been removed.  But there are more modifications to be made also in the
+user interface and many more tests are needed.
+
+Many minor changes have been made in the code also.
+
 2026.04.01 version 6.110.  The MQMQA ternary has now also been tested
 using a Toop ternary excess model, previously the Kohler ternary model
 was used.  Both works and a this now available for further testing.
@@ -36,12 +46,11 @@ However, the MQMQA model requires some less restrictive convergence
 criteria and these were not comparible with other case studies.  Thus
 one subroutine, meq_sameset in the matsmin.F90 file has been doubled.
 Eventually this can be removed but for the time being this will
-hopefully work
+hopefully work.
 
 There are many more tests needed and please send me problemantic
 systems including macro OCM files and excell cvs files with the data
 which should be correct.
-
 
 The selection of Toop/Kohler model is normally made in the TDB file
 but can be made interactively using the command
