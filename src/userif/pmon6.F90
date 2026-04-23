@@ -1158,7 +1158,6 @@ contains
 ! The smooth CP model calculates a molar Gibbs energy, must be multiplied with
 ! the number of atoms in the phase. j2 set above to the addition type
              end select amendphaseadd
-!************************************ end of amend phase ... addition
 !....................................................
           case(2) ! amend phase <name> composition set add/remove
              call gparcdx('Add new set? ',cline,last,1,ch1,'Y ','?Add new cs')
@@ -1278,6 +1277,7 @@ contains
              write(*,*)'PMON: delete unstable composition sets'
              call delete_unstable_compsets(lokph,ceq)
 !....................................................
+!************************************ begin amend phase ... asymmetries
           case(11) ! amend phase ... ASYMMETRIES for MQMQA phase
 ! moved LIST PHASE MQMQA ASYMMETRIES HERE                
              if(.not.allocated(tersys)) then
@@ -1301,8 +1301,8 @@ contains
              enddo
              write(*,3301)
 3301         format('Number in cat1/2/3 columns is actual cation,'/&
-                  'Number 1, 2 or 3 in T/0 columns refer to the cation.'&
-                  'Asymmetry code is KKK for symmetric, Tn for Toop n.'/)
+                 'Number 1, 2 or 3 in T/0 columns refer to the cation colums.'/&
+                 'Asymmetry code is KKK for symmetric, Tn for Toop n.')
 !
              skip1: if(.false.) then
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1380,28 +1380,33 @@ contains
                 goto 100
              endif
              write(*,413)
-413          format('Specify the Toop cation as 1, 2 or 3.',&
-                  '  Give 0 to set symmetric')
+413          format('Specify the Toop cation as 1, 2 or 3.',/&
+                  '(When implemented 0 can be used to set symmetric)')
              call gparidx('Specify 0, 1, 2 or 3',cline,last,&
                   new_toop,0,'?Asymmetry modify')
              if(new_toop.gt.0 .and. new_toop.le.3) then
 ! allow only one asymmetric cation, save new_toop in tersys array
                 tersys(asymter)%isasym(new_toop)=new_toop
                 tersys(asymter)%asymm='T'//char(ichar('0')+new_toop)//' '
+!               tersys will be 'T1 ', 'T2 ' or 'T3 '
              else
 ! set isasym zero
+                write(kou,*)'Restoring a ternary to symmetric does not work'
+                goto 100
+!
                 tersys(asymter)%isasym=0
                 tersys(asymter)%asymm='KKK'
 !                asymter=0
              endif
-             write(*,*)'MM tersys',asymter,' asymm: :',tersys(asymter)%asymm
+!             write(*,*)'MM tersys',asymter,' asymm: :',tersys(asymter)%asymm
 ! this should change the asymmetry
 !             tersys(iz)%asymm=ch3
-             write(*,*)'MM call varkappadefs for current asymmetries'
+!             write(*,414)
+414          format('Listing of quads and current asymmetries')
 !             mqmqavar=>ceq%phase_varres(lokcs)%mqmqaf
 ! this call lists current asymmetries
-             parres=>ceq%phase_varres(lokcs)
-             call varkappadefs(parres)
+!             parres=>ceq%phase_varres(lokcs)
+!             call varkappadefs(parres)
 !             write(*,*)'Back from varkappadefs'
 ! each varkappa has a box, just update the global newXupdate
 !             mqf=>phres%mqmqaf
@@ -1409,11 +1414,12 @@ contains
 !             newXupdate=box%lastupdate+1
 ! we must update all varkappa, there are mqmqa_data%ncat*(mqmqa_data%ncat-1)/2
              newXupdate=newXupdate+1
+             parres=>ceq%phase_varres(lokcs)
              do iz=1,mqmqa_data%ncat*(mqmqa_data%ncat-1)/2
 ! asymter is the index in the tersys array of the teranry with new asymmetry
 ! old               call varkappa1(iz,parres,asymter,new_toop)
                 call varkappa1(iz,parres,asymter)
-                write(*,*)'Back from varkappa1',iz
+!                write(*,*)'MM back from varkappa1',iz
              enddo
 ! repeat short listing the asymmetries
              write(*,3101)size(tersys)
@@ -1422,7 +1428,7 @@ contains
                      tersys(iz)%isasym,tersys(iz)%asymm
              enddo
              write(*,3301)
-! list again quads, asymmetries and elements
+! list new asymmetries
              write(*,415)
 415          format('Listing new asymmetries')
              call varkappadefs(parres)

@@ -4011,7 +4011,7 @@
       asymmetric1=ichar(tersys(t)%asymm(2:2))-ichar('0')
 !  asymmetric1 is 1, 2 or 3; change to the quad index in that position
 !      asymmetric2=tersys(t)%el(asymmetric1)
-      write(*,8)t,tersys(t)%el,tersys(t)%isasym,asymmetric1
+!      write(*,8)t,tersys(t)%el,tersys(t)%isasym,asymmetric1
 8     format('3XQ bug: ter: ',i3,' quads: ',3i3,', isasym: ',3i3,' asym: ',i3)
       asymmetric2=tersys(t)%el(asymmetric1)
 !   write(*,10)t,tersys(t)%isasym,i,j
@@ -4023,7 +4023,7 @@
       if(j.eq.asymmetric2) hejhopp=2
    endif
    if(hejhopp.ne.0) then
-      write(*,90)t,i,j,v,asymmetric1,asymmetric2,hejhopp
+!      write(*,90)t,i,j,v,asymmetric1,asymmetric2,hejhopp
 90    format('3XQ testasym: ',i3,3x,2i3,3x,i3,5x,2i3,5x,i3)
    endif
    test_asymm=hejhopp
@@ -4264,7 +4264,7 @@
 !
 ! Check if y_ik set ...!!!!
    if(asymter.ne.0) then
-      write(*,2)asymter
+      if(mqmqder) write(*,2)asymter
 2     format(/'3XQ in varkappa1, updating asymmetries: ',2i5)
 !   else
 !      write(*,1)
@@ -4311,6 +4311,7 @@
 3     format(/'In varkappa1: wrong order of elements ',2i4)
       stop
    endif
+! set default quads
    mii=ijklx(icat,icat,ia,ia)
    mij=ijklx(icat,jcat,ia,ia)
    mjj=ijklx(jcat,jcat,ia,ia)
@@ -4346,7 +4347,7 @@
 !         goto 1000
 !      else
       if(asymter.gt.0) then
-         write(*,77)asymter,tersys(asymter)%isasym,tersys(asymter)%asymm
+!         write(*,77)asymter,tersys(asymter)%isasym,tersys(asymter)%asymm
 77       format('3XQ new asymmetry: ',i3,3x,3i2,5x,a)
 !      else
 !         write(*,*)'3XQ sorry may not work'
@@ -4449,13 +4450,13 @@
 ! the asymmetric logical is to just for debug output of initial varkappa values
 !            asymmetric=.true.
 !         endif
-         write(*,*)'An asymmetric ternary, how to handle it?'
-         write(*,*)'We must also set tersys(ternary)%asymm'
-         write(*,*)'Only icat asymmetry found above'
+!         write(*,*)'An asymmetric ternary, how to handle it?'
+!         write(*,*)'We must also set tersys(ternary)%asymm'
+!         write(*,*)'Only icat asymmetry found above'
 !
 !
 !******************** asymmetric ternary *****************************
-         write(*,420)selectij,icat,jcat,vz
+!         write(*,420)selectij,icat,jcat,vz
 420      format('3XQ set varkappa ternary asymmetry typ:',i2,' cations: ',3i3)
          asymmetry: select case(selectij)
 !
@@ -4474,31 +4475,31 @@
                  ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! savenu is related to ij, savegamma to ji
             if(allocated(savenu)) then
-               write(*,373)'case 1 use \nu',size(savenu),savenu
+!               write(*,373)'case 1 use \nu',size(savenu),savenu
 373            format('3XQ ',a,' mixed asymmetry terms',i3,': ',10i3)
 374            format(a,' x_',2i1)
                do gg=1,size(savenu)
 ! the mixed terms with \nu should should be added to jvk_ji
                   box%all_ijk=[box%all_ijk, ijklx(vz,savenu(gg),ia,ia)]
-                  write(*,374)'3XQ added ji',savenu(gg),vz
-                  write(*,375)'jvk_ji ',box%jvk_ji
+!                  write(*,374)'3XQ added ji',savenu(gg),vz
+!                  write(*,375)'jvk_ji ',box%jvk_ji
 375               format('3XQ ',a,'=',10i4)
                enddo
                savenu=[savenu, vz ]
             else
 ! otherwize just add vz to savenu
                savenu=[vz]
-               write(*,373)'3XQ line 4377 savednu i ',size(savenu),savenu
+!               write(*,373)'3XQ line 4377 savednu i ',size(savenu),savenu
             endif
 ! savegamma is related to ji, maybe add denominator terms
             if(allocated(savegamma)) then
-               write(*,373)'case 1 use \gamma',size(savegamma),savegamma
+!               write(*,373)'case 1 use \gamma',size(savegamma),savegamma
                do gg=1,size(savegamma)
 ! the mixed terms with \gamma should should be added to kvk_ijk
                   box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savegamma(gg),ia,ia)]
                   box%all_ijk=[box%all_ijk, ijklx(vz,savegamma(gg),ia,ia)]
-                  write(*,374)'3XQ added kvk_ijk',savegamma(gg),vz
-                  write(*,375)'kvk_ji ',box%kvk_ijk
+!                  write(*,374)'3XQ added kvk_ijk',savegamma(gg),vz
+!                  write(*,375)'kvk_ji ',box%kvk_ijk
                enddo
 ! do not save vz as it does no relates to ij
 !               savegamma=[savegamma, vz ]
@@ -4524,28 +4525,28 @@
                  ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! if savegamma allocated we must add terms to jvk_ijk
             if(allocated(savegamma)) then
-               write(*,373)'case 2 use \gamma',size(savegamma),savegamma
+!               write(*,373)'case 2 use \gamma',size(savegamma),savegamma
                do gg=1,size(savegamma)
                   box%ivk_ij=[box%ivk_ij, ijklx(vz,savegamma(gg),ia,ia)]
                   box%all_ijk=[box%all_ijk, ijklx(vz,savegamma(gg),ia,ia)]
-                  write(*,374)'3XQ added ij',savegamma(gg),vz
-                  write(*,375)'ivk_ij ',box%ivk_ij
+!                  write(*,374)'3XQ added ij',savegamma(gg),vz
+!                  write(*,375)'ivk_ij ',box%ivk_ij
                enddo
                savegamma=[savegamma, vz ]
             else
 ! and we must add vz to savevz
                savegamma=[ vz ]
-               write(*,373)'savedgamma j ',size(savegamma),savegamma
+!               write(*,373)'savedgamma j ',size(savegamma),savegamma
             endif
 ! savenu is related to ij, maybe add denominator terms
             if(allocated(savenu)) then
-               write(*,373)'case 2 use \nu',size(savenu),savenu
+!               write(*,373)'case 2 use \nu',size(savenu),savenu
                do gg=1,size(savegamma)
 ! the mixed terms with \nu should should be added to kvk_ijk
                   box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savenu(gg),ia,ia)]
                   box%all_ijk=[box%all_ijk, ijklx(vz,savenu(gg),ia,ia)]
-                  write(*,374)'3XQ added kvk_ijk',savenu(gg),vz
-                  write(*,375)'jvk_ji ',box%kvk_ijk
+!                  write(*,374)'3XQ added kvk_ijk',savenu(gg),vz
+!                  write(*,375)'jvk_ji ',box%kvk_ijk
                enddo
             endif
 ! The asymmetric xi is depend on y_ik update dxi_ij and dxi_ji
@@ -4558,7 +4559,7 @@
          case(3) ! **************************************************
 ! Both icat and jcat are asymmetric NOT IMPLEMENTED
             write(*,788)icat,jcat,vz
-788         format('3XQ *** Warning, 2 asymmetric cations ',2i3,' with ',i3)
+788         format('3XQ *** Illegal with 2 asymmetric cations ',2i3,' with ',i3)
             gx%bmperr=4399; goto 1000
 ! tentative code below
             box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
@@ -4580,7 +4581,7 @@
 !
          end select asymmetry
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         write(*,778)icat,jcat,vz
+!         write(*,778)icat,jcat,vz
 778      format('3XQ asymmetry set ',3i3,' box%all: ',10i3)
          goto 747
 !
@@ -4607,8 +4608,8 @@
                               enddo
 ! add this quad !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                               box%kvk_ijk=[box%kvk_ijk, ijklx(k,m,ia,ia)]
-                              write(*,806)i,k,m,ijklx(k,m,ia,ia)
-                              write(*,805)'kvk_ijk ',box%kvk_ijk
+!                              write(*,806)i,k,m,ijklx(k,m,ia,ia)
+!                              write(*,805)'kvk_ijk ',box%kvk_ijk
                            endif
                         endif
                      enddo neverending
@@ -4624,7 +4625,7 @@
       enddo vzloop
 ! the vzloop above should be done whenever the asymmetry changes
 !
-      write(*,748)box%cat1,box%cat2
+!      write(*,748)box%cat1,box%cat2
 748   format('3XQ Asymmetry updated for varkappa_ij: ',2i3)
 !--------------------------------------------------------------------
 ! end of asymmetry detection loop
@@ -5629,8 +5630,8 @@
 !
    mqf=>phres%mqmqaf
 ! copied from pmon
-   write(kou,4124)mqmqa_data%nquad,mqmqa_data%ncat
-4124 format(/'3XQ In varkappadefs'/&
+!   write(kou,4124)mqmqa_data%nquad,mqmqa_data%ncat
+4124 format('Listing of quads and asymmetries using varkappadefs:'/&
           'The ',i3,' quads for ',i2,' cations are arranged ',&
           'in order of the n cations:'/&
           'Quad  ',9x,'1   2  ...  n | n+1 n+2 ... 2n-1 | 2n .. | n(n+1)/2'/&
@@ -5696,8 +5697,8 @@
    vkloop2: do nv=1,size(mqf%compvar)
 ! _ij
       box=>mqf%compvar(nv)
-      write(*,103)nv,size(box%ivk_ij),size(box%jvk_ji),size(box%kvk_ijk),&
-           size(box%all_ijk)
+      write(*,103)nv,size(box%ivk_ij),size(box%jvk_ji),&
+           size(box%all_ijk),size(box%kvk_ijk)
 103   format('Varkappa index: ',i3,', summing quads: ',4i4)
       line1='x_'//quadcat(box%ivk_ij(1))
       ip=len_trim(line1)+1

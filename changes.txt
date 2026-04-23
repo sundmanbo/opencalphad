@@ -28,6 +28,9 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.04.23 version 6.112.  Just correcting the version number
+and removing some debug output.
+
 2026.04.22 version 6.111.  The MQMQA model should now working also
 with asymmetric ternaries.  Only one Toop element per ternary allowed,
 it seems meaningless to have several Toop elements in a ternary.
