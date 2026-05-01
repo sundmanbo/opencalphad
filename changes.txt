@@ -28,18 +28,27 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.05.01 version 6.113.  A long session with AI Claude has fixed
+most of the remaining problems with the MQMQA model.  In particular
+handling of cations with several valencies.  The notation of such
+constituents in the database is still under discussion and there are
+many tests still do be performed.
+
+The two old examples of the MQMQA model, map19 and map20 does
+no longer work as the previous implementation was limited to
+binary systems.  New examples will be added.
+
 2026.04.23 version 6.112.  Just correcting the version number
 and removing some debug output.
 
-2026.04.22 version 6.111.  The MQMQA model should now working also
-with asymmetric ternaries.  Only one Toop element per ternary allowed,
-it seems meaningless to have several Toop elements in a ternary.
-There is a command AMEND PHASE .. ASYM to specify the asymmetric
-ternary and quad.  The award way to use LIST to set the asymmetry has
-been removed.  But there are more modifications to be made also in the
-user interface and many more tests are needed.
-
-Many minor changes have been made in the code also.
+2026.04.22 version 6.111.  The MQMQA model should now work also with
+asymmetric ternaries.  Only one Toop element per ternary allowed, it
+seems meaningless to have several Toop elements in a ternary.  There
+is a command AMEND PHASE .. ASYM to specify the asymmetric ternary and
+quad.  The awkward way to use LIST to set the asymmetry has been
+removed.  Many minor changes have been made in the code but there are
+more modifications to be made also in the user interface and many more
+tests are needed.
 
 2026.04.01 version 6.110.  The MQMQA ternary has now also been tested
 using a Toop ternary excess model, previously the Kohler ternary model
@@ -48,27 +57,28 @@ was used.  Both works and a this now available for further testing.
 However, the MQMQA model requires some less restrictive convergence
 criteria and these were not comparible with other case studies.  Thus
 one subroutine, meq_sameset in the matsmin.F90 file has been doubled.
-Eventually this can be removed but for the time being this will
+Eventually this can be removed but for the time being it will
 hopefully work.
 
 There are many more tests needed and please send me problemantic
-systems including macro OCM files and excell cvs files with the data
-which should be correct.
+systems including macro OCM files and excell cvs files from FactSage
+with the data which should be corrected.
 
 The selection of Toop/Kohler model is normally made in the TDB file
 but can be made interactively using the command
 "LIST MQMQA <phase name> AMEND".
 
-Use the command LIST MQMQA ASYM YES first and find the index of the
-ternay with the Toop element.  One must specify the index of the
-ternary with a Toop element and specify the cation constituent in this
+Use the command LIST MQMQA ASYM YES to find the index of the ternay
+with the Toop element.  One must first specify the index of the
+ternary with a Toop element and then the cation constituent in this
 ternary which is the Toop element.  There can only be one TOOP element
-in a ternary.  The other cations in the ternary are set as symmetric.
+in a ternary.  The other cations in the ternary use a symmetric Kohler
+model.
 
 An example is given below (as there will be some time before the
 User Guide will be available ...)
 
---->OC6:l mq ms asym y                              <<<< user command
+--->OC6:l mq ms asym                             <<<< user command
 
 Listing of the   1 ternary systems and their asymmetries
   i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
@@ -118,70 +128,52 @@ Listing of the   1 ternary systems and their asymmetries
   1    1      1    2    3        0   0   0     KKK
 Number in T/0 column is actual asymmetric cation
 
-             ^^^^^^^^^^^^^^^^^^^^^^^^^ above listing is a Kohler ternary
+             ^^^^^^^^^^^^^^^^ above ternary is a Kohler symmetric  ternary
 
---->OC6:l mq ms AMEND-VAR      <<<<<<<<<<<<<< user command to change asymmetry
+The example below was update 2026.04.25
+
+--->OC6:AMEND PHASE ms ASYM    <<<<<<<<<<<<<< user command to change asymmetry
+ You can amend MQMQA asymmetry interactivly
+
+Element names:      CL LI MG NA
+Cation indices: 4   -1  1  2  3
+The anion element name, index and link: CL  1  1
 
 Listing of the   1 ternary systems and their asymmetries
-  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
+  i tern   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
   1    1      1    2    3        0   0   0     KKK
-Number in T/0 column is actual asymmetric cation
+Number in cat1/2/3 columns is actual cation,
+Number 1, 2 or 3 in T/0 columns refer to the cation colums.
+Asymmetry code is KKK for symmetric, Tn for Toop n.
 
- This is only implemented for a single ternary!
-Specify Toop constitutent index /1/: ... echo: 1
-  1    1      1    2    3        1   0   0     TKK
-
---->OC6:l mq ms asym                     <<<<<<<<<<<<<< user command
+Index of ternary to modify (0=none)? /0/: 1
+Specify the Toop cation as 1, 2 or 3.
+(When implemented 0 can be used to set symmetric)
+Specify 0, 1, 2 or 3 /0/: 2
 
 Listing of the   1 ternary systems and their asymmetries
-  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
-  1    1      1    2    3        1   0   0     TKK
-Number in T/0 column is actual asymmetric cation
-
-Fractions  6 in species OC alphabetical order:
- 0.085 0.152 0.178 0.035 0.277 0.272
-Fractions  6 in Quad order: 
- 0.085 0.152 0.178 0.035 0.277 0.272
-
-The   6 quads for  3 cations are arranged in order of the n cations:
-Quad           1   2  ...  n | n+1 n+2 ... 2n-1 | 2n .. | n(n+1)/2
-Cation         1   1  ...  1 | 2   2   ...  2   | 3  .. | n
-Cation         1   2  ...  n | 2   3   ...  n   | 3  .. | n
-quad2compvar:  **  1  2 **  3 **
-Number of varkappa_ij asymmetry variables, n*(n-1)/2:   0
-em2quad:  12 30  1  4  6
-
-Fractions in OC order     1  2  3  4  5  6
-Fractions in Quad order   1  2  3  4  5  6
-
-List of compvar, the binary asymmetric composition variables, last update:    0
-  seq cat_i cat_j    varkappa_ij varkappa_ji  xi_ij       xi_ji
-    1     1     2     8.4941E-02  5.8494E-01  2.5000E-01  7.5000E-01
-    2     1     3     1.5864E-01  5.0879E-01  2.5000E-01  5.0000E-01
-    3     2     3     6.0588E-02  4.6573E-01  2.5000E-01  5.0000E-01
-
-Values of y_i/k:  0.2500 0.2500 0.5000
-
-Details on varkappa? /N/: y                     <<<<<< user input
-... echo: y
+  i tern   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
+  1    1      1    2    3        0   2   0     T2 
+Number in cat1/2/3 columns is actual cation,
+Number 1, 2 or 3 in T/0 columns refer to the cation colums.
+Asymmetry code is KKK for symmetric, Tn for Toop n.
+Listing new asymmetries
 Quad:  1  2  3   4  5   6
 Cat1:  1  1  1   2  2   3
 Cat2:  1  2  3   2  3   3
-
-vk_12 = x_11
-vk_21 = x_22+x_23+x_33
-denom = x_11+x_22+x_23+x_33 +x_12+x_13
-vk_13 = x_11
-vk_31 = x_33
-denom = x_11+x_33 +x_13
-vk_23 = x_22
-vk_32 = x_33
-denom = x_22+x_33 +x_23
-
-Listing of the   1 ternary systems and their asymmetries
-  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code
-  1    1      1    2    3        1   0   0     TKK
-Number in T/0 column is actual asymmetric cation
+3XQ some ternary asymmetries may still be wrong  3
+Varkappa index:   1, summing quads:    3   1   6   2
+   nomin: vk_12 = x_11+x_13+x_33
+   nomin: vk_21 = x_22
+   denom: = x_11+x_13+x_33+x_22 +x_12+x_23
+Varkappa index:   2, summing quads:    1   1   3   1
+   nomin: vk_13 = x_11
+   nomin: vk_31 = x_33
+   denom: = x_11+x_33 +x_13
+Varkappa index:   3, summing quads:    1   3   6   2
+   nomin: vk_23 = x_22
+   nomin: vk_32 = x_33+x_13+x_11
+   denom: = x_22+x_33+x_13+x_11 +x_23+x_12
 
         ^^^^^^^^^^^^^^^^^ Listing above show cation 1 is Toop element
 

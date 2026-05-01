@@ -309,7 +309,7 @@ contains
 ! subsubcommands to LIST MQMQA_SPECIALS
     character (len=16), dimension(mqmqacc) :: mqmqalist=&
         ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
-         'EXCESS          ','AMEND_VARKAPPA  ','                ']
+         'EXCESS          ','INTERNALS       ','                ']
 !------------------- subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
@@ -5389,7 +5389,7 @@ contains
 ! list MQMQA_SPECIAL
 !    character (len=16), dimension(mqmqacc) :: mqmqalist=&
 !        ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
-!         'EXCESS          ','AMEND_VARKAPPA  ','                ']
+!         'EXCESS          ','INTERNAL        ','                ']
        case(22)
 ! allow output file
 !          lut=optionsset%lut
@@ -5423,6 +5423,7 @@ contains
 !
           kom2=submenu('MQMQA special?',&
                cline,last,mqmqalist,mqmqacc,3,'?TOPHLP')
+
 !..........................................................
           mqmqa: select case(kom2)
           case DEFAULT
@@ -5458,6 +5459,11 @@ contains
 !    max length         8+25+4*11=33+44=77
              enddo qlista
 !
+!             write(*,*)'Listing quadprops'
+!             call quadprops(mqmqa_data%con2quad)
+!
+!             write(*,1673)size(sp2quad),sp2quad
+!1673         format('Sp2quad: ',i3,20(i3))
              if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
 !
 !
@@ -5622,102 +5628,22 @@ contains
              call listpartree(lokph)
 
 !...........................................................
-! list mqmqa <phase> AMEND_VARKAPPA
+! list mqmqa <phase> INTERNALS  AMEND_VARKAPPA
           case(5)
 !
 ! CODE BELOW REPLACED by new code around line 1374 AMEND PHASE ... ASYMMETRY
 ! that code around line 1288
 !
-! list element names, numbers and quad indices, i1 set to number of quads
-             write(*,*)'USE AMEND PHASE ... ASYMMETRY instead'
-             goto 100
-!
-             call list_quads(i1)
-! tersys is defined globally
-             ts2: if(allocated(tersys)) then
-                write(*,3101)size(tersys)
-!3101  format(/'Listing of the ',i3,' ternary systems and their asymmetries',&
-!          /'  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
-                do iz=1,size(tersys)
-                   write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-                        tersys(iz)%isasym,tersys(iz)%asymm
-!3201               format(i3,i5,2x,3(1x,i4),5x,3i4,5x,a)
-                enddo
-! ************************* this code redundant *************************
-                write(*,3301)
+! list quad and quad indices, i2 loops for all quads
+             if(allocated(mqmqa_data%contyp)) then
+                write(*,'(/a)')'Listing mqmqa_data%contyp by quadprops'
+                call quadprops(mqmqa_data%con2quad)
+!                write(*,*)'Dimensions: ',size(mqmqa_data%quad2compvar)
+1388            format('quad2compvar: ',20i3)
+                write(*,1388)mqmqa_data%quad2compvar
              else
-                write(kou,*)'No ternary asymmetry data allocated'
-             endif ts2
-             if(size(tersys).gt.1) then
-                write(*,*)'Implemented only for a single ternary'
-                goto 100
-             else
-                call gparidx('Specify varkappa index:',cline,last,iz,1,&
-                     '?List MQMQA varkappa modification')
-!                iz=1
+                write(*,*)'No phase with this property'
              endif
-! ************************* this code redundant *************************
-             write(*,3401)
-3401         format('Give 1, 2 or 3 for cat1, cat2 or cat3, 0 if no asymmetry')
-             call gparidx('Specify Toop cation index:',cline,last,i2,0,&
-                  '?List MQMQA varkappa modification')
-! In the general case we must check if the Toop constituent is in the ternary
-! but if we have just one skip it at present
-! As we have just 3 constituents, i2 must be 1, 2 or 3
-! remove any previous Toop element
-             asymter=1
-             write(*,*)'THIS CODE REPLACED BY AMEND PHASE ... ASYMMETRY '
-! that code around line 1288
-             if(asymter.le.0 .or. asymter.gt.size(tersys)) then
-                write(*,*)'No such ternary'
-                goto 100
-             endif
-! ************************* this code redundant *************************
-!             new_asymmetry='KKK'
-! tersys is set later inside varkappa1 .... keep for the moment
-!             tersys(iz)%asymm='KKK'
-!             if(i2.eq.0) then
-!                write(*,*)'Restoring symmetric ternary'
-!             elseif(i2.eq.1) then
-! Binary 1-2 has 3 as Toop, binary 1-3 has 2 as Toop, binary 2-3 has 1 as Toop
-! THIS IS A MESS suck
-!                new_asymmetry(1:1)='T'
-!                tersys(iz)%isasym(1)=1; tersys(iz)%asymm(1:1)='T'
-!             elseif(i2.eq.2) then
-!                new_asymmetry(2:2)='T'
-!                tersys(iz)%isasym(2)=2; tersys(iz)%asymm(2:2)='T'
-!             elseif(i2.eq.3) then
-!                new_asymmetry(3:3)='T'
-!                tersys(iz)%isasym(3)=3; tersys(iz)%asymm(3:3)='T'
-!             else
-!                write(kou,*)'Use 1, 2 or 3.  No change of asymmetry'
-!                goto 990
-!             endif
-             iz=asymter
-             write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-                  tersys(iz)%isasym,tersys(iz)%asymm
-! Now modify the ivk, jvk and kvk arrays .....
-             write(*,*)'THIS CODE REPLACED BY AMEND PHASE ... ASYMMETRY '
-! that code around line 1288
-             write(*,*)'Now modify the ivk, jvk and kvk arrays .....'
-! type(gtp_phase_varres), pointer :: phres
-! phres is the pointer to the phase_varres record of mqmqa phase
-!             call varkappa1(iz,phres)
-!    TYPE(gtp_phase_varres), pointer :: parres
-             parres=>ceq%phase_varres(lokcs)
-             if(allocated(parres%mqmqaf%compvar)) then
-! make sure the varkappa are updated
-! deafult is 0, to update set box%lastupdate to -1
-                parres%mqmqaf%compvar(iz)%lastupdate=-1
-                write(kou,*)'BUG Asymmetry update works only for first cation'
-! this code is redundant <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-!                call varkappa1(iz,parres,asymter,new_asymmetry)
-!                write(kou,*)'Asymmetry updated'
-             else
-                write(kou,*)'This phase has no asymmetry records'
-             endif
-!
-! THE CODE ABOVE REPLACED around line 1374 by AMEND PHASE ... ASYMMETRY
 !
 !...........................................................
 ! 

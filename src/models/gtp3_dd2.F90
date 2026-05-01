@@ -1090,8 +1090,11 @@
 ! elements: 1+2 1+3 ... 1+n | 2+3 2+4 ... 2+n  | 3+4 3+5 ... | ... | n-1+n
 ! at present only cation mixing.  Use function binsys to find system
      integer seq,cat1,cat2,anion
-! for use in OC save also the actual element indices
+! for use in OC save also the actual cations (NOT ELEMENT) indices
+! for use in OC save also the actual cations indices &&& cations with valencies
      integer elcat1,elcat2,elan
+     integer quadicat1,quadicat2,quadian
+     character*3 qcat1,qcat2,qan
 ! the internal structure of allinone must be updated whenever the
 ! symmetry of a ternary is changed.  This integer keep check of that
      integer lastupdate
@@ -1251,7 +1254,7 @@
 ! The mqmqa_data array EL2ANCAT specify cation indices for elements (- anion)
 ! The mqmqa_data array CON2QUAD relates mqmqa constituent index to quad indices
 ! The mqmqa_data array EMQUAD indices of A/X endmember quads
-! The global array SP2QUAD relates species indices to quad indices
+! The global array SP2QUAD relates species indices to quad indices ????
 ! There are 2 types of constituents, A/X and pairs with 2 cations, AB/X
 ! The element indices may sometimes be needed for the A/X constituents
 ! data in this record will be created when the phase parameters are entered
@@ -1618,6 +1621,7 @@
   INTEGER, private, allocatable :: PHASES(:)
 !\end{verbatim}
 !-----------------------------------------------------------------
+!
 ! data for liquid phase with mqmqa model (only one but maybe composition sets)
   TYPE gtp_mqmqa
 ! contains special STATIC information for liquid MQMQA model
@@ -1631,14 +1635,17 @@
      integer :: nquad,ncat,nan,lan
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ! some variables are also defined globally as ncat,nan,nquad ... confusing
+! 2026/04/27 trying to use species for cations to handle valencies
 ! 2025/11/06 This seems OK but a lot of data missing for excess
 ! contyp(1..4,const) 1,2 species in first sublattice, -1,-2 in second sublattice
-! contyp(5,const) non-zero for PAIR AA/XX, value same as pair index YES !!
+! ? contyp(1..4,const) 1,2 element in first sublatice, -1,-2 in second subl
+! note PAIR here is used for constituent with a single cation!!!! not always!
+! contyp(5,const) non-zero for AA/XX, value same as pair index YES !!
 ! contyp(6,7,const) for PAIR species index 
-! contyp(6..9,const) index of constituent PAIRs
+! contyp(6..9,const) index of constituent PAIRs ??
 ! contyp(10,const) index of itself
 ! contyp(11..14,const) index of sublattice constituent except:
-! contyp(13..14,const) FOR PAIRS: species index of constituent
+! contyp(13..14,const) for AA/XX: species index of constituent
      integer, allocatable, dimension(:,:) :: contyp
 ! quady(i,j) indices of sublattice fractions  ( replaced by 11..14 in contyp)
 !     integer, allocatable :: quady(:,:)
@@ -1646,9 +1653,12 @@
 !     integer, allocatable, dimension(:,:) :: pinq(:)
      integer, allocatable, dimension(:) :: pinq
 ! constoi(1..4,const) real with stoichiometry of species in quadrupole
-! NOTE for pairs (with one constituent in each sublattice) only two values
+! Added 26.04.30
+! con2sp(const,1..4) SPECIES indices of quad constituent (element with valence)
+     integer, allocatable, dimension(:,:) :: con2sp
+! NOTE for quads (with one constituent in each sublattice) only two values
 ! are needed for the stoichiometry.  2, 3 or 4 values
-! Pairs initially have a third value, \zeta needed for entropy pair entropy
+! AA/XX initially have a third value, \zeta needed for entropy pair entropy
      double precision, allocatable, dimension(:,:) :: constoi
 ! ratio FCC/SNN for pairs, needed for pair entropy, copied from %constoi(3,q1)
      double precision, allocatable ::qfnnsnn(:)
@@ -1683,6 +1693,8 @@
      integer xanione,xanionalpha
 ! index of element as cation (-1 for anion)
      integer, dimension(:), allocatable :: el2ancat
+! 26.04.30 added: index of cation as species, needed when several valencies
+     integer, dimension(:), allocatable :: cat2species
 ! xquad is declaraed as global but maybe it belongs to the mqmqa phase
 !     double precision, dimension(:), allocatable :: xquad  only one mqmqaphase 
 !                                             but there can be miscibility gaps
@@ -1694,8 +1706,14 @@
 ! where 1..n are cation indices i.e. element indices ignoring anions
 ! transfer of fractions from OC yfr to quad use
      integer, dimension(:), allocatable :: con2quad ! transfer y to quad order
-! this is the indices of A/X quads in quad, 1, n, 2n-1 etc.
+! this is the indices of AA/XX quads in quad, 1, n, 2n-1 etc.
      integer, dimension(:), allocatable :: emquad 
+! names of all quads and cations to handle valencies ....
+     character*24, dimension(:), allocatable :: quadlist
+! 26.04.30 added: cation with valencies. as U_A, U_B, ..., FE_A etc.
+     character*4, dimension(:), allocatable :: cations
+! species index of anion ........... suck
+     integer anionspix
 ! emquad has indices of quads (i,i).  
 ! Index of a quad (i,j) where j>=i is emquad(i)+j-i
 !------------------------------------------------------ NEW
@@ -1718,6 +1736,7 @@
 ! probably only one of these needed ...
   integer, parameter :: maxmqmqa=200
   integer, parameter :: maxquads=99    ! because only 2 digits
+!
 !
 !-----------------------------------------------------------------
 ! data for liquid phase with mqmqa model (part of phase_varres record)

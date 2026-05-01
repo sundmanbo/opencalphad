@@ -3765,7 +3765,8 @@
    enddo
 !   if(keyw.eq.8 .or. keyw.eq.9) then
 ! no capson!!
-!      write(*,67)trim(longline)
+!   write(*,70)trim(longline)
+70 format('3E const: "',a,'"')
 !   endif
 ! Here we have read data for the keyword up to !
 !   write(*,71)'3E line 2 ',ip,trim(longline)
@@ -4261,7 +4262,7 @@
          call mqmqa_constituents(longline(ip:jp),const,nend,loop)
 !         write(*,*)'3E back from entering constituents',gx%bmperr
          if(gx%bmperr.ne.0) then
-            write(*,*)'3E error entering quadrupoles'
+            write(*,*)'3E error entering quadrupoles',gx%bmperr
             goto 1000
          endif
          call mqmqa_rearrange(const)
@@ -4276,6 +4277,7 @@
          knr(1)=mqmqa_data%nconst
 !         write(*,*)'3E enter_p: ',trim(name1),' ',knr(1),stoik(1),' ',phtype
          name2='MQMQA '
+         write(*,*)'3E line 4270 call enter_phase',knr(1)
          call enter_phase(name1,1,knr,const,stoik,name2,phtype,&
               tdbwarning,emodel)
          write(*,*)'3E back from entering phase 1',gx%bmperr
@@ -4292,6 +4294,9 @@
       nr=0
       nrr=0
 !      write(*,*)'3E readtdb 3E: ',ll,nr,nsl,longline(ip:jp)
+! Problems reading species U2 U3Q etc
+!      write(*,368)ll,nr,nsl,ip,jp,trim(longline)
+368   format('3E readtdb line 4297: ',3i5,2x,2i4,' TDB: ',a)
 ! mode=1 indicates to getname that / + - are allowed in species names
       mode=1
 370   continue
@@ -4337,6 +4342,8 @@
       endif
 ! check that const(nrr) among the selected elements ...
       if(mqmqa) then
+! this is just to check if selected, does not enter species
+!         write(*,*)'3E appending -Q',mqmqa,trim(name3)
          iq=len_trim(name3)
 ! if bot supplied in the database add -Q to quads ....
          if(name3(iq-1:iq).ne.'-Q') name3(iq+1:iq+2)='-Q'
@@ -4347,7 +4354,7 @@
       call find_species_record_exact(name3,lp1)
       if(gx%bmperr.ne.0) then
 ! this species is not present, not a fatal error, skip it and continue
-!         write(*,*)'3E Skipping constituent: ',name3
+!         write(*,*)'3E Skipping constituent: ',name3,lp1
          gx%bmperr=0; nrr=nrr-1; nr=nr-1
       endif
 ! do not remove the -Q
@@ -4381,6 +4388,8 @@
       elseif(phtype.eq.'Q') then
          name2='MQMQA '
          mqmqa=.TRUE.
+      elseif(phtype.eq.'X') then
+         name2='MQMQX '
       else
          name2='CEF-TDB-RKM? '
       endif
@@ -4448,7 +4457,10 @@
 ! we are creating the phase, there is only one composition set, iph is ordered
 !         write(*,*)'3E sigma18: get_phase_compset'
          call get_phase_compset(iph,1,lokph,lokcs)
-         if(gx%bmperr.ne.0) goto 1000
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3E error finding composition set ',gx%bmperr
+            goto 1000
+         endif
 ! ch1 is suffix for disordered parameters, always D
          ch1='D'
 ! jl=0 if NDM (sigma)
@@ -4496,11 +4508,13 @@
 !              dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
 601      format('3E Add parameters from disordered part: ',a,5x,a,2x,2i3,F12.4)
       else
-!         write(*,*)'3E enter phase: ',name1
+         if(mqmqa_data%nconst.gt.0) knr(1)=mqmqa_data%nconst
+!         write(*,*)'3E line 4510 **** call enter phase: ',&
+!              name1,knr(1),mqmqa_data%nconst
          call enter_phase(name1,nsl,knr,const,stoik,name2,phtype,&
               tdbwarning,emodel)
 !         if(tdbwarning) write(*,*)'3E tdbwarning set true 8'
-! no error entering an I2SL liuqid with empty first sublattice ... suck
+! no error entering an I2SL liquid with empty first sublattice ... suck
 ! It is just not entered ....
 !         write(*,*)'3E back from enter_phase 2, error? ',gx%bmperr
          if(gx%bmperr.ne.0) then
@@ -4515,6 +4529,7 @@
          call find_phase_by_name(name1,iph,lcs)
 !         write(*,*)'readtdb 9X: ',gx%bmperr
          if(gx%bmperr.ne.0) then
+            write(kou,*)'3E phase ',name1,' is ambiguous'
             if(.not.silent) write(kou,*)'Phase ',name1,' is ambiguous'
             goto 1000
          endif
@@ -4788,7 +4803,7 @@
 303   format(a,a,2i4,2x,2i3,' : ',3(2i3,2x))
       if(gx%bmperr.ne.0) then
 ! error here can mean parameter with un-selected constituent, i.e. no error
-!         write(*,*)'3E: decode',ionliq,tdbv,nsl,gx%bmperr
+!         write(*,*)'3E error decode const ',ionliq,tdbv,nsl,gx%bmperr
          if(ionliq .and. tdbv.eq.1 .and. nsl.eq.1) then
 ! handle parameters in ionic liquids with only neutrals in second sublattice
 ! in TC one can have no constituent there or an arbitrary constituent,
@@ -4805,6 +4820,8 @@
                  nsl,endm(1),endm(2),nint,((lint(ip,jp),ip=1,2),jp=1,nint)
             gx%bmperr=0
          else
+            if(gx%bmperr.ne.4051) write(*,*)'3E error decode const ',&
+                 name4(1:len_trim(name4))
             if(ocv()) write(*,*)'Skipping parameter: ',name4(1:len_trim(name4))
 !            notusedpar=notusedpar+1
 !            gx%bmperr=0; goto 100
@@ -4913,7 +4930,8 @@
 404   format(a,a,i3,2x,10i3)
       if(gx%bmperr.ne.0) then
          if(.not.silent) write(kou,406)gx%bmperr,lrot,trim(funname),nl
-406      format(/'Fatal error: ',2i7,': ',a,' around line: ',i7)
+         write(kou,406)gx%bmperr,lrot,trim(funname),nl
+406      format(/'3E fatal TPFUN error: ',2i7,': ',a,' around line: ',i7)
          goto 1000
       else
 !         write(*,*)'3E calling enter_parameter from 3E line 4919'
@@ -4922,6 +4940,7 @@
          if(ocv()) write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr
 !         write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr
          if(gx%bmperr.ne.0) then
+            write(*,*)'3E error line 4928 ',gx%bmperr
 ! error entering parameter, not fatal
 !            if(dodis.eq.1 .and. .not.silent) &
 !                 write(*,408)'3E parameter warning:',gx%bmperr,nl,&
@@ -5389,8 +5408,13 @@
          goto 820
       endif
 ! file is not encrypted
+      if(gx%bmperr.ne.0) then
+         write(*,*)'3E error ',gx%bmperr,' cleared before entering function'
+         gx%bmperr=0
+      endif
       call find_tpfun_by_name_exact(name1,nr,notent)
       if(gx%bmperr.eq.0) then
+!         write(*,*)'3E error ',gx%bmperr,' entering function: ',name1
          if(notent) then
 !            write(*,*)'Entering function: ',name1
 ! entering a function may add new unentered functions ... last argument TRUE
@@ -5473,17 +5497,17 @@
 !   write(*,*)'3E At label 1000'
    if(buperr.ne.0 .or. gx%bmperr.ne.0) then
       if(gx%bmperr.eq.0) gx%bmperr=buperr
-      if(.not.silent) write(kou,1002)gx%bmperr,nl
-1002   format('Error ',i5,', occured at TDB file line ',i7)
-!      write(*,*)'Do you want to continue at your own risk anyway?'
-!      read(*,1008)ch1
+      if(.not.silent) write(kou,1002)gx%bmperr,buperr,nl,trim(longline)
+1002   format('3E error ',2i5,', occured at TDB file line ',i7/a)
+      write(*,*)'Do you want to continue at your own risk anyway?'
+      read(*,1008)ch1
 !1008  format(a)
-!      if(ch1.eq.'Y') then
-!         write(*,*)'Now any kind of error may occur .... '
-!         buperr=0
-!         gx%bmperr=0
-!         goto 100
-!      endif
+      if(ch1.eq.'Y') then
+         write(*,*)'Now any kind of error may occur .... '
+         buperr=0
+         gx%bmperr=0
+         goto 100
+      endif
    endif
 !000000000000000000000000000000000000000000000000000000
 ! After entering all parameters we should take care of ternary_extrapolations 
