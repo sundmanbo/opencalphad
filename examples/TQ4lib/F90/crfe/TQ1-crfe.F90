@@ -12,7 +12,7 @@
 !
 program octq1
 !
-  use liboctq
+  use liboctqa
 !
   implicit none
 ! maxel and maxph defined in gtp3 package
