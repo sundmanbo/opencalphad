@@ -1695,6 +1695,11 @@
      integer, dimension(:), allocatable :: el2ancat
 ! 26.04.30 added: index of cation as species, needed when several valencies
      integer, dimension(:), allocatable :: cat2species
+! 2026-05-10 redesign: cation indexing now by species, not element.
+! sp2cat(species_idx) > 0 -> cation index; < 0 -> anion species; 0 -> not MQMQA
+     integer, dimension(:), allocatable :: sp2cat
+! cat2el(cation_idx) -> alphabetical element index (for mass-balance recovery)
+     integer, dimension(:), allocatable :: cat2el
 ! xquad is declaraed as global but maybe it belongs to the mqmqa phase
 !     double precision, dimension(:), allocatable :: xquad  only one mqmqaphase 
 !                                             but there can be miscibility gaps

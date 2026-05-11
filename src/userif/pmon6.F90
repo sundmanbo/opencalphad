@@ -5419,6 +5419,7 @@ contains
           do while(ceq%phase_varres(lokcs)%phlink.ne.iph)
              lokcs=lokcs+1
           enddo
+!          lokph=?
 !          write(*,*)'lokcs: ',lokcs,lokph,iph
 !
           kom2=submenu('MQMQA special?',&
@@ -5432,6 +5433,8 @@ contains
 ! list quads, this is independent of the phase
           case(1) ! Quads
              jquad=0
+             write(*,1679)
+1679         format('Specie Loc Name',16x,'Elements, stoichiometry, bonds')
              qlista: do i1=1,nosp()
                 call get_species_location(i1,loksp,name1)
                 if(gx%bmperr.ne.0) goto 990
@@ -5447,7 +5450,7 @@ contains
                 enddo
                 write(kou,1680)i1,loksp,name1,&
                      (ellist(j4),stoik(j4),j4=1,i2)
-1680            format(i3,i4,1x,a,1x,4(a2,F8.6,1x))
+1680            format(3x,i3,i4,1x,a,1x,4(a2,F8.6,1x))
 ! this is in quad alphabetical order, not in alphabetical order of quad elements
                 call mqmqa_quadbonds(jquad,quadbonds)
                 if(i2.eq.2) then
@@ -5459,10 +5462,19 @@ contains
 !    max length         8+25+4*11=33+44=77
              enddo qlista
 !
-!             write(*,*)'Listing quadprops'
-!             call quadprops(mqmqa_data%con2quad)
+             parres=>ceq%phase_varres(lokcs)
+             call quadprops(parres,mqmqa_data%con2quad)
+!             call quadprops(lokcs,mqmqa_data%con2quad)
 !
 !             write(*,1673)size(sp2quad),sp2quad
+             write(kou,3001)size(mqmqa_data%cations)
+3001         format(/'List of ',i3,' cations: ')
+             do i1=1,size(mqmqa_data%cations)
+                write(kou,3002)trim(mqmqa_data%cations(i1))
+!                write(kou,3002)trim(mqmqa_data%cations(i1)),&
+!                  trim(mqmqa_data%cations(i1+1)),trim(mqmqa_data%cations(i1+2))
+3002            format(15(a,', '))
+             enddo
 !1673         format('Sp2quad: ',i3,20(i3))
              if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
 !
@@ -5637,7 +5649,8 @@ contains
 ! list quad and quad indices, i2 loops for all quads
              if(allocated(mqmqa_data%contyp)) then
                 write(*,'(/a)')'Listing mqmqa_data%contyp by quadprops'
-                call quadprops(mqmqa_data%con2quad)
+                write(*,*)'Missing call to quadprops'
+!                call quadprops(mqmqa_data%con2quad)
 !                write(*,*)'Dimensions: ',size(mqmqa_data%quad2compvar)
 1388            format('quad2compvar: ',20i3)
                 write(*,1388)mqmqa_data%quad2compvar

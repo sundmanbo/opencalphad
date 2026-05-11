@@ -837,6 +837,10 @@
       if(allocated(mqmqa_data%constoi)) deallocate(mqmqa_data%constoi)
       if(allocated(mqmqa_data%totstoi)) deallocate(mqmqa_data%totstoi)
       if(allocated(mqmqa_data%el2ancat)) deallocate(mqmqa_data%el2ancat)
+! 2026-05-10 redesign: also free new species-indexed cation maps
+      if(allocated(mqmqa_data%cat2species)) deallocate(mqmqa_data%cat2species)
+      if(allocated(mqmqa_data%sp2cat)) deallocate(mqmqa_data%sp2cat)
+      if(allocated(mqmqa_data%cat2el)) deallocate(mqmqa_data%cat2el)
       if(allocated(mqmqa_data%con2quad)) deallocate(mqmqa_data%con2quad)
       if(allocated(mqmqa_data%quad2compvar)) deallocate(mqmqa_data%quad2compvar)
       if(allocated(mqmqa_data%emquad)) deallocate(mqmqa_data%emquad)

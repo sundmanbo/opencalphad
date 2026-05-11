@@ -1336,8 +1336,8 @@
                ll=ll+1
             endif
          enddo
-!         write(*,555)'todo ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14),&
-!              trim(splista(phlista(nyfas)%constitlist(kkk))%symbol)
+         write(*,555)'todo ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14),&
+              trim(splista(phlista(nyfas)%constitlist(kkk))%symbol)
          if(mqmqa_data%contyp(5,kkk).gt.0) then
 ! fix sublattice index for AA/XX constituents
             s1=1
@@ -1364,7 +1364,7 @@
 !            mqmqa_data%contyp(11,kkk)=0
 !            mqmqa_data%contyp(12,kkk)=0
          endif
-!         write(*,555)'done ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14)
+         write(*,555)'done ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14)
 555      format('3B mqmqa ',a,i2,4i3,2i4,3i3,i4,2x,4i3,1x,a)
       enddo contyp1
       if(ll.ne.size(phlista(nyfas)%constitlist)) then
@@ -8036,10 +8036,12 @@
 777   format('3B Too many quadrupoles, max ',i3)
       gx%bmperr=4399; goto 1000
    endif
-!   if(ncat.eq.1) then
-! save indices to species for the elements, needed when several valencies ...
-!      call cationswith_valencies(ncat,isp,trim(species(1)))
-!   endif
+! 2026-05-10 redesign: cat2species / sp2cat / cat2el are now built in
+! correlate_const_and_quads (gtp3XQ.F90) where contyp(11..14) gives the
+! settled splista indices.  Calling cationswith_valencies during quad
+! parsing gave inconsistent indices because find_species_by_name_exact
+! returns different values before vs after Z2/CL is registered.
+!   call cationswith_valencies(ncat,isp,trim(species(1)))
 !
    thiscon=mqmqa_data%nconst
 !   write(*,*)'3B thiscon: ',thiscon
@@ -9682,39 +9684,47 @@
 !\addtotable cationswith_valencies(newcat,spix)
 !\begin{verbatim}
  subroutine cationswith_valencies(newcat,spix,name)
-! saves index to species record for a cation possibly with valencies
-! ONLY first cation species
+! saves species index of every distinct cation; one element may map to
+! several cations when valencies differ (e.g. U+ and U2 -> different cations).
+! 2026-05-10 redesign: records ALL cation species (was: only first per call),
+!   and populates cat2el so mass balance / printout can recover the element.
    integer newcat, spix(*)
 !\end{verbatim}
-   integer i,j,k
+   integer i,k,elalpha,curspix
    character*(*) name
-! mqmqanend is a global variable with the number of cations
-! cat2species an array with species index of each cation with or without charge 
+! mqmqanend is a global variable with the number of cations registered so far.
+! cat2species(k)  -> species index of cation k
+! cat2el(k)       -> alphabetical element index of cation k
+! For a cross-quad the routine is called with newcat=2 cation species; loop
+! over both so multivalent elements record every distinct cation species.
    write(*,*)'3B allocating cations',newcat,spix(1),spix(2)
 !
-   if(.not.allocated(mqmqa_data%cat2species)) then
-      mqmqa_data%cat2species=[spix(1)]
-      write(*,10)spix(1),trim(name)
-10    format('3B >>>>>> add cation as species: ',i3,', ',a)
-   else
-      loop1: do i=1,mqmqanend
-         if(spix(1).eq.mqmqa_data%cat2species(i)) goto 100
-      enddo loop1
-! we have not found this cation before, save species index
-      mqmqa_data%cat2species=[mqmqa_data%cat2species,spix(1)]
-      write(*,10)spix(1),trim(name)
-100   continue
-!   if(newcat.eq.2) then
-!      loop2: do j=1,mqmqanend
-!         if(spix(2).eq.cat2species(j)) goto 200
-!      enddo loop2
-!   endif
-! we have not found this cation before, save species index
-!   mqmqa_data%cat2species=[mqmqa_data%cat2species,spix(2)]
+   cation_loop: do k=1,newcat
+      curspix=spix(k)
+      if(curspix.le.0) cycle cation_loop
+! reject duplicates so each cation species shows up at most once
+      if(allocated(mqmqa_data%cat2species)) then
+         do i=1,mqmqanend
+            if(curspix.eq.mqmqa_data%cat2species(i)) cycle cation_loop
+         enddo
+      endif
+! resolve element of cation: a cation species has a single (non-anion) element
+      elalpha=ellista(splista(curspix)%ellinks(1))%alphaindex
+! append (initialize on first visit)
+      if(.not.allocated(mqmqa_data%cat2species)) then
+         mqmqa_data%cat2species=[curspix]
+         mqmqa_data%cat2el=[elalpha]
+      else
+         mqmqa_data%cat2species=[mqmqa_data%cat2species,curspix]
+         mqmqa_data%cat2el=[mqmqa_data%cat2el,elalpha]
+      endif
+      mqmqanend=mqmqanend+1
+      write(*,10)curspix,elalpha,trim(name)
+10    format('3B >>>>>> add cation as species: ',i3,' (el alpha ',i3,'), ',a)
+   enddo cation_loop
+   if(allocated(mqmqa_data%cat2species)) then
+      write(*,210)size(mqmqa_data%cat2species),mqmqa_data%cat2species
    endif
-200 continue
-   write(*,210)size(mqmqa_data%cat2species),&
-        mqmqa_data%cat2species
 210 format('3B >>>>>>>>> cat2species: ',i3,': ',10i3)
 900 return
  end subroutine cationswith_valencies

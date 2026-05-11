@@ -28,6 +28,17 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.05.01 version 6.114.  A second session with AI Claude has been
+necessary for the problems with cations having multiple valencies and
+most likely a third.  In the original data structure each element
+could be associated with a single cation and the has caused multiple
+problems.  There is still a problem with the entropy calculation in
+the binaty system U-Cl which in the MQMQA model is a ternary with
+U/+3, U/+4 and U2/+6 cations (although the U/+3 ion seems to have only
+very low fractions).  There are several modifications mainly for the
+MQMQA model in this update but probably a third session with Claude is
+needed.
+
 2026.05.01 version 6.113.  A long session with AI Claude has fixed
 most of the remaining problems with the MQMQA model.  In particular
 handling of cations with several valencies.  The notation of such

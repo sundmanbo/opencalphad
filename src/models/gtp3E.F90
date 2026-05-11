@@ -5499,15 +5499,15 @@
       if(gx%bmperr.eq.0) gx%bmperr=buperr
       if(.not.silent) write(kou,1002)gx%bmperr,buperr,nl,trim(longline)
 1002   format('3E error ',2i5,', occured at TDB file line ',i7/a)
-      write(*,*)'Do you want to continue at your own risk anyway?'
-      read(*,1008)ch1
+!      write(*,*)'Do you want to continue at your own risk anyway?'
+!      read(*,1008)ch1
 !1008  format(a)
-      if(ch1.eq.'Y') then
+!      if(ch1.eq.'Y') then
          write(*,*)'Now any kind of error may occur .... '
          buperr=0
          gx%bmperr=0
          goto 100
-      endif
+!      endif
    endif
 !000000000000000000000000000000000000000000000000000000
 ! After entering all parameters we should take care of ternary_extrapolations 
