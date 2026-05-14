@@ -24,7 +24,8 @@
 ! fz max number of constituents on a sublattice
 ! f1s dimension for other arrays ceff1 etc
 !   integer, parameter :: fq=99, fz=20, f1=50
-   integer, parameter :: fq=20, fz=10, f1s=50
+! Problem with fq=20 ...
+   integer, parameter :: fq=50, fz=50, f1s=50
 ! max allower error in sum ceqf1=1 and ceqf2=1
    double precision, parameter :: ceqferr=1.0D-7
 ! number of pairs and sublattice fractions
@@ -75,6 +76,9 @@
 ! sum each part separately
    double precision tsub,dvvv(fq,fq),lsub(fq),tend
    double precision ssub,dssub(fq),send,dsend(fq),squad,dsquad(fq)
+! 2026-05-11 diag: dchain accumulates the would-be chain-rule contribution
+!                  to dsquad without applying it, so we can see its size
+   double precision dchain(fq)
    double precision d2ssub(fq*(fq+1)/2)
 ! first index is sublattice constituent, second is quad index
    double precision b1iA(fz,fq),b2iX(fz,fq),b1iAB(fq),b2iXY(fq),sum1AB,sum2XY
@@ -113,8 +117,8 @@
 !      mqmqa_data%csumx=.FALSE.
 !   endif
    ncon=phlista(lokph)%tnooffr
-!   ddebug=.FALSE.
-   ddebug=.TRUE.
+   ddebug=.FALSE.
+!   ddebug=.TRUE.
    if(ddebug) write(*,*)'3X in config_entropy_mqmqa1',lokph,moded,ncon
 !   phrec=phlista(lokph)
    invnorm=phvar%abnorm(1)
@@ -125,7 +129,7 @@
 !   phvar%abnorm(2)=invnorm*phvar%abnorm(2)
 !   phvar%abnorm(3)=invnorm*phvar%abnorm(3)
 !
-   write(*,'(a,i3,1pe12.3)')'3X in MQMQA, version 5: ',ncon,one/invnorm
+!   write(*,'(a,i3,1pe12.3)')'3X in MQMQA, version 5: ',ncon,one/invnorm
 !
    if(.not.allocated(mqmqa_data%contyp)) then
       write(*,*)'3X MQMQA missing constituent information'
@@ -977,6 +981,7 @@
 !   enddo
 440 format(a,i2,6(1pe10.2),(/20x,6e10.2))
    squad=zero; dsquad=zero
+   dchain=zero  ! 2026-05-11 diag: track would-be chain-rule contribution to dsquad
 ! replaced s1 by q1
    quadloop: do q1=1,ncon
       if(q1.ne.mqmqa_data%contyp(10,q1)) then
@@ -1134,6 +1139,19 @@
 !         mqf%dpair(s1,s2)=dp(s1,s2)
       enddo
    enddo
+! 2026-05-11 diag: compact summary of entropy components and gradients
+   if(ddebug) then
+      write(*,'(a,9(1pe12.4))')'3XD y    :',(phvar%yfr(s1),s1=1,ncon)
+      write(*,'(a,9(1pe12.4))')'3XD ssub :',ssub,(dssub(s1),s1=1,ncon)
+      write(*,'(a,9(1pe12.4))')'3XD send :',send,(dsend(s1),s1=1,ncon)
+      write(*,'(a,9(1pe12.4))')'3XD squad:',squad,(dsquad(s1),s1=1,ncon)
+      write(*,'(a,9(1pe12.4))')'3XD chain:',zero,(dchain(s1),s1=1,ncon)
+      write(*,'(a,9(1pe12.4))')'3XD total:',ssub+send+squad,&
+           (dssub(s1)+dsend(s1)+dsquad(s1),s1=1,ncon)
+      write(*,'(a,9(1pe12.4))')'3XD pair :',(pair(s1),s1=1,noofpair)
+      write(*,'(a,9(1pe12.4))')'3XD ceqf1:',(ceqf1(s1),s1=1,nspin(1))
+      write(*,'(a,9(1pe12.4))')'3XD ceqf2:',(ceqf2(s1),s1=1,nspin(2))
+   endif
    if(ddebug) write(*,*)'3X Done MQMQA configurational entropy'
 ! TEST temporary fix
 !   do s1=1,mqf%npair
@@ -1179,7 +1197,7 @@
 ! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
    integer ij,jd,jq,qq1,qq2,ass,mpow,isumx,tsize,tch,iiz,mqmqcon,mqmqjy
    integer noofex,nqx,ncv,icv,dd
-   double precision ksi,sumx,dsumx
+   double precision ksi,sumx,dsumx,oldaff
    double precision dksi(3),d2ksi(3)
 !   logical calc_alldvkij
 !   logical ddebug
@@ -1338,9 +1356,9 @@
       endif
 ! This is an FNN parameter, we calculate and save the value for later use
       nrealem=nrealem+1
-!      write(*,*)'3XQ endmemloop1B: ',mqmqj,kend,nrealem
       proprec=>endmemrec%propointer
       aff=one/mqmqa_data%pp(1,mqmqj)
+!     write(*,'(a,3i3,1pe12.4)')'3XQ endmemloop1B: ',mqmqj,kend,nrealem,aff
       mq1: do while(associated(proprec))
          typty=proprec%proptype
          if(typty.ne.1) stop 'illegal typty in mqmqa model'
@@ -1351,8 +1369,8 @@
 !         write(*,'(a,i3,F7.4,3(1Pe10.2))')'3XQ refg:',mqmqj,aff,vals(1),vals(2)
 ! we should divide this by the aff of this pair and we will multiply this
 ! FNN same aff but SNN fractions linking to this pair use another aff
-!         write(*,'(a,2i3,2(1pe12.4))')'3XQ FNN endmember',mqmqj,kend,&
-!                 pyq,vals(1)
+!        write(*,'(a,2i3,2(1pe12.4))')'3XQ FNN endmember',mqmqj,kend,&
+!                pyq,vals(1)
          if(ipy.eq.1) then
             vals=vals*dummy1*aff
 ! save values of reference state for use with SNN parameters ??
@@ -1389,7 +1407,8 @@
 ! second loop over all constutents (quads), ignore FNN endmember records
 ! but add reference state parameters to all SNN and reciprocal constituents
    ipy=1
-   if(tch.ge.3) write(*,*)'3XQ adding reference to SNN endmembers'
+   if(tch.ge.3) write(*,203)phres%yfr
+203 format('3XQ adding reference to SNN endmembers',20(F8.5))
    qloop: do mqmqj=1,gz%nofc
 ! this is quad fraction, multiply with all FNN reference energies
       pyq=phres%yfr(mqmqj)
@@ -1406,14 +1425,14 @@
          do itp=1,6
             phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*aff*refg(zp,itp)
          enddo
-!         write(*,205)'3XQ FNN: qix, FNN, aff, pyq, fun, DG: ',mqmqj,zp,aff,&
-!              pyq,refg(zp,1),pyq*aff*refg(zp,1)
+         if(tch.ge.3) write(*,205)'3XQ FNN: qix, FNN, aff, pyq, fun, DG: ',&
+              mqmqj,zp,aff,pyq,refg(zp,1),pyq*aff*refg(zp,1)
 205      format(a,2i3,F8.5,2x,3(1pe12.4))
          if(tch.ge.3) &
           write(*,210)'3XQ FNN G:     ',mqmqj,mqmqj,pyq,aff,pyq,phres%gval(1,1)
 210      format(a,2i3,2F8.5,1pe12.4,2x,6(1pe10.2))
       else
-! this is an SNN with two or more pairs
+! this is an SNN with two or more AA/XX records
 ! For each SNN pair add the contribution to the FNN reference state
 ! %contyp(1..4,mqmqj) is index of FNN reference energy
          if(tch.ge.3) write(*,'(a,i3,1x,4i3,4F8.5)')'3XQ pp2: ',mqmqj,&
@@ -1423,15 +1442,29 @@
 ! zp is index to an FNN record, there can be 2 or 4 FNN records
             zp=mqmqa_data%contyp(s1,mqmqj)
             if(zp.eq.0) exit snnloop
-! %pp(1..4,mqmqj) is stoichiometric factor for the pair
-            aff=mqmqa_data%pp(s1-5,mqmqj)
-!            write(*,211)1,mqmqj,ipy,phres%dgval(1,mqmqj,ipy)
-211         format('3XQ SNN dG/dy:',3i3,1(1pe12.4))
+! %pp(1..4,mqmqj) is stoichiometric factors for the pair
+            oldaff=mqmqa_data%pp(s1-5,mqmqj)
+! attempted emergy fix for UCl3-UCl4
+!            if(zp.eq.1) then
+! Currently aff=0.33333333 but that is wrong fot UU2Cl6
+! for UCl4 the stoichiometric contribution is 0.6/3.6 and for U2Cl6 0.4/3.6
+!               aff=0.1666666667D0
+!            else
+!               aff=0.05555555555D0
+!            endif
+! save this for all related use of aff
+!            mqmqa_data%pp(s1-5,mqmqj)=aff
+!            write(*,209)s1,zp,aff,oldaff
+209         format('3XQ 3XQ hardwired the UCl3-UCl4 calculation',2i3,2(1pe12.4))
+! end attempted emergy fix
+            if(tch.ge.3) write(*,211)1,mqmqj,ipy,phres%dgval(1,mqmqj,ipy)
+211         format('3XQ SNN dG/dy:',3i3,(1pe12.4))
             do itp=1,3
                phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+&
                     aff*refg(zp,itp)
             enddo
-!           write(*,212)zp,mqmqj,ipy,phres%dgval(1,mqmqj,ipy),aff,aff*refg(zp,1)
+            if(tch.ge.3) write(*,212)zp,mqmqj,ipy,phres%dgval(1,mqmqj,ipy),&
+                 aff,aff*refg(zp,1)
 212         format('3XQ SNN dG/dy reference added:',3i3,3(1pe12.4))
 ! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
             if(tch.ge.3) write(*,213)s1,zp,mqmqj,ipy,pyq,aff,phres%gval(1,ipy)
@@ -1454,7 +1487,8 @@
 299 format('3XQ endmember energy and entropy calculated, excess to be done')
 !   goto 800
 !---------------------------------------------------------------------
-! code below needed for excess parameters ONLY, all SNN FNN endmembers done
+! code below needed for excess parameters ONLY, 
+! all SNN and FNN endmembers already done
 ! NOTE some of them may not have a reference energy parameter
 ! This is to allocate csumx for handling quads with small fractions.
    isumx=0
@@ -2344,8 +2378,8 @@
          ternary=one
          par3: if(nfr.gt.3) then
 !            if(ternaryonce) write(*,116)
-            write(*,116)
-116         format(/'3XQ *** ternary parameters to be implemented ***'/)
+!            write(*,116)
+116         format('3XQ *** ternary parameters to be implemented ***')
 !            ternaryonce=.false.
 !            goto 1000
 ! this is a dummy call
@@ -2887,8 +2921,20 @@
 ! mm is the unknown 4th quad
 ! hejhopp is the value to return, possibly 1.0D0
    integer ii
-   write(*,'(a,3i3,2x,10i3)')'3XQ trying to find mm',xq,cat1,cat2,&
-        (ylinks(ii),ii=1,4)
+   integer :: noter=0
+   save noter
+   if(noter.eq.0) then
+      write(*,*)'3XQ ternary parameters not implemented'
+      noter=1
+   else
+      noter=noter+1
+      if(noter.eq.200) then
+         write(*,*)'3XQ ternary parameters still not implemented'
+         noter=1
+      endif
+   endif
+!   write(*,'(a,3i3,2x,10i3)')'3XQ ternary factor mm',xq,cat1,cat2,&
+!        (ylinks(ii),ii=1,4)
 ! but ylinks are OC fraction indices, not necessarily same as quad indices
 ! BUT at present, check which one of the last 2 in ylinks that is an A/X quad
    do ii=1,size(mqmqa_data%emquad)
@@ -2902,7 +2948,7 @@
 ! return the index of the cation in the C/X quad
 100 mm=ii
 1000 continue
-   write(*,*)'3XQ leaving ternary_factor',mm
+!   write(*,*)'3XQ leaving ternary_factor',mm
    return
  end subroutine ternary_factor
 
@@ -4023,6 +4069,12 @@
 ! The asymmetry in tersys(t) is stored as 'Tx ' where x is 1, 2 or 3
 ! very very clumsy but my brain rotates still ......
       asymmetric1=ichar(tersys(t)%asymm(2:2))-ichar('0')
+      if(asymmetric1.le.0 .or. asymmetric1.gt.3) then
+         write(*,17)asymmetric1,t,i,j,v
+17       format('3XQ wrong argument to test_asym, ',i7,' must be 1, 2 or 3'/&
+              'Ternary asymmetry ignored ',4i3)
+         goto 100
+      endif
 !  asymmetric1 is 1, 2 or 3; change to the quad index in that position
 !      asymmetric2=tersys(t)%el(asymmetric1)
 !      write(*,8)t,tersys(t)%el,tersys(t)%isasym,asymmetric1
@@ -4948,8 +5000,8 @@
    if(phase(1:1).ne.' ') then
       call find_phase_by_name(phase,iph,ics)
       if(gx%bmperr.ne.0) then
-         write(*,21)trim(phase)
-21       format(/'3XQ Ternary asymmetries for phase "',a,&
+!         write(*,21)trim(phase)
+21       format('3XQ Ternary asymmetries for phase "',a,&
               '" ignored as phase not selected')
          gx%bmperr=0
          goto 1000
@@ -5228,7 +5280,7 @@
 !
 ! called from create_asymmetry in gtp3B
    nfr=phlista(lokph)%nooffr(1)
-   write(*,7)lokph,nfr,noofel
+!   write(*,7)lokph,nfr,noofel
 7  format(/'3XQ In correlate_const_and_quad',3i5/)
 !
    allocate(findan(noofel))
@@ -5411,7 +5463,7 @@
       mqmqa_data%emquad(isp)=cat1; cat1=cat1+cat2; cat2=cat2-1
    enddo
 ! list quads (why?)
-   write(*,68)(mm,mm=1,mqmqa_data%nquad)
+!   write(*,68)(mm,mm=1,mqmqa_data%nquad)
 68 format('3XQ quads:    ',21i3)
    write(*,57)'3XQ emquads: ',(mqmqa_data%emquad(isp),isp=1,mqmqa_data%ncat)
 57 format(a,25i4)

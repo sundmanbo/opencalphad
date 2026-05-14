@@ -645,6 +645,10 @@
    integer, allocatable :: tmpcon(:,:),pmap(:),tmppin(:),tmpc2s(:,:)
    double precision, allocatable :: tmpqfn(:),tmpsto(:,:),tmptot(:),tmppp(:,:)
    integer old_p,new_p,jj
+! 2026-05-11: canonical (AA, AB, BB, ...) sort scratch space
+   integer :: can_a(maxconst),can_b(maxconst),perm(maxconst)
+   integer :: found_k,nclen
+   integer, allocatable :: tmpcl(:)
 !
    character*24 connames(100)
 !   type(gtp_phase_data), pointer :: phrec
@@ -807,7 +811,8 @@
       enddo findspecies
 !      write(6,297)' enter_phase constituent error: ',jl,const(jl),jk,nkk
 297 format(a,i3,'>',A,'<',2i3)
-      write(kou,*)'3B Unknown constituent, name must be exact: ',trim(const(jl))
+!      write(kou,*)'3B Unknown constituent, name must be exact: "',&
+!           trim(const(jl)),'"'
       gx%bmperr=4051
       goto 1000
 ! found species,
@@ -1232,6 +1237,60 @@
 ! constitlist is alphabetical (from sortin in enter_phase) but contyp is in
 ! TDB insertion order (from mqmqa_species). Reorder contyp to match constitlist
 ! so that downstream code (gtp3XQ etc.) can use the same index for both.
+!
+! 2026-05-11: Before the alignment, reorder constitlist into canonical
+! (AA, AB, BB, ...) order based on the cation-pair splista indices stored in
+! contyp(11,12).  Required because alphabetical ASCII sort on species names
+! can put cross quads at the wrong slot (e.g., U/CL, U2/CL, UU2/CL where
+! ASCII order yields AA, BB, AB and breaks the excess model).
+      nclen=size(phlista(nyfas)%constitlist)
+      do jk=1,nclen
+         loksp=phlista(nyfas)%constitlist(jk)
+         found_k=0
+         do kkk=1,mqmqa_data%nconst
+            if(abs(mqmqa_data%contyp(10,kkk)).eq.loksp) then
+               found_k=kkk; exit
+            endif
+         enddo
+         if(found_k.eq.0) then
+            write(*,*)'3B MQMQA canonical sort: constitlist entry missing &
+                 &in contyp:',jk,loksp
+            gx%bmperr=4399; goto 1000
+         endif
+         if(mqmqa_data%contyp(5,found_k).gt.0) then
+! pair quad: single cation in contyp(11)
+            can_a(jk)=mqmqa_data%contyp(11,found_k)
+            can_b(jk)=can_a(jk)
+         else
+! cross quad: cations in contyp(11) and contyp(12)
+            can_a(jk)=min(mqmqa_data%contyp(11,found_k), &
+                          mqmqa_data%contyp(12,found_k))
+            can_b(jk)=max(mqmqa_data%contyp(11,found_k), &
+                          mqmqa_data%contyp(12,found_k))
+         endif
+         perm(jk)=jk
+      enddo
+! Bubble sort perm by (can_a, can_b) ascending
+      do
+         s1=0
+         do jk=2,nclen
+            if(can_a(perm(jk)).lt.can_a(perm(jk-1)) .or. &
+               (can_a(perm(jk)).eq.can_a(perm(jk-1)) .and. &
+                can_b(perm(jk)).lt.can_b(perm(jk-1)))) then
+               jj=perm(jk); perm(jk)=perm(jk-1); perm(jk-1)=jj
+               s1=1
+            endif
+         enddo
+         if(s1.eq.0) exit
+      enddo
+! Apply permutation to constitlist
+      allocate(tmpcl(nclen))
+      tmpcl=phlista(nyfas)%constitlist(1:nclen)
+      do jk=1,nclen
+         phlista(nyfas)%constitlist(jk)=tmpcl(perm(jk))
+      enddo
+      deallocate(tmpcl)
+!
       do kkk=1,mqmqa_data%nconst
          kconlok(kkk)=0
          loksp=abs(mqmqa_data%contyp(10,kkk))
@@ -1336,8 +1395,8 @@
                ll=ll+1
             endif
          enddo
-         write(*,555)'todo ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14),&
-              trim(splista(phlista(nyfas)%constitlist(kkk))%symbol)
+!         write(*,555)'todo ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14),&
+!              trim(splista(phlista(nyfas)%constitlist(kkk))%symbol)
          if(mqmqa_data%contyp(5,kkk).gt.0) then
 ! fix sublattice index for AA/XX constituents
             s1=1
@@ -1364,7 +1423,7 @@
 !            mqmqa_data%contyp(11,kkk)=0
 !            mqmqa_data%contyp(12,kkk)=0
          endif
-         write(*,555)'done ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14)
+!         write(*,555)'done ',kkk,(mqmqa_data%contyp(jk,kkk),jk=1,14)
 555      format('3B mqmqa ',a,i2,4i3,2i4,3i3,i4,2x,4i3,1x,a)
       enddo contyp1
       if(ll.ne.size(phlista(nyfas)%constitlist)) then
@@ -2934,7 +2993,7 @@
 ! wildcard, sorted at the end
          iord(ll)=-99
       else
-         write(*,1211)trim(phlista(lokph)%name),ll
+!         write(*,1211)trim(phlista(lokph)%name),ll
 1211     format('3B error in enter_parameter ',a,i5)
 !         gx%bmperr=4096; goto 1000
          gx%bmperr=4096; goto 2000
@@ -3782,7 +3841,7 @@
 !           (endmemrec%intpointer%propointer%extra
 !     write(*,*)'without properties',associated(endmemrec%intpointer%propointer)
 !   endif
-   if(gx%bmperr.ne.0) then
+   if(gx%bmperr.ne.0 .and. gx%bmperr.ne.4096) then
       write(*,*)'3B Leaving enter_parameter with error ',gx%bmperr
    endif
    return
@@ -7954,8 +8013,10 @@
       ntot=ntot+1
       species(ntot)=quadname(jp+kp:)
 ! this is second anion
-      write(*,*)'3B only one anion allowed: ',species(ntot)
-      stop 'line 7847 in gtp3B'
+      write(*,*)'3B only one anion allowed, ignoring: ',species(ntot)
+!      stop 'line 7847 in gtp3B'
+!      stop 'line 7847 in gtp3B'
+      goto 810
 !
       call find_species_by_name_exact(species(ntot),isp(ntot))
 !      call find_species_record(species(ntot),isp(ntot))

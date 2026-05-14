@@ -4940,7 +4940,7 @@
          if(ocv()) write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr
 !         write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr
          if(gx%bmperr.ne.0) then
-            write(*,*)'3E error line 4928 ',gx%bmperr
+!            write(*,*)'3E error line 4928 ',gx%bmperr
 ! error entering parameter, not fatal
 !            if(dodis.eq.1 .and. .not.silent) &
 !                 write(*,408)'3E parameter warning:',gx%bmperr,nl,&
@@ -4963,9 +4963,9 @@
                   noparref=noparref+1
                   tdbwarning=.TRUE.
 !                  write(*,*)'3E tdbwarning set true 12'
-               else
-                  write(*,4091)gx%bmperr,nl
-4091               format('3E Error ',i5,' occured around line ',i6)
+               elseif(gx%bmperr.ne.4096) then
+                  write(*,4091)gx%bmperr,nl,trim(longline)
+4091              format('3E Error ',i5,' occured around line ',i6/a)
                endif
             else
 ! Other errors than 4096, 4066 and 4154 are fatal
@@ -5465,12 +5465,6 @@
 1000 continue
 !   write(*,1111)totalpar,totalpar-notusedpar
 !   write(*,1111)totalpar,enteredpar,notusedpar
-   if(manylonglines.gt.0) &
-        write(*,*)'3E Number of lines exceeding 80 characters: ',manylonglines
-   if(noparref.gt.0) write(*,1117)noparref
-1117 format('There are ',i7,' parameters with no reference')
-   write(*,1111)totalpar,enteredpar
-1111 format(/'Out of ',i5,' model parameters ',i5,' have been entered'/)
    if(tdbwarning) then
 1001  continue
       write(*,*)
@@ -5497,13 +5491,16 @@
 !   write(*,*)'3E At label 1000'
    if(buperr.ne.0 .or. gx%bmperr.ne.0) then
       if(gx%bmperr.eq.0) gx%bmperr=buperr
-      if(.not.silent) write(kou,1002)gx%bmperr,buperr,nl,trim(longline)
-1002   format('3E error ',2i5,', occured at TDB file line ',i7/a)
+! 4051 is no such constituent
+      if(.not.silent .and. gx%bmperr.ne.4051) &
+           write(kou,1002)gx%bmperr,buperr,nl,trim(longline)
+1002  format('3E error ',2i5,', occured at TDB file line ',i7/a)
 !      write(*,*)'Do you want to continue at your own risk anyway?'
 !      read(*,1008)ch1
 !1008  format(a)
 !      if(ch1.eq.'Y') then
-         write(*,*)'Now any kind of error may occur .... '
+!         write(*,*)'Now any kind of error may occur .... '
+! reset error code
          buperr=0
          gx%bmperr=0
          goto 100
@@ -5511,6 +5508,12 @@
    endif
 !000000000000000000000000000000000000000000000000000000
 ! After entering all parameters we should take care of ternary_extrapolations 
+   if(manylonglines.gt.0) &
+        write(*,*)'3E Number of lines exceeding 80 characters: ',manylonglines
+   if(noparref.gt.0) write(*,1117)noparref
+1117 format('There are ',i7,' parameters with no reference')
+   write(*,1111)totalpar,enteredpar
+1111 format(/'3E Out of ',i5,' model parameters ',i5,' have been entered'/)
    if(addternaryxpol) then
 !      write(*,'(a)')'3E Adding extrapolation methods',ntxp
       do zp=1,ntxp
