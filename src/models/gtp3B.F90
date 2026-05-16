@@ -811,8 +811,8 @@
       enddo findspecies
 !      write(6,297)' enter_phase constituent error: ',jl,const(jl),jk,nkk
 297 format(a,i3,'>',A,'<',2i3)
-!      write(kou,*)'3B Unknown constituent, name must be exact: "',&
-!           trim(const(jl)),'"'
+      write(kou,*)'3B Unknown constituent, name must be exact: "',&
+           trim(const(jl)),'"'
       gx%bmperr=4051
       goto 1000
 ! found species,
@@ -1257,16 +1257,21 @@
                  &in contyp:',jk,loksp
             gx%bmperr=4399; goto 1000
          endif
+! Use the cation species' alphaindex (alphabetical position) instead of the
+! raw splista index so the canonical (AA, AB, BB, ...) sort coincides with
+! alphabetical species-name order in the normal single-valence case.  The
+! raw splista index is TDB-declaration order and can put cation groups in
+! arbitrary order when the elements are not declared alphabetically.
          if(mqmqa_data%contyp(5,found_k).gt.0) then
 ! pair quad: single cation in contyp(11)
-            can_a(jk)=mqmqa_data%contyp(11,found_k)
+            can_a(jk)=splista(mqmqa_data%contyp(11,found_k))%alphaindex
             can_b(jk)=can_a(jk)
          else
 ! cross quad: cations in contyp(11) and contyp(12)
-            can_a(jk)=min(mqmqa_data%contyp(11,found_k), &
-                          mqmqa_data%contyp(12,found_k))
-            can_b(jk)=max(mqmqa_data%contyp(11,found_k), &
-                          mqmqa_data%contyp(12,found_k))
+            can_a(jk)=min(splista(mqmqa_data%contyp(11,found_k))%alphaindex, &
+                          splista(mqmqa_data%contyp(12,found_k))%alphaindex)
+            can_b(jk)=max(splista(mqmqa_data%contyp(11,found_k))%alphaindex, &
+                          splista(mqmqa_data%contyp(12,found_k))%alphaindex)
          endif
          perm(jk)=jk
       enddo
@@ -7948,7 +7953,7 @@
    jp=index(quadname,'/')
    if(jp.le.0) then
       write(*,55)trim(quadname),trim(inline)
-55    format('3B line 7777 missing / in quadrupole "',a,'"'/'inline: ',a)
+55    format('3B line 7951 missing / in quadrupole "',a,'"'/'inline: ',a)
       gx%bmperr=4399; goto 1000
    endif
    isp=0
@@ -8013,10 +8018,14 @@
       ntot=ntot+1
       species(ntot)=quadname(jp+kp:)
 ! this is second anion
-      write(*,*)'3B only one anion allowed, ignoring: ',species(ntot)
-!      stop 'line 7847 in gtp3B'
-!      stop 'line 7847 in gtp3B'
-      goto 810
+      write(kou,*)'3B two anions detected, only one normally allowed: ',&
+           trim(species(ntot))
+      write(kou,*)'3B Continue parsing (c) or terminate (default)? '
+      read(*,'(a)')ch1
+      if(ch1.ne.'c' .and. ch1.ne.'C') then
+         gx%bmperr=4399; goto 1000
+      endif
+      write(kou,*)'3B Continuing with two anions; downstream results may be wrong'
 !
       call find_species_by_name_exact(species(ntot),isp(ntot))
 !      call find_species_record(species(ntot),isp(ntot))
@@ -8025,10 +8034,6 @@
 !         write(*,*)'3B cannot find anion: ',trim(species(ntot)),&
 !              ' maybe not selected'
          goto 810
-         if(isp(ntot-1).eq.isp(ntot)) then
-            write(*,*)'3B two anions represent the same species'
-            sametwice2=.TRUE.
-         endif
       endif
    else
 ! a single anion
@@ -8213,6 +8218,11 @@
                write(kou,3001)trim(quadname),jp,nspel,ee,nel,thiscon
 3001           format('3B Warning: same element twice in: ',&
                     a,2x,2i3,2i3,i3)
+               if(.not.mqmqa_multival) then
+                  write(*,3777)
+3777              format('3B Sorry, not yet implemented')
+                  gx%bmperr=4399; goto 1000
+               endif
 !               write(*,3005)thiscon
 !               write(kou,3002)(mqmqa_data%constoi(pair,s1),pair=1,4)
 ! same cation twice in a quad should not be a problem, it will should a 

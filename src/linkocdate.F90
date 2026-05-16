@@ -1,9 +1,10 @@
 program linkocdate
 ! extract current date and inserts it in the source code of the main program
-  character date*20,mdate*12,line*60
-  call date_and_time(date)
-  write(*,*)'Stored linking date: ',date
-  mdate="'"//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//"'"
+  character date*8,time*10,mdate*18,line*80
+  call date_and_time(date=date,time=time)
+  write(*,*)'Stored linking date+time: ',date,' ',time(1:4)
+  mdate="'"//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//' '//&
+        time(1:2)//':'//time(3:4)//"'"
   open(21,file='src/pmain1-save.F90',access='sequential',status='old')
   open(22,file='src/pmain1.F90',access='sequential',status='unknown')
 100 continue

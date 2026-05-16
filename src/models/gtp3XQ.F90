@@ -1197,7 +1197,7 @@
 ! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
    integer ij,jd,jq,qq1,qq2,ass,mpow,isumx,tsize,tch,iiz,mqmqcon,mqmqjy
    integer noofex,nqx,ncv,icv,dd
-   double precision ksi,sumx,dsumx,oldaff
+   double precision ksi,sumx,dsumx
    double precision dksi(3),d2ksi(3)
 !   logical calc_alldvkij
 !   logical ddebug
@@ -1443,20 +1443,7 @@
             zp=mqmqa_data%contyp(s1,mqmqj)
             if(zp.eq.0) exit snnloop
 ! %pp(1..4,mqmqj) is stoichiometric factors for the pair
-            oldaff=mqmqa_data%pp(s1-5,mqmqj)
-! attempted emergy fix for UCl3-UCl4
-!            if(zp.eq.1) then
-! Currently aff=0.33333333 but that is wrong fot UU2Cl6
-! for UCl4 the stoichiometric contribution is 0.6/3.6 and for U2Cl6 0.4/3.6
-!               aff=0.1666666667D0
-!            else
-!               aff=0.05555555555D0
-!            endif
-! save this for all related use of aff
-!            mqmqa_data%pp(s1-5,mqmqj)=aff
-!            write(*,209)s1,zp,aff,oldaff
-209         format('3XQ 3XQ hardwired the UCl3-UCl4 calculation',2i3,2(1pe12.4))
-! end attempted emergy fix
+            aff=mqmqa_data%pp(s1-5,mqmqj)
             if(tch.ge.3) write(*,211)1,mqmqj,ipy,phres%dgval(1,mqmqj,ipy)
 211         format('3XQ SNN dG/dy:',3i3,(1pe12.4))
             do itp=1,3

@@ -1157,6 +1157,8 @@
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   logical mqmqdebug,mqmqdebug2
   logical :: mqmqder=.false.
+! this is explicitly set .false. in pmon6.F90 for the NEW command
+  logical :: mqmqa_multival=.false.
   logical :: mqmqtdb=.false.,mqmqxcess=.false.
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! MUST be careful with ncat and nan !!! USED IN MQMQA

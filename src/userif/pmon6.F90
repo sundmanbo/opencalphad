@@ -396,7 +396,7 @@ contains
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
           'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR',&
-          'XTDB_DEFAULTS   ','                ','                ']
+          'XTDB_DEFAULTS   ','MACRO_DIRECTORY ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -1530,7 +1530,18 @@ contains
           if(gx%bmperr.ne.0) goto 990
 !-------------------------
        case(11) ! amend general
+! this asks for some general things ....
           call amend_global_data(cline,last)
+! added special MQMQA option
+          i2=1
+!          call gparidx('Allow mqmqa_multival?',cline,last,i1,i2,'?MQMQA debug')
+! default not allow
+          call gparcdx('Allow multivalenced elements in MQMQA?',&
+               cline,last,1,ch1,'N','?MQMQA multivalued elements')
+          if(ch1.eq.'Y') then
+             write(*,*)'Hopefully it will work now'
+             mqmqa_multival=.true.
+          endif
 !-------------------------
        case(12) ! amend assessment result
           if(.not.allocated(firstash%eqlista)) then
@@ -2843,9 +2854,13 @@ contains
                 write(kou,*)'Popup windows for open files enabled'
              endif
 !.................................................................
-          case(9) ! WORKING DIRECTORY
-             write(kou,*)'Current working directory: ',trim(workingdir)
-             write(kou,*)'To change please select an OCM file in the directory'
+          case(9,17) ! WORKING DIRECTORY and possibly MACRO
+             if(kom3.eq.9) then
+                write(kou,*)'Current working directory: ',trim(workingdir)
+                write(kou,'(a)')'To change directory please select an OCM file'
+             else
+                write(kou,'(a)')'Please select the directory with the OCM file'
+             endif
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! IMPORTANT: extensions also in utilities/ftinydialog.F90/ftinyopen !!!!
 ! try to set current working directory as input to allow editing
@@ -2857,6 +2872,7 @@ contains
              ztyp=3
              call gparfilex('Select new working directory',&
                   cline,last,1,string,' ',ztyp,'?Set adv workdir')
+!
              inquire(file=string,exist=logok)
              if(.not.logok) then
                 write(*,*)'No such directory, working directory not changed'
@@ -2870,14 +2886,27 @@ contains
                    ch1=string(j4:j4)
 !                   write(*,*)'P6 wdir: ',trim(string),' ',ch1,j4 
                 enddo
+! macro name should be the rest of string skipping the first character, i.e. /
+                line=string(j4+1:)
                 string(j4:)=' '
 ! this is a gfortran special extension
                 call chdir(string,i1)
                 if(i1.ne.0) then
                    write(*,*)'Failed change working directory',i1
                 else
-                   write(*,'(a,a)')'New working directory: ',trim(string)
+                   write(*,'(a,a,i3)')'New working directory: ',&
+                        trim(string),kom3
                    workingdir=string
+                   if(kom3.eq.17) then
+                      write(*,'(a,a,a)')'Now execute the macro: "',&
+                           trim(line),'"'
+! taken from line 6548, macro begin ............... see also line 730
+                      cline=line
+                      last=0
+                      logok=.TRUE.
+                      call macbeg(cline,last,logok)
+                      if(buperr.ne.0 .or. gx%bmperr.ne.0) goto 990
+                   endif
                 endif
              endif
 !             write(*,*)'Cannot be changed'
@@ -2988,8 +3017,10 @@ contains
              call gparcdx('Default bibiographic reference (One line!)',&
                   cline,last,5,bibrefdef,dummy,'?Set adv xtdb')
 !.................................................................
-          case(17) ! nit used
-             continue
+!          case(17) ! SET ADVANCED MACRO_DIRECTORY, merged with 9
+! select macro and set default directory to the one with the macro for TDB
+!             
+!             continue
 !.................................................................
           case(18) ! not used
              continue
@@ -5468,13 +5499,13 @@ contains
 !
 !             write(*,1673)size(sp2quad),sp2quad
              write(kou,3001)size(mqmqa_data%cations)
-3001         format(/'List of ',i3,' cations: ')
-             do i1=1,size(mqmqa_data%cations)
-                write(kou,3002)trim(mqmqa_data%cations(i1))
+3001         format(/'List of ',i3,' cations: *** to be fixed')
+!             do i1=1,size(mqmqa_data%cations)
+!                write(kou,3002)trim(mqmqa_data%cations(i1))
 !                write(kou,3002)trim(mqmqa_data%cations(i1)),&
 !                  trim(mqmqa_data%cations(i1+1)),trim(mqmqa_data%cations(i1+2))
 3002            format(15(a,', '))
-             enddo
+!             enddo
 !1673         format('Sp2quad: ',i3,20(i3))
              if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
 !
@@ -6505,6 +6536,8 @@ contains
        nullify(starteqs(1)%p1)
        noofstarteq=0
 !
+! special MQMQA multivalent check
+       mqmqa_multival=.false.
 ! this routine fragile, inside new_gtp init_gtp is called
 !       write(*,*)'No segmentation fault 7, calling new_gtp'
        call new_gtp

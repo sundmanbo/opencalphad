@@ -28,6 +28,12 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.05.14 version 6.116.  Corrected the alphabetical order of the
+elements of species needed for the MQMQA phase.
+
+2026.05.14 version 6.115.  A general cleanup of the code have been
+made and the MQMQA implementation continues slowly.
+
 2026.05.01 version 6.114.  A second session with AI Claude has been
 necessary for the problems with cations having multiple valencies and
 most likely a third.  In the original data structure each element
