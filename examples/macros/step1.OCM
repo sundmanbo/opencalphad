@@ -108,6 +108,29 @@ l est-acc
 
 @&
 
+@$ This macro sometimes failes when run together with previous macros
+@$ But it works on its own.  Try to calculate with aligtly different T
+
+set c t=1250
+
+c e
+
+
+@&
+
+set c t=1200
+
+c e
+
+set num 1000
+1e-6
+0.004
+-.01
+
+@&
+
+@& ==================================================
+
 @$ Now we calculate how the system changes with T
 
 set axis 1 T 800 1800 10

@@ -1180,7 +1180,9 @@
    integer mqmqj,kend,s1,s2,s3,id,nofc2,ipy,lokfun,typty,itp,zp,nrealem,mqendx
    double precision vals(6),pyq,rtg,aff
    double precision, dimension(:), allocatable :: dpyq(:),d2pyq(:),d2vals(:)
-   double precision, dimension(:,:), allocatable :: dvals(:,:),affarr(:)
+!   double precision, dimension(:,:), allocatable :: dvals(:,:),affarr(:)
+   double precision, dimension(:,:), allocatable :: dvals(:,:)
+   double precision, dimension(:), allocatable :: affarr(:)
 ! for saving FNN reference energies
    double precision refg(f1,f1)
    double precision dummy1,dummy2
@@ -1189,7 +1191,7 @@
    TYPE(gtp_parcalc) :: gz
    TYPE(gtp_property), pointer :: proprec
    TYPE(gtp_endmember), pointer :: endmemrec
-   TYPE(gtp_interaction), pointer :: intrec
+   TYPE(gtp_interaction), pointer :: intrec,terrec
    TYPE(gtp_pystack), pointer :: pystack
    TYPE(gtp_phase_add), pointer :: addrec
    TYPE(gtp_mqmqa_var), pointer :: mqf
@@ -1775,8 +1777,8 @@
          write(*,*)'3XQ MQMQA parameter with several properties!',mqmqj
       endif
       if(associated(intrec%highlink)) then
-! a higher interaction ... not allowed
-         write(*,*)'3XQ ternary MQMQA parameters not implemented',mqmqj
+! a higher interaction TO BE ADDED AN TESTED
+         write(*,*)'3XQ ternary parameters not implemented'
       endif
 ! there can be more interactions on this level
       intrec=>intrec%nextlink
@@ -1799,6 +1801,45 @@
 1000 continue
    return
  end subroutine calc_mqmqa
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine calc_ternarymq
+!\begin{verbatim}
+!........ this seems redundant not to be adapted to the revised MQMQX model ....
+ subroutine calc_ternarymq(lokph,phres,terrec,vals,dvals,d2vals,gz,ceq)
+! ......Some argument here are probably not needed ...................
+! This routine handles ternay excess in MQMQX model
+! toopx is the pointer to the kohler-Toop record
+! toopx%binint is pointer back to calling subroutine
+   implicit none
+   integer lokph
+   type(gtp_phase_varres), pointer :: phres
+   TYPE(gtp_property), pointer :: lokpty
+   type(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_parcalc) :: gz
+   TYPE(gtp_interaction), pointer :: terrec
+!   integer lokpty
+! to store calculated parameters
+   double precision vals(6),pyq,rtg,aff
+   double precision, dimension(:), allocatable :: dpyq(:),d2pyq(:),d2vals(:)
+   double precision, dimension(:,:), allocatable :: dvals(:,:)
+   double precision, dimension(:), allocatable :: affarr(:)
+! debug
+   character*24 :: ternaryconst
+!\end{verbatim}
+!   
+! terrec is the ternary parameter, list it!
+! terrec%fraclink is index of constituent record
+   write(*,10)terrec%fraclink,phlista(lokph)%constitlist(terrec%fraclink),&
+        splista(phlista(lokph)%constitlist(terrec%fraclink))%symbol
+10 format('Ternary fraclink, phase%constitlist, species: ',3i5,5x,a)
+!
+   write(*,*)'3XQ in calc_ternarymq: not yet implemented'
+!
+1000 continue
+   return
+ end subroutine calc_ternarymq
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
@@ -2193,6 +2234,7 @@
    integer :: nex=0
    integer, dimension(:), allocatable :: ylinks,qlinks
    integer ncv,icv,nqx,lokcs,lokfun,xq,cxq,mm
+   integer termm
    double precision compprod,nomin,ternary,tpfun(6)
 !
    logical, save :: ternaryonce=.true.
@@ -2253,6 +2295,8 @@
    allocate(savedint(10))
    allocate(ylinks(10))
    allocate(qlinks(10))
+! fraction indices
+   ylinks=0
 ! this is the endmember constituent
    nfr=1
    ylinks(1)=mqmqj
@@ -2341,7 +2385,8 @@
          qpow=proprec%asymdata%qpow
          rpow=proprec%asymdata%rpow
          if(mqmqxcess) then
-! LIST PARAMETER helps to understand what the parameter it is ....
+!         if(.true.) then
+! emergency debug LIST PARAMETER to understand what the parameter it is ....
             jp=1
             text=' '
             call mqmqa_excesspar_name(lokph,intlev,nfr,ylinks,text,jp)
@@ -2370,8 +2415,9 @@
 !            ternaryonce=.false.
 !            goto 1000
 ! this is a dummy call
-            call ternary_factor(xq,mqf%compvar(cxq)%cat1,mqf%compvar(cxq)%cat2,&
-                 ylinks,mm,ternary,proprec)
+            call ternary_factor(lokph,xq,mqf%compvar(cxq)%cat1,&
+                 mqf%compvar(cxq)%cat2,ylinks,termm,ternary,proprec,&
+                 ppow,qpow,rpow)
             if(gx%bmperr.ne.0) goto 1000
          endif par3
 !------------------------------------------------------------- end ternary
@@ -2500,6 +2546,10 @@
 ! All mqmqa parameters are "ternary" or higher
 !      write(*,811)associated(ternaryexcess)
 811   format('3XQ is there a link to higher excess?',l2)
+!
+!         terrec=>intrec%highlink
+!         call calc_ternarymq(lokph,phres,terrec,vals,dvals,d2vals,gz,ceq)
+!      
 !      if(ternaryexcess) then
 !         write(*,*)'3XQ this must be an error, not implemeneted'
 !         nullify(ternaryexcess)
@@ -2896,33 +2946,24 @@
 
 !\addtotable subroutine ternary_factor
 !\begin{verbatim}
- subroutine ternary_factor(xq,cat1,cat2,ylinks,mm,hejhopp,proprec)
+ subroutine ternary_factor(lokph,xq,cat1,cat2,ylinks,termm,hejhopp,proprec,&
+      ppow,qpow,rpow)
 ! calculates the ternary factor of a parameter
-   integer xq,cat1,cat2,mm,ylinks(*)
+   implicit none
+   integer lokph,xq,cat1,cat2,termm,ylinks(*),ppow,qpow,rpow
    double precision hejhopp
    type(gtp_property), pointer :: proprec
 !\end{verbatim}
 ! xq is the AB/X quad index
-! cxq in the index in compvar which gives 2 quad indices for A/X and B/X
+! cxq in varkappa index which gives 2 quad indices for A/X and B/X
 ! ylinks are the OC fraction indices
-! mm is the unknown 4th quad
+! termm is the unknown 4th quad
 ! hejhopp is the value to return, possibly 1.0D0
-   integer ii
+   integer ii,jj
    integer :: noter=0
    save noter
-   if(noter.eq.0) then
-      write(*,*)'3XQ ternary parameters not implemented'
-      noter=1
-   else
-      noter=noter+1
-      if(noter.eq.200) then
-         write(*,*)'3XQ ternary parameters still not implemented'
-         noter=1
-      endif
-   endif
-!   write(*,'(a,3i3,2x,10i3)')'3XQ ternary factor mm',xq,cat1,cat2,&
-!        (ylinks(ii),ii=1,4)
-! but ylinks are OC fraction indices, not necessarily same as quad indices
+! ylinks are OC phase constituent indices, not necessarily same as quad indices
+! ylinks(4) is normally zero here ???
 ! BUT at present, check which one of the last 2 in ylinks that is an A/X quad
    do ii=1,size(mqmqa_data%emquad)
       if(ylinks(3).eq.mqmqa_data%emquad(ii)) goto 100
@@ -2933,9 +2974,31 @@
    write(*,*)'3XQ cannot find the ternary C/X quad'
    gx%bmperr=4399; goto 1000
 ! return the index of the cation in the C/X quad
-100 mm=ii
+100 termm=ii
+!   if(noter.eq.0) then
+!      write(*,*)'3XQ ternary parameters not implemented'
+!      noter=1
+!   else
+      noter=noter+1
+      if(noter.eq.1) then
+! debug just the indices
+         write(*,10)ii,xq,cat1,cat2, termm,size(mqmqa_data%emquad),&
+              (ylinks(jj),jj=1,3),ylinks(4),associated(proprec)
+10       format('3XQ excluded ternary: ',i3,5x,3i3,3x,2i3,3x,4i3,3x,L)
+! debug list the constituents also
+! ylinks is phase constituent index, 
+         write(*,20)(ylinks(ii),&
+              trim(splista(phlista(lokph)%constitlist(ylinks(ii)))%symbol),&
+              ii=1,4),ppow,qpow,rpow
+20       format('3XQ Ternary: ',4(i2,': ',a,1x),3i2)
+         noter=0
+      elseif(noter.gt.10) then
+         noter=1
+      endif
+!   endif
+!
 1000 continue
-!   write(*,*)'3XQ leaving ternary_factor',mm
+!   write(*,*)'3XQ leaving ternary_factor',termm
    return
  end subroutine ternary_factor
 

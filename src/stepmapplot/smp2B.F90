@@ -2039,9 +2039,18 @@
 ! try to avoid overlapping keys ...
 ! The "restore" for x/yrange means the scaling from the "plot for"
 ! will be used also for the appended data
+! The 4 margins are pinned to the frame the first plot actually used.  Without
+! this the appended plot is displaced: "restore" restores the range but not the
+! tic interval, and an autoscaled and an explicit axis with the same range can
+! get different tics, different tic label widths and thus different margins.
+! GPVAL_TERM_* are already divided by GPVAL_TERM_SCALE, GPVAL_TERM_?SIZE is not.
        write(21,3912)trim(graphopt%font)
 3912   format('set key bottom right font "',a,',12"'/&
-            'set xrange restore'/'set yrange restore')
+            'set xrange restore'/'set yrange restore'/&
+            'set lmargin at screen GPVAL_TERM_XMIN*GPVAL_TERM_SCALE/GPVAL_TERM_XSIZE'/&
+            'set rmargin at screen GPVAL_TERM_XMAX*GPVAL_TERM_SCALE/GPVAL_TERM_XSIZE'/&
+            'set bmargin at screen GPVAL_TERM_YMIN*GPVAL_TERM_SCALE/GPVAL_TERM_YSIZE'/&
+            'set tmargin at screen GPVAL_TERM_YMAX*GPVAL_TERM_SCALE/GPVAL_TERM_YSIZE')
        if(appfiletyp.eq.2) then
 ! just one line with plot for ... 
 ! the data to append is already copied as a table

@@ -1300,9 +1300,10 @@ contains
 3201            format(i3,i5,2x,3(1x,i4),5x,3i4,5x,a)
              enddo
              write(*,3301)
-3301         format('Number in cat1/2/3 columns is actual cation,'/&
-                 'Number 1, 2 or 3 in T/0 columns refer to the cation colums.'/&
-                 'Asymmetry code is KKK for symmetric, Tn for Toop n.')
+3301         format('MM Number in cat1/2/3 columns is actual cation,'/&
+                  'Number 1, 2 or 3 in T/0 columns refer to ',&
+                  'the cation COLUMN, NOT CATION INDEX!'/&
+                  'Asymmetry code is KKK for symmetric, Tn for Toop n.')
 !
              skip1: if(.false.) then
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
