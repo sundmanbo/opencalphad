@@ -108,29 +108,6 @@ l est-acc
 
 @&
 
-@$ This macro sometimes failes when run together with previous macros
-@$ But it works on its own.  Try to calculate with aligtly different T
-
-set c t=1250
-
-c e
-
-
-@&
-
-set c t=1200
-
-c e
-
-set num 1000
-1e-6
-0.004
--.01
-
-@&
-
-@& ==================================================
-
 @$ Now we calculate how the system changes with T
 
 set axis 1 T 800 1800 10
@@ -282,88 +259,18 @@ title step 1 fig 9
 
 @&
 
+@$ Decrease the scale for DGM
+
 plot
 
 
 title step1 fig 10
 scale y n
--0.3
+-0.05
 0
+
 
 set inter
-
-
-@$ This is clearly too many phases, only a few are interesting
-@$ However, to select them we have to recalculate the step with just the phases
-@$ we think are interesting, the other set as suspended.
-@$ That means more or less all phases except the different carbides
-@$ and maybe some intermetallic phases.
-
-set stat ph *=sus
-
-set stat ph liq fcc bcc hcp m23c6 m7c3 m6c ksi m3c2 m5c2 mc_eta mc_shp=e 0
-
-@$ Note that FCC is the austenite and FCC#2 is the MC cubic carbide.
-@$ HCP is the M2C hexagonal carbide.
-
-@&
-
-l c
-
-c e
-
-l,,,,
-
-
-
-@&
-
-step
-
-
-
-@&
-
-plot
-
-dgm(#)
-@$ Move the position of the line keys to bottom left
-position
-bottom left
-12
-@$ Add symbols on the lines to make them easier to identify
-extra line 10
-title step 1 fig 11
-
-
-
-@$ There are some irregularites for the FCC phase at high T
-@$ as it switches between metallic austenite and cubic carbide phase
-
-@&
-@$ Scale up to see those closest to be stable
-
-
-plot
-
-
-scale
-Y
-N
--0.2
-0
-title step 1 fig 12
-
-@$ Note the DGM of the BCC phase, it is stable at high T
-@$ and comes back at low T
-
-@&
-@$ We still have the same set of stable phases
-
-plot
-
-np(*)
-title step 1 fig 13
 
 
 @$==========================================================================

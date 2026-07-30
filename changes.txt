@@ -28,7 +28,28 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
-2026.05.29 version 6.118.  Finally MQMQA model in OC can handle
+2026.07.30 version 6.121.  This version uses a new version of
+metlib/utilities.F90 which handles the command line user interface.
+It interprets the commands from the user and calls the appropriate
+routines to enter data, read databases, set commands.  With the help
+of AI Claude this has now been cleaned up and a lot of redundant code
+eliminated.  If there are any problems please send feedback to me.
+
+There are no changes in the routines calling the utilities.F90 routines,
+that may be a later case when I will try to clean up the command
+unter interface in userif/pmon6.F90.
+
+2026.07.22 version 6.120.  Almost 2 month vacation from MQMQA!!  The
+only thing really changed is that the problem with appended csv files
+should have been fixed.  In previous versions there were a small shift
+in the x-axis values which required an editing of the gnuplot plt file
+to ensure the diagrams were correct.  With the help of Claude this has
+now been fixed but now the y-axis texts may be sligtly shifted.
+
+As usual, if you have any problems please send me a macro file and the
+database used and I will have a look.
+
+2026.05.29 version 6.119.  Finally MQMQA model in OC can handle
 cations with multiple valences, such as UCl3 and UCl4.  Ternary
 parameters still missing and ternary extrapolations not sufficiently
 tested.
