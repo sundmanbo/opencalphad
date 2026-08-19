@@ -4043,7 +4043,7 @@
 !   write(*,*)'3H This subroutine add_ternary_extrapol_method does not work yet'
 !   gx%bmperr=4399; goto 1000
 !
-   call set_ternary_asymmetry(amend)
+   call set_ternary_asymmetry_TDB(amend)
    goto 1000
 !
 ! code below redundant ------------------------------------

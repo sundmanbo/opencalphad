@@ -845,6 +845,7 @@
       if(allocated(mqmqa_data%quad2compvar)) deallocate(mqmqa_data%quad2compvar)
       if(allocated(mqmqa_data%emquad)) deallocate(mqmqa_data%emquad)
       if(allocated(mqmqa_data%dy_ik)) deallocate(mqmqa_data%dy_ik)
+!      if(allocated(mqf%dy_ik)) deallocate(mqf%dy_ik)
       mqmqa_data%nconst=0
       mqmqa_data%ncon1=0
       mqmqa_data%ncon2=0

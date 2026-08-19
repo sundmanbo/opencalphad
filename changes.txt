@@ -4,16 +4,18 @@ earlier.  This log started 2016-03-03.
 For general information please read the intro-OC7.pdf and the
 macros-OC7.pdf.
 
-There is an 8 years old precompiled installation of OC for Windows on
-the OpenCalphad web page.  This year I will try to update this
-version.  Probably I will no longer add anything new to OC, just clean
-up the code and work on the documentation.  Using the AI Claude I may
-be able to make the code easier to understand, simpler and faster.
+There is an old precompiled installation of OC for Windows on the
+OpenCalphad web page.  OC can handle many thermodynamic models and
+when the MQMQA model is installed I will probably not add anything new
+to OC, just clean up the code and work on the documentation.  Using
+the AI Claude I may be able to make the code easier to understand,
+simpler and faster.
 
-It includes an introduction, on-line help and examples with macro
-files and some small databases.  For graphics the free GNUPLOT
-software must be installed separately from Sourceforge or a similar
-website.
+The documentation in the pdf files include a short introduction.  OC
+has a command line user interface and there are examples with macro
+files (OCM) and some small databases and some on-line help if
+correctly installed.  For graphics the free GNUPLOT software must be
+installed separately from Sourceforge or a similar website.
 
 A recent Fortran compiler is needed, OC uses features from the new
 Fortran 2018 standard.  On Linux, MacOS and other OS the installation
@@ -27,6 +29,20 @@ environment and we who provide this software for free do not have the
 time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
+
+2026.08.18 version 6.122. More work done on the MQMQA model.  This
+asymmetries has been integrated but it is not yet finished as I need
+help with testing.  Sorry I cannot calculate MQMQA with FactSage or
+PyCalphad.
+
+For MQMQA phases OC should be able to handle multicomponent system and
+all kinds of binary parameters also with ternary asymmetries.  The
+asymmetries MUST BE SPECIFIED INTERACTIVELY, reading asymmetries from
+the TDB file is not yet supported.
+
+Ternary parameters are ignored.
+
+As always report problems to me with a macro file and a TDB file.
 
 2026.07.30 version 6.121.  This version uses a new version of
 metlib/utilities.F90 which handles the command line user interface.

@@ -1,27 +1,25 @@
 !
-! general utilities in Fortran 95 a la METLIB upgraded 2015-2019 to
-! eliminate most specific F77 features
+! general utilities for OC and other Fortran programs
+!
+! Modified from F77 to Fortran 95 2015-2019 (points 1/4 below)
+! Modified by Claude 2026 without changing any external calls
+!      All 41 OC examples of calculation tested and worked OK
+!      The help system with levels ?, ?? etc not tested
+!
 ! 1. All ENTRY removed.  GPARxyz and MACRO routines seems OK
 ! 2. Problems with getkey developed by John S. Urban has been fixed,
 !    It has been renamed getkex in the iso-C interface.
 ! 3. IMPLICT NONE introduced in the whole module.
 ! 4. A revised online help system using HTML \hypertarget in user guide
 !
-! To be done:
-!CCI done in ocparam.F90
-! - move constants ZERO, ONE here (from gtp3)
-!CCI
-! - use same error code system as in gtp
-! - revise the online help system
+!CCI moved constants ZERO, ONE here (from gtp3)
 !
 MODULE METLIB
 !
 !-------------------------------------------------------------------------
+!
 ! Copyright 1980-2026, Bo Sundman bo.sundman@gmail.com 
 !
-! Totally restructured 2026 with the help of Claude.
-! All 41 examples of calculation tested and worked OK
-! The help system with levels ?, ?? etc not tested
 !-------------------------------------------------------------------------
 ! 
 !    This program is free software; you can redistribute it and/or modify
@@ -76,7 +74,7 @@ MODULE METLIB
 !  1036 Negative sign but no digits
 !  1037 No sign and no digits
 !  1038 NO DIGITS AFTER EXPONENTIAL E
-!  1039 Exponent larget then 99
+!  1039 Exponent larger then 99
 !  1040 NO HELP FOR <COMMAND>
 !  1041 NO SUCH QUESTION FOR <COMMAND>
 !  1042 TOO LARGE INTEGER VALUE

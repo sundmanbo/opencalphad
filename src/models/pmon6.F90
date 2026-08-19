@@ -1286,7 +1286,7 @@ contains
                 goto 100
              endif
              lokcs=phasetuple(iph)%lokvares
-             write(*,*)'You can now try to amend MQMQA ternary asymmetry'
+             write(*,*)'You can now try to amend MQMQA ternary'
 ! copied from gtp3XQ listconst
 ! list element names, numbers and quad indices, i1 set to number of quads
 !             call list_quads_short(i1)
@@ -1318,7 +1318,7 @@ contains
                   asymter,0,'?Asymmetry modify')
              if(asymter.le.0 .or. asymter.gt.size(tersys)) then
                 write(*,3125)
-3125            format(/'MM No change, try again'/)
+3125            format(/'No such ternary'/)
                 goto 100
              endif
              if(index(tersys(asymter)%asymm,'T').gt.0) then
@@ -1326,7 +1326,15 @@ contains
                 call gparcdx('Do you want to remove asymmetry?',cline,last,1,&
                      ch1,'Y','?Asymmetry modify')
                 if(ch1.eq.'Y') then
+                   tersys(asymter)%asymm='KKK'
                    new_toop=0
+! debug output
+             write(*,3101)size(tersys)
+! Labels 3101 and 3201 appear otherwhere for same output
+             do iz=1,size(tersys)
+                write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
+                     tersys(iz)%isasym,tersys(iz)%asymm
+             enddo
                    goto 3122
                 else
                    write(*,3125)
@@ -1344,24 +1352,22 @@ contains
              call gparidx('Use  0, 1, 2 or 3',cline,last,&
                   new_toop,0,'?Asymmetry modify')
 ! change of asymmetry
-             if(new_toop.le.0 .and. new_toop.gt.3) then
+             if(new_toop.le.0 .or. new_toop.gt.3) then
                 write(kou,3127)
 3127            format('No change of ternary asymmetry '/&
                      'Use only numbers 1, 2 or 3 in the ternary cati order')
-                goto 100
                 asymter=0
                 goto 100
              endif
 ! input accepted
-             write(*,417)asymter,tersys(asymter)%asymm
-417          format('MM ternary:',i3,', current asymmetry::',a)
+!             write(*,417)asymter,new_toop,tersys(asymter)%asymm
+417          format('MM ternary:',i3,', Toop: ',i2,' current asymmetry::',a)
 ! expression for varkappa and other variables will be made automatically?
 3122         continue
              newXupdate=newXupdate+1
 ! asymter is the index in the tersys array of the teranary with new asymmetry
-!             write(*,*)'MM calls new_ternary_asym with ',asymter,new_toop
              call new_ternary_asym(asymter,new_toop,parres)
-             write(*,*)'MM back from new_ternary_asym'
+!             write(*,*)'MM back from new_ternary_asym'
 ! repeat short listing the asymmetries
              write(*,3101)size(tersys)
              do iz=1,size(tersys)
@@ -5480,7 +5486,7 @@ contains
 ! tersys is global data
              ts: if(allocated(tersys)) then
                 write(*,3101)size(tersys)
-3101 format(/'Listing of the ',i3,' ternary systems and their asymmetries',&
+3101 format(/'MM Listing of the ',i3,' ternary systems and their asymmetries',&
           /'  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
                 do iz=1,size(tersys)
                    write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
@@ -5534,6 +5540,7 @@ contains
                 mqmqavar=>ceq%phase_varres(lokcs)
 ! do not initiate varkappa
                 call calcasymvar(mqmqavar,0)
+!                call calcasymvar(mqmqavar)
 !                call calcasymvar(mqmqavar)
                 j4=0
                 acat1: do i1=1,mqmqa_data%ncat-1

@@ -5575,7 +5575,7 @@
    if(noparref.gt.0) write(*,1117)noparref
 1117 format('There are ',i7,' parameters with no reference')
    write(*,1111)totalpar,enteredpar
-1111 format(/'3E Out of ',i5,' model parameters ',i5,' have been entered'/)
+1111 format('3E Out of ',i5,' model parameters ',i5,' have been entered')
    if(addternaryxpol) then
 !      write(*,'(a)')'3E Adding extrapolation methods',ntxp
       do zp=1,ntxp
@@ -5583,7 +5583,7 @@
 ! this subroutine is in gtp3H.F90 is obsolete
 !         call set_database_ternary(ternaryxpol(zp))
 ! this subroutine is in gtp3XQ.F90
-         call set_ternary_asymmetry(ternaryxpol(zp))
+         call set_ternary_asymmetry_TDB(ternaryxpol(zp))
       enddo
 !   else
 !      write(*,*)'3E No ternary extrapolations'
@@ -5594,7 +5594,7 @@
 ! 2026-05-23: post-close summary of MQMQA quadruplets (silent if none)
    if(mqmqa_data%nconst.gt.0) then
       write(kou,1009)mqmqa_data%nconst
-1009  format('Generated ',i4,' MQMQA quadruplets')
+1009  format('3E Generated ',i4,' MQMQA quadruplets')
    endif
 ! read numbers, value after / is maximum
 ! endmember, interactions, property,

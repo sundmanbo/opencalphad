@@ -1135,16 +1135,25 @@
      double precision, allocatable, dimension(:) :: dvk_ij,dvk_ji
 !     type(zquad), allocatable, dimension(:) :: dvkq_ij, dvkq_ji
 ! second derivatives ... suck
-! xi_ij and xi_ji consists of a sum of Y_i/k fractions, Y_i/k are sum of quads
-! equation 21 in Max paper
+!
+! The y_ik values are sum of all quadfractions that contain element i
+! but the sum is not related to the stoichiomentry, it is simply:
+!    y_ik = x_ii + \sum_j dy_ikij(i,j)*x_ij for all j not equal j
+! This ie eq. 11 in Max paper
+!
+! xi_ij = y_i/k if no asymmetry. 
+! otherwise one has to add some fractions according to equation 21 in Max paper
+!
 ! xi_ij = Y_i/k + \sum_m Y_m/k   where j is asymmetric in i-j-m  
 ! xi_ji = Y_j/k + \sum_m Y_m/k   where i is asymmetric in j-i-m  
 ! in dxi_ij, dxi_ji store the multiplier (many 0.0) for each quad
 ! to calculate xi_ij and their derivatives
+!     integer, allocatable, dimension(:) :: idxi_ij,idxi_ji
+! These are the factors for derivatives d(xi_ij)/dx_ij
      double precision, allocatable, dimension(:) :: dxi_ij,dxi_ji
 !
 ! I also need to store which ternary elements that are asymmetrical (m) 
-! in Max eq. 25 and 26 in Calphad§ paper from 2021
+! in Max eq. 25 and 26 in Calphad paper from 2021
      integer, allocatable, dimension(:) :: asymm_nu,asymm_gamma
 ! these arrays can be extended in the same way as ivk_ij etc
 !
@@ -1190,7 +1199,7 @@
 !  type(allinone), dimension(:), allocatable :: compvar
 ! y_ik are the fraction of each cation (moved to gtp_mqmqa_var record?)
 !  double precision, dimension(:), allocatable :: y_ik
-!  double precision, dimension(:,:), allocatable :: dy_ik
+!  double precision, dimension(:,:), allocatable :: dy_ik  <<<< old
 ! the 4 arrays above should be in the record (type) mqmqa_var
 !-----------------------------------------------------------------
 !
@@ -1707,7 +1716,7 @@
      integer, dimension(:), allocatable :: sp2cat
 ! cat2el(cation_idx) -> alphabetical element index (for mass-balance recovery)
      integer, dimension(:), allocatable :: cat2el
-! xquad is declaraed as global but maybe it belongs to the mqmqa phase
+! xquad is declared as global but maybe it belongs to the mqmqa phase
 !     double precision, dimension(:), allocatable :: xquad  only one mqmqaphase 
 !                                             but there can be miscibility gaps
 ! convert from xquad index to constarray index and back
@@ -1735,9 +1744,12 @@
 ! to convert this to an index for compvar to know the two cations
 !------------------------------------------------------ NEW
 ! these are constants depending of the elements in the quad
-     double precision, dimension(:,:), allocatable :: dy_ik
+     double precision, dimension(:,:), allocatable :: dy_ik  ! not in mqmqq_var
 ! transfer of fractions from OC fraction array to xquad not needed
 !     integer, dimension(:), allocatable :: quad2con not needed
+! updating of mqmqa_var for ternary variables, xi_ij, xi_ji, y_ik
+! I am not sure xi_ij etc are set and updated at each iteration ....
+     integer :: mqmqa_terasym1=0
 ! end new stuff .... but more records below for example allinone
   end TYPE gtp_mqmqa
 !-----------------------------------------------------------------
@@ -1772,14 +1784,18 @@
 ! The e1, e2 etc and el are saved in quadel_i _j _l
 ! The order of xquads is to simplify the handling of Toop/Kohler asymmetries
   double precision, allocatable, dimension(:) :: xquad
-! The fractions in xquad are the same as in yfr but in differnt order!
+! The fractions in xquad are the same as OC fractions but maybe differnt order
   type(gtp_allinone), dimension(:), allocatable :: compvar
 ! the arrays above should be in the record (type) mqmqa_var
-! y_ik are the fraction of each cation
+! y_ik are the fraction of each cation (in which order?)
   double precision, dimension(:), allocatable :: y_ik
-!  double precision, dimension(:,:), allocatable :: dy_ik  in gtp_mqmqa
+! These are the factors of the x_ij needed to calculate y_ik
+! y_ik(i,j) = 0.5*x_ii + (\sum_j 0.5*x_ij)  j loops for all i, x_ij not vk_ij!!
+!  double precision, dimension(:,:), allocatable :: y_ikfact
+!  double precision, dimension(:,:), allocatable :: dy_ik  ! in gtp_mqmqa
 !-----------------------------------------------------------------
 ! needed for access to phase data
+!
   type(gtp_phase_varres), pointer :: phresq
 !
 ! the variables below until the end of this TYPE are (probably) not used
@@ -1793,6 +1809,12 @@
 ! constituent equivalent fractions, needed for excess parameters (NEW)
      double precision, allocatable :: eqf1(:),deqf1(:,:),d2eqf1(:,:)
      double precision, allocatable :: eqf2(:),deqf2(:,:),d2eqf2(:,:)
+! Added for documentation 2026.08.07:
+! The constituent indices of the varkappa_ij and xi_j are in con2quad ??
+! The constituent indices of the y_ik(1..ncat) variables are in emquads ??
+     character*24, allocatable :: names_y_ik(:)
+     integer, allocatable :: spix_y_ik(:)
+     integer, allocatable :: spqx_y_ik(:)
   end type gtp_mqmqa_var
 !===================================================================
 !

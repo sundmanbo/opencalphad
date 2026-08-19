@@ -1529,9 +1529,11 @@
 !         write(*,*)'gtp3B line 1322  >>>>>>>> initiate allonone <<<<<<<<<<< '
 !        knr(1) is number of constituents in first sublattice
 !         write(*,66)nyfas,size(const(1)),phtype
-66       format('3B Calling create_asymmetry from enter_phase',2i5,2x,a)
+!66       format('3B Calling create_asymmetry from enter_phase',2i5,2x,a)
 !              
 !         call create_asymmetry(nyfas,knr(1),const,phtype)
+!         write(*,66)phtype,nyfas
+66       format('3B calling create_asymmetry for mqmqa phase: ',a,i5)
          call create_asymmetry(nyfas,const,phtype)
 !
 ! In this routine we create xquad with indices to constituents
@@ -1635,7 +1637,7 @@
 !\end{verbatim}
 !   integer ncat,nan,nquad  these are global variables
    double precision x,y
-   integer iva,jva,nva,ivb,ivc,s1
+   integer iva,jva,nva,ivb,ivc,s1,jj,some
 !
 ! BoS 2025.11.12: when we are here the mqmqa_data already initiated
 ! that is done in ?? , mqmqa_species, around line 7062
@@ -1646,7 +1648,6 @@
 !
 ! This routine can probably be integrated in correlate_const_and_quads
 !
-!   write(*,*)'3B start of create_asymmetry phase',lokph
 !
 !   write(*,5)'first',mqmqa_data%nconst,mqmqa_data%ncon1,mqmqa_data%ncon2,&
 !        mqmqa_data%lcat,mqmqa_data%nquad,mqmqa_data%ncat,&
@@ -1687,7 +1688,12 @@
 !
 !   write(*,*)'3B inside create_asymmetry calling correlate_const_and_quads'
 ! this subroutine is in gtp3XQ.F90
-   call correlate_const_and_quads(lokph)
+   some=lokph
+   call correlate_const_and_quads(some)
+   if(some.ne.lokph) then
+      write(*,*)'3B lokph change inside correlate_const_and_quads',&
+           some,lokph
+   endif
 !
 ! phlista is TYPE gtp_phaserecord
 ! we assume only one anion, WHICH? it is set in mqmqa_data%contyp
@@ -1708,7 +1714,7 @@
 
 ! The values above already set in mqmqa_species, copied here
 !   write(*,25)mqmqa_data%nconst,nquad,ncat,nan
-25 format('3B In create_asymmetry ',5i3)
+25 format('3B In create_asymmetry from TDB: ',5i3)
 !
 ! double precision, allocatable ::qfnnsnn(:)
 !   write(*,30)size(mqmqa_data%qfnnsnn),(mqmqa_data%qfnnsnn(iva),iva=1,ncat)
@@ -1736,10 +1742,12 @@
 !   allocate(mqmqa_data%con2quad(nquad))
 !   allocate(mqmqa_data%quad2con(nquad))
 ! maybe quad2con is also needed ??
+!   write(*,*)'3B Number of quads:',mqmqa_data%nquad
    do nva=1,mqmqa_data%nquad
       iva=mqmqa_data%contyp(11,nva)
       ivb=mqmqa_data%contyp(12,nva)
 !      write(*,*)'contyp: ',nva,iva,ivb
+! I have no longer any idea what %contyp(11 or 12 means ...
       if(ivb.gt.0) then
          ivc=ijklx(iva,ivb,1,1)
       else
@@ -1752,15 +1760,23 @@
 !
 500 continue
 !
-!   write(*,510)ncat,nan
-510 format(//'3B Calling init_excess_asymm',2i5//)
+!   write(*,510)mqmqa_data%ncat,mqmqa_data%nan
+510 format('3B calls init_excess_asymm in gtp3XQ for Kohler symmetry',2i3/)
+!   write(*,511)size(const),phtype
+511 format('3B To set ternary asymmetry ',i3,' phtype: "',a,'"')
+!   do jj=1,size(const)
+!      write(*,512)const(jj)
+!512 format('Constituent ',i2,': ',a)
+!   enddo
 !
 ! we need to identify cations and anions
 ! cations are Cl, F, ?
+! This subroutine is in gtp3XQ.F90, it creates an asymmetry record for KOHLER!
 !   call init_excess_asymm(lokph,ncat,nan)
+!   write(*,*)'3B create_asymmetry calls init_excess_asym for ',lokph
    call init_excess_asymm(lokph)
 !
-!   write(*,*)'3B Back from init_excess_asymm'
+   write(*,*)'3B Back from init_excess_asymm'
 !   
 1000 continue
    return
@@ -8896,7 +8912,7 @@
 !        mqmqa_data%nconst,s1,s2,s3
    write(*,760)mqmqa_data%nconst,s1,s2,s3
 760 format('3B MQMQA quads: ',i3,', with ',i3,' FNN pairs, ',i3,&
-         ' binary SNNs and ',i3,' reciprocal SNNs')
+         ' binary SNN and ',i3,' reciprocal SNN')
    if(s1+s2+s3-mqmqa_data%nconst.ne.0) then
       write(*,'(a,i5,a,i5)')'3B total number of quadrupoles is wrong, is ',&
            s1+s2+s3,' should be: ',mqmqa_data%nconst
