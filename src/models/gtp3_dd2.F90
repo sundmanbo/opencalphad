@@ -1090,14 +1090,15 @@
 ! elements: 1+2 1+3 ... 1+n | 2+3 2+4 ... 2+n  | 3+4 3+5 ... | ... | n-1+n
 ! at present only cation mixing.  Use function binsys to find system
      integer seq,cat1,cat2,anion
-! for use in OC save also the actual cations (NOT ELEMENT) indices
-! for use in OC save also the actual cations indices &&& cations with valencies
+! for use in OC save also the actual cations (NOT ELEMENT/SPECIES) indices
+! for use in OC save also the cations species indices & cations with valencies
      integer elcat1,elcat2,elan
      integer quadicat1,quadicat2,quadian
-     character*3 qcat1,qcat2,qan
+! should be quad names as LA/CL-Q
+     character*12 qcat1,qcat2,qan
 ! the internal structure of allinone must be updated whenever the
 ! symmetry of a ternary is changed.  This integer keep check of that
-     integer lastupdate
+     integer boxlastupdate
 ! varkappa (vk) and xi are asymmetric, i.e xi_ji \ne xi_ji
 ! and take into account different ternary extrapolations
 ! they should be stored together because they are usually needed together
@@ -1147,7 +1148,7 @@
 ! xi_ij = Y_i/k + \sum_m Y_m/k   where j is asymmetric in i-j-m  
 ! xi_ji = Y_j/k + \sum_m Y_m/k   where i is asymmetric in j-i-m  
 ! in dxi_ij, dxi_ji store the multiplier (many 0.0) for each quad
-! to calculate xi_ij and their derivatives
+! to calculate xi_ij and their derivatives, xi_ij are sums of y_ik
 !     integer, allocatable, dimension(:) :: idxi_ij,idxi_ji
 ! These are the factors for derivatives d(xi_ij)/dx_ij
      double precision, allocatable, dimension(:) :: dxi_ij,dxi_ji
@@ -2056,7 +2057,7 @@
 ! integer containing the iteration when invsaved updated
      integer invsavediter
 ! arrays to save time in calc_dgdyterms, do not need to be saved on unformatted
-     double precision, dimension(:,:), allocatable ::invsaved
+     double precision, dimension(:,:), allocatable :: invsaved
 ! added to initiate calculations for CVMSRO model, maybe used elsewhere also?
      integer volatile
   END TYPE gtp_phase_varres

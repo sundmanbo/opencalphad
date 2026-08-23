@@ -205,7 +205,7 @@ contains
 ! only used for interactive entering the mqmqa_constituent
     character, dimension(25) :: const*24
 ! This is for species in the mqmqa model which may contain commas ","
-    character mqmqacon*24
+    character mqmqacon*24,ch3*3
 ! mqmqa quadbonds
     double precision quadbonds(4)
 ! for macro and logfile and repeating questions
@@ -433,7 +433,7 @@ contains
          ['FREE_LISTS      ','STOP_ON_ERROR   ','PARAMETER_STRUCT',&
           'SPECIES         ','TPFUN           ','BROWSER         ',&
           'TRACE           ','SYMBOL_VALUE    ','MAP_STARTPOINTS ',&
-          'GRID            ','TERNARY_MQMQA   ','BOMBMATTA       ']
+          'GRID            ','ASYMMETRIES     ','BOMBMATTA       ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -1286,7 +1286,7 @@ contains
                 goto 100
              endif
              lokcs=phasetuple(iph)%lokvares
-             write(*,*)'You can now try to amend MQMQA ternary asymmetry'
+             write(*,*)'You can now try to amend MQMQA ternary'
 ! copied from gtp3XQ listconst
 ! list element names, numbers and quad indices, i1 set to number of quads
 !             call list_quads_short(i1)
@@ -1318,7 +1318,7 @@ contains
                   asymter,0,'?Asymmetry modify')
              if(asymter.le.0 .or. asymter.gt.size(tersys)) then
                 write(*,3125)
-3125            format(/'MM No change, try again'/)
+3125            format(/'No such ternary'/)
                 goto 100
              endif
              if(index(tersys(asymter)%asymm,'T').gt.0) then
@@ -1326,7 +1326,15 @@ contains
                 call gparcdx('Do you want to remove asymmetry?',cline,last,1,&
                      ch1,'Y','?Asymmetry modify')
                 if(ch1.eq.'Y') then
+                   tersys(asymter)%asymm='KKK'
                    new_toop=0
+! debug output
+             write(*,3101)size(tersys)
+! Labels 3101 and 3201 appear otherwhere for same output
+             do iz=1,size(tersys)
+                write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
+                     tersys(iz)%isasym,tersys(iz)%asymm
+             enddo
                    goto 3122
                 else
                    write(*,3125)
@@ -1344,24 +1352,22 @@ contains
              call gparidx('Use  0, 1, 2 or 3',cline,last,&
                   new_toop,0,'?Asymmetry modify')
 ! change of asymmetry
-             if(new_toop.le.0 .and. new_toop.gt.3) then
+             if(new_toop.le.0 .or. new_toop.gt.3) then
                 write(kou,3127)
 3127            format('No change of ternary asymmetry '/&
                      'Use only numbers 1, 2 or 3 in the ternary cati order')
-                goto 100
                 asymter=0
                 goto 100
              endif
 ! input accepted
-             write(*,417)asymter,tersys(asymter)%asymm
-417          format('MM ternary:',i3,', current asymmetry::',a)
+!             write(*,417)asymter,new_toop,tersys(asymter)%asymm
+417          format('MM ternary:',i3,', Toop: ',i2,' current asymmetry::',a)
 ! expression for varkappa and other variables will be made automatically?
 3122         continue
              newXupdate=newXupdate+1
 ! asymter is the index in the tersys array of the teranary with new asymmetry
-!             write(*,*)'MM calls new_ternary_asym with ',asymter,new_toop
              call new_ternary_asym(asymter,new_toop,parres)
-             write(*,*)'MM back from new_ternary_asym'
+!             write(*,*)'MM back from new_ternary_asym'
 ! repeat short listing the asymmetries
              write(*,3101)size(tersys)
              do iz=1,size(tersys)
@@ -1371,7 +1377,7 @@ contains
 ! list at least while debugging
              write(*,3133)
 3133         format(/'MM debug listing of new vk_ij and vk_ji' )
-             call list_varkappa(parres)
+             call list_compvar(parres)
 !....................................................
           case(12) ! amend phase ... aqueous model
              write(*,*)'Not implemented yet'
@@ -5480,7 +5486,7 @@ contains
 ! tersys is global data
              ts: if(allocated(tersys)) then
                 write(*,3101)size(tersys)
-3101 format(/'Listing of the ',i3,' ternary systems and their asymmetries',&
+3101 format(/'MM Listing of the ',i3,' ternary systems and their asymmetries',&
           /'  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
                 do iz=1,size(tersys)
                    write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
@@ -5534,6 +5540,7 @@ contains
                 mqmqavar=>ceq%phase_varres(lokcs)
 ! do not initiate varkappa
                 call calcasymvar(mqmqavar,0)
+!                call calcasymvar(mqmqavar)
 !                call calcasymvar(mqmqavar)
                 j4=0
                 acat1: do i1=1,mqmqa_data%ncat-1
@@ -6780,45 +6787,42 @@ contains
        case(10)
           call check_all_phases(0,ceq)
 !..................................
-! DEBUG Kohler/Toop and MQMQA_QUADS constituent test
+! DEBUG ASYMMETRIES ... 
        case(11)
-! specifying which sublattice each element belong to
-!          jp=0
-!          mqmqa: do while(.true.)
-!             call gparcdx('MQMQA quadrupoles: ',&
-!                  cline,last,5,aline,' ','?Debug MQMQA')
-!             if(aline(1:1).eq.' ') exit mqmqa
-!             call mqmqa_constituents(aline,const,jp)
-!             jp=1
-!          enddo mqmqa
-!          if(gx%bmperr.ne.0) goto 990
-! finished by an empty line, then replace species by endmembers
-!          call mqmqa_rearrange(const)
-!..................................
-! add list ternary extrapolation methods
-          write(kou,1682)
-1682      format(/'Data for ternary extrapolation methods')
-          call list_ternary_extrapol_data(kou)
-          write(kou,'("no more")')
-!
-          if(.not.allocated(mqmqa_data%contyp)) then
-             write(*,*)'No MQMQA data entered'
-             goto 100
-          endif
-          call gparcx('Phase name: ',cline,last,1,name1,'LIQUID ',&
-               '?Debug mqmqa')
+          call gparcx('Phase name: ',cline,last,1,name1,' ','?Debug asymmetry')
           if(buperr.ne.0) goto 990
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
-          write(*,*)'Constituents in sublattices: ',&
-               mqmqa_data%ncon1,mqmqa_data%ncon2
-          do jp=1,mqmqa_data%nconst
-             call get_constituent_name(iph,jp,name2,xxx)
-             if(gx%bmperr.ne.0) goto 990
-             write(*,12)jp,(mqmqa_data%contyp(kl,jp),kl=1,10),&
-                  (mqmqa_data%constoi(kl,jp),kl=1,4),trim(name2)
-12           format('Quad ',i3,1x,4i3,1x,i3,1x,5i3,1x,4F6.2,1x,a)
+!
+          lokcs=phasetuple(iph)%lokvares
+          parres=>ceq%phase_varres(lokcs)
+! emergency debug as I forgotten the whole data structure
+          write(*,*)'Calling init_symmetric_varkappa'
+          call init_symmetric_varkappa(parres)
+! ---------------------------------------         
+          do ll=1,size(tersys)
+             write(*,233)ll,tersys(ll)%el,tersys(ll)%isasym,tersys(ll)%asymm
+233          format('Tersys ',i2,5x,3i3,5x,3i3,' "',a,'"')
           enddo
+          call list_compvar(parres)
+          call gparcx('Change ternary asymmetry? ',cline,last,1,ch1,'Y',&
+               '?Debug asymmetry')
+          if(ch1.eq.'Y') then
+             call gparidx('Ternary:',cline,last,ll,1,'?Debug asymmetry')
+             if(ll.le.0 .or. ll.gt.size(tersys)) goto 100
+             call gparcdx('Set ternary asym: ',cline,last,1,ch3,'KKT',&
+                  '?Debug asymmetry')
+             tersys(ll)%asymm=ch3
+             i1=index(ch3,'T')
+             tersys(ll)%isasym(i1)=1
+             write(*,233)ll,tersys(ll)%el,tersys(ll)%isasym,tersys(ll)%asymm
+!
+             write(*,*)'Calling loop_tersys'          
+             call loop_tersys(parres)
+             write(*,*)'Beck from loop_tersys'
+!             write(*,233)ll,tersys(ll)%el,tersys(ll)%isasym,tersys(ll)%asymm
+             call list_compvar(parres)
+          endif
 !........................
        case(12) ! test bombmatta for mapping
           nullify(starteqs(1)%P1)

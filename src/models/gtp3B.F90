@@ -1649,9 +1649,9 @@
 ! This routine can probably be integrated in correlate_const_and_quads
 !
 !
-!   write(*,5)'first',mqmqa_data%nconst,mqmqa_data%ncon1,mqmqa_data%ncon2,&
-!        mqmqa_data%lcat,mqmqa_data%nquad,mqmqa_data%ncat,&
-!        mqmqa_data%nan,lokph
+   write(*,5)'first',mqmqa_data%nconst,mqmqa_data%ncon1,mqmqa_data%ncon2,&
+        mqmqa_data%lcat,mqmqa_data%nquad,mqmqa_data%ncat,&
+        mqmqa_data%nan,lokph
 5  format('3B in create_asymmetry ',a,' check: ',4i4,2x,3i4,' phase:',i3)
 ! list all quads arranged in alphabetical order
 !   write(*,55)'A: ',((trim(splista(phlista(lokph)%constitlist(s1))%symbol)),&
@@ -1773,7 +1773,7 @@
 ! cations are Cl, F, ?
 ! This subroutine is in gtp3XQ.F90, it creates an asymmetry record for KOHLER!
 !   call init_excess_asymm(lokph,ncat,nan)
-!   write(*,*)'3B create_asymmetry calls init_excess_asym for ',lokph
+   write(*,*)'3B create_asymmetry calls gtp3XQ init_excess_asym for ',lokph
    call init_excess_asymm(lokph)
 !
    write(*,*)'3B Back from init_excess_asymm'
@@ -7934,7 +7934,7 @@
    if(.not.allocated(mqmqa_data%contyp)) then
 ! these should not be already allocated but ... who knows 
 ! sometimes there can be two liquids in the TDB file ....
-!      write(*,*)'3B Allocating mqmqa_data, max constituents: ',maxquads
+      write(*,*)'3B Allocating mqmqa_data, max constituents: ',maxquads
       allocate(mqmqa_data%contyp(14,maxquads))
       allocate(mqmqa_data%constoi(4,maxquads))
       allocate(mqmqa_data%totstoi(maxquads))

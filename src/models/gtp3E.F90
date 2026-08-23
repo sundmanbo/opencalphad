@@ -3485,7 +3485,7 @@
 ! reading data from a TDB file with selection of elements, read_tdb
 !-------------------------------------------------------
 ! Not all TYPE_DEFS implemented
-! MODIFIED FOR ENCRYPTED DATABASES
+! Attempted MODIFIED FOR ENCRYPTED DATABASES
 !-------------------------------------------------------
    implicit none
    integer nel
@@ -5583,7 +5583,7 @@
 ! this subroutine is in gtp3H.F90 is obsolete
 !         call set_database_ternary(ternaryxpol(zp))
 ! this subroutine is in gtp3XQ.F90
-         call set_ternary_asymmetry_TDB(ternaryxpol(zp))
+         call set_ternary_asymmetry_TDB(ternaryxpol(zp),lokph)
       enddo
 !   else
 !      write(*,*)'3E No ternary extrapolations'
