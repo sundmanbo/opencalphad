@@ -681,6 +681,8 @@
    double precision dblv(10)
    TYPE(gtp_equilibrium_data), pointer :: ceq
    type(gtp_phase_varres), pointer :: phdyn
+   type(gtp_mqmqa_var), pointer :: mqf
+!   type(gtp_phase_varres), pointer :: phres
 !   TYPE(gtp_fraction_set) :: fslink
 !   write(*,*)'3E Testing segmentation error in new_gtp'
    if(ocv()) write(*,*)'3E Removing current data'
@@ -830,7 +832,7 @@
 !   call delete_biblio
 !------ parameter property records
    deallocate(propid)
-!------ other things such as mqmq_data arrays, I cannot deallocate here
+!------ other things such as mqmqa_data arrays, I cannot deallocate here
 ! probably many more mqmqa data must be deallocated
    if(allocated(mqmqa_data%contyp)) then
       deallocate(mqmqa_data%contyp)
@@ -845,6 +847,13 @@
       if(allocated(mqmqa_data%quad2compvar)) deallocate(mqmqa_data%quad2compvar)
       if(allocated(mqmqa_data%emquad)) deallocate(mqmqa_data%emquad)
       if(allocated(mqmqa_data%dy_ik)) deallocate(mqmqa_data%dy_ik)
+! added 2026.08.25
+      mqf=>phdyn%mqmqaf
+      if(allocated(mqf%names_y_ik)) deallocate(mqf%names_y_ik)
+      if(allocated(mqf%spix_y_ik)) deallocate(mqf%spix_y_ik)
+      if(allocated(mqf%spqx_y_ik)) deallocate(mqf%spqx_y_ik)
+      if(allocated(mqmqa_data%el2quad)) deallocate(mqmqa_data%el2quad)
+! end additions
 !      if(allocated(mqf%dy_ik)) deallocate(mqf%dy_ik)
       mqmqa_data%nconst=0
       mqmqa_data%ncon1=0

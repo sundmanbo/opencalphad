@@ -30,6 +30,14 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.08.24 version 6.123. It seems that the code to handle ternary
+asymmetries in MQMQA now work, please test and report errors!
+
+2026.08.23 version 6.122. The code to handle ternary asymmetries in
+MQMQA has been totally rewitten.  It is not finished but I want to
+save this stage if I made a mess of it in the future.  Calculations
+with other models has not been changed.
+
 2026.08.18 version 6.122. More work done on the MQMQA model.  This
 asymmetries has been integrated but it is not yet finished as I need
 help with testing.  Sorry I cannot calculate MQMQA with FactSage or
@@ -43,6 +51,10 @@ the TDB file is not yet supported.
 Ternary parameters are ignored.
 
 As always report problems to me with a macro file and a TDB file.
+
+2026.08.23 version 6.122.  The treatment of ternary asymmetries
+for MQMQA has been rewritten.  It is not finished so an next update
+will be made shortly.q
 
 2026.07.30 version 6.121.  This version uses a new version of
 metlib/utilities.F90 which handles the command line user interface.

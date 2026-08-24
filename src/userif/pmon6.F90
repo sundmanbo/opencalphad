@@ -1230,7 +1230,7 @@ contains
 ! to change default constitution of any composition set give #comp.set.
              call ask_default_constitution(cline,last,iph,ics,ceq)
 !....................................................
-          case(7) ! TERNARY_EXTRAPOL
+          case(7) ! AMEND PHASE ... TERNARY_EXTRAPOL
 ! this command is illegal for phases with sublattices (or permutations? ...)
              call get_sublattice_number(iph,ndl,ceq)
              if(gx%bmperr.ne.0) goto 990
@@ -1278,7 +1278,7 @@ contains
              call delete_unstable_compsets(lokph,ceq)
 !....................................................
 !************************************ begin amend phase ... asymmetries
-          case(11) ! amend phase ... ASYMMETRIES for MQMQA phase
+          case(11) ! AMEND PHASE ... ASYMMETRIES for MQMQA phase
 ! This is to change the asymmetry of a ternary
              if(.not.allocated(tersys)) then
 ! if there is an MQMQA phase then tersys should be allocated
@@ -1326,15 +1326,18 @@ contains
                 call gparcdx('Do you want to remove asymmetry?',cline,last,1,&
                      ch1,'Y','?Asymmetry modify')
                 if(ch1.eq.'Y') then
+                   write(*,*)'Sorry, not allowed'
+                   goto 100
+! dummy code here
                    tersys(asymter)%asymm='KKK'
                    new_toop=0
 ! debug output
-             write(*,3101)size(tersys)
+                   write(*,3101)size(tersys)
 ! Labels 3101 and 3201 appear otherwhere for same output
-             do iz=1,size(tersys)
+                   do iz=1,size(tersys)
                 write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
                      tersys(iz)%isasym,tersys(iz)%asymm
-             enddo
+                   enddo
                    goto 3122
                 else
                    write(*,3125)
@@ -1347,7 +1350,7 @@ contains
 ! set isasym zero
              call list_ternary_cations(asymter,new_toop,parres)
              write(*,414)
-414          format('Use 1, 2 or 3 to specify the Toop cation in the ternary!')
+414          format('Use 1, 2 or 3 to specify the Toop cation in this ternary!')
 !
              call gparidx('Use  0, 1, 2 or 3',cline,last,&
                   new_toop,0,'?Asymmetry modify')
@@ -1367,7 +1370,7 @@ contains
              newXupdate=newXupdate+1
 ! asymter is the index in the tersys array of the teranary with new asymmetry
              call new_ternary_asym(asymter,new_toop,parres)
-!             write(*,*)'MM back from new_ternary_asym'
+             write(*,*)'MM back from new_ternary_asym'
 ! repeat short listing the asymmetries
              write(*,3101)size(tersys)
              do iz=1,size(tersys)

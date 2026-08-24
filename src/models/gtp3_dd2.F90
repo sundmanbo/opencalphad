@@ -1052,8 +1052,9 @@
 ! There are ncat*(ncat-1)*(ncat-2)/6 combinations with a single anion
 ! with 4 elements there are 4 ternaries: (1,2,3) (1,2,4) (1,3,4) (2,3,4)
 ! First ternary is 1-2-3, second is 1-2-4, third 1-3-4, fourth 2-3-4 etc
-     integer seq,el(3)
-! seq is ternary system index, el are quad indices.  How to know which elements?
+     integer seq,el(3),emquad(3)
+! seq is ternary system index, el are quad indices, 
+! I need to know quad index for endmember quad and vice versa ...
 ! In the ternary the binary order is 1-2, 1-3, 2-3.
 ! asymm is a simple way to specify the asymmetric element for each binary
      character*3 asymm  !  KKK: totally symmetrical
@@ -1067,6 +1068,7 @@
 ! if all isasym=0 no asymmetry, isasym(1, 2, 3) is 1, 2 or 3 (not very smart)
 !         aymmetric element index (element index change for different systems)
      integer isasym(3) ! isasym(1,2,3) initially 0 but can be set to 1, 2 o 3
+     integer binsys(3) ! index of the 3 compvar records for the binaries
 ! to indicate the (only!) asymmetric constituent.
 ! This is in the tersys array
 !
@@ -1752,6 +1754,8 @@
 ! I am not sure xi_ij etc are set and updated at each iteration ....
      integer :: mqmqa_terasym1=0
 ! end new stuff .... but more records below for example allinone
+! el2quad is the same as  mqf%spqx_y_ik(:) NOT mqf%spix_y_ik(i)
+     integer, allocatable, dimension(:) :: el2quad
   end TYPE gtp_mqmqa
 !-----------------------------------------------------------------
 ! it should be made private when everything work and removed from pmon6
