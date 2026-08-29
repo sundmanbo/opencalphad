@@ -3748,6 +3748,8 @@ CONTAINS
        OK=.FALSE.
        GOTO 900
     ENDIF
+! echo macro file name
+    write(*,*)'Open macro file: ',trim(FIL)
 ! extract the PATH to this macro file, needed to open files inside the macro
     backslash=char(92)
 !    write(*,*)'M3 macro file: ',trim(fil),' bacslash: ',backslash

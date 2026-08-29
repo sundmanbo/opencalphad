@@ -1757,6 +1757,7 @@
 !      mqmqa_data%con2quad(nva)=ivc
 !      mqmqa_data%quad2con(ivc)=nva
    enddo
+!   write(*,*)'3B called ijklx :',mqmqa_data%nquad
 !
 500 continue
 !
@@ -1773,10 +1774,10 @@
 ! cations are Cl, F, ?
 ! This subroutine is in gtp3XQ.F90, it creates an asymmetry record for KOHLER!
 !   call init_excess_asymm(lokph,ncat,nan)
-   write(*,*)'3B create_asymmetry calls gtp3XQ init_excess_asym for ',lokph
+!   write(*,*)'3B create_asymmetry calls gtp3XQ init_excess_asym for ',lokph
    call init_excess_asymm(lokph)
 !
-   write(*,*)'3B Back from init_excess_asymm'
+!   write(*,*)'3B Back from init_excess_asymm'
 !   
 1000 continue
    return

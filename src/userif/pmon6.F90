@@ -5648,10 +5648,10 @@ contains
              endif
 !
 !...........................................................
-! 
+! LIST ASYMMETRIES
           case(6)
-             write(kou,*)'Not implemented yet'
-             
+!             write(kou,*)'Not implemented yet'
+             call  list_asymmetries(parres)
           end SELECT mqmqa
 !------------------------------ end list mqmqa_specials
 ! LIST ESTIMATE_ACCURACY.  Additional calculations are made
@@ -6513,9 +6513,11 @@ contains
 !       ceq=>firsteq
        goto 20
 !=================================================================
-! macro begin
+! MACRO begin
     case(14) ! file name is asked inside macbeg
        call macbeg(cline,last,logok)
+!       ip=index(cline,' ')
+!       if(ip.gt.5) write(*,*)'Macro file name: ',line(1:ip)
        if(buperr.ne.0 .or. gx%bmperr.ne.0) goto 990
 !=================================================================
 ! about
@@ -6802,6 +6804,8 @@ contains
 ! emergency debug as I forgotten the whole data structure
           write(*,*)'Calling init_symmetric_varkappa'
           call init_symmetric_varkappa(parres)
+          goto 100
+! below is replaced by AMEND PHASE ... ASYM
 ! ---------------------------------------         
           do ll=1,size(tersys)
              write(*,233)ll,tersys(ll)%el,tersys(ll)%isasym,tersys(ll)%asymm
@@ -6810,6 +6814,8 @@ contains
           call list_compvar(parres)
           call gparcx('Change ternary asymmetry? ',cline,last,1,ch1,'Y',&
                '?Debug asymmetry')
+          goto 100
+! this is replaced by amend phase ... asym
           if(ch1.eq.'Y') then
              call gparidx('Ternary:',cline,last,ll,1,'?Debug asymmetry')
              if(ll.le.0 .or. ll.gt.size(tersys)) goto 100

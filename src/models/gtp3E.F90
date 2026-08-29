@@ -3717,7 +3717,7 @@
 ! do not give this warning when reading disordered phases ...
 ! This message came also during reading only_typedfs ...
             write(*,122)nl,trim(line)
-122         format('3E *** Warning, ignoring line ',i5,' with "',a,'"'/)
+122         format('3E *** Warning, ignoring TDB file line',i5,' with "',a,'"')
          endif
       endif
    endif
@@ -5592,10 +5592,10 @@
 ! no more read(21 ...
    close(21)
 ! 2026-05-23: post-close summary of MQMQA quadruplets (silent if none)
-   if(mqmqa_data%nconst.gt.0) then
-      write(kou,1009)mqmqa_data%nconst
-1009  format('3E Generated ',i4,' MQMQA quadruplets')
-   endif
+!   if(mqmqa_data%nconst.gt.0) then
+!      write(kou,1009)mqmqa_data%nconst
+!1009  format('3E Generated ',i4,' MQMQA quadruplets')
+!   endif
 ! read numbers, value after / is maximum
 ! endmember, interactions, property,
 ! tpfuns, composition sets, equilibria
