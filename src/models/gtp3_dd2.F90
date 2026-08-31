@@ -1073,6 +1073,8 @@
 ! This is in the tersys array
 !
   end type gtp_terdata
+! tersys and compvar are related to mqmqa asymmetries
+  type(gtp_terdata), dimension(:), allocatable :: tersys 
 !\end{verbatim}
 !---------------------
 !\begin{verbatim}
@@ -1169,6 +1171,7 @@
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   logical mqmqdebug,mqmqdebug2
   logical :: mqmqder=.false.
+  logical :: mqverbose=.false.
 ! this is explicitly set .false. in pmon6.F90 for the NEW command
   logical :: mqmqa_multival=.false.
 ! When .TRUE., mqmqa_species rejects a 2-cation quad only if the same
@@ -1209,8 +1212,6 @@
 ! data below is common for all mqmqa composition sets
   integer, allocatable, dimension(:) :: quadel_i,quadel_j,quadel_k,quadel_l
 !
-! tersys and compvar are related to mqmqa asymmetries
-  type(gtp_terdata), dimension(:), allocatable :: tersys 
 ! quadz are the stoichiometric factors of a quad NOTE ALREADY IN MQMQA_DATA
 !  double precision, dimension(:), allocatable :: quadz
 ! etafs is the FNN/SNN ratio declated in mqmqa_data  same as: qfnnsnn

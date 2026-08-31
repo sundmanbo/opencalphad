@@ -7935,7 +7935,7 @@
    if(.not.allocated(mqmqa_data%contyp)) then
 ! these should not be already allocated but ... who knows 
 ! sometimes there can be two liquids in the TDB file ....
-      write(*,*)'3B Allocating mqmqa_data, max constituents: ',maxquads
+!      write(*,*)'3B Allocating mqmqa_data, max constituents: ',maxquads
       allocate(mqmqa_data%contyp(14,maxquads))
       allocate(mqmqa_data%constoi(4,maxquads))
       allocate(mqmqa_data%totstoi(maxquads))

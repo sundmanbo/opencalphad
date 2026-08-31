@@ -30,6 +30,17 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.08.31 version 6.127. Wow, two updates the same day!  This time
+I think there are some real progress with the software stability.
+Previous versions for the MQMQA phase have crashed as soon as I
+have tried to make some modifications or changes.  There are
+some real progress with the asymmetries but the ternary parameters
+will have to wait a few days.
+
+All other model calculations have been without problems.  But for the
+next release I will have to add some MQMQA examples.  Those using the
+MQM model do not use the same excess model.
+
 2026.08.31 version 6.126. I have added that MQMQA asymmetries can be
 extracted from the TDB file and fixed a lot of minor problems about
 ternary asymmetries.  Still many bugs using MQMQA though...

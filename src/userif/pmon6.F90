@@ -297,7 +297,7 @@ contains
 ! subsubcommands to LIST PHASE
     character (len=16), dimension(nclph) :: clph=&
         ['DATA            ','CONSTITUTION    ','MODEL           ',&
-         'MQMQA_VARIABLES ','                ','                ']
+         'MQMQA_VARIABLES ','VARKAPPA        ','                ']
 !-------------------
 ! subsubcommands to LIST OPTIMIZE results
     character (len=16), dimension(noptopt) :: optopt=&
@@ -1296,10 +1296,10 @@ contains
              write(*,3101)size(tersys)
 !3101  format(/'Listing of the ',i3,' ternary systems and their asymmetries',&
 !          /'  i tern   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
+! Labels 3101 and 3201 appear below for same output
              do iz=1,size(tersys)
                 write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-! Labels 3101 and 3201 appear otherwhere for same output
-                     tersys(iz)%isasym,tersys(iz)%asymm
+                     tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
 !3201            format(i3,i5,2x,3(1x,i4),5x,3i4,5x,a)
              enddo
              write(*,3333)
@@ -1317,7 +1317,7 @@ contains
                   asymter,0,'?Asymmetry modify')
              if(asymter.le.0 .or. asymter.gt.size(tersys)) then
                 write(*,3125)
-3125            format(/'No such ternary'/)
+3125            format(/'No such ternary, nothing done'/)
                 goto 100
              endif
              if(index(tersys(asymter)%asymm,'T').gt.0) then
@@ -1332,10 +1332,10 @@ contains
                    new_toop=0
 ! debug output
                    write(*,3101)size(tersys)
-! Labels 3101 and 3201 appear otherwhere for same output
+! Labels 3101 and 3201 appear below for same output
                    do iz=1,size(tersys)
                 write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-                     tersys(iz)%isasym,tersys(iz)%asymm
+                     tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
                    enddo
                    goto 3122
                 else
@@ -1375,16 +1375,16 @@ contains
                 call new_ternary_asym(asymter,new_toop,parres,.false.)
              endif
              write(*,*)'MM back from new_ternary_asym'
-! repeat short listing the asymmetries
+! repeat short listing the asymmetries, format label 3101 below
              write(*,3101)size(tersys)
              do iz=1,size(tersys)
                 write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-                     tersys(iz)%isasym,tersys(iz)%asymm
+                     tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
              enddo
-! list at least while debugging
-             write(*,3133)
+! list at least while debugging, this list already provided
+!             write(*,3133)
 3133         format(/'MM debug listing of new vk_ij and vk_ji' )
-             call list_compvar(parres)
+!             call list_compvar(parres)
 !....................................................
           case(12) ! amend phase ... aqueous model
              write(*,*)'Not implemented yet'
@@ -4617,7 +4617,7 @@ contains
 6070      format(a,'equilibrium: ',i3,', ',a)
              call list_phase_model(iph,ics,lut,' ',ceq)
 !...............................................................
-          case(4) ! list phase ... mqmqa_variables
+          case(4) ! LIST PHASE ... MQMQA_VARIABLES
 ! clumsy way to check this is the MQMQA phase
              lokcs=phasetuple(iph)%lokvares
              parres=>ceq%phase_varres(lokcs)
@@ -4630,6 +4630,17 @@ contains
 ! Add subroutine calls for listing
 ! parres is pointer to gtp_phase_varres for the MQMQA phase
              call list_mqmqa_variables(parres)
+!...............................................................
+          case(5) ! LIST PHASE ... VARKAPPA
+             lokcs=phasetuple(iph)%lokvares
+             parres=>ceq%phase_varres(lokcs)
+             if(.not.allocated(parres%mqmqaf%y_ik)) then
+! write(*,*)'MM how to make sure this is the MQMQA phase'
+                write(*,*)'MM This is not the MQMQA liquid phase'
+                goto 990
+             endif
+             call list_compvar(parres)
+             write(*,*)'MM more comming soon'
           END SELECT listphase
 !------------------------------
 ! THIS IS ALSO THE SHOW command and list model-parameter-value case(17) of LIST
@@ -5494,11 +5505,12 @@ contains
              ts: if(allocated(tersys)) then
                 write(*,3101)size(tersys)
 3101 format(/'MM Listing of the ',i3,' ternary systems and their asymmetries',&
-          /'  i  seq   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
+   /'  i  seq   cat1 cat2 cat3',6x,'emquads',6x,'T/0 T/0 T/0    asymmetry code')
+!      /'  i  seq   cat1 cat2 cat3',11x,'    T/0 T/0 T/0    asymmetry code')
                 do iz=1,size(tersys)
                    write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-                        tersys(iz)%isasym,tersys(iz)%asymm
-3201               format(i3,i5,2x,3(1x,i4),5x,3i4,5x,a)
+                        tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
+3201               format(i3,i5,2x,3(1x,i4),2x,3(1x,i3),3x,3i4,5x,a)
                 enddo
                 write(*,3301)
 3301 format('Number in T/0 column is actual asymmetric cation'/)
@@ -5603,13 +5615,15 @@ contains
                   '2 debug some more'/&
                   '3 debug reading TDB'/&
                   '4 debug parameter calculation'/&
-                  '5 debug partial derivative calculation')
+                  '5 debug partial derivative calculation'/&
+                  '6 verbose listing of asymmetries')
              call gparidx('Set mqmqa debug?',cline,last,i1,i2,'?MQMQA debug')
              mqmqdebug=.false.
              mqmqdebug2=.false.
              mqmqtdb=.false.
              mqmqxcess=.false.
              mqmqder=.false.
+             mqverbose=.false.
              if(i1.eq.1) then
 ! asymmetry debug
                 mqmqdebug=.true.
@@ -5624,6 +5638,9 @@ contains
              elseif(i1.eq.5) then
 ! partial derivative debug
                 mqmqder=.true.
+             elseif(i1.eq.6) then
+! partial derivative debug
+                mqverbose=.true.
              endif
 !
 !...........................................................
