@@ -30,18 +30,20 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
-2026.08.24 version 6.123. It seems that the code to handle ternary
+2026.08.31 version 6.126. I have added that MQMQA asymmetries can be
+extracted from the TDB file and fixed a lot of minor problems about
+ternary asymmetries.  Still many bugs using MQMQA though...
+
+2026.08.29 version 6.125. More work on asymmetries but not yet finished.
+Please test and report problems (or successes).
+
+2026.08.24 version 6.124. It seems that the code to handle ternary
 asymmetries in MQMQA now work, please test and report errors!
 
-2026.08.23 version 6.122. The code to handle ternary asymmetries in
+2026.08.23 version 6.123. The code to handle ternary asymmetries in
 MQMQA has been totally rewitten.  It is not finished but I want to
 save this stage if I made a mess of it in the future.  Calculations
 with other models has not been changed.
-
-2026.08.18 version 6.122. More work done on the MQMQA model.  This
-asymmetries has been integrated but it is not yet finished as I need
-help with testing.  Sorry I cannot calculate MQMQA with FactSage or
-PyCalphad.
 
 For MQMQA phases OC should be able to handle multicomponent system and
 all kinds of binary parameters also with ternary asymmetries.  The

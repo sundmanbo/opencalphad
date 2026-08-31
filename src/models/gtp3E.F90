@@ -5580,10 +5580,8 @@
 !      write(*,'(a)')'3E Adding extrapolation methods',ntxp
       do zp=1,ntxp
 !         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
-! this subroutine is in gtp3H.F90 is obsolete
-!         call set_database_ternary(ternaryxpol(zp))
-! this subroutine is in gtp3XQ.F90
-         call set_ternary_asymmetry_TDB(ternaryxpol(zp),lokph)
+! this subroutine is in gtp3XQ.F90, phase name is in line 
+         call set_ternary_asymmetry_TDB(ternaryxpol(zp))
       enddo
 !   else
 !      write(*,*)'3E No ternary extrapolations'

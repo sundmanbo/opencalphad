@@ -1282,9 +1282,11 @@
      integer, dimension(:), allocatable :: pair2y
 ! This should be a link between OC AB/X index and the varkappa_AB/xi_AB arrays
      integer, dimension(:), allocatable :: con2vk
+! This is the line read from a TDB file to set asymmetries.
+     character (len=:), allocatable :: tdbasym
 ! Maybe some more links are needed ...
 ! The TYPE gtp_mqmqa_var with the xquad, allinone and other arrays is used
-! In allionone the phase deoendent updated values of \varkappa etc are stored
+! In allinone the phase dependent updated values of \varkappa etc are stored
 ! they are organized in alphabetical order of the elements.
 ! When it works all of this should be reorganized removing the Tooprecord
 !
@@ -1756,6 +1758,8 @@
 ! end new stuff .... but more records below for example allinone
 ! el2quad is the same as  mqf%spqx_y_ik(:) NOT mqf%spix_y_ik(i)
      integer, allocatable, dimension(:) :: el2quad
+! asymmetries from database must be save temporarily before quads created
+     character(len=:), allocatable :: tdbasymmetries
   end TYPE gtp_mqmqa
 !-----------------------------------------------------------------
 ! it should be made private when everything work and removed from pmon6

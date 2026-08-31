@@ -1,4 +1,3 @@
-!
 MODULE cmon1oc
 !
 ! Copyright 2012-2025, Bo Sundman, France
@@ -1369,7 +1368,12 @@ contains
 3122         continue
              newXupdate=newXupdate+1
 ! asymter is the index in the tersys array of the teranary with new asymmetry
-             call new_ternary_asym(asymter,new_toop,parres)
+             call gparcdx('Verbose?',cline,last,1,ch1,'N','?Asymmetry modify')
+             if(ch1.eq.'Y') then
+                call new_ternary_asym(asymter,new_toop,parres,.true.)
+             else
+                call new_ternary_asym(asymter,new_toop,parres,.false.)
+             endif
              write(*,*)'MM back from new_ternary_asym'
 ! repeat short listing the asymmetries
              write(*,3101)size(tersys)
@@ -6803,7 +6807,7 @@ contains
           parres=>ceq%phase_varres(lokcs)
 ! emergency debug as I forgotten the whole data structure
           write(*,*)'Calling init_symmetric_varkappa'
-          call init_symmetric_varkappa(parres)
+          call init_symmetric_varkappa(parres,.true.)
           goto 100
 ! below is replaced by AMEND PHASE ... ASYM
 ! ---------------------------------------         
