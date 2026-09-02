@@ -1638,6 +1638,7 @@
 !   integer ncat,nan,nquad  these are global variables
    double precision x,y
    integer iva,jva,nva,ivb,ivc,s1,jj,some
+   type(gtp_phase_varres), pointer :: phres
 !
 ! BoS 2025.11.12: when we are here the mqmqa_data already initiated
 ! that is done in ?? , mqmqa_species, around line 7062
@@ -1778,10 +1779,45 @@
    call init_excess_asymm(lokph)
 !
 !   write(*,*)'3B Back from init_excess_asymm'
+! we have to set phres, maybe not needed if tersys allocated?
+!   write(*,*)'3B call init_symmetric_varkappa',allocated(tersys)
+   call find_phres(lokph,phres)
+!   call init_symmetric_varkappa(phres,.true.)
+   call init_symmetric_varkappa(phres,.false.)
+!   write(*,*)'3B Back from init_symmetric_varkappa'
 !   
 1000 continue
    return
  end subroutine create_asymmetry
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine find_phres
+!\begin{verbatim}
+ subroutine find_phres(lokph,phres)
+! convert a phase location to pointer to phase_varres
+! lokph is phase location
+! pointer
+   implicit none
+   integer lokph
+   type(gtp_phase_varres), pointer :: phres
+!\end{verbatim}
+   type(gtp_equilibrium_data), pointer :: ceq
+   integer i
+!
+!   write(*,*)'3B in find_phres',lokph
+   ceq=>firsteq
+! this is stupid ... but a short cut
+   i=1
+! we loop back here from a few lines below
+5  continue
+      i=i+1
+      if(i.gt.1000) stop 'find_phres failed'
+! this is very clumsy, but I have no better way
+      phres=>ceq%phase_varres(i)
+      if(phres%phlink.ne.lokph) goto 5
+1000 return
+ end subroutine find_phres
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

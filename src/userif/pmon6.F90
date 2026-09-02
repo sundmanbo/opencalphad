@@ -4639,6 +4639,7 @@ contains
                 write(*,*)'MM This is not the MQMQA liquid phase'
                 goto 990
              endif
+             call list_tersys
              call list_compvar(parres)
              write(*,*)'MM more comming soon'
           END SELECT listphase

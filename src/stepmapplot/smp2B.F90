@@ -1389,8 +1389,10 @@
     character multibuffer(maxmultiplotlines)*128
     logical appendmultiplot
 ! other things ...
-    character pfc*128,pfh*128,backslash*2,appline*128,inline*8,colord*5
-    character applines(mofapl)*128,gnuplotline*256,labelkey*64,rotate*16
+!    character pfc*128,pfh*128,backslash*2,appline*128,inline*8,colord*5
+!    character applines(mofapl)*128,gnuplotline*256,labelkey*64,rotate*16
+    character pfc*128,pfh*256,backslash*2,appline*256,inline*8,colord*5
+    character applines(mofapl)*256,gnuplotline*256,labelkey*64,rotate*16
     character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
 ! for handling appended plots use $Appendx    
     character datablock*8,applot*13

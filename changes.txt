@@ -30,16 +30,26 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
-2026.08.31 version 6.127. Wow, two updates the same day!  This time
-I think there are some real progress with the software stability.
-Previous versions for the MQMQA phase have crashed as soon as I
-have tried to make some modifications or changes.  There are
-some real progress with the asymmetries but the ternary parameters
-will have to wait a few days.
+2026.09.02 version 6.128. Progress is finally forward ...Wow again.
+The code for the MQMQA liquid now seems to have solidified.  The code
+for asymmetric ternaries now seems stable and if there are any bugs I
+hope my collaborators will tell me.  The ternary parameters are still
+not there because I got confused when I understood one can have 3
+separate sets of ternary parameters in a single ternary.  But I
+reallize that is more of a problem for those developing databases than
+for the software.  Maybe they will be around next week and the
+champagne may flow freely.
 
-All other model calculations have been without problems.  But for the
-next release I will have to add some MQMQA examples.  Those using the
-MQM model do not use the same excess model.
+2026.08.31 version 6.127. Wow, two updates the same day!  This time I
+think there are some real progress with the software stability.  In
+previous versions calculations with the MQMQA phase have crashed as
+soon as I tried to make any modifications or changes.  Now there are
+some real progress with the asymmetries.
+
+With all the other model calculations there have been without
+problems.  And soon I will have to add some MQMQA examples.  There are
+some for the old MQM model but that had slightly different models for
+the quasichemical entropy and excess Gibbs energy.
 
 2026.08.31 version 6.126. I have added that MQMQA asymmetries can be
 extracted from the TDB file and fixed a lot of minor problems about

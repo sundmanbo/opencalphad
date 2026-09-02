@@ -3509,7 +3509,7 @@
    double precision stoik(10),xsl,xxx
    integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv,rewindx,nend
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx,idum,jdum
-   logical onlyfun,nophase,ionliq,notent,mqmqa,ferroref
+   logical onlyfun,nophase,ionliq,notent,mqmqa,ferroref,mqmqx
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,iq,jt,bmabbr
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics,ndisph
    integer ntxp,ctxp
@@ -4010,11 +4010,14 @@
 ! we must know if we have the mqmqa model before reading constituents!!
 ! tested below also.
 !      if(phtype.eq.'Q') then
-      if(phtype.eq.'Q' .or. phtype.eq.'X') then
-! Q was the original MQMQA phtype, X means maybe some new code
+      mqmqa=.FALSE.;mqmqx=.FALSE.
+! Q was the original MQM phtype, X means new MQMQA model
+      if(phtype.eq.'Q') mqmqa=.TRUE.
+      if(phtype.eq.'X') then
+! if mqmqa not .TRUE. the phase is not selected
          mqmqa=.TRUE.
-      else
-         mqmqa=.FALSE.
+         mqmqx=.TRUE.
+         write(*,*)'3E line 4018 phype "',phtype,'"'
       endif
 ! check if phase rejected
 !      write(*,*)'3E number of phases rejected: ',nphrej
@@ -4200,8 +4203,8 @@
             addphasetypedef(TDthisphase)=typedefaction(jt)
             ctxp=ctxp+1
             ternaryxpol(ctxp)=trim(name1)//' '//ternaryxpol(ctxp)
-!            write(*,'(a,i4,": ",a)')'3E ternary around line 4137: ',&
-!                 ctxp,trim(ternaryxpol(ctxp))
+            write(*,'(a,i4,": ",a)')'3E ternary around line 4137: ',&
+                 ctxp,trim(ternaryxpol(ctxp))
 ! this ignores the type letter, just assignes in same order as phases entered
 ! Or one must enforce that the TYPE_DEF for ternary is right after the phase?
          elseif(.not.(typedefaction(jt).eq.100.or.typedefaction(jt).eq.0)) then
@@ -5551,7 +5554,7 @@
 ! per-line error is still useful and stays printed.
       if(.not.silent .and. gx%bmperr.ne.4051 .and. .not.read_complete) &
            write(kou,1002)gx%bmperr,buperr,nl,trim(longline)
-1002  format('3E error ',2i5,', occured at TDB file line ',i7/a)
+1002  format('3E warning ',2i5,', occured at TDB file line ',i7/a)
 !      write(*,*)'Do you want to continue at your own risk anyway?'
 !      read(*,1008)ch1
 !1008  format(a)
@@ -5576,8 +5579,11 @@
 1117 format('There are ',i7,' parameters with no reference')
    write(*,1111)totalpar,enteredpar
 1111 format('3E Out of ',i5,' model parameters ',i5,' have been entered')
-   if(addternaryxpol) then
-!      write(*,'(a)')'3E Adding extrapolation methods',ntxp
+!   if(addternaryxpol) then
+! mqmqx set line 4016 ?
+   if(addternaryxpol .or. mqmqx) then
+! ntxp may be zero here ....
+      write(*,'(a,i3)')'3E Adding extrapolation methods',ntxp
       do zp=1,ntxp
 !         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
 ! this subroutine is in gtp3XQ.F90, phase name is in line 
