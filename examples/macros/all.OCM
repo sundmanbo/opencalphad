@@ -228,7 +228,7 @@ mac ./map19
 @$ Second test of the MQMQA model
 @$ *********************************************************
 
-mac ./cslaf-map
+mac ./map20
 
 @&& *********************************************************
 @$ Testing the CEF SRO calculations

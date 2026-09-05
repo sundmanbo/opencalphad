@@ -23,8 +23,8 @@ PROGRAM pmain1
 !  call date_and_time(date)
 !  write(*,*)'Stored linking date: ',date
 ! This line replaced by linkocdate to the date when compilin
-  linkdate='2026-09-02 16:55'
-! for example: linkdate='2026-09-02 16:55'
+  linkdate='2026-09-05 18:32'
+! for example: linkdate='2026-09-05 18:32'
 ! the overall version identifier is now in gtp3.F90
 ! intvar and dblvar will eventually be used for allocations
   intvar(1)=30

@@ -30,6 +30,21 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.09.05 version 6.129. The previous version was a bit too
+enthusiastic about adding asymmetries to the MQMQA model.  This
+has been fixed but as I find the asymmetry algorithm impossible
+to understand there are probably still some errors.  Please
+send me a macro and TDB file to correct errors you discover.
+
+I have now modified the previos MQM examples, map19 and Cs-La-F
+to use the MQMQA model.  The latter now called map20.OCM.  There
+are no differences in the calculated diagrams.
+
+Now I have no longer any excuse not to add ternary parameters, it will
+be interesting to have 3 different sets of excess parameters in a
+single ternary as the MQMQA model considers a ternay parameter as a
+modification of the binary excess parameter.
+
 2026.09.02 version 6.128. Progress is finally forward ...Wow again.
 The code for the MQMQA liquid now seems to have solidified.  The code
 for asymmetric ternaries now seems stable and if there are any bugs I

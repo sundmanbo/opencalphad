@@ -3534,8 +3534,13 @@
 !         if(i.gt.mqmqa_data%xanionalpha) mqf%compvar(nseq)%elcat1=i+1
 !         if(j.gt.mqmqa_data%xanionalpha) mqf%compvar(nseq)%elcat2=j+1
 ! these are species indices of cations
-         mqf%compvar(nseq)%elcat1=mqf%spix_y_ik(i)
-         mqf%compvar(nseq)%elcat2=mqf%spix_y_ik(j)
+!         mqf%compvar(nseq)%elcat1=mqf%spix_y_ik(i)
+!         mqf%compvar(nseq)%elcat2=mqf%spix_y_ik(j)
+         mqf%compvar(nseq)%quadicat1=mqf%spix_y_ik(i)
+         mqf%compvar(nseq)%quadicat2=mqf%spix_y_ik(j)
+! these are used when determining asymmetries
+         mqf%compvar(nseq)%elcat1=mqf%spqx_y_ik(i)
+         mqf%compvar(nseq)%elcat2=mqf%spqx_y_ik(j)
 ! note it is negative of element alphabetical index
          mqf%compvar(nseq)%elan=-mqmqa_data%xanionalpha
          mqf%compvar(nseq)%anion=1
@@ -4007,15 +4012,10 @@
 ! If a binary i-j is part of 2 or more asymmetric ternaries i-j-\nu, i-j-\gamma
 ! the quad fraction x_\nu\gamma should be added to kvk_ijk (the denomonator)
 ! of kvk_ijk
-!   integer, dimension(:), allocatable :: savenu
-!   integer, dimension(:), allocatable :: savegamma
-!
 ! debug output
    integer nn1,nn2,nn3,nn4,nn5,nn6,nn7,gg,thisasym
    integer q1,q2,q3,qtoop,haha,nn
    logical nysym
-! this mqd pointer does evidently not work
-   type(gtp_mqmqa), pointer :: mqd
    integer, allocatable, dimension(:) :: el2quadx
 !
 !
@@ -4027,6 +4027,10 @@
 !
 !   write(*,*)'3XQ in new_ternary_asymmetry',asymter,new_toop
    asymmetric='KKK'
+   if(new_toop.lt.1 .or. new_toop.gt.3) then
+      write(*,*)'3XQ new_ternary_asymmetry illegal Toop',new_toop
+      goto 1000
+   endif
    asymmetric(new_toop:new_toop)='T'
    ia=1
    mqf=>phres%mqmqaf
@@ -4034,139 +4038,439 @@
    tersys(t1)%asymm=asymmetric
    tersys(t1)%isasym(new_toop)=1
 !
-! find the 3 compvar(seq) which are involved in this ternary
-!   write(*,20)t1,tersys(t1)%el(1),tersys(t1)%el(2),&
-!        tersys(t1)%el(3),new_toop,size(mqf%compvar)
-20 format('3XQ in new_ternary_asym: ',i3,5x,3i3,' Toop: ',i3,', binaries:',i2)
-! just set the %asymm and loop all compvar
-!   
    if(verbose) write(*,17)t1,tersys(t1)%asymm,tersys(t1)%isasym
-17 format('3XQ line 4264 tersys ',i3,'  "',a,'" ',3i3)
+17 format('3XQ line 4264 in_new_ternary_asym ',i3,'  "',a,'" ',3i3)
 !
-!   allocate(el2quadx(size(mqmqa_data%el2quad)))
-!   el2quadx=mqmqa_data%el2quad
-!
-!   write(*,19)'spqx_y_ik: ',1,mqf%spqx_y_ik
-!   write(*,*)'3XQ is mqmqa_data%el2quad allocated? ',&
-!        allocated(mqmqa_data%el2quad)
-!   write(*,19)'mqd%el2quad: ',2,mqmqa_data%el2quad
-!   write(*,19)'3XQ mqmqa_data%el2quadx: ',el2quadx
-19 format('3XQ ',a,3x,20i3)
-!   write(*,180)t1,tersys(t1)%el
-180 format('3XQ ternary ',i2,' has cations: ',3i2) 
-!   write(*,181)t1,tersys(t1)%binsys
-181 format('3XQ ternary ',i2,' has binaries: ',3i2)
-!
-!-------------------------- my problem --------------------------------
-!            1             2             3            4              =4
-! ternaries: 1-2-3         1-2-4         1-3-4        2-3-4
-!            1-2 1-3 2-3   1-2 1-4 2-4   1-3 1-4 3-4  2-3 2-4 3-4
-!            1   2   4     1   3   5     2   3   6    4   5   6
-!
-! 11-22-33           11-22-44           11-33-44           22-33-44
-! 11-22 11-33 22-33  11-22 11-44 22-44  11-33 11-44 33-44  22-33 22-44 33-44
-! 1     2     4      1     3     5      2     3     6      4     5     6
-!
-!           1     2     3     4     5     6                         =6
-! binaries: 1-2   1-3   1-4   2-3   2-4   3-4
-!
-! quads include a constituent in between each
-!           11  12  13  14  22  23   24  33  34  44
-!           1   2   4   4   5   6    7   8   9   10                =10
-!           1               2            3       4                 =4
-!---------------------------------------------------------------------
-!
-! Find the binary compvar and cations involved
-!   
-! we should loop all ternaries with all compvar and set asymmetries
-!   write(*,*)'3XQ loop for all compvar'
+! A new asymetric ternary, reinitiate varkappa
    do nn=1,size(mqf%compvar)
       box=>mqf%compvar(nn)
-! inside this loop for all ternaries
+! inside this loop set asymmetries for all ternaries
       call loop_all_ternaries(phres,box,verbose)
    enddo
 !
-!   write(*,*)'3XQ finished loops'
-200 continue
-!   bin12=tersys(t1)%binsys(1)
-!   bin13=tersys(t1)%binsys(2)
-!   bin23=tersys(t1)%binsys(3)
-!   write(*,201)t1,bin12,mqf%compvar(bin12)%cat1,mqf%compvar(bin12)%cat2
-!   write(*,201)t1,bin13,mqf%compvar(bin13)%cat1,mqf%compvar(bin13)%cat2
-!   write(*,201)t1,bin23,mqf%compvar(bin23)%cat1,mqf%compvar(bin23)%cat2
-201 format('3XQ ternary ',i2,', with binary: ',i2,', has cations: ',2i3)
-! How to convert from primary cations to quadruplets?
-!
-!  1  1  1  1  1  2  2  2  2  3  3  3  4  4  5   1..5
-!  1  2  3  4  5  2  3  4  5  3  4  5  4  5  5
-!  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15     n(n+1)/2 5*6/2=15
-!
-!  1  1  1  1  2  2  2  3  3  4
-!  1  2  3  4  2  3  4  3  4  4
-!  1  2  3  4  5  6  7  8  9 10
-!
-!---------------------------------------------------------------
-!
-! it seems OK here
-! when a ternary is asymmetric are several binaries are affected
-! or only the 2 binaries including the Toop element?
-! I assume only the 2 binaries are affected
-! one must not destroy any adiitional ternary asymmetris ....
-!
-! Is this really meaningfull ?
-!
-!   write(*,299)bin12,bin13,bin23,binij,binji
-!299 format('3XQ if problems: ',3i3,5x,2i3)
-300 continue
-!   write(*,2)3,tersys(1)%el,tersys(1)%isasym,tersys(1)%asymm
-!   write(*,303)binij,mqf%compvar(binij)%cat1,mqf%compvar(binij)%cat2,&
-!         binji,mqf%compvar(binji)%cat1,mqf%compvar(binji)%cat2
-!303 format('3XQ binaries to modify: ',i3,': ',2i3,5x,i3,': ',2i3)
-!   stop 'work to be done in new_ternary_asym'
-!-------------------------------------------------------------------
-! Now set initiate all vk_ij with current asymmetries
-! where new_toop is either icat or jcat.
-!
-! general initialization
-!   if(allocated(savenu)) deallocate(savenu)
-!   if(allocated(savegamma)) deallocate(savegamma)
-!
-! we must set the new tersys(t1)%asymm, to be used by varkappa
-!   write(*,*)'3XQ line 4414 new: tersys(t1)%asymm: ',tersys(t1)%asymm
-!
-! what should be icat/jcat?      
-!   icat=new_toop
-!
-!   write(*,2)4,tersys(1)%el,tersys(1)%isasym,tersys(1)%asymm
-! This loops though all varkappa setting asymmetries according to tersys%asymm
-! the excerzie with ibin above meaningless?
-!   write(*,700)
-!700 format('3XQ line 4367 new_ternary_asym should call loop_tersys')
-! The ternary asymmetry already set
-!   write(*,2)5,tersys(1)%el,tersys(1)%isasym,tersys(1)%asymm
-!   write(*,*)'3XQ finished loop of varkappa1'
 !
 !-------------------------------------------------------------------
 1000 continue
-! debug list of tersys
-!   do nnn=1,size(tersys)
-!      write(*,1002)nnn,tersys(nnn)%el,tersys(nnn)%isasym,tersys(nnn)%asymm
-!1002  format('3XQ tersys: ',i3,3x,3i3,3x,3i3,' "',a,'"')
-!   enddo
-!
-!   stop 'in new_ternary_asym'
    if(verbose) then
       call list_compvar(phres)
+      write(*,*)'3XQ exit new_ternary_asym'
    endif
-!   write(*,*)'3XQ exit new_ternary_asym'
 !
    return
  end subroutine new_ternary_asym
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 !
+!\addtotable subroutine loop_all_ternaries
 !\begin{verbatim}
- subroutine loop_all_ternaries(phres,box,verbose)
+ subroutine loop_all_ternaries(phres,box,inverbose)
+!
+! This is at least the 5th time I rewrite this routine
+! It is called for a binary in "box" and tests if this binary i-j 
+! and loops all ternaries in tersys to check if it is part of!
+! any ternary with asymmetry which would modify the expressions for 
+! the box%ivk_ij and box%jvk_ji and their denominator %kvk_ijk for the binary
+! The %ivk_ij, %jvk_ji and %kvk_ijk arrays has sums of x_ij fraction variables
+
+   implicit none
+   type(gtp_phase_varres), pointer :: phres
+   type(gtp_allinone), pointer :: box
+   logical inverbose
+!\end{verbatim}
+!
+!-------------------------- my problem --------------------------------
+! ternaries: 1             2             3            4              =4
+! cations    1-2-3         1-2-4         1-3-4        2-3-4
+! binaries   1-2 1-3 2-3   1-2 1-4 2-4   1-3 1-4 3-4  2-3 2-4 3-4
+!            1   2   4     1   3   5     2   3   6    4   5   6
+!
+! 11-22-33           11-22-44           11-33-44           22-33-44
+! 11-22 11-33 22-33  11-22 11-44 22-44  11-33 11-44 33-44  22-33 22-44 33-44
+! 1     2     4      1     3     5      2     3     6      4     5     6
+!
+! binaries: 1     2     3     4     5     6                         =6
+!           1-2   1-3   1-4   2-3   2-4   3-4
+!
+! quads, the independent fraction variabled, include constituents between each
+! index     11  12  13  14  22  23   24  33  34  44
+! sequence  1   2   4   4   5   6    7   8   9   10                =10
+! cations:  1               2            3       4                 =4
+!---------------------------------------------------------------------
+!
+! Find the binary compvar and cations involved
+!   
+! we should loop all ternaries with all compvar and set asymmetries
+   type(gtp_mqmqa_var), pointer :: mqf
+   type(gtp_allinone), pointer :: box1,box2
+! savenu and savegamma has x_ij crossterms for multiple asymmetric ternaries
+   integer, dimension(:), allocatable :: savenu
+   integer, dimension(:), allocatable :: savegamma
+! vz is the ternary cation, t1 is the ternary index
+   integer haha,vz,toopel,toopem
+   integer icat,jcat,ia,gg,emcat1,emcat2
+   integer mii,mij,mjj,new_toop,nnn
+   logical verbose
+!
+   integer abrakadabra,i,j,k,l,m,ny,iv,jv,t1,tcat1,tcat2,tcat3,vzem
+!
+! first maybe remove all ivk_ij etc? from box?
+! that is ONLY necessary if one can remove an asymmetry. Assume not!
+! set the appropriate indices in ivk_ij, jvk_ij, kvk_ijk
+! 
+! while debugging
+   if(inverbose) verbose=.true.
+!   verbose=.true.
+   icat=box%cat1
+   jcat=box%cat2
+! wow, I did not know i saved these also ...'
+! these are the cation quad fraction indices in x_ij
+   emcat1=mqmqa_data%emquad(icat)
+   emcat2=mqmqa_data%emquad(jcat)
+! maybe useful sometimes ....
+   if(verbose) write(*,1)icat,jcat,emcat1,emcat2
+1  format(/'3XQ in loop_all_ternaries for binary: ',2i2,' or emquads: ',2i2)
+!
+! These are the cations of the ternary, their values are 1..n
+   if(allocated(savenu)) then
+      deallocate(savenu)
+   endif
+   if(allocated(savegamma)) then
+      deallocate(savegamma)
+   endif
+!   write(*,777)box%elcat1,box%elcat2,box%quadicat1,box%quadicat2
+!777 format('3XQ box%elcat: ',2i3,' box%quadicat: ',2i3)
+! this is the single anion
+   ia=1
+!   if(verbose) write(*,3)icat,jcat,emcat1,emcat2
+3  format('3XQ loop_all_ternaries to set asymmetries for box: ',2i3,2x,2i3)
+!   write(*,*)'3XQ in loop_all_ternaries 2'
+! is tersys initiated?
+!   do t1=1,size(tersys)
+!      if(verbose) write(*,555)t1,tersys(t1)%el,tersys(t1)%emquad,&
+!           tersys(t1)%asymm
+!555   format('3XQ tersys: ',i2,2x,3i3,2x,3i3,3x,a)
+!   enddo
+!   
+   bigloop: do t1=1,size(tersys)
+! we assume KKK asymmetries are default
+      if(tersys(t1)%asymm.eq.'KKK') then
+! no Toop element
+         if(verbose) write(*,7)t1
+7        format('Ternary ',i2,' is symmetrical, skipped')
+         cycle bigloop
+      endif
+!
+      new_toop=index(tersys(t1)%asymm,'T')
+      if(new_toop.lt.1 .or. new_toop.gt.3) then
+         write(*,*)'3XQ Asymmetric but no T: ',tersys(t1)%asymm,t1
+         stop 'fatal error'
+      endif
+! the value of new_toop is always 1,2,3.  In toopel set cation
+      toopel=tersys(t1)%el(new_toop)
+      toopem=tersys(t1)%emquad(new_toop)
+      if(verbose) write(*,4)t1,tersys(t1)%el,tersys(t1)%emquad,&
+           tersys(t1)%asymm,emcat1,emcat2,toopem
+4     format('3XQ line 4215 ternary ',i3,5x,3i3,5x,3i3,' "',a,'" ',2i3,3x,i3)
+!
+! This routine is NOT time critcal, a lot of sloppy coding ...
+! because my head start to turn each time I try to program this ....
+! Check if the binary i-j is part of this ternary
+      iin3: do iv=1,3
+!         if(icat.eq.tersys(t1)%emquad(iv)) goto 70
+         if(emcat1.eq.tersys(t1)%emquad(iv)) goto 70
+      enddo iin3
+      if(verbose) write(*,69)t1,icat,emcat1
+69    format('3XQ Ternary ',i2,' skipped as ',2i3,' not part of it')
+      cycle bigloop
+70    continue
+      jin3: do jv=1,3
+!         if(jcat.eq.tersys(t1)%emquad(jv)) goto 80
+         if(emcat2.eq.tersys(t1)%emquad(jv)) goto 80
+      enddo jin3
+      if(verbose) write(*,69)t1,jcat,emcat2
+      cycle bigloop
+!
+!
+! the binary i-j is part of this ternary, fix asymmetries *******
+!
+80    continue
+      if(verbose) write(*,81)iv,jv,icat,jcat,emcat1,emcat2,toopel,toopem
+81    format('3XQ in loop_all_ternaries 4: ',2i3,5x,2i3,5x,2i3,5x,2i3)
+! iv and jv indicate the binary, find the 3rd cation ....  very clumsy ...
+      findvz1: do vz=1,3
+         if(vz.eq.iv) exit findvz1
+      enddo findvz1
+      if(verbose) write(*,*)'3XQ looking for third cation 1: ',vz,iv
+      if(vz.gt.3) cycle bigloop
+      findvz2: do vz=1,3
+         if(vz.eq.iv) cycle findvz2
+         if(vz.ne.jv) exit findvz2
+      enddo findvz2
+      if(verbose) write(*,*)'3XQ looking for third cation 2: ',vz,jv
+      if(vz.gt.3) then
+         if(verbose) &
+         write(*,*)'3XQ skip this ternary as it does not cotain this binary'
+         cycle bigloop
+      endif
+!
+! The binary icat-jcat is included in this ternary
+      vzem=tersys(t1)%emquad(vz)
+      if(verbose) then
+         write(*,82)vz,vzem
+82       format('3XQ Found third cation ',2i3)
+         write(*,83)emcat1,emcat2,vzem,emcat1,emcat2
+83       format('3XQ All 3 cations ',3i3,' for binary ',i1,'-',i1)
+         write(*,85)icat,jcat,t1,vz
+85       format('3XQ the binary ',i1,'-',i1,' in ternary ',i2,', with ',i2)
+      endif
+! These are the cations of the ternary
+! asymmetries to this box can be added from several ternaries
+! toopel is 1, 2 or 3.  toopem is the actual cation index, 1 to n
+!
+      toopel=tersys(t1)%el(new_toop)
+      toopem=tersys(t1)%emquad(new_toop)
+      tcat1=tersys(t1)%emquad(1)
+      tcat2=tersys(t1)%emquad(2)
+      tcat3=tersys(t1)%emquad(3)
+      if(verbose) write(*,90)tcat1,tcat2,tcat3,emcat1,emcat2,toopel,toopem
+!      write(*,90)tcat1,tcat2,tcat3,emcat1,emcat2,vzem,toopel,toopem
+90    format('3XQ Ternary ',3i3,', binary: ',3i3,', Toop: ',2i3)
+! select 
+      if(toopem.eq.emcat1) goto 200
+      if(toopem.eq.emcat2) goto 150
+      if(verbose) write(*,*)'3XQ Toop cation not in this binary'
+      cycle bigloop
+!
+150   continue
+! here toopel is jcat or emcat2, add x_jcat,vz and \nu
+! icat is asymmetric in this ternary, add terms in jvk_ij and in savegamma
+      if(verbose) write(*,155)emcat1,vzem,'jvk_ji'
+155   format('3XQ add ',2i3,' to ',a,' ********* unfinished')
+!      cycle bigloop
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      if(addquad(box%jvk_ji, jcat,vz)) then
+! addquad is FALSE if jcat,vz already in box%jvk_ji
+         if(verbose) write(*,17)4239,jcat,vz, vz,vz, jcat,icat
+17       format('3XQ line ',i4,' x_',2i1,' and x_',2i1,' added to jvk_',2i1)
+! an elegant Fortran assignment of an additional items in an allocatable
+         box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+!-------------added to jvk_ji
+! quad fractions added to jvk_ij added also to denominator, add ijklx(icat,vz)
+!         if(verbose) write(*,18)4245,icat,vz
+18       format('3XQ line ',i5,' added x_',2i1,' to box%kvk_ijk')
+!         box%kvk_ijk=[box%kvk_ijk, ijklx(icat,vz,ia,ia)]
+!         if(verbose) write(*,18)4247,icat,vz
+!         box%all_ijk=[box%all_ijk, ijklx(jcat,vz,ia,ia), &
+!              ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+      else
+! skip adding to savenu and savegamma also
+         if(verbose) &
+              write(*,99)jcat,vz,ijklx(jcat,vz,ia,ia),' jvk_ji:',box%jvk_ji
+99       format('3XQ quad x_',2i1,' or ',i3,a,10i3)
+         goto 500
+      endif
+!      write(*,*)'3XQ line 4615 added quads to box%all_ijk'
+!
+! savenu is cross terns related to ij, savegamma to ji  ---------------------
+!      write(*,*)'3XQ line 4617 check savenu'
+      if(allocated(savegamma)) then
+         if(verbose) write(*,373)'jcat use \nu',size(savegamma),savegamma
+373      format('3XQ ',a,' mixed asymmetry terms',i3,': ',10i3)
+         do gg=1,size(savenu)
+! the mixed terms with \gamma should should be added to jvk_ji
+            box%all_ijk=[box%all_ijk, ijklx(vz,savenu(gg),ia,ia)]
+!                  write(*,374)'3XQ added ji',savenu(gg),vz
+!                  write(*,375)'jvk_ji ',box%jvk_ji
+374         format(a,' x_',2i1)
+375         format('3XQ ',a,'=',10i4)
+         enddo
+         savenu=[savenu, vz ]
+      else
+! otherwize just add vz to savenu
+         savenu=[vz]
+!        write(*,373)'3XQ line 4377 savednu i ',size(savenu),savenu
+      endif
+!------------------------------------------------------ now savegamma
+! savegamma is related to ji, maybe add denominator terms
+!      write(*,*)'3XQ line 4632 savegamma'
+      if(allocated(savegamma)) then
+         if(verbose) write(*,373)'case 1 use \gamma',size(savegamma),savegamma
+         do gg=1,size(savegamma)
+! the mixed terms with \gamma should should be added to kvk_ijk
+            box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savegamma(gg),ia,ia)]
+            box%all_ijk=[box%all_ijk, ijklx(vz,savegamma(gg),ia,ia)]
+!                  write(*,374)'3XQ added kvk_ijk',savegamma(gg),vz
+!                  write(*,375)'kvk_ji ',box%kvk_ijk
+         enddo
+! do not save vz as it does no relates to ij
+!               savegamma=[savegamma, vz ]
+      else
+! and we must add vz to savegamma
+         savegamma=[vz]
+!         write(*,373)'saved i ',size(savevz),savevz
+      endif
+! The asymmetric xi_ji is depend on y_ik update dxi_ji and dxi_ji
+! Hm, dxi_ji are just sums of y_jk?
+! We ignore dxi_i ......
+      do nnn=1,mqmqa_data%nquad
+!                box%dxi_ij(nnn)=box%dxi_ij(nnn)+dy_ik(icat,nnn)
+         box%dxi_ji(nnn)=box%dxi_ji(nnn)+mqmqa_data%dy_ik(vz,nnn)
+      enddo
+      if(gx%bmperr.ne.0) then
+         write(*,*)'3XQ ijklx index error line 4533'
+         stop
+      endif
+      goto 500
+!
+!---------------------------------------------------------------------
+! >>>>>>>>>>>>  THE CODE AROUND HERE IS VERY UNCERTAIN  <<<<<<<<<<<<<<
+!---------------------------------------------------------------------
+!     case(2) ! ***************************************************
+200   continue
+      if(verbose) write(*,155)emcat2,vzem,'ivk_ij'
+!      cycle bigloop
+!
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! jcat is asymmetric in box, same as for icat just change icat to jcat!!!!
+! and save in jvk_ji ...
+      if(addquad(box%ivk_ij, icat,vz)) then
+         if(verbose) write(*,27)4318, icat,vz, vz,vz, icat,jcat
+27       format('3XQ line ',i5,' adding x_',2i1,' and x_',2i1,' to ivk_',2i1)
+         box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+! Nath noted missing  ijklx(vz1,vz2,ia,ia) if icat and jcat are asymmetrical
+!         if(verbose) write(*,28)4322,jcat,vz
+!         box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)] ??????????
+28       format('3XQ line ',i5,' added x_',2i1,' to box%kvk_ijk')
+! ???        if(verbose) write(*,18)4320,jcat,vz
+! ********** I think this is wrong ??????????????????????????????
+!         if(verbose) write(*,18)4320,icat,vz
+!         box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
+!              ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+!
+      else
+!         write(*,99)jcat,vz,ijklz(jcat,vz,ia,ia),box%jvk_ji
+         if(verbose) &
+              write(*,99)icat,vz,ijklx(icat,vz,ia,ia),' in ivk_ij: ',box%ivk_ij
+         goto 500
+      endif
+! if savegamma allocated we must add terms to ivk_ijk
+      if(allocated(savegamma)) then
+         if(verbose) write(*,373)'case 2 use \gamma',size(savegamma),savegamma
+         do gg=1,size(savegamma)
+! mixed terms with \gamma should be added to ivk_ij
+            box%ivk_ij=[box%ivk_ij, ijklx(vz,savegamma(gg),ia,ia)]
+            box%all_ijk=[box%all_ijk, ijklx(vz,savegamma(gg),ia,ia)]
+!                  write(*,374)'3XQ added ij',savegamma(gg),vz
+!                  write(*,375)'ivk_ij ',box%ivk_ij
+         enddo
+         savegamma=[savegamma, vz ]
+      else
+! and we must add vz to savevz
+         savegamma=[ vz ]
+!        write(*,373)'savedgamma j ',size(savegamma),savegamma
+      endif
+!------------------------------------------------------ now savenu
+! savegamma is related to ij, maybe add denominator terms
+      if(allocated(savenu)) then
+         if(verbose) write(*,373)'case 2 use \nu',size(savenu),savenu
+         do gg=1,size(savenu)
+! the mixed terms with \nu should should be added to kvk_ijk
+            box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savenu(gg),ia,ia)]
+            box%all_ijk=[box%all_ijk, ijklx(vz,savenu(gg),ia,ia)]
+!                  write(*,374)'3XQ added kvk_ijk',savenu(gg),vz
+!                  write(*,375)'jvk_ji ',box%kvk_ijk
+         enddo
+      else
+! add vz to savenu
+         savenu=[ vz ]
+      endif
+! The asymmetric xi_ij is depend on y_ik update dxi_ij and dxi_ji
+! Hm, dxi_ji are just sums of y_ik?
+      do nnn=1,mqmqa_data%nquad
+         box%dxi_ij(nnn)=box%dxi_ij(nnn)+mqmqa_data%dy_ik(vz,nnn)
+      enddo
+      if(gx%bmperr.ne.0) then
+         write(*,*)'3XQ ijklx index error line 4578'
+         stop
+      endif
+!
+! endcases
+!-----------------------------------------------------------
+! *****************************************
+500 continue
+! maybe add code below ??
+! savenu and savegamma are needed for multiple asymmetries
+!      if(allocated(savenl cu)) then
+!         write(*,*)'3XQ line 4725 add mixed quades with savenu'
+!      endif
+!      if(allocated(savegamma)) then
+!         write(*,*)'3XQ line 4728 add mixed quades with savegamma'
+!      endif
+      if(verbose) then
+         write(*,505)'3XQ savenu:    ',savenu
+         write(*,505)'3XQ savegamma: ',savegamma
+505      format('3XQ maybe ',a,' cross terms:',10i3)
+      endif
+      goto 700
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! code below skipped but needed to integrate savenu and savegamma in vk_ij etc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! loops below now redundant when we added savevz loops above ..... ????
+! code handling kvk_ijk terms due to extra x_ii and x_jj in ivk_ij and jvk_ji
+! copied from end of calcasymvar to avoid it is repeted at all calculations
+! skip first ivk_ij
+      addkvkterm: do j=2,size(box%ivk_ij)
+         do k=1,size(mqmqa_data%emquad)
+            if(box%ivk_ij(j).eq.mqmqa_data%emquad(k)) then
+! we have an endmember quad in ivk_ij (in addition to the first)
+! Check if we have another endmember quad in jvk_ji, skip first jvk_ji
+               do l=2,size(box%jvk_ji)
+                  neverending: do m=1,size(mqmqa_data%emquad)
+                     if(box%jvk_ji(l).eq.mqmqa_data%emquad(m)) then
+                        if(k.ne.m) then
+! we have 2 different endmember quads in ivk_ij and jvk_ji, 
+! if the mixed quad is not alreay present add it
+                           ny=ijklx(k,m,ia,ia)
+                           do abrakadabra=1,size(box%kvk_ijk)
+! check if this quad not already in box_kvk_ijk
+                              write(*,*)'3XQ check duplicate line 4764 !!'
+                           enddo
+! add this quad !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                           box%kvk_ijk=[box%kvk_ijk, ijklx(k,m,ia,ia)]
+!                              write(*,806)i,k,m,ijklx(k,m,ia,ia)
+!                              write(*,805)'kvk_ijk ',box%kvk_ijk
+                        endif
+                     endif
+                  enddo neverending
+                  if(gx%bmperr.ne.0) then
+                     write(*,*)'3XQ ijklx index error line 4645'
+                     stop
+                  endif
+               enddo
+            endif
+         enddo
+      enddo addkvkterm
+805   format(a,20i3)
+806   format('3XQ adding mixed quad to kvk_ijk',i3,2x,2i3,2x,i3)
+! end copied code
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! currently skipping code above
+700      continue
+!
+   enddo bigloop
+!***********************************************************************
+!
+1000  continue
+   if(verbose) write(*,1010)emcat1,emcat2
+!   write(*,*)emcat1,emcat2
+1010 format('3XQ The binary ',2i2,' has made loop_all_ternaries')
+   return
+ end subroutine loop_all_ternaries
+            
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\begin{verbatim}
+ subroutine loop_all_ternaries_old(phres,box,verbose)
 ! Check asymmetries in all ternaries for cations in box 
 ! and initiate vk_ij if necessary
 ! save information in the binary box%ivk_ij and box%ix_ij
@@ -4179,7 +4483,7 @@
    type(gtp_allinone), pointer :: box,box1,box2
    integer, dimension(:), allocatable :: savenu
    integer, dimension(:), allocatable :: savegamma
-   integer haha,vz,toopel
+   integer haha,vz,toopel,toopem
    integer icat,jcat,ia,gg,t1
    integer mii,mij,mjj,new_toop,nnn
 !
@@ -4198,8 +4502,9 @@
    endif
 !
    ia=1
-   if(verbose) write(*,3)box%cat1,box%cat2,size(tersys)
-3  format('3XQ in loop_all_ternaries to set asymmetries',3i3)
+   if(verbose) write(*,3)box%cat1,box%cat2,&
+        allocated(savenu),allocated(savegamma)
+3  format(/'3XQ loop_all_ternaries to set asymmetries for box: ',2i3,2x,2l2)
 
 ! is tersys initiated?
 !   do t1=1,size(tersys)
@@ -4212,48 +4517,71 @@
 ! we assume KKK asymmetries are default
       if(verbose) write(*,4)t1,tersys(t1)%el,tersys(t1)%asymm
 !      write(*,4)t1,tersys(t1)%el,tersys(t1)%asymm
-4     format('3XQ line 4610 looop_all_ternaries ',i3,5x,3i3,' "',a,'"')
+4     format('3XQ line 4215 ternary ',i3,5x,3i3,' "',a,'"')
       if(tersys(t1)%asymm.eq.'KKK') then
+! no Toop element
          cycle bigloop
       endif
 !
       new_toop=index(tersys(t1)%asymm,'T')
 ! I assume there is just one T
-      if(new_toop.le.0 .or. new_toop.gt.3) cycle bigloop
-! the varkappa involved are those belonging to this ternar
+      if(new_toop.le.0 .or. new_toop.gt.3) then
+         write(*,*)'3XQ Asymmetric but no T: ',tersys(t1)%asymm,t1
+         stop 'fatal error'
+      endif
+! the varkappa involved are those belonging to this ternary
 ! asymmetries to the same box will be aded at several loops ...
       toopel=tersys(t1)%el(new_toop)
+      toopem=tersys(t1)%emquad(new_toop)
+! toopel is 1, 2 or 3
+! toopem is actual cation index 1..n
       vz=tersys(t1)%el(3)
       icat=box%cat1
       jcat=box%cat2
-! one must change new_toop to the cation index ...
-      if(verbose) write(*,5)icat,jcat,vz,new_toop,toopel
-! if toopel is part of this box change vk_ij oe vk_ji
-5     format('3XQ line 4600 icat,jcat,vz,new_toop,toopel ',5i4)
+! check if this box is involved in this ternary, is icat or jcat Toop?
+! toopem is the cation index ...
+      if(verbose) write(*,5)icat,jcat,vz,new_toop,toopel,toopem
+      if(icat.ne.toopem .and. jcat.ne.toopem) then
+!         if(verbose) &
+              write(*,*)'3XQ this ternary do not involve these varkappa'
+         cycle bigloop
+      endif
+! if toopel is part of this box change vk_ij or vk_ji
+5     format('3XQ line 4232 icat,jcat,vz: ',3i2,' new_toop,toopel, toopem ',3i3)
       if(toopel.eq.icat) goto 200
       if(toopel.ne.jcat) cycle bigloop
 !
-!      case(1) ! *************************************************
-! icat is asymmetric in box, save in jvk_ij and in savenu
+! here toopel is jcat, add x_jcat,vz and \nu
+! icat is asymmetric in this ternary, add terms in jvk_ij and in savegamma
+! addquad is FALSE if jcat,vz already in box%jvk_ji
+      if(addquad(box%jvk_ji, jcat,vz)) then
+         if(verbose) write(*,17)4239,jcat,vz, vz,vz, jcat,icat
+17       format('3XQ line ',i4,' x_',2i1,' and x_',2i1,' added to jvk_',2i1)
 ! an elegant Fortran assignment of an additional items in an allocatable
-      if(verbose) write(*,17)4629,jcat,vz
-17    format('3XQ line ',i5,' calling ijklx',2i4)
-      box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! Below quad fractions added to jvk_ij added to denominator, add ijklx(icat,vz
-      box%kvk_ijk=[box%kvk_ijk, ijklx(icat,vz,ia,ia)]
-      if(verbose) write(*,18)4634,icat,vz
-18    format('3XQ line ',i5,' added ijklx quads to box%kvk_ijk',2i4)
-      box%all_ijk=[box%all_ijk, ijklx(jcat,vz,ia,ia), &
-           ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+         box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+!-------------added to jvk_ji
+! quad fractions added to jvk_ij added also to denominator, add ijklx(icat,vz)
+!         if(verbose) write(*,18)4245,icat,vz
+18       format('3XQ line ',i5,' added x_',2i1,' to box%kvk_ijk')
+!         box%kvk_ijk=[box%kvk_ijk, ijklx(icat,vz,ia,ia)]
+!         if(verbose) write(*,18)4247,icat,vz
+!         box%all_ijk=[box%all_ijk, ijklx(jcat,vz,ia,ia), &
+!              ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+      else
+! skip adding to savenu and savegamma also
+         write(*,99)jcat,vz,ijklx(jcat,vz,ia,ia),' jvk_ji:',box%jvk_ji
+99       format('3XQ quad x_',2i1,' or ',i3,a,10i3)
+         goto 500
+      endif
 !      write(*,*)'3XQ line 4615 added quads to box%all_ijk'
 !
 ! savenu is cross terns related to ij, savegamma to ji  ---------------------
 !      write(*,*)'3XQ line 4617 check savenu'
-      if(allocated(savenu)) then
-         if(verbose) write(*,373)'case 1 use \nu',size(savenu),savenu
+      if(allocated(savegamma)) then
+         if(verbose) write(*,373)'jcat use \nu',size(savegamma),savegamma
 373      format('3XQ ',a,' mixed asymmetry terms',i3,': ',10i3)
          do gg=1,size(savenu)
-! the mixed terms with \nu should should be added to jvk_ji
+! the mixed terms with \gamma should should be added to jvk_ji
             box%all_ijk=[box%all_ijk, ijklx(vz,savenu(gg),ia,ia)]
 !                  write(*,374)'3XQ added ji',savenu(gg),vz
 !                  write(*,375)'jvk_ji ',box%jvk_ji
@@ -4305,14 +4633,25 @@
 200   continue
 ! jcat is asymmetric in box, same as for icat just change icat to jcat!!!!
 ! and save in jvk_ji ...
-      if(verbose) write(*,17)4692,icat,vz
-      box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+      if(addquad(box%ivk_ij, icat,vz)) then
+         if(verbose) write(*,27)4318, icat,vz, vz,vz, icat,jcat
+27       format('3XQ line ',i5,' adding x_',2i1,' and x_',2i1,' to ivk_',2i1)
+         box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 ! Nath noted missing  ijklx(vz1,vz2,ia,ia) if icat and jcat are asymmetrical
-      box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]
-      if(verbose) write(*,18)4696,icat,vz
-      box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
-           ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
+!         if(verbose) write(*,28)4322,jcat,vz
+!         box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)] ??????????
+28       format('3XQ line ',i5,' added x_',2i1,' to box%kvk_ijk')
+! ???        if(verbose) write(*,18)4320,jcat,vz
+! ********** I think this is wrong ??????????????????????????????
+!         if(verbose) write(*,18)4320,icat,vz
+!         box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
+!              ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
 !
+      else
+!         write(*,99)jcat,vz,ijklz(jcat,vz,ia,ia),box%jvk_ji
+         write(*,99)icat,vz,ijklx(icat,vz,ia,ia),' in ivk_ij: ',box%ivk_ij
+         goto 500
+      endif
 ! if savegamma allocated we must add terms to ivk_ijk
       if(allocated(savegamma)) then
          if(verbose) write(*,373)'case 2 use \gamma',size(savegamma),savegamma
@@ -4358,7 +4697,7 @@
 !-----------------------------------------------------------
 ! *****************************************
 500 continue
-! missing code below
+! maybe add code below ??
 ! savenu and savegamma are needed for multiple asymmetries
 !      if(allocated(savenl cu)) then
 !         write(*,*)'3XQ line 4725 add mixed quades with savenu'
@@ -4366,9 +4705,10 @@
 !      if(allocated(savegamma)) then
 !         write(*,*)'3XQ line 4728 add mixed quades with savegamma'
 !      endif
-      if(allocated(savenu) .or. allocated(savegamma) .or. verbose) then
-         if(verbose) write(*,505)allocated(savenu),allocated(savegamma)
-505      format('3XQ line 4750 missing cross terms to vk_ij and vk_ji? ',2l2)
+      if(verbose) then
+         write(*,505)'3XQ savenu:    ',savenu
+         write(*,505)'3XQ savegamma: ',savegamma
+505      format('3XQ maybe ',a,' cross terms:',10i3)
       endif
       goto 700
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4422,8 +4762,30 @@
 1000  continue
 !   write(*,*)'3XQ leaving loop_all_ternaries'
    return
- end subroutine loop_all_ternaries
+ end subroutine loop_all_ternaries_old
             
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable function addquad
+!\begin{verbatim}
+ logical function addquad(quadlist, jcat,vz)
+! This return TRUE if the quad with cations jcat, vz not in quadlist
+   implicit none
+   integer, allocatable, dimension(:) :: quadlist
+   integer jcat,vz,jj
+!\end{verbatim}
+   integer quad,ia
+   ia=1
+   addquad=.false.
+   quad=ijklx(jcat,vz,ia,ia)
+   do jj=1,size(quadlist)
+      if(quad.eq.quadlist(jj)) goto 1000
+   enddo
+   addquad=.true.
+1000 continue
+   return
+ end function addquad
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !\addtotable subroutine calcasymvar
@@ -6851,7 +7213,7 @@
    character*300 line1,line2,qline
    character*10 vk_val
    character*2, dimension(:), allocatable :: quadcat
-   integer nv,i0,ip,i,j,k
+   integer nv,i0,ip,i,j,k,q1,q2,q3
 !
    write(*,*)'3XQ in list_compvar'
    mqf=>phres%mqmqaf
@@ -6867,7 +7229,9 @@
       enddo
    enddo iniquadcat
    write(*,10)quadcat
-10 format('3XQ line 7339: ',20(a,' '))
+10 format('3XQ x_ij   : ',20(a,' '))
+   write(*,11)(i,i=1,size(quadcat))
+11 format('3XQ indices: ',20(i2,1x))
 !
 !
    vkloop2: do nv=1,size(mqf%compvar)
@@ -6914,6 +7278,45 @@
       write(*,106)'denom: = '//trim(qline)
 106   format(11x,a)
    enddo vkloop2
+!------------------------------ indices
+   write(*,200)
+200 format('3XQ same information using quad indices')
+   write(*,10)quadcat
+!10 format('3XQ line 7339: ',20(a,' '))
+   write(*,11)(i,i=1,size(quadcat))
+!11 format('3XQ indices  : ',20(i2,1x))
+!
+! repeat using quad fraction indices
+   vkloop3: do nv=1,size(mqf%compvar)
+      box=>mqf%compvar(nv)
+! ij
+      line1=' '
+      q2=1
+      do q1=1,size(box%ivk_ij)
+         write(line1(q2:q2+3),205)box%ivk_ij(q1)
+205      format('+',i3)
+         q2=q2+4
+      enddo
+      write(*,105)'vk_'//char(i0+box%cat1)//char(i0+box%cat2)//&
+           ' = ('//trim(line1)//')/denom'
+! ji
+      line2=' '
+      q2=1
+      do q1=1,size(box%jvk_ji)
+         write(line2(q2:q2+3),205)box%jvk_ji(q1)
+         q2=q2+4
+      enddo
+      write(*,105)'vk_'//char(i0+box%cat2)//char(i0+box%cat1)//&
+           ' = ('//trim(line2)//')/denom'
+! denom
+      qline=trim(line1)//trim(line2)
+      q2=len_trim(qline)+1
+      do q1=1,size(box%kvk_ijk)
+         write(qline(q2:q2+3),205)box%kvk_ijk(q1)
+         q2=q2+4
+      enddo
+      write(*,105)'      demom = '//trim(qline)
+   enddo vkloop3
 !
    return
  end subroutine list_compvar
