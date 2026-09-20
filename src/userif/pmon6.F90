@@ -1371,10 +1371,10 @@ contains
              call gparcdx('Verbose?',cline,last,1,ch1,'N','?Asymmetry modify')
              if(ch1.eq.'Y') then
                 call new_ternary_asym(asymter,new_toop,parres,.true.)
+                write(*,*)'MM back from new_ternary_asym'
              else
                 call new_ternary_asym(asymter,new_toop,parres,.false.)
              endif
-             write(*,*)'MM back from new_ternary_asym'
 ! repeat short listing the asymmetries, format label 3101 below
              write(*,3101)size(tersys)
              do iz=1,size(tersys)
@@ -4641,7 +4641,7 @@ contains
              endif
              call list_tersys
              call list_compvar(parres)
-             write(*,*)'MM more comming soon'
+!             write(*,*)'MM more comming soon'
           END SELECT listphase
 !------------------------------
 ! THIS IS ALSO THE SHOW command and list model-parameter-value case(17) of LIST

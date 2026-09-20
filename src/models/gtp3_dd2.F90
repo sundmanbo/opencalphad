@@ -1052,8 +1052,9 @@
 ! There are ncat*(ncat-1)*(ncat-2)/6 combinations with a single anion
 ! with 4 elements there are 4 ternaries: (1,2,3) (1,2,4) (1,3,4) (2,3,4)
 ! First ternary is 1-2-3, second is 1-2-4, third 1-3-4, fourth 2-3-4 etc
-     integer seq,el(3),emquad(3)
-! seq is ternary system index, el are quad indices, 
+     integer seq,el(3),emquad(3),noasym
+! seq is ternary system index, el are quad indices, emquad is cation index
+! noasym means the asymmetry cannot be changed
 ! I need to know quad index for endmember quad and vice versa ...
 ! In the ternary the binary order is 1-2, 1-3, 2-3.
 ! asymm is a simple way to specify the asymmetric element for each binary
@@ -1343,6 +1344,12 @@
 ! these are the indices to varkappa, xi and yik variables for this parameter
 ! The are used in the arrays in allinone and reflect asymmetries 
      integer alpha, beta, ternary
+! index in array tersys for MQMQA where the current parameter property is used
+! the y_ik index of the toop cation is saved in toop
+! both  are set at first calculation and initiated to zero here
+! tersysix:=-1 for a ternary parameter i-j-k with neither i or j as Toop
+!    otherwise toop is set to i or j and cat3 to the third element ... suck
+     integer :: tersysix=0, toop=0, cat3=0
 ! These are the powers for ij, ji and ternary expressions
      integer ppow, qpow, rpow
   END TYPE gtp_asymprop
@@ -1741,7 +1748,7 @@
      character*4, dimension(:), allocatable :: cations
 ! species index of anion ........... suck
      integer anionspix
-! emquad has indices of quads (i,i).  
+! emquad has indices of quads (i,i) with a single cation
 ! Index of a quad (i,j) where j>=i is emquad(i)+j-i
 !------------------------------------------------------ NEW
 ! I realize I need an array tranforming quad indices to compvar indices
@@ -1821,7 +1828,7 @@
      double precision, allocatable :: eqf2(:),deqf2(:,:),d2eqf2(:,:)
 ! Added for documentation 2026.08.07:
 ! The constituent indices of the varkappa_ij and xi_j are in con2quad ??
-! The constituent indices of the y_ik(1..ncat) variables are in emquads ??
+! The constituent indices of the y_ik(1..ncat) variables are in emquad ??
      character*24, allocatable :: names_y_ik(:)
      integer, allocatable :: spix_y_ik(:)
      integer, allocatable :: spqx_y_ik(:)

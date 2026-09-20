@@ -30,6 +30,21 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.09.20 version 6.130. Finally I think the ternary asymmetries in
+the MQMQA model has been mastered.  Please report errors or problems.
+It should be possible to set asymmetries also from a TDB file, either
+by the code T1T1K or TKK and similar for other asymmetries.
+Internally in OC the codes TKK, KTK or KKT are used.  They can also be
+set and listed manually, see previous parts of this documentation.
+
+I have started adding ternary parameters but there are complex
+problems handling these together with asymmetries.  Those who invented
+this model must have a larger brain than I have.
+
+In the previous version I also modeified the previous examples
+map18.OCM and map19.OCM to calculate a binary system using the MQMQA
+model.
+
 2026.09.05 version 6.129. The previous version was a bit too
 enthusiastic about adding asymmetries to the MQMQA model.  This
 has been fixed but as I find the asymmetry algorithm impossible
