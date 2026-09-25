@@ -1060,16 +1060,18 @@
 ! asymm is a simple way to specify the asymmetric element for each binary
      character*3 asymm  !  KKK: totally symmetrical
 ! Use asymm for a text T1, T2 and T3 where the digit is the asymmetric element
-! DO NOT USE THIS OLD original idea 
-!       TKK: element 3 is asymmetrical in 1-2 but 1-3 and 2-3 are symmetrical
-!       KTK: element 2 is asymmetrical in 1-3 but 1-2 and 1-3 are symmetrical
-!       KKT: element 1 is asymmetrical in 2-3 but 1-2 and 1-3 are symmetrical
+! USE THIS OLD original idea 
+!       TKK: element 1 is asymmetrical in 1-2 and 1-3 but 2-3 is symmetrical
+!       KTK: element 2 is asymmetrical in 1-2 and 2-3 but 1-3 is symmetrical
+!       KKT: element 3 is asymmetrical in 1-3 and 2-3 but 1-2 is symmetrical
 ! The asymmetry set by database, used to initiate isasym and kept for backup
 ! for simple check of asymmetry of an element use this array
 ! if all isasym=0 no asymmetry, isasym(1, 2, 3) is 1, 2 or 3 (not very smart)
 !         aymmetric element index (element index change for different systems)
-     integer isasym(3) ! isasym(1,2,3) initially 0 but can be set to 1, 2 o 3
+     integer isasym(3) ! isasym(1,2,3) initially 0.  Set to 1 for Toop cation
      integer binsys(3) ! index of the 3 compvar records for the binaries
+! lastupdate initially 0 and incremented anytime this ternary change asymmetri
+     integer :: lastupdate=0
 ! to indicate the (only!) asymmetric constituent.
 ! This is in the tersys array
 !

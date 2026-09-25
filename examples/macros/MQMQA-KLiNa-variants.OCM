@@ -1,0 +1,146 @@
+@$ Attempt to verify some OC calculations
+
+@$ ../../../../OC/OC7/oc6D
+
+new Y
+
+set echo Y
+
+@$ Using csv files at by Agustin
+
+@$ ------------------------------------------------
+@$ IMPORTANT set the path here as working directory
+@$ ------------------------------------------------
+
+r t ./MQMQA-KLiNACl
+K Li Na Cl
+
+
+l d
+
+
+@$
+@$ All tpfuns for the excess parameters are zero meaning an ideal system
+@&
+
+set st ph *=sus
+set st ph mscl=e 1
+set c t=1000 p=1e5 n(k)-n(li)=0 n(na)=0.5  n(k)+n(li)+n(na)=1 ac(cl)=1
+
+c e
+
+l r 2
+
+
+@&
+
+set ax 1 n(na) 0 1 .01
+
+
+step
+
+@$ plot of the Gibbs energy
+plot
+n(na)
+y(ms,*)
+text 0.1 0.7 1 0 K-Li-Na system when ideal and no asymmetries
+
+
+
+@$
+@$ Variation of the constituent fraction when K and Li have equal amount
+@$ and Na varies from 0 to 1
+@$ This is without any excess parameters
+@&
+
+@$ plot of the constitution
+plot
+n(na)
+y(ms,*)
+text 0.1 0.7 1 0 K-Li-Na system when ideal and no asymmetries
+text N 0.1 0.6 1 0 Symbols are from a FactSage calculation
+append ./Y_KLi-Na_Id_Kohl.csv
+
+
+@$
+@$ The symbols are from a FactSage calculations with same system and parameters
+@&
+
+
+@$ Now we add an excess parameter K1Li0=-25000 
+
+am tp LKLI10 , -25000; ,,,,,,,
+
+l tp
+
+
+@$
+@$ Next step to make the same step calculation
+@&
+
+c e
+l r 2
+
+step N
+Y
+
+@$ plot of the constitution
+plot
+n(na)
+y(ms,*)
+text 0.1 0.7 1 0 K-Li-Na system with K1Li0= -25000 and no asymmetries
+append ./Y_KLi-Na_K1Li0-50000_Kohl.csv
+
+
+
+@$
+@$ The symbols are from a FactSage calculation with the same parameters
+@$set inter
+@&
+
+
+
+@$ Now set asymmetry with K as asymmetric cation
+@$ OC asks for ternary index and the index, 1, 2 or 3 of cation inside ternary
+
+am ph ms asym
+1
+3
+Y
+
+
+@$
+@$ The verbose option lists the varkappa variables
+@&
+
+list ph ms varkappa
+
+
+@$
+@$ There is a separate command to list the asymmetric varkappa
+@&
+
+
+c e
+l r 2
+
+@$ Step with same axis, delete previous results
+
+step N
+Y
+
+
+@$ plot of the constitution
+plot
+n(na)
+y(ms,*)
+text 0.1 0.7 1 0 K-Li-Na system with K1Li0= -25000 and Na as Toop
+append ./Y_KLi-Na_K1Li0-50000_Toop-Na.csv
+
+
+@$
+@$ It seems the asymmetry wrt Na does not have much effect
+@$ The symbols are from a FactSage calculation with the same parameters
+
+set inter
+

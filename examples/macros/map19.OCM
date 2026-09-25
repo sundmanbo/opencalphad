@@ -85,7 +85,16 @@ set ax 2 T
 @&
 
 map
+Y
 
+
+
+@$
+@$ This mapping fails, to be investigated later
+
+set inter
+
+@&
 
 plot
 x(*,mg)

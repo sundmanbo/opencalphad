@@ -555,9 +555,9 @@ debug symbol tc(bcc) 1033.90240
 @$ =================================================================
 @$ 2026-03-19 with OC6-108
 @$ on my Mac Pro with 14 threads calculating 400 equilibria
-@$   0.4 seconds CPU and 410 clockcykles with  1 thread
-@$   0.8 seconds CPU and  71 clockcykles with 14 threads, 
-@$                       factor 5.77 faster 
+@$   0.39 seconds CPU and 393 clockcycles with  1 thread
+@$   0.65 seconds CPU and  55 clockcycles with 14 threads, 
+@$   7.1 faster clocktime as it can use several CPU in parallel
 @$ =================================================================
 @$  end of parallel2 macro
 @$ =================================================================
@@ -584,19 +584,19 @@ set inter
 @$ ==============================================
 @$ Running OC6-14 2020-10-04 looping  "c a n 10"
 @$ on my DELL 5511 Latitude with Intel core i7-1085H 10 gen 2.27 GHz, 16 GB RAM
-@$   6.94 seconds CPU and 6938 clockcykles with  1 thread
-@$  12.97 seconds CPU and 1234 clockcykles with 12 threads, factor 5.62 faster 
+@$   6.94 seconds CPU and 6938 clockcycles with  1 thread
+@$  12.97 seconds CPU and 1234 clockcycles with 12 threads, factor 5.62 faster 
 @$ New DELL is 1.48 times faster than the old DELL (single CPU)
 @$ New DELL is 1.97 times faster than the MAC  (single CPU)
 @$ ==============================================
 @$ Running OC6-28 2021-05-08 looping  "c a n 10"
 @$ on my DELL 5511 Latitude with Intel core i7-1085H 10 gen 2.27 GHz, 16 GB RAM
-@$   8.16 seconds CPU and 8156 clockcykles with  1 thread
-@$  18.83 seconds CPU and 1671 clockcykles with 12 threads, factor 4.88 faster 
+@$   8.16 seconds CPU and 8156 clockcycles with  1 thread
+@$  18.83 seconds CPU and 1671 clockcycles with 12 threads, factor 4.88 faster 
 @$ ==============================================
 @$ Running OC6-108 2026-03-19 
 @$ on my Mac Pro with 14 threads calculating 400 equilibria
-@$   0.4 seconds CPU and 410 clockcykles with  1 thread
-@$   0.8 seconds CPU and  71 clockcykles with 14 threads, factor 5.77 faster 
+@$   0.4 seconds CPU and 410 clockcycles with  1 thread
+@$   0.8 seconds CPU and  71 clockcycles with 14 threads, factor 5.77 faster 
 @$ ==============================================
 

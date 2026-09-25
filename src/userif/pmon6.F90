@@ -5514,7 +5514,7 @@ contains
 3201               format(i3,i5,2x,3(1x,i4),2x,3(1x,i3),3x,3i4,5x,a)
                 enddo
                 write(*,3301)
-3301 format('Number in T/0 column is actual asymmetric cation'/)
+3301 format('A number 1 in T/0 column indictate asymmetric cation'/)
              else
                 write(kou,*)'No ternary asymmetry data allocated'
              endif ts
@@ -8103,7 +8103,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT APPEND a gnuplot file or csv file
        case(12)
-          write(kou,*)'Give a file name with graphics in GNUPLOT or csv format'
+          write(kou,*)'Give a file name with graphics in .plt or .csv format'
 ! append plot file, specifying extension PLT
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=XTDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
@@ -8117,29 +8117,33 @@ contains
           call gparfilex('File name',cline,last,1,filename,'  ',ztyp,&
                '?Plot append')
 !          endif
-! check file exits, convert csv to plt, and add .plt if necessary ...
+! check file exits, convert .csv to .plt, and add .plt if necessary ...
           jp=max(index(filename,'.csv '),index(filename,'.CSV '))
           write(*,*)'Full file name: ',trim(filename)
           if(jp.gt.0) then
-! the csv file must be converted to a plt file ------------- csv special begin
+! A csv file must be converted to a plt file ------------- csv special begin
 ! default separator in FactSage is ";"
              ch1=';'
              call gparcdx('Separating character (, ; or ?)',cline,last,&
                   1,ch1,';','?CSV separator')
              write(*,21205)trim(filename)
 21205        format(/'Converting csv file: ',a,' to csvappend.plt')
+!             write(*,*)'MM trying to open ',trim(filename)
              open(23,file=filename,status='old',access='sequential',err=21300)
+!             write(*,*)'MM success opening ',trim(filename)
 ! First column is x-axis, the remaining columns are y-axis
-!             write(*,*)'Converting CSV file to GNUPLOT file: csvappend.plt'
 ! create a new file for the GNUPLOT, overwrite any old
              open(31,file='csvappend.plt',status='unknown',access='sequential',&
-                  err=21300)
+                  err=21305)
+!             write(*,*)'MM Opened temporary file csvappent.plt'
 ! write header
 ! FactSage: x LiF;K-K-F-F;Li-Li-F-F;Th-Th-F-F;K-Li-F-F;K-Th-F-F;Li-Th-F-F
 ! 0.02;0.027281;7.84E-05;0.33126;0.0028241;0.62185;0.016708
 ! "N(LI)","Y(LIQUID,..-Q02)","Y(LIQUID,..-Q04)","Y(LIQUID,..-Q06)","Y(LIQUID,..-Q01)","Y(LIQUID,..-Q05)","Y(LIQUID,..-Q03)"
 !  2.00000E-01,  2.31701E-02,  3.51556E-02,  5.35191E-01,  1.20145E-02,  1.72251E-01,  2.22218E-01
-             read(23,21210,end=21300)string
+!             j5=1
+!             read(23,21210,end=21320)string
+!             write(*,*)'MM read first line of ',trim(filename)
 21210        format(a)
              call date_and_time(optres,name1)
              write(31,21220)trim(filename),optres(1:4),optres(5:6),&
@@ -8153,6 +8157,7 @@ contains
                   'set size   1.0, 1.0'//&
                   '$OCCSV2502000 << EOD')
 ! on the second line to the last one are values to be plotted as symbols
+!             j5=j5+1
              read(23,21210,end=21250)string
 !             write(*,*)'Read line 2: ',trim(string)
              ioc=1; ip=1; jp=1
@@ -8206,7 +8211,7 @@ contains
              filename(jp+1:)='.plt'
           endif
 ! test file exists by opening and closing it
-          open(23,file=filename,status='old',access='sequential',err=21300)
+          open(23,file=filename,status='old',access='sequential',err=21330)
           close(23)
           graphopt%appendfile=filename
           goto 21100
@@ -8216,9 +8221,22 @@ contains
              write(*,21304)trim(graphopt%appendfile)
 21304        format('Error, removing append file: ',a)
           else
-             write(kou,*)'No such file name: ',trim(filename)
+             write(kou,21303)trim(filename)
+21303        format('Error opening file: ',a/'Maybe path or "./" missing?: ')
           endif
           graphopt%appendfile=' '
+          goto 21100
+21305     continue
+          write(*,21306)
+21306     format('Error opening csvappend.plt file')
+          goto 21100
+!21320     continue
+!          write(*,21321)j5,trim(filename)
+!21321     format('Error reading line ',i5,' of file ',a)
+!          goto 21100
+21330     continue
+          write(*,21331)trim(filename)
+21331     format('Error opening file, maybe missing path or "./" ? ',a)
           goto 21100
 !-----------------------------------------------------------
 ! PLOT TEXT anywhere on plot

@@ -30,6 +30,12 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.09.25 version 6.131. There are some problems calculating the
+older examples with the MQM model so they are temporarily removed.
+Hopefully they can be restored when the work on the MQMQA model is
+finished.  The work on adding ternary parameters is still not finished
+and testing asymmetries is ongoing.
+
 2026.09.20 version 6.130. Finally I think the ternary asymmetries in
 the MQMQA model has been mastered.  Please report errors or problems.
 It should be possible to set asymmetries also from a TDB file, either

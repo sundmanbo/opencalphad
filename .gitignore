@@ -15,6 +15,8 @@
 *~
 *.txt
 .*
+oc6*
+liboc*
 README-old.md
 examples/macros/crfemo-1400-leftcorner.pdf
 examples/macros/square.pdf

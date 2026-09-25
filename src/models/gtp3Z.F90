@@ -213,6 +213,11 @@
          endif
          ns=ns+1
       enddo
+      if(lrot.le.0 .or. nr.le.0) then
+! In 2026 this error started appear ... due to an error in a TDB file
+         gx%bmperr=4578
+         goto 900
+      endif
       exprot=>tpfuns(lrot)%funlinks(nr)
       call ct1efn(exprot,tpval,result,tpres)
    endif
