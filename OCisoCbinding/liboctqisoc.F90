@@ -1228,7 +1228,7 @@ contains
     character(len=:), allocatable :: ext
     ext='.tdb'
     fstring = c_to_f_string(tdbfile)
-    call checkdb(fstring,ext,nel,selel)
+    call checkdb2(fstring,ext,nel,selel)
     c_nel = nel
     do i = 1, nel
        cnames(i) = trim(selel(i)) // c_null_char
