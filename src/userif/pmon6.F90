@@ -1325,27 +1325,28 @@ contains
                 call gparcdx('Do you want to remove asymmetry?',cline,last,1,&
                      ch1,'Y','?Asymmetry modify')
                 if(ch1.eq.'Y') then
-                   write(*,*)'Sorry, not allowed'
-                   goto 100
-! dummy code here
+!                   write(*,*)'Sorry, not allowed'
+!                   goto 100
+! remove asymmetry
                    tersys(asymter)%asymm='KKK'
                    new_toop=0
-! debug output
-                   write(*,3101)size(tersys)
-! Labels 3101 and 3201 appear below for same output
-                   do iz=1,size(tersys)
-                write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-                     tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
-                   enddo
-                   goto 3122
-                else
-                   write(*,3125)
-                   last=len(line)
+!                   call new_ternary_asym(asymter,new_toop,parres,.true.)
+                   call new_ternary_asym(asymter,new_toop,parres,.false.)
                    goto 100
+! redundant code from when it was a problem removing asymmetry
+!                   write(*,3101)size(tersys)
+! Labels 3101 and 3201 appear below for same output
+!                   do iz=1,size(tersys)
+!                write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
+!                     tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
+!                   enddo
+!                   goto 3122
+!                else
+!                   write(*,3125)
+!                   last=len(line)
+!                   goto 100
                 endif
              endif
-!
-!             write(*,*)
 ! set isasym zero
              call list_ternary_cations(asymter,new_toop,parres)
              write(*,414)

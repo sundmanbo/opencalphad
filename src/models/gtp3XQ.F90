@@ -2549,8 +2549,9 @@
 !           xq * (vk_ij**pp) * qq*(vk_ji**(qq-1))*dvk_ji/dxz * param +
 !           dxq/dxz * (vk_ij**pp) * (vk_ji**qq) * param 
 !
+! Claude 2026.09.28: vk_ij**0 is a constant, its derivative is zero
                if(ppow.eq.0) then
-                  dterm1=term2
+                  dterm1=zero
                elseif(ppow.eq.1) then
                   dterm1=dvkijz(1,zkij) * term2
                else
@@ -2559,7 +2560,7 @@
 ! dvkijz(1,zkij) is dvk_ij/dxz and 
 ! dvkijz(2,zkij) is dvk_ji/dxz
                if(qpow.eq.0) then
-                  dterm2=term1
+                  dterm2=zero
                elseif(qpow.eq.1) then
                   dterm2=term1*dvkijz(2,zkij)
                else
@@ -2699,6 +2700,31 @@
 ! to all quad fractions.  Many of them will be zero
 !\end{verbatim}
 !
+! The independent variables ar x_ij
+! A parameter is multiplied with 3 factors: x_ij * vk_ij**p * vk_ji**q
+! where vk_ij and vk_ji are:
+!
+!          \sum_kl ivk_kl * x_kl
+! vk_ij = ------------------------
+!                denom
+!          \sum_kl jvk_kl * x_kl
+! vk_ji = ------------------------
+!                denom
+!
+! denom = vk_ij+vk_ji+extra
+!
+! and p and q are integers which can be 0 or positive
+!
+! the values of x_ij are xquad(1..n),  n is the number of independent fractions
+!
+! In the mqf%box(1..m) where m=n*(n-1)/2        3*2/2 =3, 4*3/2=6
+!
+! there is arrays box%ivk(a), ivk_ij(a), jvk_ji(b) and kvk_ijk(c) (denom above)
+! with the coefficients to calculate vk_ij, vk_ji and denom.
+! It can be a single value or several
+! This routine should calculate the derivatives of the 3 factors
+! with respecet to all independent and return them in dvijk
+
 ! Looking for errors in ternaries, suspect missing derivative wrt
 ! derivatives of quad fraction in denominator _kvk not included !!!???
 ! df/dx = -nominator/denominator**2 = -g/h**2
@@ -2719,6 +2745,7 @@
 !
 ! This routine calculates both d(vk_ij)/dx and d(vk_ji)/dx   
 ! with respect to all quadrupole fractions
+! the logicals mqmqder are for debugging
 ! 
    dvkijk=0.0d0
 !
@@ -2861,39 +2888,35 @@
 ! the derivarive value g=sumi/sumk; h=sumj/sumk;  di and dj can be zero  
 ! the derivarive value dj*sumi-di*sumj
 ! 
+! Claude 2026.09.27: box%all_ijk is not updated by loop_all_ternaries when
+! there are asymmetries, use the same denominator as varkappa1:
+! sum of ivk_ij, jvk_ji and kvk_ijk
+   sumk=sumi+sumj
+   do kk=1,size(box%kvk_ijk)
+      sumk=sumk+mqf%xquad(box%kvk_ijk(kk))
+   enddo
    if(sumk.eq.zero) then
       write(*,*)'3XQ line 2691, division by zero, check source code!!!'
       sumk=1.0d0
    endif
-! Attempt 2026.03.29 to fix problem derivatives wrt fractions in denomonator
-!
-! the derivatives are calculated here, dg/dx and dh/dx is 0 or 1
-! derivative of a quotient  d(g/h) = 1/h*(dg/dx) - (g/h**2)*dh/dx
-!
-! the denominatorof a vk_ij contains all quads
-   dijk=1.0d0
-   loopdenom: do kk=1,size(box%all_ijk)
-! all quads in the vk are present in the denominator
-      ijkl=box%all_ijk(kk)
-      checknom1: do ii=1,size(box%ivk_ij)
-         if(box%ivk_ij(ii).eq.ijkl) then
-            dvkijk(1,ijkl)=(sumk - sumi*dijk)/sumk**2
-         else
-            dvkijk(1,ijkl)= -sumi*dijk/sumk**2
-         endif
-      enddo checknom1
-      checknom2: do ii=1,size(box%jvk_ji)
-! do not use dgij and dgji are 0 or 1 depending on quads in vk_ij or vk_ji
-         if(box%jvk_ji(ii).eq.ijkl) then
-            dvkijk(2,ijkl)=(sumk - sumj*dijk)/sumk**2
-         else
-            dvkijk(2,ijkl)= - sumj*dijk/sumk**2
-         endif
-      enddo checknom2
-!
-!      write(*,69)cxq,ijkl,dvkijk(1,ijkl),dvkijk(2,ijkl)
-69    format('3XQ dvk(',i2,')_ij&_ji/dq(',i2,') = ',2(1pe12.4))
-   enddo loopdenom
+! d(vk_ij)/dx_q = (n_ij(q) - vk_ij*n_den(q))/sumk where n_ij(q) is how often
+! x_q is in ivk_ij and n_den(q) how often it is in ivk_ij+jvk_ji+kvk_ijk
+! Accumulate with += so a quad occurring several times is handled correctly
+   do kk=1,size(box%ivk_ij)
+      ijkl=box%ivk_ij(kk)
+      dvkijk(1,ijkl)=dvkijk(1,ijkl)+1.0d0/sumk-sumi/sumk**2
+      dvkijk(2,ijkl)=dvkijk(2,ijkl)-sumj/sumk**2
+   enddo
+   do kk=1,size(box%jvk_ji)
+      ijkl=box%jvk_ji(kk)
+      dvkijk(1,ijkl)=dvkijk(1,ijkl)-sumi/sumk**2
+      dvkijk(2,ijkl)=dvkijk(2,ijkl)+1.0d0/sumk-sumj/sumk**2
+   enddo
+   do kk=1,size(box%kvk_ijk)
+      ijkl=box%kvk_ijk(kk)
+      dvkijk(1,ijkl)=dvkijk(1,ijkl)-sumi/sumk**2
+      dvkijk(2,ijkl)=dvkijk(2,ijkl)-sumj/sumk**2
+   enddo
    if(mqmqder) then
       write(*,70)ijkl,sumi,sumj,sumk,&
            dvkijk(1,ijkl),dvkijk(2,ijkl)
@@ -4430,16 +4453,22 @@
    verbose=xverbose
    if(verbose) write(*,*)'3XQ in new_ternary_asymmetry',asymter,new_toop
    asymmetric='KKK'
-   if(new_toop.lt.1 .or. new_toop.gt.3) then
-      write(*,*)'3XQ new_ternary_asymmetry illegal Toop',new_toop
-      goto 1000
-   endif
-   asymmetric(new_toop:new_toop)='T'
-   ia=1
-   mqf=>phres%mqmqaf
    t1=asymter
+   if(new_toop.lt.1 .or. new_toop.gt.3) then
+!      write(*,*)'3XQ new_ternary_asymmetry illegal Toop',new_toop
+!      goto 1000
+! Attempt to allow remove asymmetry
+      asymmetric='KKK'
+      tersys(t1)%isasym(1)=0
+      tersys(t1)%isasym(2)=0
+      tersys(t1)%isasym(3)=0
+   else
+      asymmetric(new_toop:new_toop)='T'
+      tersys(t1)%isasym(new_toop)=1
+   endif
+   mqf=>phres%mqmqaf
+   ia=1
    tersys(t1)%asymm=asymmetric
-   tersys(t1)%isasym(new_toop)=1
 !
    if(verbose) write(*,17)t1,tersys(t1)%asymm,tersys(t1)%isasym
 17 format('3XQ line 4264 in_new_ternary_asym ',i3,'  "',a,'" ',3i3)
@@ -4631,7 +4660,9 @@
       mixed1b: do myx=mix+1,size(this_ij)
 ! if there are 2 or more ternaries with toop ... add their mixed quadruplets
          elm=this_ij(myx)
-         if(addcat(this_ij, elm)) then
+! Claude 2026.09.28: elm is taken from this_ij so addcat(this_ij,elm) was
+! always false and x_elk,elm never added.  Check the quad list instead.
+         if(addquad(box%ivk_ij, elk, elm)) then
             box%ivk_ij=[box%ivk_ij, ijklx(elk,elm,ia,ia)]
          endif
       enddo mixed1b
@@ -4643,7 +4674,7 @@
       mixed2b: do myx=mjx+1,size(this_ji)
 ! if there are 2 or more ternaries with toop ... add their mixed quadruplets
          elm=this_ji(myx)
-         if(addcat(this_ji, elm)) then
+         if(addquad(box%jvk_ji, elk, elm)) then
             box%jvk_ji=[box%jvk_ji, ijklx(elk,elm,ia,ia)]
          endif
       enddo mixed2b

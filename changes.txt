@@ -30,6 +30,10 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.09.25 version 6.132. With the help of AI Claude I fixed some
+problems ith derivatives of excess parameters combined with asymmetric
+relations. It should now be possinle to calculate such systems also.
+
 2026.09.25 version 6.131. There are some problems calculating the
 older examples with the MQM model so they are temporarily removed.
 Hopefully they can be restored when the work on the MQMQA model is
