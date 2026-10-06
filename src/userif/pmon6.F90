@@ -5618,7 +5618,8 @@ contains
                   '3 debug reading TDB'/&
                   '4 debug parameter calculation'/&
                   '5 debug partial derivative calculation'/&
-                  '6 verbose listing of asymmetries')
+                  '6 verbose listing of asymmetries'/&
+                  '7 debug ternary')
              call gparidx('Set mqmqa debug?',cline,last,i1,i2,'?MQMQA debug')
              mqmqdebug=.false.
              mqmqdebug2=.false.
@@ -5626,6 +5627,7 @@ contains
              mqmqxcess=.false.
              mqmqder=.false.
              mqverbose=.false.
+             mqter=.false.
              if(i1.eq.1) then
 ! asymmetry debug
                 mqmqdebug=.true.
@@ -5643,6 +5645,9 @@ contains
              elseif(i1.eq.6) then
 ! partial derivative debug
                 mqverbose=.true.
+             elseif(i1.eq.6) then
+! ternary debug
+                mqter=.true.
              endif
 !
 !...........................................................
@@ -5673,8 +5678,8 @@ contains
 !...........................................................
 ! LIST ASYMMETRIES
           case(6)
-!             write(kou,*)'Not implemented yet'
-             call  list_asymmetries(parres)
+             write(kou,*)'Use LIST PHASE ... MQMQA_VARIABLES'
+!             call  list_asymmetries(parres)
           end SELECT mqmqa
 !------------------------------ end list mqmqa_specials
 ! LIST ESTIMATE_ACCURACY.  Additional calculations are made
@@ -6579,6 +6584,13 @@ contains
 !------------------------------
 ! debug free lists
        CASE(1)
+! testing quads to cats
+          call gparidx('Quad index',cline,last,i1,i2,'?MQMQA debug')
+          write(*,*)'MM i1, i2=',i1,i2
+          call quad2cat(i1,i2,iphl)
+          write(*,*)'MM ',i1, i2, iphl(1), iphl(2)
+          goto 100
+! original code below          
           write(*,*)'Check components masses'
           call compmassbug(ceq)
 !          write(*,*)'Calculating equilibrium record size'

@@ -30,6 +30,11 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.10.06 version 6.133. Testing and cleaning up the code and before
+taking the next step to integrate ternary MQMQA parameter I want to
+save this version.  Binary parameters and asymmetries seems to be
+correct now.
+
 2026.09.25 version 6.132. With the help of AI Claude I fixed some
 problems ith derivatives of excess parameters combined with asymmetric
 relations. It should now be possinle to calculate such systems also.

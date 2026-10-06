@@ -151,6 +151,7 @@
 ! 2018.03.02 Release version 5
 ! 2020.03.12 Release version 6
 ! 2025.11.09 Still updating version 6 
+! 2026.xx.yy Still updating version 6 
 !---------------------------------------------------------------------------
   character (len=64), dimension(4000:nooferm) :: bmperrmess
 ! The first 30 error messages mainly for TP functions
@@ -1028,7 +1029,10 @@
      integer status,antalint,order
      TYPE(gtp_property), pointer :: propointer
      TYPE(gtp_interaction), pointer :: nextlink,highlink
-     TYPE(gtp_tooprec), pointer :: tooprec
+! A ternary MQMQA excess should have the index of the ternary record 
+     TYPE(gtp_tooprec), pointer :: tooprec   ! should be removed
+! A ternary MQMQA excess record should have index of tersys ecord in %asymmprop
+!     integer tersyslink
      integer, dimension(:), allocatable :: sublattice,fraclink,noofip
   END TYPE gtp_interaction
 ! allocated dynamically and linked from endmember records and other
@@ -1175,6 +1179,8 @@
   logical mqmqdebug,mqmqdebug2
   logical :: mqmqder=.false.
   logical :: mqverbose=.false.
+! ternary calculations
+  logical :: mqter=.false.
 ! this is explicitly set .false. in pmon6.F90 for the NEW command
   logical :: mqmqa_multival=.false.
 ! When .TRUE., mqmqa_species rejects a 2-cation quad only if the same
@@ -1226,7 +1232,7 @@
 !************ this record is not used with new mqmqa excess
   INTEGER, parameter :: gtp_tooprec_version=1
   TYPE gtp_tooprec
-! THIS IS SUPERSSEDED BY THE ASYMMETRY RECORD
+! THIS IS SUPERSSEDED BY THE ASYMMETRY RECORD and TERSYS array
 ! This is used for a binary interaction parameter in Kohler/Toop ternaries
 ! to specify the third constituents involved in extrapolations
 ! These records form a linear list for each phase and are also
@@ -1351,7 +1357,11 @@
 ! both  are set at first calculation and initiated to zero here
 ! tersysix:=-1 for a ternary parameter i-j-k with neither i or j as Toop
 !    otherwise toop is set to i or j and cat3 to the third element ... suck
-     integer :: tersysix=0, toop=0, cat3=0
+!     integer :: tersysix=0, toop=0, cat3=0
+     integer :: tersysix=0, toop=0, tcat=0
+! index in tersys array for a ternary parameter to know any asymmetry
+! this index is also in intrec as I am not sure how I can access it
+     integer :: tersyslink=0
 ! These are the powers for ij, ji and ternary expressions
      integer ppow, qpow, rpow
   END TYPE gtp_asymprop
@@ -1809,6 +1819,9 @@
 ! y_ik are the fraction of each cation (in which order?)
   double precision, dimension(:), allocatable :: y_ik
 ! These are the factors of the x_ij needed to calculate y_ik
+! these are dy_ik in mqmqa_data%dy_ik
+! To calculate xi_ij and xi_ji use compvar(cxq)%dxi_ij and dxi_ji
+! xi_ij and xi_ji are affected by asymmetries !!
 ! y_ik(i,j) = 0.5*x_ii + (\sum_j 0.5*x_ij)  j loops for all i, x_ij not vk_ij!!
 !  double precision, dimension(:,:), allocatable :: y_ikfact
 !  double precision, dimension(:,:), allocatable :: dy_ik  ! in gtp_mqmqa

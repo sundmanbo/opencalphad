@@ -3930,13 +3930,20 @@
    type(gtp_interaction), pointer :: intrec,lastint,newintrec,linktohigh
    type(gtp_interaction), pointer :: temp
    type(gtp_property), pointer :: proprec,lastprop,savedproplink
-   integer ii,ij,mint,sem,level,first,parquad(5)
+! mqconst should include all constituents involved in the interaction
+   integer ii,ij,mint,sem,level,first,parquad(5),mqconst(10),tersyslink,cation
 ! The mqmqa excess has no degree and minimum 3 constituents in addition
 ! to the enemember.  Two or 3 of these are A/X type and one AB/X type
 ! there can be several property records to a single excess record
 !
 ! jord(1,...) are sublattices, MQMQA has only one sublattice
 ! jord(2,...) are constituents nint is number of interactions
+!
+! mqconst should have constituent indices to handle ternary asymmetries in mqmqa
+   mqconst(1)=nint
+   do mint=1,nint
+      mqconst(mint+1)=jord(2,mint)
+   enddo
 !
    mint=0
    sem=endmemrec%fraclinks(1,1)
@@ -4203,6 +4210,23 @@
          endif data2
       endif order
    endif findint
+! for ternary MQMQA parameter add link to tersys to simplify calculations
+   if(.not.allocated(tersys)) then
+      write(*,900)
+900   format('3B The tersys array not allocated')
+   else
+      tersyslink=0
+      call mqmqa_add_tersys_link(lokph,intrec,mqconst,tersyslink,cation)
+! add this index both to intrec and proprec ,,,,
+      if(tersyslink.gt.0) then
+!         intrec%tersyslink=tersyslink
+         proprec%asymdata%tersyslink=tersyslink
+!         proprec%asymdata%cat3=cation
+         proprec%asymdata%tcat=cation
+         write(*,905)tersyslink,cation
+905      format('3B added link ',i3,' to ternary array with cation',i3)
+      endif
+   endif
 !   write(*,*)'3B we are here!',associated(intrec),mint,nint,jord(2,1:nint)
 !
 1000 continue
@@ -4253,7 +4277,7 @@
 ! if there is a ternary c/X quad this is the index to the y_ik fraction
    asymdata%ternary=1
 ! powers already set  ??
-!   write(*,200)asymdata%ppow,asymdata%qpow,asymdata%rpow
+   write(*,200)asymdata%ppow,asymdata%qpow,asymdata%rpow
 200 format('3B powers: ',3i3)
 !
 1000 continue

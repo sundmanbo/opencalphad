@@ -4017,7 +4017,7 @@
 ! if mqmqa not .TRUE. the phase is not selected
          mqmqa=.TRUE.
          mqmqx=.TRUE.
-         write(*,*)'3E line 4018 phype "',phtype,'"'
+!         write(*,*)'3E line 4018 phype "',phtype,'"'
       endif
 ! check if phase rejected
 !      write(*,*)'3E number of phases rejected: ',nphrej
@@ -5583,14 +5583,15 @@
 ! mqmqx set line 4016 ?
    if(addternaryxpol .or. mqmqx) then
 ! ntxp may be zero here ....
-      write(*,'(a,i3)')'3E Adding extrapolation methods',ntxp
-      do zp=1,ntxp
+      if(ntxp.gt.0) then
+         write(*,'(a,i3)')'3E Adding extrapolation methods',ntxp
+
+         do zp=1,ntxp
 !         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
 ! this subroutine is in gtp3XQ.F90, phase name is in line 
-         call set_ternary_asymmetry_TDB(ternaryxpol(zp))
-      enddo
-!   else
-!      write(*,*)'3E No ternary extrapolations'
+            call set_ternary_asymmetry_TDB(ternaryxpol(zp))
+         enddo
+      endif
    endif
 !000000000000000000000000000000000000000000000000000000
 ! no more read(21 ...
