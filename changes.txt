@@ -30,6 +30,11 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.10.09 version 6.134. The code for ternary parameters added to OC
+but not yet tested.  Parts of the code that have become redundant
+removed to keep it maintainable.  Next step it to test and correct the
+code for MQMQA calculations in multicomponent systems.
+
 2026.10.06 version 6.133. Testing and cleaning up the code and before
 taking the next step to integrate ternary MQMQA parameter I want to
 save this version.  Binary parameters and asymmetries seems to be

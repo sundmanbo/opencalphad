@@ -90,9 +90,6 @@ Y
 
 
 @$
-@$ This mapping fails, to be investigated later
-
-set inter
 
 @&
 
@@ -109,6 +106,7 @@ plot
 x(*,Mg)
 T
 extra axis-factor x 3
+text .1 600 1 0 N Compounds not at correct compositions
 
 @$
 @$ the "axis factor" eliminates the fraction of Cl
@@ -120,19 +118,4 @@ extra axis-factor x 3
 
 set inter
 
-@$
-@&
-
-@$
-@&
-
-
-@$
-@&
-
-@$
-@&
-
-
-set inter
 

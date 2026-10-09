@@ -2171,8 +2171,10 @@
 ! This is a Kohler-Toop method parameter
 ! only for binary interaction parameters with Kohler or Toop models
 ! if no composition dependence we never come here as we exit 50 lines above
-         call calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,tooprec,ceq)
+!         call calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,tooprec,ceq)
 ! we have calculated all, skip the rest of this subroutine
+         write(*,*)'3X the calc_toop subroutine not needed in new MQMQA'
+         stop 'Old OC code no longer available'
          goto 1000
       endif
 ! endmember fraction minus interaction fraction

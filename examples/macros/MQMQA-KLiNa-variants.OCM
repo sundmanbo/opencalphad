@@ -100,7 +100,7 @@ append ./Y_KLi-Na_K1Li0-50000_Kohl.csv
 
 
 
-@$ Now set asymmetry with K as asymmetric cation
+@$ Now set asymmetry with Na as asymmetric cation
 @$ OC asks for ternary index and the index, 1, 2 or 3 of cation inside ternary
 
 am ph ms asym
@@ -141,6 +141,43 @@ append ./Y_KLi-Na_K1Li0-50000_Toop-Na.csv
 @$
 @$ It seems the asymmetry wrt Na does not have much effect
 @$ The symbols are from a FactSage calculation with the same parameters
+
+@&
+
+am ph ms asym
+1
+Y
+
+
+am ph ms asym
+1
+1
+
+
+@$ Change to have K as Toop, only one Toop per ternary!
+
+c e
+
+l r 2
+
+
+@&
+
+step N Y
+
+
+
+@&
+
+plot
+n(na)
+y(ms,*)
+text 0.1 0.7 1 0 K-Li-Na system with K1Li0= -25000 and K as Toop
+append ./Y_KLi-Na_K1Li0-50000_Toop-K.csv
+
+
+
+@$ With K as Toop element the curves change a little
 
 set inter
 

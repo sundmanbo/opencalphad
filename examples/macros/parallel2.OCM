@@ -555,9 +555,9 @@ debug symbol tc(bcc) 1033.90240
 @$ =================================================================
 @$ 2026-03-19 with OC6-108
 @$ on my Mac Pro with 14 threads calculating 400 equilibria
-@$   0.39 seconds CPU and 393 clockcycles with  1 thread
-@$   0.65 seconds CPU and  55 clockcycles with 14 threads, 
-@$   7.1 faster clocktime as it can use several CPU in parallel
+@$  0.39 seconds CPU and 393 clockcycles with  1 thread
+@$  0.65 seconds CPU and  55 clockcycles with 14 threads, 
+@$  7.1 faster clocktime as it uses several CPU in parallel
 @$ =================================================================
 @$  end of parallel2 macro
 @$ =================================================================

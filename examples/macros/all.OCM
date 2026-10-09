@@ -223,7 +223,7 @@ mac ./map18
 mac ./map19
 
 @&& *********************************************************
-@$ Second test of the MQMQA model CsLaF system, mapping does not work
+@$ Removed test of the MQMQA model CsLaF system, mapping does not work
 @$ *********************************************************
 
 @$ mac ./map20

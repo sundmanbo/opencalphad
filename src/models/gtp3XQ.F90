@@ -22,13 +22,11 @@
 ! I lost control of these subroutines, a list with some info:
 ! config_entropy_mqmqa written 2020, no recent changes
 ! calc_mqmqa           2026 excess
-! calc_toop            old, still used by one example, keep
 ! new_mqmqa_excess     new excess
 ! dvkij_dzijk          partial derivatives of binary excess with Claude fix
 ! mqmqa_excesspar_name writes a excess parameter name with all constituents
-! ternary_factor1      calculates the ternary parameter composition dependence
-! ternary_factor2      calculates the ternary parameter TP dependance
-! convert_y2quadx      ??
+! ternary_factor1      calculates composition dependence of ternary parameter 
+! convert_y2quadx      relation between OC y fractions to quad fractions ??
 ! set_quadfractions    copy OC yfr (CEQ) to quad fractions
 ! init_excess_asym     calculates composition variable values incl asymmetries
 !                      or maybe setup the logics to calculate them?
@@ -49,7 +47,7 @@
 ! varkappa1            set values of vk_ij, xi_ij and y_k from quadfractions
 ! set_ternary_asymmetry_tdb sets a ternary asymmetry from a TDB file
 ! set_tdbasymmetries  
-! skip_2_name         untility to set asymmetries
+! skip_2_name          untility to set asymmetries
 ! correlate_const_and_quads called from gtp3B when reading a TDB
 ! list_quads           handle listing from pmon6 (user i/f)
 ! list_quads_with_single_cation handle listing from pmon6 (user i/f)
@@ -1678,190 +1676,11 @@
 289   format('3XQ line 1532 after excess:'/'G, dG/dT dG/dP d2G/dT2:',4(1pe14.6))
       if(.not.associated(intrec)) cycle endmemloop2
 !
-!*************** remove all code below when excess code above OK *******
-!******************* new code above should replace code below *******
+499   continue
+      write(*,*)'3XQ line 1681 old code for MQMQAX removed'
+      stop
+! removed a lot of old code below as it seemed redundant ... 
 !
-! There are excess parameters, any Tooprecords?
-!
-! THIS IS OLD CODE WHICH SHOULD NO LONGER BE USED
-!
-!******************* new code above should replace code below *******
-499      continue
-      if(oldmqmqa_model) then
-         write(*,319)
-319      format(/'3XQ *** this is the old mqmqa excess model **'/)
-!      stop "gtp3XQ line 1542"
-      endif
-!
-      if(associated(intrec%tooprec)) then
-! the allocatable arrays Toop1, Toop2 and Kohler have all same size
-! equal to the number of binary combination of constituents
-!
-         tooprec=>intrec%tooprec
-         if(tch.ge.3) then
-            write(*,'(a,2i3,l2)')'3XQ A Toop/Kohler record, id:',&
-                 tooprec%toopid,tooprec%endmemel,associated(tooprec%binint)
-            if(allocated(tooprec%toop1)) then
-               tsize=size(tooprec%toop1)
-               write(*,320)'Toop1 ',(tooprec%toop1(jd),jd=1,tsize)
-               write(*,320)'Toop2 ',(tooprec%toop1(jd),jd=1,tsize)
-               write(*,320)'Kohler ',(tooprec%kohler(jd),jd=1,tsize)
-320            format('3XQ ',a,': ',10i3)
-            endif
-         endif
-! this is an excess parameter with possible excess parameters
-!      write(*,'(a,2i3)')'3XQ endmember with excess parameter:',mqmqj
-! just excess parameters, we must calculate product of fractions
-! BRANCH for intrec%highlink and intrec%nexlink
-!      write(*,'(a,i2,F10.6,6(1pe12.4))')'3XQ SNN df/dy: ',id,pyq,&
-!           (dpyq(itp),itp=1,gz%nofc)
-!-------------------------------------
-! content of %contyp and %pinq
-!      do jd=1,mqmqa_data%nconst
-!         write(*,599)jd,(mqmqa_data%contyp(id,jd),id=1,14)
-!599      format('3XQ contyp: ',i2,1x,4i2,1x,i3,1x,4i2,1x,i2,4i3)
-!      enddo
-!      write(*,*)'3XQ pinq: ',mqmqa_data%pinq
-! extract fractions from the endmember and check if AB/X or A/XY or A/X 
-      end if
-!-------------------------------------- code below ignore Toop/Kohler
-      id=endmemrec%fraclinks(1,1)
-! jump back here for next interaction record (if any)
-600   continue
-! Note it is arbitrary if the cluster is endmember or interaction
-      jd=intrec%fraclink(1)
-! We must keep track of which endmember is separate!!!
-      if(mqmqa_data%contyp(5,id).eq.0) then
-! id is a cluster, jd is separate fraction, jq is additional salt OK
-         ass=id
-! %contyp(6,..9) are index of FNN, pairs, FNN pairs index in cintyp in PINQ
-         jq=mqmqa_data%pinq(mqmqa_data%contyp(6,ass))
-         if(jq.eq.jd) jq=mqmqa_data%pinq(mqmqa_data%contyp(7,ass))
-         qq1=jd
-         qq2=jq
-!         write(*,'(a,6i3)')'3XQ ass, sep, sum 1:',ass,qq1,qq2
-      elseif(mqmqa_data%contyp(5,jd).eq.0) then
-! jd is the cluster, id is interaction endmember WRONG
-         ass=jd
-         jq=mqmqa_data%pinq(mqmqa_data%contyp(6,ass))
-         if(jq.eq.id) jq=mqmqa_data%pinq(mqmqa_data%contyp(7,ass))
-         qq1=id
-         qq2=jq
-!         write(*,'(a,6i3)')'3XQ ass, sep, sum 2:',ass,qq1,qq2
-      else
-! Interactions are only between clusters AB/X and endmembers A/X or B/X
-         write(*,*)'3XQ interaction between two endmembers illegal'
-         gx%bmperr=4399; goto 1000
-      endif
-!      write(*,428)phres%yfr
-428   format('3XQ all yfr: ',20(1x,F8.6))
-      if(tch.ge.3) write(*,430)id,jd,jq,qq1,qq2,ass,&
-           phres%yfr(id),phres%yfr(jd),phres%yfr(jq)
-430   format('3XQ interaction: ',3i3,3x,3i3,3x,3(1x,F8.6))
-!------------------------------------- extract parameter value
-      proprec=>intrec%propointer
-      typty=proprec%proptype
-      if(typty.ne.1) stop 'illegal typty in mqmqa model'
-      ipy=1
-! several powers  we must loop here -------------- not yet done
-      if(proprec%degree.gt.0) write(*,*)'3XQ degree: ',proprec%degree
-      mpow=0
-700   continue
-! first power is in link 0
-      lokfun=proprec%degreelink(mpow)
-      mpow=mpow+1
-      if(mpow.gt.9) then
-         write(*,*)'3XQ too high interaction power'
-         gx%bmperr=4399; goto 1000
-      endif
-! some powers may not have a parameter, max 9.  If no function loop
-      if(lokfun.le.0) goto 700
-      call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
-      if(gx%bmperr.ne.0) goto 1000
-      if(tch.ge.3) write(*,'(a,3i4/4x,6(1Pe12.4))')'3XQ excess1:',&
-           lokfun,mqmqj,mpow,vals(1)
-      if(ipy.eq.1) then
-! Nath has implemented this half in the converter
-!         vals=0.5D0*vals/rtg
-         vals=vals/rtg
-      endif
-! skip excess 1
-!      cycle endmemloop2
-!----------------------- multiply with fractions
-! the parameter should be multiplied with cluster fractions and
-! the separate endmember qq1 fraction normalized 
-      isumx=isumx+1
-      sumx=phres%yfr(qq1)+phres%yfr(qq2)+phres%yfr(ass)
-      ksi=phres%yfr(qq1)/sumx
-      if(mpow.eq.1) then
-         pyq=phres%yfr(ass)*ksi
-! most of the derivatives of pyq is zero
-         dpyq=zero
-         dsumx=-sumx**(-2)
-! only those involving id, jd and jq are nonzero.
-! the species qq1, qq2 and ass has one more term, qq2 is only in the sumx
-!         dpyq(qq1)=pyq*dsumx+phres%yfr(ass)/sumx
-!         dpyq(qq2)=pyq*dsumx
-!         dpyq(ass)=pyq*dsumx+ksi
-! corrected derivatives ...
-         dpyq(qq1)=(phres%yfr(ass)-pyq)/sumx
-         dpyq(ass)=(phres%yfr(qq1)-pyq)/sumx
-         dpyq(qq2)=-pyq/sumx
-      else
-! NOT CORRECTED THESE ... suck
-         pyq=phres%yfr(ass)*(ksi**mpow)
-         dpyq=zero
-         dsumx=-mpow*sumx**(-mpow-1)
-         dpyq(qq1)=pyq*dsumx+mpow*phres%yfr(ass)*ksi**(mpow-1)
-         dpyq(qq2)=pyq*dsumx
-         dpyq(ass)=pyq*dsumx+ksi*mpow
-      endif
-! here the fraction product is calculated
-!      write(*,650)ass,qq1,qq2,mpow,ksi,phres%yfr(ass),pyq,sumx,vals(1)*rtg
-650   format('3XQ excess: ',4i3,4(1x,F8.6),1pe12.4)
-!      write(*,'(a,2(1pe14.6))')'3XQ excess G:',pyq,pyq*vals(1)
-! skip excess 2
-!      cycle endmemloop2
-!
-! ---------------------------------
-! add to G and first derivatives of G, ipy is property, ipy=1 is G
-! 2nd derivatives ignored
-! ---------------------------------
-      do s1=1,gz%nofc
-         do itp=1,3
-            phres%dgval(itp,s1,ipy)=phres%dgval(itp,s1,ipy)+&
-                 dpyq(s1)*vals(itp)
-         enddo
-      enddo
-      do itp=1,6
-         phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
-      enddo
-! maybe several fraction powers of this property
-!      write(*,*)'3XQ several powers? ',mpow,proprec%degree
-      if(mpow.lt.proprec%degree) goto 700
-!------------- next property for same interaction,
-! each property can have different number of powers ... not implemented
-      proprec=>proprec%nextpr
-      if(associated(proprec)) then
-! more than one property ... not implemented
-         write(*,*)'3XQ MQMQA parameter with several properties!',mqmqj
-         stop '3XQ aborting 1'
-      endif
-      if(associated(intrec%highlink)) then
-! a higher interaction TO BE ADDED AND TESTED
-         write(*,*)'3XQ ternary parameters not yet implemented?  Line 1841'
-         stop '3XQ aborting 2'
-      endif
-! there can be more interactions on this level
-      intrec=>intrec%nextlink
-      if(associated(intrec)) then
-! There can be more than one interaction linked from an endmember
-         if(tch.ge.3) write(*,*)'3XQ more interaction for an endmember',mqmqj
-         goto 600
-      endif
-!      write(*,*)'3XQ done excess for endmember',mqmqj
-! next endmember .... is set at the beginning
-
    enddo endmemloop2
 !----------------------------------------------------- end SNN loop
 800 continue
@@ -1875,343 +1694,6 @@
  end subroutine calc_mqmqa
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
-
-!\addtotable subroutine calc_toop
-! called from cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
-!\begin{verbatim}
- subroutine calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,TOOPX,ceq)
-! NOT USED FOR MQMQA liquid model ... done in calc_mqmqa
-! This routine replaces all calculations inside cgint for Toop/Kohler excess
-! binary interaction parameter with Toop or Kohler extrapolation
-! toopx is the pointer to the kohler-Toop record
-! toopx%binint is pointer back to calling subroutine
-! A single composition dependent binary parameter is calculated
-! But in the Toop/Kohler we can have additional fraction variables
-   implicit none
-   integer moded,lokph
-   TYPE(gtp_property), pointer :: lokpty
-   TYPE(gtp_parcalc) :: gz
-! all fraction variable can be involved in derivatives of vals ...
-   double precision vals(6),dvals(3,gz%nofc)
-   double precision d2vals(gz%nofc*(gz%nofc+1)/2)
-   TYPE(gtp_tooprec), pointer :: toopx
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-! we use this to save the pointer from toopx
-   TYPE(gtp_phase_varres), pointer :: phres
-! fraction values to be used in RK series
-   double precision x12,x21,sigma,dxrk,dxrk0
-   double precision, allocatable, dimension(:) :: dsigma, dx12, dx21
-! ternary fraction index
-   integer jj(3),j1,j2,j3,link,count,toopconst,limit,jdeg,lfun,nyfr,tkdeb
-! loop veriables 
-   integer qz,ic,cc
-! to avoid calculating derivatives if no constituents in toop1, toop2 or kohler
-   logical not1,not2,nok
-! for the RK calculation with Toop/Kohler fractions!
-   double precision valtp(6)
-   double precision dx,dx0,dx1,dx2,dxi,dxj,fff,rtg
-! The first part here is to modify the fractions to be used in the RK series
-! the gz record has information which elements involved
-! gz%iq(1) and gz%iq(2) are index of the binary constituents
-! We must also handle first and second derivatives wrt all fractions.
-!    as the binary fractions are modified by adding or subtractions
-! we come here from a binary interaction record will only deal with this
-!
-! These are UNUSED arrays with additional fractions to calculate derivatives
-   integer dtoop1(5),dtoop2(5),dkohler(10),ntp1,ntp2,nkh
-! These are arrays to eliminate cases with duplicate fractions in Toop1/2/Kohler
-   integer, allocatable, dimension(:) :: ctoop1,ctoop2,ckohler
-   integer nz
-!
-! Use the phres passed on via toopx%phres if there are more toopx records
-! this link to phres is copied to toopx%phres before the call.
-! In gtp3X, subroutine calcg_internal around line 858.
-! This makes it possible to have several composition sets (I hope)
-   if(associated(toopx%phres)) then
-      phres=>toopx%phres
-   else
-      write(*,*)'3XQ phres pointer is not assigned entering calc_toop'
-      gx%bmperr=4399; goto 1000
-   endif
-! debug level 0 nothing, 1 minimum, 2 Toop, 5 all
-   tkdeb=2
-   if(tkdeb.ge.2) write(*,*)'3XQ in calc_toop ',lokpty%degreelink(0)
-! NOTE vals, dvals and d2vals set to zero in calcg before calling this routine
-   rtg=gz%rgast
-   if(lokpty%degree.eq.0) then
-! quick exit if no composition dependence
-      lfun=lokpty%degreelink(0)
-      call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
-      if(gx%bmperr.ne.0) goto 1000
-      if(lokpty%proptype.eq.1) then
-         valtp=valtp/rtg
-      endif
-! this is multiplied with y_i y_j (and their derivatives) at the return
-      vals=vals+valtp
-      goto 1000
-   endif
-! we come here if there are RK terms >0
-   if(tkdeb.gt.0) then
-      write(*,10)gz%iq(1),gz%iq(2),lokpty%degree
-10    format(/'3XQ in calc_toop & Kohler with binary;',2i3,' degrees: ',i2)
-   endif
-!   do nz=1,3
-! it seems that dvals are not properly initiatiad to zero?
-!      write(*,7)nz,(dvals(nz,ic),ic=1,gz%nofc)
-!7     format('3XQ initial dvals: ',i2,10(1pe12.4))
-!   enddo
-! We have to calculate the reduced fractions, it can involve many fractions
-   nyfr=size(phres%yfr)
-   allocate(dsigma(nyfr))
-   allocate(dx12(nyfr))
-   allocate(dx21(nyfr))
-! default value of sigma is unity
-   sigma=one
-! these are default zero, i.e. derivatives with respect to no extra fractions
-   dx12=zero
-   dx21=zero
-   dsigma=zero
-! constituents are ordered alphabetically, x12 is the first in the endmember
-   x12=gz%yfrem(gz%intlat(1))
-   x21=gz%yfrint(1)
-   if(tkdeb.ge.2) write(*,15)x12,x21,gz%iq(1),gz%iq(2)
-15 format('3XQ initial fractions: ',2f8.4,2i5)
-! We have a binary excess parameter which depend on x_A and x_B
-! and a Redlich-Kister polynom (x_A -x_B)/sigma
-! When the data for the system was entered some ternaries were
-! specified as Toop or Kohler and the toopx record created with the
-! information needed for the calculations below
-! For all ternaries A-B-K where the composition of B is constant (Toop)
-! the fraction of K should be added to A, i.e. x12
-   if(phlista(lokph)%toopfirst%endmemel.ne.0) then
-! CHECK FOR DUPLICATE FRACTION INDICES, an add ternary may add same fraction!!
-! phlista(lokph)%firsttoop%free=-1 in add_ternary... (in gtp3H.F90)
-! if phlista(lokph)%firsttoop%free=-1 check and remove redundant fractions!!
-! This phlista(lokph)%firsttoop%free=0 at the end of gcalc (in gtp3X.F90)
-      if(tkdeb.ge.1) write(*,16)phlista(lokph)%toopfirst%endmemel
-16    format('3XQ Checking duplicates as phlista(lokph)%toopfirst%endmemel:',i2)
-! The check made only once, this value is zeroed at end of calcg subroutine
-      allocate(ctoop1(phlista(lokph)%toopfirst%free))
-      allocate(ctoop2(phlista(lokph)%toopfirst%free))
-      allocate(ckohler(phlista(lokph)%toopfirst%free))
-   endif
-   not1=.TRUE.
-   if(tkdeb.ge.2) then
-      write(*,8)toopx%free,nyfr
-8     format('3XQ Number of Toop/Kohler ternaries: ',i3,&
-           ' Total number of fractions: ',i3)
-      write(*,12)phres%yfr
-12    format('3XQ All yfr: ',20F7.4)
-   endif
-! toopx%free is last used index in %Toop1, %Toop2 and %Kohler
-   not1=.TRUE.;    not2=.TRUE.;    nok=.TRUE.
-   allcorr: do ic=1,toopx%free
-      if(tkdeb.ge.2) &
-           write(*,33)ic,toopx%toop1(ic),toopx%toop2(ic),toopx%kohler(ic)
-33    format('3XQ List of Toop/Kohler constituents: ',i2,2x,3i3)
-!------------ Toop1
-      cc=toopx%toop1(ic)
-      if(allocated(ctoop1)) then
-! if ctoop1 allocated then check to eliminate duplicates
-         if(tkdeb.ge.1) write(*,'(a)')'3XQ Check for duplicated fractions'
-         do nz=1,ic-1
-            if(cc.gt.0 .and. cc.eq.toopx%toop1(nz)) then
-               jdeg=toopx%toop1(ic); toopx%toop1(ic)=0; cc=0
-               write(*,69)'Toop1',nz,jdeg
-69             format('3XQ eliminated duplicate ',a,' fraction',2i4)
-            endif
-         enddo
-      endif
-      if(cc.gt.0) then
-! In this binary i-j with ternary k where i (endmember) is constant (Toop)
-! Add the fraction of x_k to x_i
-         x12=x12+phres%yfr(cc); dx12(cc)=one; not1=.FALSE.
-         if(tkdeb.ge.2) &
-              write(*,34)'x12   ',ic,cc,toopx%toop1(ic),phres%yfr(cc),x12
-34       format('3XQ Added fraction to ',a,3i3,2E15.7)
-      endif
-!------------ Toop2
-      cc=toopx%toop2(ic)
-      if(allocated(ctoop2)) then
-! if ctoop2 allocated check to eliminate duplicates
-         do nz=1,ic-1
-            if(cc.gt.0 .and. cc.eq.toopx%toop2(nz)) then
-               jdeg=toopx%toop2(ic); toopx%toop2(ic)=0; cc=0
-               write(*,69)'Toop2',nz,jdeg
-            endif
-         enddo
-      endif
-      if(cc.gt.0) then
-! In this binary i-j with ternary k where i (interaction) is constant (Toop)
-! Add the fraction of x_k to x_j
-         x21=x21+phres%yfr(cc); dx21(cc)=one; not2=.FALSE.
-         if(tkdeb.ge.2) &
-              write(*,34)'x21   ',ic,cc,toopx%toop2(ic),phres%yfr(cc),x21
-      endif
-!------------ Kohler
-      cc=toopx%Kohler(ic)
-      if(allocated(ckohler)) then
-! if ckohler allocated check to eliminate duplicates
-         do nz=1,ic-1
-            if(cc.lt.0 .and. cc.eq.toopx%kohler(nz)) then
-               jdeg=toopx%kohler(ic); toopx%kohler(ic)=0; cc=0
-               write(*,69)'3Kohler',nz,jdeg
-            endif
-         enddo
-      endif
-      if(cc.lt.0) then
-! In this ternary i-j-k the i-j extrapolates as Kohler
-! the composition of k should be subtracted from sigma (initiated to 1.0 above)
-         sigma=sigma-phres%yfr(-cc); dsigma(-cc)=-one; nok=.FALSE.
-         if(tkdeb.ge.2) write(*,35)ic,cc,toopx%kohler(ic),phres%yfr(-cc),sigma
-35       format('3XQ subtracted fraction for sigma ',3i3,2E15.7)
-      endif
-   enddo allcorr
-   if(x12.ge.one) then
-      write(*,*)'3XQ Error: x12 larger than 1.0 in Toop/Kohler extrapolation!'
-      gx%bmperr=4399; goto 1000
-   endif
-   if(x21.ge.one) then
-      write(*,*)'3XQ Error: x21 larger than 1.0 in Toop/Kohler extrapolation!'
-      gx%bmperr=4399; goto 1000
-   endif
-   if(sigma.le.zero) then
-      write(*,*)'3XQ Error: negative sigma in Toop/Kohler extrapolation!'
-      gx%bmperr=4399; goto 1000
-   endif
-! This is the RK fraction difference, sigma is the Kohler divisor
-   dxrk0=(x12-x21)/sigma
-! dxrk is the Tredlich-Kister term, it is raised to powers jdeg=0...n
-! The derivative of dxrk**n is:
-!   n*dxrk**((m-1)*[ (dx12-dx21)/sigma - (x12-x21)*dsigma/sigma**2 ]
-! where dx12, dx21 be 0 or 1 and dsigma 0 or -1 for several fraction variables
-! were set above.  
-!
-! dxrk=1.0 for jdeg=0
-   dxrk=one
-   if(tkdeb.ge.2) then
-      write(*,17)'3XQ x12:   ', x12,',   dx12:   ',dx12,dxrk0
-      write(*,17)'3XQ x21:   ', x21,',   dx21:   ',dx21
-      write(*,17)'3XQ sigma: ', sigma,', dsigma:   ',dsigma
-17    format(a,F8.6,a,10F7.3)!
-   endif
-!-----------------------------------------------------------------
-! No documentation of code below (at present), see paper by Pelton 2001
-!-----------------------------------------------------------------
-! in toopx there are 3 arrays
-! toop1 with toop constitunents to be added to iq(1)
-! toop2 with toop constitunents to be added to iq(2)
-! Kohler with constitunents to be subtracted from sigma
-! Calculate the corrected the binary fractions x12 and x21 and sigma
-   if(tkdeb.gt.0) write(*,20)x12,x21,sigma,dxrk,moded
-20 format('3XQ fractions: ',2F8.4,' sigma,dxrk: ',2F8.4,' moded: ',i1)
-! gz%iq(1) is first constitution, gz%iq(2) in interaction
-   dx12(gz%iq(1))=one/sigma
-   dx21(gz%iq(2))=one/sigma
-   RK: do jdeg=0,lokpty%degree
-      lfun=lokpty%degreelink(jdeg)
-      call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
-      if(gx%bmperr.ne.0) goto 1000
-      if(lokpty%proptype.eq.1) then
-         valtp=valtp/rtg
-      endif
-      vals=vals+dxrk*valtp
-      if(tkdeb.ge.2) write(*,9)'3XQ vals1: ',jdeg,dxrk,valtp(1),rtg*valtp(1),&
-           vals(1),rtg*vals(1)
-9     format(a,i2,5(1PE13.5))
-      noder5: if(moded.gt.0) then
-! moded=0 no derivative, =1 first, =2 second; gz%iq(1) is endmember
-! derivatives with respect to original x12 and x12
-! qz=1 is parameter value, qz=2 is parameter derivative wrt T, qz(3) wrt P
-         do qz=1,3
-            dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+dx12(gz%iq(1))*valtp(qz)
-            dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))-dx21(gz%iq(2))*valtp(qz)
-         enddo
-! derivatives wrt Toop1 constintuents, use dx12, dx21 and dsigma
-! all approximate ....... negative sign of dx21 taken care of when "added"
-! NOTE dx12, dx21 and sigma are arrays as any constituent can be involved
-         dx12(gz%iq(1))=(jdeg+1)*dxrk
-         dx21(gz%iq(2))=(jdeg+1)*dxrk
-! This part takes care of derivatives wrt fractions "k" in x12, x21 and sigma
-! They have dx12(k)=dx21(k)=1 and dsigma)k)=-1
-! dxrk**n * valtp is the Redlich-Kister term, valtp(1,2,3) is the parameter
-! The derivative of dxrk**n * valtp is:
-! n*dxrk**((n-1)*valtp*[ dx12/sigma -dx21/sigma -(x12-x21)*dsigma/sigma**2 ]
-! valtp(1) is parameter value, valtp(2,3) is derivative wrt T and P respectivly
-! where dx12, dx21 are 0 or 1 and dsigma is 0 or -1 for the fraction variables
-! The fractions "k" involved have nonzero %toop1(ic), %toop2 or %kohler indices
-         extraderivatives: do ic=1,toopx%free
-! the arrays %toop1, %toop2 and %kohler have the same dimensions
-! they have fraction indices in toop1, toop2 or kohler (most of which is 0)
-! -------------------- derivatives for toop1
-            cc=toopx%toop1(ic)
-            ltoop1: if(.not.not1) then
-! there is a fraction added to x12, fraction index in toopx%toop1(ic)
-               if(cc.gt.0) then
-                  do qz=1,3
-! this fraction is added to x12, dx12=1 but we have to divide with sigma
-                     dvals(qz,cc)=dvals(qz,cc)+(jdeg+1)*dxrk*valtp(qz)/sigma
-                  enddo
-                  if(tkdeb.ge.2) write(*,44)'Toop1 ',cc,dvals(1,cc)
-44                format('3XQ ',a,' derivative: ',i2,1pe14.6)
-! Any second derivatives is ignored (it may slow down convergence)
-               endif
-            endif ltoop1
-!--------------------- derivatives for Toop2
-            cc=toopx%toop2(ic)
-            ltoop2: if(.not.not2) then
-! there is a fraction added to x21, fraction index in toopx%toop2(ic)
-               if(cc.gt.0) then
-                  do qz=1,3
-! dx21(ic) is unity here but divide with sigma.  OBS negative sign
-                     dvals(qz,cc)=dvals(qz,cc)-(jdeg+1)*dxrk*valtp(qz)/sigma
-                  enddo
-                  if(tkdeb.ge.2) write(*,44)'Toop2 ',cc,dvals(1,cc)
-! Any second derivatives ignored (it may slow down convergence)
-               endif
-            endif ltoop2
-!---------------------- derivatives for Kohler, negative index of fraction!!!
-            cc=toopx%kohler(ic)
-            lkohler: if(.not.nok) then
-! there is a fraction subtracted from sigma, fraction -index in toopx%kohler(ic)
-               if(cc.lt.0) then
-                  if(tkdeb.ge.2) write(*,54)cc,jdeg,dvals(1,-cc),&
-                       (jdeg+1)*dxrk*valtp(1)*(x12-x21)/sigma**2,&
-                       dxrk,valtp(1),(x12-x21),sigma
-54  format('3XQ Kohler derivative: ',2i2,2(1pe12.4)/4x,4(1pe12.4))
-                  do qz=1,3
-! dxrk**n * valtp is the Redlich-Kister term, valtp is the parameter
-! n*dxrk**((n-1)*valtp*[ dx12/sigma -dx21/sigma -(x12-x21)*dsigma/sigma**2 ]
-! dsigma is unity here but divide with sigma**2
-                     dvals(qz,-cc)=dvals(qz,-cc)-&
-                          (jdeg+1)*dxrk*valtp(qz)*(x12-x21)/sigma**2
-                  enddo
-! Any second derivatives ignored (it may slow down convergence)
-               endif
-            endif lkohler
-         enddo extraderivatives
-! dxrk has one more power for next term
-         dxrk=dxrk*dxrk0
-      endif noder5
-   enddo RK
-!--------- maybe almost finished ???
-!
-!   if(tkdeb.ge.1) write(*,30)'3XQ vals2: ',vals(1),rtg*vals(1),&
-!        gz%iq(1),gz%iq(2),rtg*dvals(1,gz%iq(1)),rtg*dvals(1,gz%iq(2))
-30 format(a,2F12.4,2i2,2F12.4)
-1000 continue
-!------------------------------------------------------------------
-! this calculates the whole  \sum_i (\xi_A - \xi_B)/sigma_AB)^i iL_AB
-! and derivatives ....
-!------------------------------------------------------------------
-! The result is multiplied with the fractions x_A'x_B in the calling routine
-   if(tkdeb.gt.0) write(*,'(a,2i3,F12.4)')'3XQ RT*vals: ',&
-        gz%iq(1),gz%iq(2),rtg*vals(1)
-!  if(tkdeb.gt.0) write(*,'(a,i3,2x,5F8.5)')'3XQ dxrk mm:',&
-!       jdeg,rtg*vals(1),dxrk0,dxrk
-   return
- end subroutine calc_toop
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 !
@@ -2299,6 +1781,7 @@
    double precision dvkijz(2,mqmqa_data%nquad)
 ! These are short for the values of vk_ij and vk_ji
    double precision vk_ij,vk_ji
+   type(gtp_allinone), pointer :: box
 ! partial derivative for one parameter contribution
    double precision d1vals(mqmqa_data%nquad)
    double precision dtvals(mqmqa_data%nquad)
@@ -2377,7 +1860,7 @@
    dvals=zero
    nqx=mqmqa_data%nquad
    ncv=size(mqf%compvar)
-! In this arrey we store derivatives of the ternary factor as funtion of quads
+! In the array we store derivatives of the ternary factor as funtion of quads
 !   if(.not.allocated) allocate(dpy3dyi(nqx))
    allocate(dpy3dyi(nqx))
 ! this is 2nd derivative wrt T and quads, below 2nd derivatives are ignored
@@ -2419,7 +1902,7 @@
          endif
 ! divide all parameter values with rtg!!
          tpfun=tpfun/rtg
-! calculate all d(varkappa_ij)/dx_kl
+! calculate all d(varkappa_ij)/dx_kl  ???
          nvkappa=size(mqf%compvar)
 ! there can be several property record for the same set of constituents
          proprecno=proprecno+1
@@ -2452,8 +1935,11 @@
 ! here vk_ij are used to multiply with the parameter
 ! where are they calculated?
          cxq=mqmqa_data%quad2compvar(xq)
-         vk_ij=mqf%compvar(cxq)%vk_ij
-         vk_ji=mqf%compvar(cxq)%vk_ji
+         box=>mqf%compvar(cxq)
+         vk_ij=box%vk_ij
+         vk_ji=box%vk_ji
+!         vk_ij=mqf%compvar(cxq)%vk_ij
+!         vk_ji=mqf%compvar(cxq)%vk_ji
 ! looking for segmentation fult after this
 !         write(*,1160)xq,mqf%xquad(xq),vk_ij,vk_ji,mqf%compvar(cxq)%denominator
 1160     format('3XQ xq etc: ',i3,4(1pe14.6))
@@ -2468,7 +1954,7 @@
 ! take care of a ternary parameter
             verbose=.false.
             if(mqter) write(*,116)lokfun,rtg*tpfun(1)
-116         format('3XQ line 2439 with a ternary parameter',i3,f12.3)
+116         format('3XQ line 2475 with a ternary parameter',i3,f12.3)
 ! problem, the results has changed ... skip all of this....
 ! locating argument for the ternary factor, is there any asymmetry?
 ! the mqf pointer is:   mqf=>ceq%phase_varres(lokcs)%mqmqaf, lokcs is the mqmqa
@@ -2478,14 +1964,18 @@
             call ternary_factor1(lokph,mqf,xq,cxq,ylinks,py3,&
                  dpy3dyi,d2py3dyidyj,proprec,ceq,verbose)
             if(gx%bmperr.ne.0) goto 1000
+            if(mqter) then
+! py3 is the composition product of the ternary factor
+               write(*,1200)box%xi_ij,box%xi_ji,py3,py3*tpfun(1)
+               write(*,1201)dpy3dyi
+1200           format('3XQ tf1: ',4(1pe15.6))
+1201           format('3XQ dpy: ',15(f5.2))
+            endif
+!                 
 ! composition dependence of a ternary parameter is the binary variables
 ! multiplied with ternary factor py3 and its derivatives dpy3dyi, d2py3dyidyj
 ! These are multiplied with the binary factors below
 ! debug output
-            if(mqter) then
-               write(*,79)py3
-79             format('3XQ ternary fraction product:',1pe15.6)
-            endif
          endif terparam
 ! segmentation fault before this write
 !         write(*,*)'3XQ segfault before here?  YES',nfr
@@ -2512,6 +2002,8 @@
 ! default ternary = 1.00, rtg=R*T, ternary(1) doe not include tpfun(1)
 !            compprod=mqf%xquad(xq)*nomin*ternary(1)
             compprod=mqf%xquad(xq)*nomin*py3
+            if(mqter) write(1202)compprod,tpfun(1)/rtg,compprod*tpfun(1)
+1202        format('3XQ compprod, tpfun, prod: ',3(1pe15.6))
 ! vals(1) is the sum of all excess parameters linked from this endmember
             vals(1)=vals(1)+compprod*tpfun(1)
 ! vals(2) is the T derivative of the parameter
@@ -2607,6 +2099,10 @@
 ! to asymmetries or other model features.  
 ! I got totally lost in this mess and I now try to be very careful handling
 ! the calculation of G and its derivatives wrt fractions and T
+!
+            goto 400
+!
+! I am lost here, this code seems wrong as vals(1) already calculated above
             if(nfr.eq.3) then
 ! Now is the time for a ternary parameter to be integrated using the
 ! composition dependent factor with py3, dpy3 etc evaluated above.
@@ -2621,21 +2117,23 @@
                enddo
 ! At present I ingnore the 2nd derivatives
             endif
+!
 ! debug output of all fraction product derivatives
 ! rtg & tpfun(1) and vals(1) listed at line 2503
 !            write(*,997)rtg*tpfun(1),vals(1),(debugder(zkij),zkij=1,nqx)
 !            write(*,997)(debugder(zkij),zkij=1,nqx)
 997         format('3XQ df/dx:',20(1pe11.3))
 !
+400         continue
             terparam2: if(nfr.gt.3 .and. mqter) then
 ! partial derivative of ternary parameter
 ! this include derivatives of the factor L * y_m/k and possibly more terms
-!
-               write(*,*)'Code to handle complex ternary expressions'
+               write(*,*)'3XQ End of code for ternary factors'
             endif terparam2
-! partial derivative end >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! partial derivative of G end >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             if(mqmqder) write(*,122)(dvals(1,zkij),zkij=1,nqx)
 122         format('3XQ dEG/dxz ',20(1pe11.3))
+! end of code handling 'G' parameters
          elseif(ptyp1.eq.'Q') then
 !
             write(*,*)'3XQ the Q parameter not implemented yet',ptyp1
@@ -2644,6 +2142,7 @@
             write(*,*)'3XQ the B parameter not implemented: ',ptyp1
             stop
          endif ptyp
+!
          if(mqmqxcess) write(*,*)'3XQ end of a parameter: ',ptyp1,lokfun,nexrec
 !
 ! Jump to here to skip influence of ternary_factor1
@@ -3027,68 +2526,6 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
-!\addtotable subroutine ternary_clean
-!\begin{verbatim}
- subroutine ternary_clean(lokph,mqf,xq,cxq,ylinks,py3,dpy3,d2py3,&
-      proprec,ceq,verbose)
-! Attempt to clean up the ternary excess parameter ..... unfinished
-! calculates the ternary factor BUT NOT THE PARAMETER
-   implicit none
-   integer lokph,cxq,ylinks
-   double precision xq(*),py3,dpy3(*),d2py3(*)
-   type(gtp_property), pointer :: proprec
-   TYPE(gtp_mqmqa_var), pointer :: mqf
-   type(gtp_equilibrium_data), pointer :: ceq
-   logical verbose
-!\end{verbatim}
-!---------------------------------------------------------------------------
-! This subroutine calculates the factor in Max Poschmann eq.25 and eq.26
-! xq is the AB/X quad index for xi_ij or xi_ji
-! ylinks(ii) is index to the y_m/k fraction in ???
-! gex, dgexdy and d2gexdy are the values to return including derivatives 
-! the ternary constituent x_ij/x_ji is asymmetric for i-j-\gamma
-!
-!   Y_m/k             Y_j/k
-! (---------) ( 1 -  --------- )**(r-1) *L    if i is asymmetric in i-j-m ?
-!   xi_ji/k           xi_ji/k
-!
-!   Y_m/k             Y_i/k
-! (---------) ( 1 -  --------- )**(r-1) *L    if j is asymmetric in i-j-m ?
-!   xi_ij/k           xi_ij/k
-!
-!   Y_m/k ( 1 - xi_ij/k - xi_ji/k )**(r-1) *L if neither case above
-!
-!------------------------------------------------------------------------
-! the variables and dimensions are very messy
-! originally I wanted to handle multiple abions but gave up.
-! number of cations: mqmqa_data%ncat
-! number of quads: n in mqmqa_data%nquad  the independent fraction variable!!!
-!
-! Quand fractions: mqf%xquad(1..n)          x_11, x_12, ... x_22, x_23 ... x_nn
-!
-! y_m/k is mqf%y_ik(1..ncat) , termm is _m/k
-!          derivatives wrt quads: mqmqa_data%dy_ik(1..ncat , 1..nquad)
-!
-! number of \varkappa_ij and \xi_ij       2 * size(mqf%compvar)
-! xi_ij and vk_ij are affected by asymmetries
-!
-! xi_ij is mqf%compvar(cxq)%xi_ij
-!          derivatives wrt quads: mqf%compvar(cxq)%dx_ij(1..nquad)
-! xi_ji is mqf%compvar(cxq)%xi_ji
-!          derivatives wrt quads: mqf%compvar(cxq)%dx_ij(1..nquad)
-! vk_ij is  mqf%compvar(cxq)%vk_ij
-!
-! tersys(1..ternaries) have data of asymmetry for all ternaries
-!
-!------------------------------------------------------------------------
-   double precision rtg
-   rtg=globaldata%rgas*ceq%tpval(1)
-1000 continue
- return
- end subroutine ternary_clean
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
-
 !\addtotable subroutine mqmqa_add_tersys_link
 !\begin{verbatim}
  subroutine mqmqa_add_tersys_link(lokph,intrec,mqconst,tersyslink,cation)
@@ -3247,25 +2684,24 @@
 !\addtotable subroutine ternary_factor1
 !\begin{verbatim}
 ! subroutine ternary_factor1
- subroutine ternary_factor1(lokph,mqf,xq,cxq,ylinks,py3,dpy3,d2py3,&
+ subroutine ternary_factor1(lokph,mqf,xq,cxq,ylinks,py3,dpy3dyi,d2py3,&
       proprec,ceq,verbose)
 ! calculates the ternary factor of a parameter
    implicit none
    integer lokph,xq,cxq,ylinks(*)
 ! py3 is the product of the fractions and
-! dpy3 and d2py3 derivatives of this wrt to quads
-   double precision py3,dpy3(*),d2py3(*)
+! dpy3dyi and d2py3 derivatives of this wrt to quads
+   double precision py3,dpy3dyi(*),d2py3(*)
    logical verbose
 ! return parameter and d(parameter)/dT  ?? and d(parameter)/d(fracs) ??
 ! xq is the index of the quad2compvar record
 ! cxq is the index of the compvar record with vk_ij, vk_ji and xi_ij, x_ji
-! ylinks is array with quadfractions (OC fraction variables)
-! py3 is the parameter multiplied with fractions
-! dpy3 is the parameter multiplied with derivatives of fractions
-! d2py3 is the parameter derived by T multiplied with derivatives of fractions
+! ylinks is array with 4 quadfraction indices, 3 for the binary
+! py3 is the product of fractions for the parameter
+! dpy3dyi is derivatives of fractions to be multiplied with the parameter
+! d2py3dy are 2nd derivatives, not used
 ! proprec is the property record with the TPFUN expression and other data
-! tpfun is calculated parameter and T derivative
-! ceq is the global data pointer ... 
+! ceq is the global data pointer ... not needed??
    type(gtp_property), pointer :: proprec
    TYPE(gtp_mqmqa_var), pointer :: mqf
 !
@@ -3291,8 +2727,8 @@
    integer, save :: lastupdate=0
 !
    double precision, allocatable, dimension(:) :: dyc_ik,dxic_ij,dxic_ji
-   double precision rtg,asymp,ff
-   integer lokfun,nooftps,termm,tcat,catasym
+   double precision rtg,asymp,ff,gg,zz
+   integer lokfun,nooftps,termm,tcat,catasym,nqx
    integer low,middle,high,dd
    type(gtp_allinone), pointer :: box
 !
@@ -3304,7 +2740,7 @@
 !
 ! if no asymmetry wrt the ij :
 !
-!   Y_m/k ( 1 - xi_ij/k - xi_ji/k )**(r-1) *L if neither case above
+!   Y_m/k ( 1 - xi_ij/k - xi_ji/k )**(r-1) * L if neither cases below
 !
 ! if rpow=1 the ternary factor is simply y_ik(cat3)
 ! if rpow>1 the ternary factor y_ik(cat3) * (1 -xi_ij-xi_ji)**rpow
@@ -3324,15 +2760,22 @@
 !   ppow=proprec%asymdata%ppow
 !   qpow=proprec%asymdata%qpow
    rpow=proprec%asymdata%rpow
-! tpfun not used in this subroutine
-!   rtg=globaldata%rgas*ceq%tpval(1)
-!   if(verbose) write(*,4)termm,rpow,rtg,rtg*tpfun(1)
-!   write(*,3)cxq,mqf%compvar(cxq)%vk_ij,mqf%compvar(cxq)%vk_ji
-!   write(*,2)mqf%xquad
+   if(rpow.le.0) then
+      write(*,9)rpow
+9     format('3XQ illegal power for ternary parameter ',i5)
+      gx%bmperr=4399; goto 1000
+   endif
+!  tpfun not used in this subroutine
+!  rtg=globaldata%rgas*ceq%tpval(1)
+!  if(verbose) write(*,4)termm,rpow,rtg,rtg*tpfun(1)
+!  write(*,3)cxq,mqf%compvar(cxq)%vk_ij,mqf%compvar(cxq)%vk_ji
+!  write(*,2)mqf%xquad
 4  format(/'3XQ in ternary factor1: ',2i5, 2x, 2(1pe12.4))
 3  format('3XQ ',i3,2(f10.6))
 2  format('3XQ ',6(f10.6))
 !
+! nqx set to number of quads
+   nqx=mqmqa_data%nquad
    box=>mqf%compvar(cxq)
    cat1=box%cat1
    cat2=box%cat2
@@ -3346,450 +2789,129 @@
 !   write(*,*)'3XQ cannot find the ternary C/X quad'
 !   gx%bmperr=4399; goto 1000
 !
-! At the first call here the variables proprec%tersysix and proprec%dat3
-! are initiated and used for future calls
-!
+! this is the link to the ternary, tcat is 1, 2 or 3 if it is asymmetrical
    t1=proprec%asymdata%tersyslink
    tcat=proprec%asymdata%tcat
-   write(*,7)t1,cat1,cat2,tcat
-7  format('3XQ line 3331 tersyslink: ',i2,', ij: ',2i2,' ternary cation: ',i2)
-! there are 3 ternary cases, asymmetric wrt cat1,   
-!                            asymmetric wrt cat2,
+! identify the 3rd cation of the ternary
+   if(tersys(t1)%el(1).eq.cat1) then
+      if(tersys(t1)%el(2).eq.cat2) then
+         cat3=tersys(t1)%el(3)
+      else
+         cat3=tersys(t1)%el(2)
+      endif
+   else
+      cat3=tersys(t1)%el(1)
+   endif
+!      write(*,5)t1,cat1,cat2,tcat
+!5     format('3XQ something wrong with ternary parameter',i3,2x,2i3,2x,i3)
+!      gx%bmperr=4399; goto 1000
+!   endif
+! zero result arrays
+   gg=1.0d0
+   do dd=1,nqx
+      dpy3dyi(dd)=0.0d0
+   enddo
    catasym=index(tersys(t1)%asymm,'T')
+! the T only indicate 1, 2 or 3.  There can be several ternaries ...
+   if(catasym.gt.0) catasym=tersys(t1)%el(catasym)
+! debug output
+   if(mqter) write(*,7)t1,rpow,cat1,cat2,cat3,catasym,tcat
+7  format('3XQ line 3331 tersyslink,rpow: ',2i2,', xi_ij: ',2i2,&
+        ', cation3: ',i2,', Toop:',i2,', tcat:',i2)
+! there are 3 ternary cases: not asymmetric wrt cat1 or cat2
+!                            asymmetric wrt cat2,
+!                            asymmetric wrt cat2,
+!
    if(catasym.eq.0 .or. catasym.eq.tcat) then
+! symmetric or asymmetric wrt to the 3rd cation, box is compvar(cxq)
+!   here only composition variables, multiply with L in calling routine
 !
-!   Y_m/k ( 1 - xi_ij/k - xi_ji/k )**(r-1) *L if neither case above
+!   Y_m/k * ( 1 - xi_ij/k - xi_ji/k )**(r-1) * L    as gg*y_ik
 !
-      ff=1.0d0
-      do dd=1,mqmqa_data%nquad
-         dpy3(dd)=0.0d0
-      enddo
       if(rpow.gt.1) then
          ff=(one-box%xi_ij-box%xi_ji)
-         do dd=1,mqmqa_data%nquad
-            dpy3(dd) = rpow*ff**(rpow-1)*mqf%y_ik(tcat)
-!            dpy3(dd) = -rpow*ff**(rpow-1)*mqf%y_ik(tcat)*&
-!                 (box%dxi_ij(dd) + box%dxi_ji*(dd))
-!         box%dxi_ij(di)=box%dxi_ij(di)+mqmqa_data%dy_ik(elk,di)
-!            dpy3(dd) = box%dxi_ij(dd) + box%dxi_ji*(dd)
-! subscript trouble py3 is no longer an array 
+         gg=ff**(rpow-1)
+! chain rule of derivatives d(gg*y_ik)/dz = f*dgg/dz+gg*dg/dz
+! derivatives wrt quads ... , loop dq=1,nqx
+!       dff/dq = -(rpow-1)*(ff**(rpow-2))*(dxi_ij/dq + dxi_ji/dq) * y_ik +
+!                gg*dy_ik
+         do dd=1,nqx
+            dpy3dyi(dd) = -(rpow-1)*(gg/ff)*&
+                 (box%dxi_ij(dd)+box%dxi_ji(dd)) * mqf%y_ik(tcat) 
          enddo
-         py3=ff**rpow
-         dpy3(tcat)=dpy3(tcat)+py3
-         py3=py3*mqf%y_ik(tcat)
-      else
-         py3=mqf%y_ik(tcat)
-         dpy3(tcat)=1.0d0
       endif
+! if rpow=1 then above dpy3dy=0.0 and gg=1.0 were set above.  rpow<=0 illegal
+      py3=mqf%y_ik(cat3)*gg
+      do dd=1,nqx
+         dpy3dyi(dd) = dpy3dyi(dd) + mqmqa_data%dy_ik(cat3,dd)*gg
+      enddo
+! debug output
+      if(mqter) write(*,100)1,py3,gg,(dpy3dyi(dd),dd=1,nqx)
+100   format('3XQ mode, py3, gg: ',i1,2(1pe12.4)/' dpy: ',(10(f5.2)))
    elseif(catasym.eq.cat1) then
 !  asymmetric with cat1 as Toop
 !
 !   Y_m/k             Y_j/k
-! (---------) ( 1 -  --------- )**(r-1) *L    if i is asymmetric in i-j-m ?
+! (---------) ( 1 -  --------- )**(r-1) *L    if i is asymmetric in i-j-m
 !   xi_ji/k           xi_ji/k
 !
-   elseif(catasym.eq.cat2) then
-! asymmetric with cat2 as Toop
-! if asymmetric wrt cat2
-!
-!   Y_m/k             Y_i/k
-! (---------) ( 1 -  --------- )**(r-1) *L    if j is asymmetric in i-j-m ?
-!   xi_ij/k           xi_ij/k
-!
-      
-   endif
-!
-!--------------------------------------------------------------------
-! Forget the code below, handle Max eq. 24-25 for ternary factor from scratch
-   goto 1000
-!
-   terasym: if(proprec%asymdata%tersysix.eq.0) then
-! if tersysix is inititated to 0 and thus this is the first calculation
-! if nonzero asymdata%tersysix is the index in tersys for this parameter
-! Here we first try to find the ternary involved
-! In ylinks(1..4), one of them is a mixed quad, 
-! two is equal to cat1 and cat2, we need the third one!
-!      write(*,*)' *** initiating ternary parameter *** '
-! in gtp_interaction for MQMQA there will be a pointer to tersys array!!
-      yloop: do jj=1,4
-         if(ylinks(jj).eq.cat1) cycle yloop
-         if(ylinks(jj).eq.cat2) cycle yloop
-         emloop: do ii=1,size(mqmqa_data%emquad)
-            if(ylinks(jj).eq.mqmqa_data%emquad(ii)) goto 12
-         enddo emloop
-      enddo yloop
-      write(*,*)'3XQ cannot find the ternary C/X quad'
-      gx%bmperr=4399; goto 1000
-! save the cation C/X for next time calculating this parameter
-12    continue
-      write(*,*)'3XQ dead code'
-      stop
-!      proprec%asymdata%cat3=ii
-      proprec%asymdata%tcat=ii
-! termm and cat3 set to the index of y_ik used below, do not mess things up!!!
-      cat3=ii
-      termm=ii
-! intrec record not available here
-!      if(intrec%tersyslink.gt.0) then
-!      if(proprec%asymdata%tersyslink.gt.0) then
-!         write(*,*)'3XQ the ternary parameter has a link to tersys!!'
-!      endif
-! As asymmetry can be changed interactively we have to find the ternary!
-! EXTREMELY CLUMSY CHECK BELOW
-! n*(n-1)*(n-3)/6 , if n5*4*3/6=10
-! 1 2 3; 1 2 4; 1 2 5; 1 3 4; 1 3 5; 1 4 5; 2 3 4; 2 3 5; 2 4 5; 3 4 5
-! certainly cat1 < cat2 but cat3 can be lower, higher or in between 
-      if(cat3.lt.cat1) then
-         low=cat3
-         middle=cat1
-         high=cat2
-      elseif(cat3.lt.cat2) then
-         low=cat1
-         middle=cat3
-         high=cat2
-      else
-         low=cat1
-         middle=cat2
-         high=cat3
+!      write(*,*)'3XQ not implemented ternary asymmetry'
+      if(rpow.gt.1) then
+         ff=(one-mqf%y_ik(cat2)/box%xi_ji)
+         gg=ff**(rpow-1)
+! chain rule of derivatives d(gg*y_ik)/dz = f*dgg/dz+gg*dg/dz
+! derivatives wrt quads ... , loop dq=1,nqx
+!       dff/dq = -(rpow-1)*(ff**(rpow-2))*(dxi_ij/dq + dxi_ji/dq) * y_ik +
+!                gg*dy_ik
+         zz=box%xi_ji**2
+         do dd=1,nqx
+            dpy3dyi(dd) = -(rpow-1)*gg/ff*&
+        (mqmqa_data%dy_ik(cat2,dd)*box%xi_ji-mqf%y_ik(cat2)*box%dxi_ji(dd))/zz
+         enddo
       endif
-!      write(*,*)'3XQ cat1, cat2, cat3:',low, middle, high
-      allter: do t1=1,size(tersys)
-         if(tersys(t1)%el(1).ne.low) cycle allter
-         if(tersys(t1)%el(2).ne.middle) cycle allter
-         if(tersys(t1)%el(3).ne.high) cycle allter
-! when we arrive here tersys(t1) has the cations cat1, cat2 and cat3
-! But we need to save this only if cat1 or cat2 is Toop
-         exit allter
-      enddo allter
-      if(t1.gt.size(tersys)) then
-         write(*,16)cat1,cat2,cat3
-16       format('3XQ Impossible but there is no ternary with the cations ',3i3)
-         stop
-      endif
-! here we found the t1 array with cat1, cat2 and cat3
-      write(*,15)t1,cat1,cat2,cat3
-15    format('3XQ Found ternary is ',i2,' with cations: ',3i3)
-! save for use at next calculation
-      proprec%asymdata%tersysix=t1
-!      proprec%asymdata%cat3=ii
-      write(*,*)'3XQ line 3412 redundant code'
-      proprec%asymdata%tcat=ii
-! check if the ternary has a Toop cation
-! added code to set the link to tersys when parameter entered
-! check if it is OK
-      if(proprec%asymdata%tersyslink.eq.proprec%asymdata%tersysix) then
-         write(*,*)'3XQ Heureka! link to tersys set when reading database!'
-      else
-         write(*,*)'3XQ link to tersys failed in mqmqa_add_tersys_link'
-      endif
-   else
-! we have calculated once and know the index of the ternary and 3rd cation
-! extract the saved values
-      t1=proprec%asymdata%tersysix
-!      cat3=proprec%asymdata%cat3
-      write(*,*)'3XQ line 3427 this code should net be used'
-      tcat=proprec%asymdata%tcat
-   endif terasym
-! if Heureka works we can just keep the else link using %tersyslink
-!-------------------------------------------------------------------------
-! termm is the index of y_ik  used initially below, do not mess things up!!!
-! I do not remember why both cat3 and termm are used ...
-   ii=cat3
-   termm=cat3
-!
-! Check if ternary asymmetric, this can be changed interactively!
-   toop=index(tersys(t1)%asymm,'T')
-! The asymmetry of the ternary may have changed ... I do not know
-   if(toop.le.0) then
-! the ternary is symmetric
-      proprec%asymdata%toop=0
-   elseif(tersys(t1)%el(toop).eq.cat1) then
-! In cat1-cat2-\gamma we have cat1 as Toop, use xi_ji (still to be added)
-      write(*,*)'3XQ found asymmetric ternary 1',t1,cat1
-      proprec%asymdata%toop=cat1
-   elseif(tersys(t1)%el(toop).eq.cat2) then
-! In cat1-cat2-\nu  we have cat2 as Toop, use xi_ij (still to be added)
-      write(*,*)'3XQ found asymmetric ternary 2',t1,cat2
-      proprec%asymdata%toop=cat2
-   endif
-! Most of the original code is still in ternary_factor2 so I will rewrite
-!
-! This subroutine calculates the factor in Max Poschmann eq.25 and eq.26
-! xq is the AB/X quad index for xi_ij or xi_ji
-! py3, dpy3dy and d2py3dy are the values to return including derivatives 
-! the ternary constituent x_ij/x_ji is asymmetric for i-j-\gamma
-!
-!   Y_m/k             Y_j/k
-! (---------) ( 1 -  --------- )**(r-1) *L    if i is asymmetric in i-j-m ?
-!   xi_ji/k           xi_ji/k
-!
-!   Y_m/k             Y_i/k
-! (---------) ( 1 -  --------- )**(r-1) *L    if j is asymmetric in i-j-m ?
-!   xi_ij/k           xi_ij/k
-!
-!   Y_m/k ( 1 - xi_ij/k - xi_ji/k )**(r-1) *L if neither case above
-!
-!------------------------------------------------------------------------
-! the variables and dimensions are very messy
-! originally I wanted to handle multiple abions but gave up.
-! number of cations: mqmqa_data%ncat
-! number of quads: n in mqmqa_data%nquad  the independent fraction variable!!!
-!
-! Quand fractions: mqf%xquad(1..n)          x_11, x_12, ... x_22, x_23 ... x_nn
-!
-! y_m/k is mqf%y_ik(1..ncat) , termm is _m/k
-!          derivatives wrt quads: mqmqa_data%dy_ik(1..ncat , 1..nquad)
-!
-! number of \varkappa_ij and \xi_ij       2 * size(mqf%compvar)
-! xi_ij and vk_ij are affected by asymmetries
-!
-! xi_ij is mqf%compvar(cxq)%xi_ij
-!          derivatives wrt quads: mqf%compvar(cxq)%dx_ij(1..nquad)
-! xi_ji is mqf%compvar(cxq)%xi_ji
-!          derivatives wrt quads: mqf%compvar(cxq)%dx_ij(1..nquad)
-! vk_ij is  mqf%compvar(cxq)%vk_ij
-!
-! tersys(1..ternaries) have data of asymmetry for all ternaries
-!
-!------------------------------------------------------------------------
-! It seems that frequently r=1, i.e. The terma (...)**(r-1) can be ignored
-! which means the ternary parameter depend only the Y_m/k term
-! (multiplied with the x_ij (NOT xi_ij) i.e. almost a binary parameter ...
-! Although Y_m/k may depend on several x_ij fractions.
-!
-! This factor (and its first derivatives) must be multiplied with the binary
-! parameter expression already calculated in the calling subroutine
-!------------------------------------------------------------------------
-! current values:
-! termm, cat1, cat2 are the y_m/k, y_i/k and y_j/k composition variables
-! cxq specifies the xi_ij, xi_ji composition variables xi_ij and 
-!
-   if(verbose) write(*,110)mqf%xquad,termm,mqf%y_ik(termm),&
-        cat1,cat2,mqf%y_ik(cat1),mqf%y_ik(cat2),&
-        cxq,mqf%compvar(cxq)%xi_ij,mqf%compvar(cxq)%xi_ji
-110 format('3XQ x_ij:   x_11    x_12    x_13    x_22    x_23    x_33'/&
-         11x,6f8.5/&
-           '      y_ik(term): ',i2,f9.6,', xi_ij, xi_ji: ',2i2,2f9.6/&
-           '      cxq: ',i2,', xi_ij, xi_ji: ',2f9.6)
-!------------------------------------------------------------------------
-! Derivatives of y_ik, xi_ij etc are in dy_ik and dxi_ij etc.
-!   write(*,120)(mqmqa_data%dy_ik(termm,di),di=1,mqmqa_data%nquad),&
-   if(verbose) write(*,120)(mqmqa_data%dy_ik(termm,di),di=1,mqmqa_data%nquad),&
-        mqf%compvar(cxq)%dxi_ij,mqf%compvar(cxq)%dxi_ji
-120 format('3XQ  dy_ik:',6f10.6/'    dxi_ij:',6f10.6/'    dxi_ji:',6f10.6)
-!------------------------------------------------------------------------
-!
-! Chain rule of derivatives, multiply dy_ik etc with the actual fraction of x_ij
-   allocate(dyc_ik(mqmqa_data%nquad))
-   allocate(dxic_ij(mqmqa_data%nquad))
-   allocate(dxic_ji(mqmqa_data%nquad))
-   do id1=1,mqmqa_data%nquad
-      dyc_ik(id1)=mqmqa_data%dy_ik(termm,id1)*mqf%xquad(id1)
-! derivatives of xi_ij and xi_ji not needed for the simples case above
-      dxic_ij(id1)=mqf%compvar(cxq)%dxi_ij(id1)*mqf%xquad(id1)
-      dxic_ji(id1)=mqf%compvar(cxq)%dxi_ji(id1)*mqf%xquad(id1)
-   enddo
-!
-! Below dyc_ik, dxic_ij and dxic_ji must be used
-!
-! we are in ternary_factor1, This should be done in calling routine
-! product of ternary fractions, default is unity as used also for binaries
-   py3=1.0d0
-   do di=1,mqmqa_data%nquad
-! derivatives with respect to fractions
-      dpy3(di)=0.0d0        ! dG/dx_ij
-      d2py3(di)=0.0d0       ! d2G/dTdx_ij
-   enddo
-   if(rpow.eq.1) then
-! there are no asymmetries
-      py3=mqf%y_ik(termm)       ! This is ternary fraction
-! derivatives of py3 and d2py3dTdywith respect to the quadruplets and T
-      do id1=1,size(mqf%xquad)
-! we have to loop for all dyc_ik and (if needed) derivatives of xi_ij
-! It will be multiplied with derivatives of xi_ij and xi_ji in calling routine
-         dpy3(id1)=dyc_ik(id1)
+      py3=mqf%y_ik(cat3)*gg
+      do dd=1,nqx
+         dpy3dyi(dd) = dpy3dyi(dd)+&
+        (mqmqa_data%dy_ik(cat3,dd)*box%xi_ji-mqf%y_ik(cat3)*box%dxi_ji(dd))/zz
       enddo
-! if rpow>1 we must take care of asymmetries and more fractions ... suck
-      rpow=rpow-1
-! Note the derivatives wrt (vk_ij**ppow) * (vk_ji)**qpow) is in the binary
-   else
-! here r>1 and we have an additional expressions ...
-      write(*,*)'3XQ ternary rpow>1 not implemented yet',rpow
+      if(mqter) write(*,100)2,py3,gg,(dpy3dyi(dd),dd=1,nqx)
+! wow
+   elseif(catasym.eq.cat2) then
+!
+! asymmetric with cat2 as Toop
+!
+!   Y_m/k             Y_i/k
+! (---------) ( 1 -  --------- )**(r-1) *L    if j is asymmetric in i-j-m ?
+!   xi_ij/k           xi_ij/k
+!
+!      write(*,*)'3XQ not implemented ternary asymmetry'
+      if(rpow.gt.1) then
+         ff=(one-mqf%y_ik(cat1)/box%xi_ij)
+         gg=ff**(rpow-1)
+! chain rule of derivatives d(gg*y_ik)/dz = f*dgg/dz+gg*dg/dz
+! derivatives wrt quads ... , loop dq=1,nqx
+         zz=box%xi_ij**2
+         do dd=1,nqx
+            dpy3dyi(dd) = -(rpow-1)*gg/ff*&
+        (mqmqa_data%dy_ik(cat1,dd)*box%xi_ij-mqf%y_ik(cat1)*box%dxi_ij(dd))/zz
+         enddo
+      endif
+      py3=mqf%y_ik(cat3)*gg
+      do dd=1,nqx
+         dpy3dyi(dd) = dpy3dyi(dd)+&
+        (mqmqa_data%dy_ik(cat3,dd)*box%xi_ij-mqf%y_ik(cat3)*box%dxi_ij(dd))/zz
+      enddo
+      if(mqter) write(*,100)3,py3,gg,(dpy3dyi(dd),dd=1,nqx)
+! double wow
    endif
 !
-   if(verbose) write(*,900)py3,(dpy3(id1),id1=1,size(mqf%xquad)),&
-        (d2py3(id1),id1=1,size(mqf%xquad))
-900 format('3XQ parameter*y_ik/RT, d(..)/dT: ',2(1pe12.4),&
-         /'   d(..)/dx_ij:',6(1pe10.2),&
-         /'d2(..)/dTdx_ij:',6(1pe10.2))
-!
-! For more complex ternary parameters
-! we have to handle derivatives wrt y_ik(m), y_ik(i), y_ik(j) and xi_ij/xi_ji
-!
-   goto 1000
 !----------------------------------------------------------------
 1000 continue
-   if(verbose) write(*,1010)py3,(dpy3(di),di=1,6),(d2Py3(di),di=1,6)
+   if(verbose) write(*,1010)py3,(dpy3dyi(di),di=1,6),(d2Py3(di),di=1,6)
 1010 format('3XQ leaving ternary factor G=',2(1pe12.4)/&
           '     dG/dx_ij=',6f10.6,/'  d2G/dTdx_ij=',6f10.6)
    return
  end subroutine ternary_factor1
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
-
-!\addtotable subroutine ternary_factor2
-!\begin{verbatim}
- subroutine ternary_factor3(lokph,mqf,xq,cxq,ylinks,termm,hejhopp,proprec)
-! calculates the ternary factor of a parameter
-   implicit none
-   integer lokph,xq,cxq,termm,ylinks(*),ppow,qpow,rpow
-! return parameter and d(parameter)/dT
-   double precision hejhopp(2)
-   type(gtp_property), pointer :: proprec
-   TYPE(gtp_mqmqa_var), pointer :: mqf
-   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-!
-! This deals with more complex composition dependance
-!
-! xq is the AB/X quad index
-! cxq in varkappa index which gives 2 quad indices for A/X and B/X
-! ylinks are the OC fraction indices, not really used in this routine
-! termm is index of the unknown 4th quad
-! hejhopp is the value to return, possibly 1.0D0
-! This subroutine calculates the factor in Max Poschmann eq.25 and eq.26
-! If the ternary constituent "termm" is asymmetric for i-j-\gamma
-!
-!   Y_m/k             Y_j/k
-! (---------) ( 1 -  --------- )**(r-1)       if i is asymmetric in i-j-m ?
-!   xi_ji/k           xi_ji/k
-!
-!
-!   Y_m/k             Y_i/k
-! (---------) ( 1 -  --------- )**(r-1)       if j is asymmetric in i-j-m ?
-!   xi_ij/k           xi_ij/k
-!
-!
-!   Y_m/k ( 1 - xi_ij/k - xi_ji/k )**(r-1)    if neither case above
-!
-! This factor (and its first derivatives) must be multiplied with the binary
-!    parameter expression already calculated in the subroutine calling this
-!
-! It seems frequently that r=1, i.e. The terma (...)**(r-1) can be ignored
-! which means the ternary parameter depend only the Y_m/k term
-! (multiplied with the x_ij (NOT xi_ij) i.e. almost a binary parameter ...
-! Although Y_m/k may depend on several x_ij fractions.
-!
-! The Y_m/k values are in gtp_mqmqa_var, by pointer mqf
-! 
-   integer ii,jj,cat1,cat2
-   integer,save :: noter=0
-   integer, save :: lastupdate=0
-!
-   double precision tpfun(6),rtg,asymp
-   integer lokfun,nooftps
-! we must update xi_ij, xi_ji and v_ik ONCE for each iteration
-! It updates all xi_ij etc so called only once per iteration
-! mqmqa_pairupdate is in gtp3_dd2
-!
-   write(*,*)'3XQ Unused ternary_factor2'
-   stop 'In ternary_factor2'
-   goto 1000
-!
-! code below not finished, has to be rewritten completely
-!
-! ********* BE CAREFUL ternary_factor2 NOT YET IMPLEMENTED *********
-!
-   if(lastupdate.eq.mqmqa_data%mqmqa_terasym1) then
-      goto 1010
-   endif
-!   
-   cat1=mqf%compvar(cxq)%cat1
-   cat2=mqf%compvar(cxq)%cat2
-! ylinks are OC phase constituent indices, not necessarily same as quad indices
-! ylinks(4) is the ternary quad, transform to y_i/k index
-! 
-!   do ii=1,size(mqmqa_data%emquad)
-!      if(ylinks(3).eq.mqmqa_data%emquad(ii)) goto 12
-!   enddo
-!   write(*,*)'3XQ line 2980 ternary constituent: ',termm
-!   if(noter.eq.0) then
-!      write(*,*)'3XQ ternary parameters not implemented'
-!      noter=1
-!   else
-      noter=noter+1
-      if(noter.eq.1) then
-! debug just the indices
-!         write(*,10)ii,xq,cat1,cat2, termm,size(mqmqa_data%emquad),&
-!              (ylinks(jj),jj=1,3),ylinks(4),associated(proprec)
-10       format('3XQ line 2987 ternary: ',i3,5x,3i3,3x,2i3,3x,4i3,3x,L)
-! debug list the constituents also
-! ylinks is phase constituent index, 
-!         write(*,20)(ylinks(ii),&
-!              trim(splista(phlista(lokph)%constitlist(ylinks(ii)))%symbol),&
-!              ii=1,4),termm,ppow,qpow,rpow
-!20       format('3XQ L(',4(i2,': ',a,1x),') m:',i1,' pows:',3i2)
-         noter=0
-!         write(*,30)(phlista(lokph)%constitlist(ylinks(ii)),ii=1,4)
-30       format('3XQ Redundant indices to x_ii fractions: ',4i3)
-! here are y_i/k and xi_ij ??
-!         write(*,40)mqf%y_ik
-!         write(*,50)mqf%compvar(cxq)%xi_ij,mqf%compvar(cxq)%xi_ji
-40       format('3XQ y_ik: ',10f10.6)
-50       format('3XQ x_ij: ',f10.6,', x_ji: ',f10.6)
-! current values of all fractions involved:
-! parameter value, there is just a single one .... I hope
-         nooftps=0
-         lokfun=proprec%degreelink(0)
-!         write(*,55)lokfun
-55       format('3XQ lokfun: ',i5)
-         if(lokfun.gt.0) nooftps=nooftps+1
-!         write(*,*)'3XQ ceq%tpfun: ',ceq%tpval
-!         write(*,*)'3XQ tpfun: ',tpfun
-!         write(*,*)'3XQ ceq%eq_tpres: ',ceq%eq_tpres
-! 6 values returned, L, dL/dT, dL/dP, d2L/dT2, d2L/dP2, d2L/dTdP
-! maybe eval_tpfun is used in calling routine and here only fractions ???
-         if(lokfun.le.0) then
-            tpfun=0.0d0
-         else
-!            write(*,*)'3XQ calling eval_tpfun',lokfun
-!                           int     TP       result  pointer
-! wow, in ceq%eq_tpres save all calculated values with eval_tpfun ....!!!
-            call eval_tpfun(lokfun,ceq%tpval,tpfun,ceq%eq_tpres)
-            if(gx%bmperr.ne.0) goto 1000
-         endif
-!
-!         write(*,*)'3XQ back from tpfun'
-!         write(*,100)termm,mqf%y_ik(termm),&
-!              mqf%compvar(cxq)%xi_ij,mqf%compvar(cxq)%xi_ji,&
-!              tpfun(1)
-100      format('3XQ m and y_m: ',i2,f10.6,', xi_ij, xi_ji: ',2f10.6,1pe15.4) 
-         rtg=globaldata%rgas*ceq%tpval(1)
-         tpfun=tpfun/rtg
-!         write(*,110)tpfun(1),tpfun(2)
-110      format('3XQ L/RT and (dL/dT)/RT ',2(1pe14.6))
-!   Y_m/k ( 1 - xi_ij/k - xi_ji/k )**(r-1)    if neither case above
-         if(rpow.gt.1) then
-            asymp=(1.0d0-mqf%compvar(cxq)%xi_ij-mqf%compvar(cxq)%xi_ji)**rpow
-         else
-            asymp=1.0d0
-         endif
-         hejhopp=mqf%y_ik(termm)*asymp*tpfun(1)
-      elseif(noter.gt.10) then
-         noter=1
-      endif
-!   endif
-!
-1000 continue
-!      write(*,*)'3XQ No forced update of ternary factor ...?'
-!     write(*,*)'3XQ Forced ternary_factor updates: ',mqmqa_data%mqmqa_terasym1
-!     lastupdate=mqmqa_data%mqmqa_terasym1
-1010 continue
-!      write(*,*)'3XQ leaving ternary_factor',termm
-!      write(*,*)'3XQ ternary code not updated: mqmqa_data%mqmqa_terasym1',&
-!           mqmqa_data%mqmqa_terasym1
-   return
- end subroutine ternary_factor3
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
@@ -4009,7 +3131,6 @@
 !\addtotable subroutine init_excess_asymm
 !\begin{verbatim}
  subroutine init_excess_asymm(lokph)
-! subroutine init_excess_asymm(lokph,ic,ia)
 ! initaties phase variables for new mqmqa excess model
 ! called from gtp3B create_asymmetry
 ! number of independent quads, ic cations, ia anions (max 1)
@@ -5194,8 +4315,6 @@
 !\addtotable subroutine calcasymvar
 !\begin{verbatim}
  subroutine calcasymvar(phres,init)
-! subroutine calcasymvar(phres)
-! subroutine calcasymvar(mqmqavar)
 ! This must be called whenever the quad fractions has changed
 ! If init not 0, update varkappaij, xiij expressions etc for the whole system
 !                and stores them in compvar(bin) datastructure
@@ -5686,370 +4805,11 @@
 !--------------------- 
 !
    if(allocated(box%ivk_ij)) goto 600
-!--------------------- code below set symmetic
-!   write(*,30)seq,icat,jcat,ia
-30 format('3XQ initiating mii using ijklx, line 4327',i3,2x,3i3)
-   mii=ijklx(icat,icat,ia,ia)
-!   write(*,*)'3XQ back from ijklx',mii
-   mij=ijklx(icat,jcat,ia,ia)
-   mjj=ijklx(jcat,jcat,ia,ia)
-   if(gx%bmperr.ne.0) then
-      write(*,*)'3XQ ijklx index error line 4331'
-      stop
-   endif
 !
-   nysym=.false.
-! deafult is 0, to update set box%lastupdate to -1
+   write(*,*)'3XQ vk_ij, vk_ji etc not allocated!'
+! a lot of old code to initiate and modify vk_ij removed here .........
+   stop
 !
-!   write(*,407)3,vz,selectij,tersys(1)%el
-! below is code to update asymmetry
-! and after that the code to calculate varkappa for current molefractions
-!   if(box%lastupdate.ne.newXupdate) then
-! ignore box%lastupdate as it is not used (yet)
-!      if(asymter.eq.0) then
-!         write(*,4)seq,box%lastupdate,newXupdate
-!4        format('3XQ initiating varkappa newXupdate: ',i3,2x,2i4)
-!      else
-!         write(*,5)box%lastupdate,newXupdate
-!         if(mqmqder) write(*,5)box%lastupdate,newXupdate
-!5   format('3XQ *** Updating allinone record from ',i5,' to ',i5,' new: ',2i5)
-!      endif
-!   endif
-!   write(*,*)'3XQ in varkappa1 updates: ',newXupdate,box%lastupdate
-!
-!   write(*,*)'3XQ in varkappa1 selectij ',newXupdate,box%boxlastupdate
-   vzloopupdate:if(newXupdate.gt.box%boxlastupdate) then
-!
-! Always update! <<<<<<<<<<< box%ivk_ij etc updated separately !!!
-!
-! *** this if ... endif code part needed only when new asymmetries defined
-! Below the arrays below are allocated, the initial 0 is overwritten if used
-! This makes use of the new Fortran 2003 facility using [ ]
-! Setting an allocatable array to single value means previous values deleted
-!      box%ivk_ij=[0]; box%jvk_ji=[0]; box%kvk_ijk=[0]
-!
-! new asymmetry defined  IGNORE
-! this will be handled by testing %asymm variable below (or above)
-!      write(*,*)'In varkappa1 new asymmetry in ternary: ',asymter
-!      if(asymter.gt.0) then
-!         write(*,12)tersys(asymter)%asymm,len(tersys(asymter)%asymm)
-12       format('3XQ tersys(%asymter)%asymm "',a,'"',i3)
-!         tersys(asymter)%asymm
-77       format('3XQ line 5728 varkappa1: ',i2,3x,3i3,3x,3i3,' "',a,'"')
-!      endif
-! repeating Max equations for vakappa_AB in ternary A-B-C
-! -----------if A is asymmetric, \gamma in documentation
-! v_AB    x_AA   
-! v_BA    x_BB+x_BC+x_CC
-! denom=  x_AA+x_BB+x_AB+x_BC+x_AC+x_CC             (=1 if only one ternary)
-! ----------- if B is asymmetric, \nu in documentation  
-! v_AB    x_AA+x_AC+x_CC
-! v_BA    x_BB
-! denom=  x_AA+x_BB+x_AB+x_BC+x_AC+x_CC             (=1 if only one ternary)
-!------------ if C is asymmetric .........ignore
-! if A and B are asymmetric in several ternaries the v_AB and v_BA 
-! can include more quadruplets.  One has to update all ternary asymmetries
-! at the same time because it is complicated to remove things in the [ ... ]
-!
-!      if(allocated(savevz)) deallocate(savevz)
-      box%boxlastupdate=newXupdate
-!      write(*,380)seq,size(box%ivk_ij),size(box%jvk_ji),size(box%kvk_ijk)
-380   format('3XQ are we here 5496?',i3,2x,3i3)
-! default nyasym is KKK, no asymmetry
-!      if(asymter.gt.0) write(*,381)asymter,new_toop
-!381   format('3XQ in varkappa1 new asymmetry: ',i2)
-! allocate(box%ivk_ij ... done by the elegant [ ... ] statement
-! vk derivatives are quad indices, also denominator (same vk_ij and vk_ji)
-! the statements below allocate and assign initial quad index
-      box%ivk_ij=[mii]; box%jvk_ji=[mjj]; box%kvk_ijk=[mij]
-! to simplify handling derivatives the denominator is summed separately
-      box%all_ijk=[mii, mjj, mij]
-! xi are the Y_i/k fractions, for derivatives save quad indices in dxi_ij
-!
-      write(*,*)'3XQ line 5277 ****** is this code used *****'
-      stop
-!
-! evidently the statement above is not used .... but some parts are, which??
-!
-      do di=1,mqmqa_data%nquad
-! the derivatives of xi_ relative to quad index di
-! The derivatives involves several quads, given by dy_ik(icat)
-         box%dxi_ij(di)=mqmqa_data%dy_ik(icat,di)
-         box%dxi_ji(di)=mqmqa_data%dy_ik(jcat,di)
-      enddo
-! calculate xi_  ... why??
-      box%xi_ij=0.0d0; box%xi_ji=0.0d0
-      do di=1,mqmqa_data%nquad
-         box%xi_ij=box%xi_ij+box%dxi_ij(di)*mqf%xquad(di)
-         box%xi_ji=box%xi_ji+box%dxi_ji(di)*mqf%xquad(di)
-      enddo
-! *** end of symmetric initialization of vk_ij, vk_ji, xi_ij and xi_ji
-!
-!  if in vk_ij one has added (vz1,vz1,ia,ia)
-!  and in vk_ji added        (vz2,vz2,ia,ia)
-! Now take care of asymmetries and update for later use
-! Asymmetric vk and xi are updated in the vz loop AND at the end of the loop
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-!
-!      if(mqmqder) write(*,*)'3XQ in varkappa1',icat,jcat
-!      write(*,*)'3XQ in varkappa1',icat,jcat,size(tersys)
-!
-! below vz loops through all ternaries ...
-! and below that
-! 
-!      write(*,*)'3XQ with asymmetric cation ',thisasym
-! this subroutine is called with the sequentially ordered box%icat,box%jcat
-! it must create the basic Kohler model and possibly Toop asymmetries
-!
-!      write(*,*)'3XQ unfinished varkappa1 code around line 4384'
-!      
-! The loop below is for all pairs of varkappa records identifying Toop cations
-! in ternaries i-j-vz
-! and adjusting the expression to calculate varkappa_ij and varkappa_ji
-!
-! This loop should use the array ternary, vz=1, 2 or 3 testing asymmetries
-      vzloop: do vz=1,mqmqa_data%ncat
-! loop for all ternary systems to find those with asymmetric i-j-vz and j-i-vz
-!         write(*,403)icat,jcat,vz,thisasym
-403      format('3XQ in vzloop A: ',2i3,2x,i3,2x,i3,2x,5i3)
-! if vz is icat or jcat it is not a ternary
-         if(vz.eq.icat .or. vz.eq.jcat) cycle vzloop
-! find the sequential order of the ternary icat-jcat-vz 
-         ternary=terind(icat,jcat,vz)
-! error if ternary not >0
-         if(ternary.le.0) goto 1100
-! if icat is Toop in this ternary add quadfractions of x_ivz to varkappa_ij
-! if jcat is Toop in this ternary add quadfractions of x_jvz to varkappa_ji
-! ********* selectij=0 means no asymmetry in this ternary***************
-!
-!         write(*,119)icat,jcat,vz
-119      format('3XQ varkappa1 call test_asymm: ',3i4)
-!         selectij=test_asymm(ternary,icat,jcat,vz)
-! what we should test is the first 2 letters in tersys(ternary)%asymm
-! my head starts to rotate again ....
-!         write(*,*)'3XQ line 5554 calling test_asymm'
-!
-! TOTALLY REMOVED TEST_ASYMM.  Asymmetry set in other ways, not here
-         selectij=0
-!         selectij=test_asymm(ternary,icat,jcat,vz)
-!         write(*,121)'3XQ back from test_asymm:',selectij,ternary,icat,jcat,vz
-121       format(a,i2,5x,i3,5x,3i3)
-!         if(vz.eq.thisasym) then
-!
-!         write(*,404)icat,jcat,vz,thisasym,ternary,selectij
-404      format('3XQ in vzloop C: ',2i3,2x,i3,2x,i3,2x,5i3)
-! ********* selectij=0 means no asymmetry in this ternary***************
-! asymm returns 1 if icat is an asymmetric element in icat-jcat-vz  (gamma)
-! asymm returns 2 if jcat is an asymmetric element in icat-jcat-vz  (nu)
-! asymm returns 3 if both icat and jcat are asymmetric in icat-jcat-vz
-! to be considered:  asymmetric i-j-nu and i-j-gamma requires x_\nu\gamma
-!                    in the denominator.  For this the savenu/gamma is used
-!
-! looking for bug that tersys(1)%el(3) is destroyed somewhere
-!         write(*,407)5,vz,selectij,tersys(1)%el
-407      format('3XQ in varkappa1: ',3i3,', tersys(1)%el: ',3i12)
-!         
-         if(selectij.eq.0) cycle vzloop
-!
-!******************** asymmetric ternary *****************************
-         write(*,420)selectij,icat,jcat,vz
-420      format('3XQ set varkappa ternary asymmetry typ:',i2,' cations: ',3i3)
-         asymmetry: select case(selectij)
-!
-         case default
-            write(*,*)'Illegal asymmetry ',selectij
-            stop
-!-------------------------------------------------------------------
-         case(1) ! *************************************************
-! icat is asymmetric, save in jvk_ij and in savenu
-! an elegant Fortran assignment of an additional items in an allocatable
-            write(*,*)'3XQ line 5640 calling ijklx',jcat,vz
-            box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! Below quad fractions added to jvk_ij added to denominator, add ijklx(icat,vz
-            box%kvk_ijk=[box%kvk_ijk, ijklx(icat,vz,ia,ia)]
-            box%all_ijk=[box%all_ijk, ijklx(jcat,vz,ia,ia), &
-                 ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! savenu is related to ij, savegamma to ji
-            if(allocated(savenu)) then
-!               write(*,373)'case 1 use \nu',size(savenu),savenu
-373            format('3XQ ',a,' mixed asymmetry terms',i3,': ',10i3)
-374            format(a,' x_',2i1)
-               do gg=1,size(savenu)
-! the mixed terms with \nu should should be added to jvk_ji
-                  box%all_ijk=[box%all_ijk, ijklx(vz,savenu(gg),ia,ia)]
-!                  write(*,374)'3XQ added ji',savenu(gg),vz
-!                  write(*,375)'jvk_ji ',box%jvk_ji
-375               format('3XQ ',a,'=',10i4)
-               enddo
-               savenu=[savenu, vz ]
-            else
-! otherwize just add vz to savenu
-               savenu=[vz]
-!               write(*,373)'3XQ line 4377 savednu i ',size(savenu),savenu
-            endif
-! savegamma is related to ji, maybe add denominator terms
-            if(allocated(savegamma)) then
-!               write(*,373)'case 1 use \gamma',size(savegamma),savegamma
-               do gg=1,size(savegamma)
-! the mixed terms with \gamma should should be added to kvk_ijk
-                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savegamma(gg),ia,ia)]
-                  box%all_ijk=[box%all_ijk, ijklx(vz,savegamma(gg),ia,ia)]
-!                  write(*,374)'3XQ added kvk_ijk',savegamma(gg),vz
-!                  write(*,375)'kvk_ji ',box%kvk_ijk
-               enddo
-! do not save vz as it does no relates to ij
-!               savegamma=[savegamma, vz ]
-!            else
-! and we must add vz to savegamma
-!               savegamma=[vz]
-!               write(*,373)'saved i ',size(savevz),savevz
-            endif
-! The asymmetric xi is depend on y_ik update dxi_ij and dxi_ji
-            do nnn=1,mqmqa_data%nquad
-!                box%dxi_ij(nnn)=box%dxi_ij(nnn)+dy_ik(icat,nnn)
-               box%dxi_ji(nnn)=box%dxi_ji(nnn)+mqmqa_data%dy_ik(vz,nnn)
-            enddo
-            if(gx%bmperr.ne.0) then
-               write(*,*)'3XQ ijklx index error line 4533'
-               stop
-            endif
-!
-!---------------------------------------------------------------------
-         case(2) ! ***************************************************
-! jcat is asymmetric, same as for icat just change icat to jcat!!!!
-! and save in jvk_ji ...
-            box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! Nath noted missing  ijklx(vz1,vz2,ia,ia) if icat and jcat are asymmetrical
-            box%kvk_ijk=[box%kvk_ijk, ijklx(jcat,vz,ia,ia)]
-            box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
-                 ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! if savegamma allocated we must add terms to jvk_ijk
-            if(allocated(savegamma)) then
-!               write(*,373)'case 2 use \gamma',size(savegamma),savegamma
-               do gg=1,size(savegamma)
-                  box%ivk_ij=[box%ivk_ij, ijklx(vz,savegamma(gg),ia,ia)]
-                  box%all_ijk=[box%all_ijk, ijklx(vz,savegamma(gg),ia,ia)]
-!                  write(*,374)'3XQ added ij',savegamma(gg),vz
-!                  write(*,375)'ivk_ij ',box%ivk_ij
-               enddo
-               savegamma=[savegamma, vz ]
-            else
-! and we must add vz to savevz
-               savegamma=[ vz ]
-!               write(*,373)'savedgamma j ',size(savegamma),savegamma
-            endif
-! savenu is related to ij, maybe add denominator terms
-            if(allocated(savenu)) then
-!               write(*,373)'case 2 use \nu',size(savenu),savenu
-               do gg=1,size(savegamma)
-! the mixed terms with \nu should should be added to kvk_ijk
-                  box%kvk_ijk=[box%kvk_ijk, ijklx(vz,savenu(gg),ia,ia)]
-                  box%all_ijk=[box%all_ijk, ijklx(vz,savenu(gg),ia,ia)]
-!                  write(*,374)'3XQ added kvk_ijk',savenu(gg),vz
-!                  write(*,375)'jvk_ji ',box%kvk_ijk
-               enddo
-            endif
-! The asymmetric xi is depend on y_ik update dxi_ij and dxi_ji
-            do nnn=1,mqmqa_data%nquad
-!                box%dxi_ij(nnn)=box%dxi_ij(nnn)+dy_ik(jcat,nnn)
-               box%dxi_ij(nnn)=box%dxi_ij(nnn)+mqmqa_data%dy_ik(vz,nnn)
-            enddo
-            if(gx%bmperr.ne.0) then
-               write(*,*)'3XQ ijklx index error line 4578'
-               stop
-            endif
-!
-!---------------------------------------------------------------------
-         case(3) ! **************************************************
-! Both icat and jcat are asymmetric NOT IMPLEMENTED
-            write(*,788)icat,jcat,vz
-788         format('3XQ *** Illegal with 2 asymmetric cations ',2i3,' with ',i3)
-            gx%bmperr=4399; goto 1000
-! tentative code below
-            box%ivk_ij=[box%ivk_ij, ijklx(icat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-            box%jvk_ji=[box%jvk_ji, ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! This is complicated, do not add ijklx(icat,vz,ia,ia), ijklx(jcat,vz,ia,ia)
-! and only once ijkl(vz,vz,ia,ia) .....
-! maybe not at all ?????????????
-!            box%kvk_ijk=[box%kvk_ijk, ijklx(vz,vz,ia,ia)]
-!            box%kvk_ijk=[box%kvk_ijk, ijklx(icat,vz,ia,ia), &
-!                 ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! BUT x_(vz,vz,ia,ia) appears twice in the denominator ....(and twice on top)
-            box%all_ijk=[box%all_ijk, ijklx(icat,vz,ia,ia), &
-                 ijklx(jcat,vz,ia,ia), ijklx(vz,vz,ia,ia)]
-! The asymmetric xi is depend on y_ik update dxi_ij and dxu_ji
-            do nnn=1,mqmqa_data%nquad
-               box%dxi_ij(nnn)=box%dxi_ij(nnn)+mqmqa_data%dy_ik(icat,nnn)
-               box%dxi_ji(nnn)=box%dxi_ji(nnn)+mqmqa_data%dy_ik(jcat,nnn)
-            enddo
-            if(gx%bmperr.ne.0) then
-               write(*,*)'3XQ ijklx index error line 4606'
-               stop
-            endif
-!
-         end select asymmetry
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!         write(*,778)icat,jcat,vz
-778      format('3XQ asymmetry set ',3i3,' box%all: ',10i3)
-         cycle vzloop
-!         goto 747
-!
-! loops below now redundant when we added savevz loops above ..... ????
-! code handling kvk_ijk terms due to extra x_ii and x_jj in ivk_ij and jvk_ji
-! copied from end of calcasymvar to avoid it is repeted at all calculations
-! skip first ivk_ij
-         addkvkterm: do j=2,size(box%ivk_ij)
-            do k=1,size(mqmqa_data%emquad)
-               if(box%ivk_ij(j).eq.mqmqa_data%emquad(k)) then
-! we have an endmember quad in ivk_ij (in addition to the first)
-! Check if we have another endmember quad in jvk_ji, skip first jvk_ji
-!                  do l=1,size(box%jvk_ji)
-                  do l=2,size(box%jvk_ji)
-                     neverending: do m=1,size(mqmqa_data%emquad)
-                        if(box%jvk_ji(l).eq.mqmqa_data%emquad(m)) then
-                           if(k.ne.m) then
-! we have 2 different endmember quads in ivk_ij and jvk_ji, 
-! if the mixed quad is not alreay present add it
-                              ny=ijklx(k,m,ia,ia)
-                              do abrakadabra=1,size(box%kvk_ijk)
-! check if this quad not already in box_kvk_ijk
-                                 write(*,*)'3XQ check duplicate line 4041 !!'
-                              enddo
-! add this quad !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                              box%kvk_ijk=[box%kvk_ijk, ijklx(k,m,ia,ia)]
-!                              write(*,806)i,k,m,ijklx(k,m,ia,ia)
-!                              write(*,805)'kvk_ijk ',box%kvk_ijk
-                           endif
-                        endif
-                     enddo neverending
-                     if(gx%bmperr.ne.0) then
-                        write(*,*)'3XQ ijklx index error line 4645'
-                        stop
-                     endif
-                  enddo
-               endif
-            enddo
-         enddo addkvkterm
-805 format(a,20i3)
-806      format('3XQ adding mixed quad to kvk_ijk',i3,2x,2i3,2x,i3)
-! end copied code
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!747      continue
-      enddo vzloop
-! the vzloop above should be done whenever the asymmetry changes
-!
-!      write(*,748)box%cat1,box%cat2
-748   format('3XQ Asymmetry updated for varkappa_ij: ',2i3)
-!--------------------------------------------------------------------
-! end of asymmetry detection loop
-!--------------------------------------------------------------------
-!
-!   else
-!      write(*,*)'3XQ using current asymmetry'
-!
-   endif vzloopupdate
-!
-! Code below is to set values in vk_ij, xi_ij and y_j/k from x_ij
 600 continue
 !
 !--------------------------------------------------------------------
@@ -7414,29 +6174,6 @@
    write(*,333)
 333 format(/'3XQ The symmetries of the ternary systems')
    call list_tersys
-   goto 1000
-!
-! code below in copied in subroutine above
-   ts: if(allocated(tersys)) then
-! this popular listing is repearad 2 in gtp3XQ.F90 and 3 times in pmon6.F90
-      write(*,3101)size(tersys)
-3101  format(/'3XQ Listing of the',i3,' ternary systems and their asymmetries',&
-  /'  i  seq   cat1 cat2 cat3',6x,'emquads',6x,'T/0 T/0 T/0    asymmetry code')
-!           /'  i tern   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
-      do iz=1,size(tersys)
-         write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-              tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
-3201     format(i3,i5,2x,3(1x,i4),2x,3(1x,i3),3x,3i4,5x,a)
-      enddo
-      write(*,3301)
-3301  format('Number in cat1/2/3 columns is cation index,'/&
-           'Number 1, 2 or 3 in T/0 columns refers to ',&
-           'the cat1/2/3 COLUMN, NOT CATION INDEX!'/&
-           'Asymmetry code is KKK for symmetric, KKT if cat3 is Toop etc.'//&
-           'Change the asymmetry with the command AMEND PHASE ... ASYM')
-   else
-      write(kou,*)'No ternary asymmetry data allocated'
-   endif ts
 !
 1000 continue
 !   write(*,1100)
@@ -7461,13 +6198,22 @@
 ! this popular listing is repeated twice in gtp3XQ.F90, 3 times in pmon6.F90
       write(*,3101)size(tersys)
 3101  format(/'3XQ Listing of the',i3,' ternary systems and their asymmetries',&
-  /'  i  seq   cat1 cat2 cat3',6x,'emquads',6x,'T/0 T/0 T/0    asymmetry code')
-!           /'  i tern   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
+  /'  i seq   cat1 cat2 cat3',4x,'emquads',5x,'T/0 T/0 T/0  asym',4x,'binaries')
       do iz=1,size(tersys)
          write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-              tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
-3201     format(i3,i5,2x,3(1x,i4),2x,3(1x,i3),3x,3i4,5x,a)
+              tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm,&
+              tersys(iz)%binsys
+3201     format(i3,i4,1x,3(i5),3x,3(i3),3x,3i4,3x,a,2x,3i4)
       enddo
+!
+!3101 format(/'3XQ Listing of the',i3,' ternary systems and their asymmetries',&
+!  /'  i  seq   cat1 cat2 cat3',6x,'emquads',6x,'T/0 T/0 T/0    asymmetry code')
+!           /'  i tern   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
+!      do iz=1,size(tersys)
+!         write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
+!              tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
+!3201     format(i3,i5,2x,3(1x,i4),2x,3(1x,i3),3x,3i4,5x,a)
+!
       write(*,3301)
 3301  format('The cat1/2/3 columns are cations.  ',&
            'A 1 in T/0 columns indicate Toop cation')

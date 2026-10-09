@@ -1352,12 +1352,14 @@
 ! these are the indices to varkappa, xi and yik variables for this parameter
 ! The are used in the arrays in allinone and reflect asymmetries 
      integer alpha, beta, ternary
+! TOTAL MESS how to handle ternary asymmetries in subroutine ternary_factor1
 ! index in array tersys for MQMQA where the current parameter property is used
 ! the y_ik index of the toop cation is saved in toop
 ! both  are set at first calculation and initiated to zero here
 ! tersysix:=-1 for a ternary parameter i-j-k with neither i or j as Toop
 !    otherwise toop is set to i or j and cat3 to the third element ... suck
 !     integer :: tersysix=0, toop=0, cat3=0
+! all initiated to zero
      integer :: tersysix=0, toop=0, tcat=0
 ! index in tersys array for a ternary parameter to know any asymmetry
 ! this index is also in intrec as I am not sure how I can access it

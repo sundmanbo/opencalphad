@@ -1293,6 +1293,10 @@ contains
              call list_quads_with_single_cation(parres)
 !
 ! tersys is global data
+             call list_tersys
+             goto 3334
+!
+!..call above replaces all this code
              write(*,3101)size(tersys)
 !3101  format(/'Listing of the ',i3,' ternary systems and their asymmetries',&
 !          /'  i tern   cat1 cat2 cat3       T/0 T/0 T/0    asymmetry code')
@@ -1311,6 +1315,7 @@ contains
 ! Added listing of xi_ij (incl assymmetries) needed for ternary parameters ....
 ! end of format statements used somewhere else
 ! list all ternaries with quad names
+3334         continue
              call list_ternary_cations(0,new_toop,parres)
              write(kou,*)
              call gparidx('Index of ternary to modify (0=none)?',cline,last,&
@@ -1377,14 +1382,15 @@ contains
                 call new_ternary_asym(asymter,new_toop,parres,.false.)
              endif
 ! repeat short listing the asymmetries, format label 3101 below
-             write(*,3101)size(tersys)
-             do iz=1,size(tersys)
-                write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
-                     tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
-             enddo
+             call list_tersys
+!             write(*,3101)size(tersys)
+!             do iz=1,size(tersys)
+!                write(*,3201)iz,tersys(iz)%seq,(tersys(iz)%el(j4),j4=1,3),&
+!                     tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
+!             enddo
 ! list at least while debugging, this list already provided
 !             write(*,3133)
-3133         format(/'MM debug listing of new vk_ij and vk_ji' )
+!3133         format(/'MM debug listing of new vk_ij and vk_ji' )
 !             call list_compvar(parres)
 !....................................................
           case(12) ! amend phase ... aqueous model
@@ -5504,6 +5510,9 @@ contains
              call list_quads(i1)
 !
 ! tersys is global data
+             call list_tersys
+             goto 3301
+! the call above replaces all code until label 3301
              ts: if(allocated(tersys)) then
                 write(*,3101)size(tersys)
 3101 format(/'MM Listing of the ',i3,' ternary systems and their asymmetries',&
@@ -5514,11 +5523,13 @@ contains
                         tersys(iz)%emquad,tersys(iz)%isasym,tersys(iz)%asymm
 3201               format(i3,i5,2x,3(1x,i4),2x,3(1x,i3),3x,3i4,5x,a)
                 enddo
-                write(*,3301)
-3301 format('A number 1 in T/0 column indictate asymmetric cation'/)
+!                write(*,3301)
+!3301 format('A number 1 in T/0 column indictate asymmetric cation'/)
              else
                 write(kou,*)'No ternary asymmetry data allocated'
              endif ts
+!
+3301         continue
 !
 ! listing of fraction in alphbetical order
              write(kou,4123)mqmqa_data%nquad,&
@@ -5643,9 +5654,9 @@ contains
 ! partial derivative debug
                 mqmqder=.true.
              elseif(i1.eq.6) then
-! partial derivative debug
+! partial derivative debug more
                 mqverbose=.true.
-             elseif(i1.eq.6) then
+             elseif(i1.eq.7) then
 ! ternary debug
                 mqter=.true.
              endif
