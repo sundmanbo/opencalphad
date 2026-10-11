@@ -1917,8 +1917,6 @@
 ! special reference state for MQMQA liquids
    logical mqmqa
 !--------------
-! used to list Toop/Kohler extrapolations
-   type(gtp_tooprec), pointer :: tooprec
 !---------------
 ! a smart way to have an array of pointers
    TYPE intrecarray 
@@ -2543,56 +2541,6 @@
       if(ocv()) write(*,*)'Jump back to list disordered',nsl,parlist
       goto 100
    endif
-! Check if there are toop/kohler ternaries
-   tooprec=>phlista(lokph)%tooplast
-   if(associated(tooprec)) then
-      write(*,'(a)')'3C Some ternaries have Toop/Kohler extrapolations methods'
-      text=' '
-      kk=1
-      nsl=0
-      tkloop: do while(associated(tooprec))
-! interacive ? listing of Toop/Kohler extrapolations taken from tooprec%amend
-! loop through all records, the extrapolations are some of the reconds.
-! on TDB files the subrouine list_tdb_formats is used
-         if(len(tooprec%amend1).gt.1) then
-            if(nsl.eq.0) then
-               text(kk:)=' AMEND '//tooprec%amend1
-               nsl=1
-            else
-! remove phase name and TERNARY_EXTRA            
-               ij=index(tooprec%amend1,'_EXTRA')
-               text(kk:)=tooprec%amend1(ij+7:)
-            endif
-            kk=len_trim(text)+2
-!         write(*,997)1,text(1:kk),kk
-997         format('3C ternary: ',i1,' "',a,'"',i4)
-! This text is written by the commands list data and list phase xxx data
-! Output from "save tdb" is written by list_phase_data2
-         endif
-! there can be several AMEND !!!
-         if(len(tooprec%amend2).gt.1) then
-            ij=index(tooprec%amend2,'_EXTRA')
-            text(kk:)=tooprec%amend2(ij+7:)
-            kk=len_trim(text)+2
-!         write(*,997)2,text(1:kk),kk
-         endif
-         if(len(tooprec%amend3).gt.1) then
-            ij=index(tooprec%amend3,'_EXTRA')
-            text(kk:)=tooprec%amend3(ij+7:)
-            kk=len_trim(text)+2
-!         write(*,997)3,text(1:kk),kk
-         endif
-         if(kk.gt.5) then
-! This text is written by the commands list data and list phase xxx data
-! Output from "save tdb" is written by list_phase_data2
-            write(*,*)'3C ',text(1:kk)
-            text=' Y'
-            kk=5
-         endif
-         tooprec=>tooprec%nexttoop
-      enddo tkloop
-      if(kk.gt.6) write(*,*)'3C ',text(1:kk)
-   endif
 !   write(*,*)'3C listing by list_phase_data'
 1000 continue
    return
@@ -2616,7 +2564,6 @@
    integer intpq,linkcon
    character text*1024,phname*24,prop*32,funexpr*1024
    character special*8
-   character,save :: ctop*1='K'
 !   integer, dimension(2,3) :: lint insufficient for MQMQX
    integer, dimension(2,4) :: lint
    integer, dimension(maxsubl) :: endm,ilist
@@ -2633,7 +2580,6 @@
    type(gtp_endmember), pointer :: endmemrec
    TYPE(gtp_fraction_set) :: disfra
    TYPE(gtp_phase_add), pointer :: addrec
-   TYPE(gtp_tooprec), pointer :: tooprec
 ! MQMQAX
    logical :: mqmqax=.false.
    character*1 mqmqxchar*7
@@ -2726,17 +2672,8 @@
 !        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
 !   write(*,*)'3C phase: ',phname,special
    lokcs=phlista(lokph)%linktocs(ics)
-   if(associated(phlista(lokph)%tooplast)) then
-      isp=isp+1
-! this is to refer to the ternary_extrapolations later
-      special(isp:isp)=ctop
-!
-      write(lut,10,advance='no')phname(1:len_trim(phname)),special(1:isp),&
-           nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
-   else
-      write(lut,10,advance='no')phname(1:len_trim(phname)),special(1:isp),&
-           nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
-   endif
+   write(lut,10,advance='no')phname(1:len_trim(phname)),special(1:isp),&
+        nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
 10  format(' PHASE ',A,1x,a,1x,I2,10(1x,F7.3))
    mqmqax=.false.
    if(btest(phlista(lokph)%status1,PHMQMQX)) then
@@ -3204,53 +3141,6 @@
       goto 100
    endif
 1000 continue
-! add ternary extrapolations as commands, not TYPE_DEF
-! This listing is not for TDB files ??
-   tooprec=>phlista(lokph)%tooplast
-   if(associated(tooprec)) then
-! this is writing a TDB database file
-      text='TYPE_DEFINITION '//ctop//' GES A_P_D  '
-      ik=30
-! increment ctop for next phase ...
-      ctop=char(ichar(ctop)+1)
-      nsl=0
-      do while(associated(tooprec))
-         if(len(tooprec%amend1).gt.1) then
-            if(nsl.eq.0) then
-! keep phase if nsl=0
-               text(ik:)=tooprec%amend1
-               ik=len_trim(text)+2
-               nsl=nsl+1
-            else
-! otherwise remove phase and "TERNARY_EXTRA" as alredy set
-               ij=index(tooprec%amend1,'_EXTRA')
-! ij will be position of "_", add 7 ??
-               text(ik:)=tooprec%amend1(ij+7:)
-               ik=len_trim(text)+2
-            endif
-         endif
-! there can be 3 amends ...
-         if(len(tooprec%amend2).gt.1) then
-            ij=index(tooprec%amend2,'_EXTRA')
-            text(ik:)=tooprec%amend2(ij+7:)
-            ik=len_trim(text)+2
-         endif
-         if(len(tooprec%amend3).gt.1) then
-            ij=index(tooprec%amend3,'_EXTRA')
-            text(ik:)=tooprec%amend3(ij+7:)
-            ik=len_trim(text)+2
-         endif
-! write if too long
-         if(ik.gt.70) then
-            write(lut,1100)text(1:ik)
-            text=' '
-            ik=1
-         endif
-         tooprec=>tooprec%nexttoop
-1100     format(a)
-      enddo
-      write(lut,1100)'  !'
-   endif
 !   write(*,*)'3C listing by list_phase_data2'
    return
  END subroutine list_phase_data2

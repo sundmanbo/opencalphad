@@ -818,10 +818,6 @@
 ! link from previous, iws(lok+1) is link to higher, iws(lok+2) is property
             iws(noi)=lok
             noi=lok
-! Any Toop/Kohler records should be saved here ... gtp_tooprec
-            if(associated(intrec%tooprec)) then
-            write(*,*)'3E 20240731: *** WARNING Toop/Kohler records not saved'
-            endif
 ! interaction property, link from nop
             proprec=>intrec%propointer
             nop=lok+2
@@ -2258,9 +2254,6 @@
       phlista(jph)%alphaindex=iws(lok+displace+1)
       phlista(jph)%noofcs=iws(lok+displace+2)
       phlista(jph)%nooffs=iws(lok+displace+3)
-! emergy fix for Kohler/Toop records gtp_tooprec, also for intrec !!!
-      nullify(phlista(jph)%toopfirst)
-      nullify(phlista(jph)%tooplast)
 !   read(lin)jph,phlista(jph)%name,&
 !        phlista(jph)%models,phlista(jph)%phletter,phlista(jph)%status1,&
 !        phlista(jph)%alphaindex,phlista(jph)%noofcs,phlista(jph)%nooffs
@@ -2330,8 +2323,6 @@
 !>>>>> 9A: first interaction record
             call readintrec(lokint,iws,level,emrec%intpointer)
             intrec=>emrec%intpointer
-! emergency fix for Kohler/Toop records gtp_tooprec
-            nullify(intrec%tooprec)
 300         continue
 ! push before going to higher
             level=level+1
@@ -2603,8 +2594,6 @@
    intrec%status=iws(lokalint+3)
    intrec%antalint=iws(lokalint+4)
    intrec%order=iws(lokalint+5)
-! nullify Toop-Kohler link
-   nullify(intrec%tooprec)
    fipsize=iws(lokalint+6)
 !   write(*,'(a,5i5)')'3E readintrec 1:',intrec%antalint,lokalint,fipsize,level
    allocate(intrec%noofip(fipsize))

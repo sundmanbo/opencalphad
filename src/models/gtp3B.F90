@@ -1043,9 +1043,6 @@
    firsteq%phase_varres(lokcs)%phlink=nyfas
    firsteq%phase_varres(lokcs)%prefix=' '
    firsteq%phase_varres(lokcs)%suffix=' '
-! nullify toopfirst and tooplast, set if there are ternary Toop/Kohler models
-   nullify(phlista(nyfas)%tooplast)
-   nullify(phlista(nyfas)%toopfirst)
 ! Initiated to total number of sites, will be updated in set_condition
    firsteq%phase_varres(lokcs)%abnorm(1)=formalunits
 ! ncc no longer part of this record
@@ -1572,12 +1569,10 @@
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHSROT)
       write(*,*)'3B PHSROT bit set'
    endif
-! nullify links, added tooprec 241012/BoS
+! nullify links
    nullify(phlista(nyfas)%additions)
    nullify(phlista(nyfas)%ordered)
    nullify(phlista(nyfas)%disordered)
-   nullify(phlista(nyfas)%toopfirst)
-   nullify(phlista(nyfas)%tooplast)
 ! initiate phcs, the phase composition set counter for nyfas redundant ??
 ! (not for reference phase 0) 
 !   if(nyfas.gt.0) phcs(nyfas)=1
@@ -3940,13 +3935,17 @@
 ! jord(2,...) are constituents nint is number of interactions
 !
 ! mqconst should have constituent indices to handle ternary asymmetries in mqmqa
-   mqconst(1)=nint
+! Claude 2026.10.11: include the endmember sem (the lowest constituent, which
+! can be an A/X quad, e.g. K/CL for LINA/CL,K/CL,LI/CL,NA/CL) and convert
+! constituent indices to quad indices as quad2cat expects quad indices
+   sem=endmemrec%fraclinks(1,1)
+   mqconst(1)=nint+1
+   mqconst(2)=mqmqa_data%con2quad(sem)
    do mint=1,nint
-      mqconst(mint+1)=jord(2,mint)
+      mqconst(mint+2)=mqmqa_data%con2quad(jord(2,mint))
    enddo
 !
    mint=0
-   sem=endmemrec%fraclinks(1,1)
    intrec=>endmemrec%intpointer
    if(mqmqtdb) then
      if(associated(intrec)) then
@@ -4216,7 +4215,7 @@
 900   format('3B The tersys array not allocated')
    else
       tersyslink=0
-      call mqmqa_add_tersys_link(lokph,intrec,mqconst,tersyslink,cation)
+      call mqmqa_add_tersys_link(mqconst,tersyslink,cation)
 ! add this index both to intrec and proprec ,,,,
       if(tersyslink.gt.0) then
 !         intrec%tersyslink=tersyslink
@@ -9877,9 +9876,6 @@
    phlista(nyfas)%linktocs=0
 ! ignore nooffr and constitlist as allocateble arrays   
    phlista(nyfas)%i2slx=0
-   nullify(phlista(nyfas)%tooplast)
-   nullify(phlista(nyfas)%toopfirst)
-   phlista(nyfas)%lasttoopid=0
 ! That are all data in a phlista record
 1000 continue
    return

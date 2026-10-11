@@ -1316,7 +1316,8 @@ contains
 ! end of format statements used somewhere else
 ! list all ternaries with quad names
 3334         continue
-             call list_ternary_cations(0,new_toop,parres)
+!             call list_ternary_cations(0,new_toop,parres)
+             call list_ternary_cations(0,parres)
              write(kou,*)
              call gparidx('Index of ternary to modify (0=none)?',cline,last,&
                   asymter,0,'?Asymmetry modify')
@@ -1353,7 +1354,8 @@ contains
                 endif
              endif
 ! set isasym zero
-             call list_ternary_cations(asymter,new_toop,parres)
+!             call list_ternary_cations(asymter,new_toop,parres)
+             call list_ternary_cations(asymter,parres)
              write(*,414)
 414          format('Use 1, 2 or 3 to specify the Toop cation in this ternary!')
 !
@@ -5483,8 +5485,7 @@ contains
 !    max length         8+25+4*11=33+44=77
              enddo qlista
 !
-             parres=>ceq%phase_varres(lokcs)
-             call quadprops(parres,mqmqa_data%con2quad)
+             call quadprops
 !             call quadprops(lokcs,mqmqa_data%con2quad)
 !
 !             write(*,1673)size(sp2quad),sp2quad

@@ -1478,9 +1478,6 @@
    nullify(intrec%propointer)
    nullify(intrec%nextlink)
    nullify(intrec%highlink)
-! nullify Kohler-Toop link
-!   write(*,*)'3G nullifying tooprec pointer'
-   nullify(intrec%tooprec)
    intrec%status=0
    noofint=noofint+1
    intrec%antalint=noofint

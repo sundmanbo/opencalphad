@@ -1022,7 +1022,6 @@
 ! propointer: link to properties for this parameter
 ! nextlink: link to interaction on same level (replace interaction)
 ! highlink: link to interaction on higher level (include this interaction)
-! tooprec: if the interaction involved in TOOP or KOHLER extrapolation
 ! sublattice: (array of) sublattices with interaction fraction
 ! fraclink: (array of) index of fraction to be multiplied with this parameter
 ! noofip: (array of) number of permutations, see above.
@@ -1030,7 +1029,6 @@
      TYPE(gtp_property), pointer :: propointer
      TYPE(gtp_interaction), pointer :: nextlink,highlink
 ! A ternary MQMQA excess should have the index of the ternary record 
-     TYPE(gtp_tooprec), pointer :: tooprec   ! should be removed
 ! A ternary MQMQA excess record should have index of tersys ecord in %asymmprop
 !     integer tersyslink
      integer, dimension(:), allocatable :: sublattice,fraclink,noofip
@@ -1228,50 +1226,6 @@
 !
 !--------------------------------------------------------------------------
 !\begin{verbatim}
-! this constant must be incremented when a change is made in gtp_phasetuple
-!************ this record is not used with new mqmqa excess
-  INTEGER, parameter :: gtp_tooprec_version=1
-  TYPE gtp_tooprec
-! THIS IS SUPERSSEDED BY THE ASYMMETRY RECORD and TERSYS array
-! This is used for a binary interaction parameter in Kohler/Toop ternaries
-! to specify the third constituents involved in extrapolations
-! These records form a linear list for each phase and are also
-! inked from the binary A-B interaction record (and has a link to it).
-! link to next tooprec needed for search and listing
-     type(gtp_tooprec), pointer :: nexttoop
-! link to binint to know the binary constituents involved
-     type(gtp_interaction), pointer :: binint
-! The Toop1 array has constituent indices of all ternaries with A as Toop
-! The Toop2 array has constituent indices of all ternaries with B as Toop
-! The Kohler array has constituent indices of all ternary where A-B is Kohler
-! An array element zero menas it is ignored
-! free is last used index in toop1 etc. except in the first (otherwise unused
-!    record it is the default allocated dimesion of toop1/toop2/kohler.
-! endmemel is fraction in endmember, except in first record endmem1 is
-!    the used indicate if calc_toop should check for duplicates
-! toopid is zero in the first record created (linked from phlista()%toopfirst)
-! This record is empty excpt for toopid and a nullified nexttoop
-! except endmemel is set to -1 whenever a new extrapolation record entered
-! and endmemel is zeroed after the first calculation.  At this first call
-! any duplicate additions/subrractions are removed from the tooprec
-     integer :: free,endmemel,toopid
-     integer, allocatable, dimension(:) :: Toop1
-     integer, allocatable, dimension(:) :: Toop2
-     integer, allocatable, dimension(:) :: Kohler
-! the phase_varres link is set during calculations in gtp3XQ.F90
-! it is assigned in gtp3X, calcg_internal and used in calc_toop
-     type(gtp_phase_varres), pointer :: phres
-! For listing we need to save the input ternary specification in the amend
-! I found that some AMEND were not saved because ordering the elements
-! alphabetically one run out of tooprec with unused amend for some binaries
-     character (len=:), allocatable :: amend1
-     character (len=:), allocatable :: amend2
-     character (len=:), allocatable :: amend3
-!************ this record is not used with new mqmqa excess
-  end type gtp_tooprec
-!\end{verbatim}
-!-----------------------------------------------------------------
-!\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_asymmetry
   INTEGER, parameter :: gtp_asymmetry_version=2
   TYPE gtp_asymmetry
@@ -1298,7 +1252,7 @@
 ! The TYPE gtp_mqmqa_var with the xquad, allinone and other arrays is used
 ! In allinone the phase dependent updated values of \varkappa etc are stored
 ! they are organized in alphabetical order of the elements.
-! When it works all of this should be reorganized removing the Tooprecord
+! When it works all of this should be reorganized (gtp_tooprec removed 2026-10)
 !
   end type gtp_asymmetry
 !\end{verbatim}
@@ -1629,11 +1583,6 @@
 ! disordered: link to endmember list for disordered fractions (if any)
      TYPE(gtp_phase_add), pointer :: additions
      TYPE(gtp_endmember), pointer :: ordered,disordered
-! The Toop/Kohler record for each phase with such ternary extrapolation
-! This is a link connecting all Toop/Kohler records for a phase.
-!     TYPE(gtp_tooprec), pointer :: tooplist
-!     integer lasttoopid
-!     TYPE(gtp_tooprec), pointer :: tooprec,tooplist
 ! To allow parallel processing of endmembers, store a pointer to each here
      integer noemr,ndemr
      TYPE(endmemrecarray), dimension(:), allocatable :: oendmemarr,dendmemarr
@@ -1652,10 +1601,6 @@
 ! used in ionic liquid:
 ! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)
      integer, dimension(2) :: i2slx
-! Needed to list all Toop/Kohler ternary models
-! The one used for calculations is the pointer in gtp_intrec (tooprec)
-     TYPE(gtp_tooprec), pointer :: tooplast,toopfirst
-     integer :: lasttoopid
 ! allocated in init_gtp.
   END TYPE gtp_phaserecord
 ! NOTE phase with index 0 is the reference phase for the elements
@@ -1771,7 +1716,8 @@
 ! to convert this to an index for compvar to know the two cations
 !------------------------------------------------------ NEW
 ! these are constants depending of the elements in the quad
-     double precision, dimension(:,:), allocatable :: dy_ik  ! not in mqmqq_var
+! moved to mqf%
+!     double precision, dimension(:,:), allocatable :: dy_ik  ! not in mqmqq_var
 ! transfer of fractions from OC fraction array to xquad not needed
 !     integer, dimension(:), allocatable :: quad2con not needed
 ! updating of mqmqa_var for ternary variables, xi_ij, xi_ji, y_ik
@@ -1821,12 +1767,14 @@
 ! y_ik are the fraction of each cation (in which order?)
   double precision, dimension(:), allocatable :: y_ik
 ! These are the factors of the x_ij needed to calculate y_ik
-! these are dy_ik in mqmqa_data%dy_ik
+! **** originally  dy_ik were in mqmqa_data%dy_ik
+! these are constants depending of the elements in the quad
+  double precision, dimension(:,:), allocatable :: dy_ik
 ! To calculate xi_ij and xi_ji use compvar(cxq)%dxi_ij and dxi_ji
 ! xi_ij and xi_ji are affected by asymmetries !!
 ! y_ik(i,j) = 0.5*x_ii + (\sum_j 0.5*x_ij)  j loops for all i, x_ij not vk_ij!!
 !  double precision, dimension(:,:), allocatable :: y_ikfact
-!  double precision, dimension(:,:), allocatable :: dy_ik  ! in gtp_mqmqa
+! ****  double precision, dimension(:,:), allocatable :: dy_ik  ! in gtp_mqmqa
 !-----------------------------------------------------------------
 ! needed for access to phase data
 !

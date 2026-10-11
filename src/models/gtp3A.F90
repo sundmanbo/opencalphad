@@ -846,10 +846,10 @@
       if(allocated(mqmqa_data%con2quad)) deallocate(mqmqa_data%con2quad)
       if(allocated(mqmqa_data%quad2compvar)) deallocate(mqmqa_data%quad2compvar)
       if(allocated(mqmqa_data%emquad)) deallocate(mqmqa_data%emquad)
-      if(allocated(mqmqa_data%dy_ik)) deallocate(mqmqa_data%dy_ik)
 ! added 2026.08.25
       mqf=>phdyn%mqmqaf
       if(allocated(mqf%names_y_ik)) deallocate(mqf%names_y_ik)
+      if(allocated(mqf%dy_ik)) deallocate(mqf%dy_ik)
       if(allocated(mqf%spix_y_ik)) deallocate(mqf%spix_y_ik)
       if(allocated(mqf%spqx_y_ik)) deallocate(mqf%spqx_y_ik)
       if(allocated(mqmqa_data%el2quad)) deallocate(mqmqa_data%el2quad)
@@ -3231,7 +3231,7 @@ end function find_phasetuple_by_indices
            ' calling set_quadfractions',lokcs
       phres=>ceq%phase_varres(lokcs)
 ! the second argument means to list
-      call set_quadfractions(phres,mqmqxcess,yfra)
+      call set_quadfractions(phres,mqmqxcess)
    endif
 1000 continue
 !   write(*,*)'3A no segmentation fault at exit'

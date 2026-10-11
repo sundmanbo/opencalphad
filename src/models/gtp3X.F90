@@ -70,9 +70,6 @@
 17 format(a,2i4,1pe15.6)
    call calcg_internal(lokph,moded,ceq%phase_varres(lokres),ceq)
 1000 continue
-! if phlista(lokph)%toopfirst then set phlista(lokph)%toopfirst%endmemel to 0
-! to indicate that redundant toop/Kohler fraction indices
-   if(associated(phlista(lokph)%toopfirst)) phlista(lokph)%toopfirst%endmemel=0
 !   write(*,*)'3X back from calcg_internal'
    return
  end subroutine calcg
@@ -106,8 +103,6 @@
    double precision vals(6)
 ! this array has the sum of constituents up to and including current sublattice
    integer incffr(0:maxsubl)
-! Kohler-Toop binary excess model link
-   type(gtp_tooprec), pointer :: tooprec
 ! in local gz: gz%intlevel level of interaction, gz%intcon and gz%intlat are
 ! used also in cgint when calculating interactions.
    TYPE(gtp_parcalc) :: gz
@@ -826,27 +821,10 @@
 200            continue
                gz%intlevel=gz%intlevel+1
 !               write(*,*)'3X excess 1: ',gz%intlevel,phres%gval(1,1)*rtg
-!               write(*,*)'3X is there a tooprec?: ',associated(intrec%tooprec)
                call push_pyval(pystack,intrec,pmq,&
                     pyq,dpyq,d2pyq,moded,gz%nofc)
 ! intrec%order is initiated by palmtree to set a sequential number
                pmq=intrec%order
-! check if there is a Kohler-Toop link (NOT YET)
-!               write(*,*)'3X testing tooprec: ',associated(intrec%tooprec)
-               if(associated(intrec%tooprec)) then
-!                  write(*,*)'3X Toop/Kohler model: ',&
-!                       associated(intrec%tooprec),chkperm,gz%intlevel
-                  tooprec=>intrec%tooprec
-                  if(chkperm) then
-                     write(*,*)'3X Toop/Kohler and permutations is illegal'
-                     gx%bmperr=4399; goto 1000
-                  endif
-! we need this additional information inside calc_toop
-! I find it very elegant just to include a pointer to the phase_varres record!
-                  tooprec%phres=>cps
-               else
-                  nullify(tooprec)
-               endif
 !               write(*,155)'3X Pushed: ',pmq,gz%intlevel
 !-------------------------------------------------------------------
 ! come back here for another permutation of same paremeter (no push needed)
@@ -1204,7 +1182,7 @@
                   d2vals=zero
 !                  call cgint(lokph,proprec,moded,vals,dvals,d2vals,gz,ceq)
                   call cgint(lokph,proprec,moded,&
-                       vals,dvals,d2vals,gz,tooprec,ceq)
+                       vals,dvals,d2vals,gz,ceq)
                   if(gx%bmperr.ne.0) goto 1000
 !                  write(*,228)'3X val:',vals(1),(dvals(1,id),id=1,gz%nofc)
 ! G parameters (ipy=1) are divided by RT inside cgint
@@ -2066,7 +2044,7 @@
 
 !\addtotable subroutine cgint
 !\begin{verbatim}
- subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,tooprec,ceq)
+ subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
 ! calculates an excess parameter that can be composition dependent
 ! gz%yfrem are the site fractions in the end member record
 ! gz%yfrint are the site fractions in the interaction record(s)
@@ -2079,7 +2057,6 @@
    TYPE(gtp_parcalc) :: gz
    double precision vals(6),dvals(3,gz%nofc)
    TYPE(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_tooprec), pointer :: tooprec
 !\end{verbatim}
 ! temporary data like gz%intlevel, gz%nofc etc
    double precision d2vals(gz%nofc*(gz%nofc+1)/2),valtp(6)
@@ -2166,16 +2143,6 @@
 ! composition dependent wildcard interaction not implemented
 ! y(1-y) ( L0 + (2y-1) L1 + (2y-1)**2 L2 + ....) ??
          gx%bmperr=4031; goto 1000
-      endif
-      if(associated(tooprec)) then
-! This is a Kohler-Toop method parameter
-! only for binary interaction parameters with Kohler or Toop models
-! if no composition dependence we never come here as we exit 50 lines above
-!         call calc_toop(lokph,lokpty,moded,vals,dvals,d2vals,gz,tooprec,ceq)
-! we have calculated all, skip the rest of this subroutine
-         write(*,*)'3X the calc_toop subroutine not needed in new MQMQA'
-         stop 'Old OC code no longer available'
-         goto 1000
       endif
 ! endmember fraction minus interaction fraction
       dx0=gz%yfrem(gz%intlat(1))-gz%yfrint(1)

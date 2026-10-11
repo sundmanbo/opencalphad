@@ -841,7 +841,6 @@
    integer, parameter :: maxstack=20
    TYPE(intrecarray), dimension(maxstack) :: intrecstack
    TYPE(gtp_fraction_set), pointer :: disfrap
-   type(gtp_tooprec), pointer :: tooprec
 !
 !--------------------------------------------------
 ! return here to list disordered parameters
@@ -1268,12 +1267,6 @@
       parlist=2
 !      write(*,*)'3E Jump back to list disordered parameters',nsl,parlist
       goto 100
-   endif
-! Check if there are toop/kohler ternaries
-   tooprec=>phlista(lokph)%tooplast
-   if(associated(tooprec)) then
-      write(*,*)'3EX there are Toop/Kohler extrapolations'
-      write(*,*)'There is some code in gtp3C.F90 to handle this'
    endif
 !   write(lut,*)'<!-- exit write_parameters -->'
 !   write(*,*)'3E listing by write_parameters
