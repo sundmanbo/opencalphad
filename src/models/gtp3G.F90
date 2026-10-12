@@ -1533,7 +1533,7 @@
 !\addtotable subroutine create_proprec
 !\begin{verbatim}
  subroutine create_proprec(proprec,proptype,degree,lfun,refx)
-! reservs a property record from free list and insert data
+! reserves a property record from free list and insert data
 ! it is called from enter_parameter in gtp3B.F90
 ! if there is already a property record (magnetic, MQMQA etc) for the parameter
 ! this record is automatically linked at the end
@@ -1548,13 +1548,15 @@
    logical mqmqa
 !
    mqmqa=.false.
+!   write(*,*)'3G This routine is not used for MQMQA'
    if(proptype.ge.1000) then
 ! this an MQMQA parameter
-      write(*,*)'3G use special create_mqmqa_proprec'
+      write(*,*)'3G use special create_mqmqa_proprec',proptype
       stop
       mqmqa=.true.
 ! an MQMQA model parameters have special asymmetric composition dependence
-      write(*,*)'3G special MQMQA excess parameter',proptype,degree
+!      write(*,5)proptype,degree
+5     format('3G special MQMQA excess parameter',i5,', powers: ',i5)
       typty=proptype/1000
 ! this proptype is probably not needed nor useful
       if(typty.eq.1) then
@@ -1674,13 +1676,14 @@
    character notext*32
    logical mqmqa
 !
-!   write(*,*)'3G using special MQMQA create_proprec'
+!   if(mqmqtdb) write(*,*)'3G using special MQMQA create_proprec'
    mqmqa=.false.
    if(proptype.ge.1000) then
 ! this an MQMQA parameter
       mqmqa=.true.
 ! an MQMQA model parameters have special asymmetric composition dependence
-      if(mqmqtdb) write(*,*)'3G special MQMQA excess parameter',proptype,degree
+!      if(mqmqtdb) write(*,5)proptype,degree
+5     format('3G special MQMQA excess:',i5,', powers: ',i5)
       typty=proptype/1000
 ! this proptype is probably not needed nor useful
       if(typty.eq.1) then

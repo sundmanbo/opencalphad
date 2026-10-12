@@ -1227,6 +1227,7 @@
 ! for handling excess parameters, just binary, use no mqmqa_data ksi arrays
    integer jq,isumx,tch,mqmqjy
    integer noofex,nqx,ncv,icv,dd
+   logical, save :: once1=.true.
 !   logical calc_alldvkij
 !   logical ddebug
 !   save oldmqmqa_model
@@ -1626,8 +1627,9 @@
       if(.not.associated(intrec)) cycle endmemloop2
 !
 499   continue
-      write(*,*)'3XQ line 1681 old code for MQMQAX removed'
-      stop
+      if(once1) write(*,*)'3XQ line 1681 WARNING old code for MQMQAX removed'
+      once1=.false.
+!      stop
 ! removed a lot of old code below as it seemed redundant ... 
 !
    enddo endmemloop2
@@ -1684,6 +1686,9 @@
    logical, save :: once=.true.
 !
    character*120 text
+! Claude 2026.10.12: for mqter debug output of each parameter
+   character*256 funtext
+   integer jy
    double precision :: rtg
    integer ppow,qpow,rpow,intlev,pairquad,jp
    integer, save :: proprecno=0
@@ -1828,6 +1833,13 @@
 !         endif
          if(tpfun(1).eq.0.0d0) then
 ! skip if there is no TP function (no TPFUN used during testing)
+            if(mqter) then
+               call mqter_parameter_name(lokph,nfr,ylinks,proprec,text)
+               call list_tpfun(lokfun,1,funtext)
+               write(*,1209)trim(text),trim(funtext)
+1209           format(/'3XQ mqter parameter: ',a,' ',a/&
+                    '3XQ   value is zero, skipped')
+            endif
             proprec=>proprec%nextpr
             nex=nex+1
             cycle proplist
@@ -1859,6 +1871,17 @@
 ! extract the quad pointers
          endif
 !
+         if(mqter) then
+! Claude 2026.10.12: debug output for each parameter calculated, the
+! constituents with their fractions and the TP function, values below
+            call mqter_parameter_name(lokph,nfr,ylinks,proprec,text)
+            call list_tpfun(lokfun,1,funtext)
+            write(*,1210)trim(text),trim(funtext),&
+                 (trim(splista(phlista(lokph)%constitlist(ylinks(jy)))%symbol),&
+                 ceq%phase_varres(lokcs)%yfr(ylinks(jy)),jy=1,nfr)
+1210        format(/'3XQ mqter parameter: ',a,' ',a/&
+                 ('3XQ   y(',a,')=',1pe14.6,:,3x,'y(',a,')=',1pe14.6))
+         endif
 !         lokfun=proprec%degreelink(0)
 ! can xq be zero here ??????
          xq=proprec%asymdata%quad
@@ -1937,6 +1960,18 @@
 1202        format('3XQ line 1937 added to vals(1): ',2f8.5,1pe13.5)
 ! vals(1) is the sum of all excess parameters linked from this endmember
             vals(1)=vals(1)+compprod*tpfun(1)
+            if(mqter) then
+! Claude 2026.10.12: debug output for each parameter calculated, the
+! values of composition variables and parameter, see also format 1210
+               write(*,1211)mqf%xquad(xq),vk_ij,vk_ji,py3
+1211           format('3XQ   x_quad=',1pe14.6,', vk_ij=',1pe14.6,&
+                    ', vk_ji=',1pe14.6,', ternary factor=',1pe14.6)
+               write(*,1212)rtg*tpfun(1),compprod,rtg*compprod*tpfun(1),&
+                    rtg*vals(1)
+1212           format('3XQ   L=',1pe14.6,', fraction product=',1pe14.6,&
+                    ', L*product=',1pe14.6/&
+                    '3XQ   sum of excess from this endmember=',1pe14.6)
+            endif
 ! vals(2) is the T derivative of the parameter
             vals(2)=vals(2)+compprod*tpfun(2)
 !
@@ -2422,6 +2457,39 @@
  end subroutine mqmqa_excesspar_name
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine mqter_parameter_name
+!\begin{verbatim}
+ subroutine mqter_parameter_name(lokph,nfr,ylinks,proprec,text)
+! Claude 2026.10.12: the name of an MQMQA excess parameter with its powers
+! for the mqter debug output in new_mqmqa_excess, for example
+! G(MSCL,K/CL-Q01,KLI/CL-Q04,LI/CL-Q02;G,1,0) or ;G,0,0,2) for a ternary
+   implicit none
+   integer lokph,nfr,ylinks(*)
+   type(gtp_property), pointer :: proprec
+   character text*(*)
+!\end{verbatim}
+   integer jp
+   character*1 ptyp1
+   ptyp1='?'
+   if(proprec%proptype.eq.34) ptyp1='G'
+   if(proprec%proptype.eq.35) ptyp1='Q'
+   if(proprec%proptype.eq.36) ptyp1='B'
+   jp=1
+   text=' '
+   call mqmqa_excesspar_name(lokph,nfr,ylinks,text,jp)
+   text(jp-1:)=';'//ptyp1//','//char(ichar('0')+proprec%asymdata%ppow)//&
+        ','//char(ichar('0')+proprec%asymdata%qpow)
+   jp=len_trim(text)+1
+   if(nfr.gt.3) then
+      text(jp:)=','//char(ichar('0')+proprec%asymdata%rpow)
+      jp=jp+2
+   endif
+   text(jp:)=')'
+   return
+ end subroutine mqter_parameter_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine mqmqa_add_tersys_link
 !\begin{verbatim}
@@ -4419,7 +4487,6 @@
    enddo
 !
 ! Calculation of xi_ij using dxi YES here box%xi_ij are calculated
-!   write(*,*)'3XQ line 5634 is box%xi_ij calculated here ?'
 !
    sum1=0.0d0; sum2=0.0d0
    do di=1,mqmqa_data%nquad
@@ -4428,6 +4495,9 @@
    enddo
    box%xi_ij=sum1
    box%xi_ji=sum2
+! Hm, x_ij and x_ji are almost constants as they represent amount of cations
+!   write(*,55)box%xi_ij,box%xi_ji,(mqf%xquad(di),di=1,mqmqa_data%nquad)
+55 format('3XQ line 4422 xi_ij:',2f7.4,10f7.4)
 !
 ! debug output, ivk_ij, jvk_ji, kvk_ijk, dxi_ij, dxi_ji ---------------------
 !    

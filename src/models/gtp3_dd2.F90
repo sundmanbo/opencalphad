@@ -1179,6 +1179,8 @@
   logical :: mqverbose=.false.
 ! ternary calculations
   logical :: mqter=.false.
+! enter ternary parameters
+  logical :: mqenter=.false.
 ! this is explicitly set .false. in pmon6.F90 for the NEW command
   logical :: mqmqa_multival=.false.
 ! When .TRUE., mqmqa_species rejects a 2-cation quad only if the same

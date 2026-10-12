@@ -3516,6 +3516,11 @@
 ! message, and the central "3E error 4005" line on every retry).
    character (len=24) :: failed_funs(50)
    integer :: nfailed_funs
+! Claude 2026.10.12: names of all elements and species in the TDB file, also
+! those not selected, to detect misspelled constituents in parameters
+   character (len=24), allocatable :: tdbnames(:)
+   character (len=24) :: tdbname
+   integer :: ntdbnames
 ! this is used for reading encrypted FUNCTION and PARAMETER part of a TDB file
 !   integer encrypted   ---- replaced by globaldata%encrypted
 !   character encryptline*128
@@ -3641,6 +3646,8 @@
    read_complete=.FALSE.
    nfailed_funs=0
    failed_funs=' '
+   ntdbnames=0
+   allocate(tdbnames(100))
 ! return here after rewind
 90  continue
    nl=0
@@ -3799,6 +3806,10 @@
          gx%bmperr=4305; goto 1000
       endif
       elsym=longline(ip:ip+1)
+! remember all element names, also those not selected
+      tdbname=elsym
+      call capson(tdbname)
+      call tdb_remember_name(tdbnames,ntdbnames,tdbname)
       if(elsym.eq.'/-' .or. elsym.eq.'VA') goto 100
 ! allow lower case in TDB file ...
       call capson(elsym)
@@ -3869,6 +3880,8 @@
 ! handle MQMQA quads ... do I need capson? maybe ...
 !      write(*,*)'3E species line 3863: ',trim(name1)
       call capson(name1)
+! remember all species names, also those with elements not selected
+      call tdb_remember_name(tdbnames,ntdbnames,name1)
       kp=index(name1,'/')
       if(kp.gt.0 .and. &
            name1(kp+1:kp+1).ge.'A' .and. name1(kp+1:kp+1).le.'Z') then
@@ -4850,6 +4863,25 @@
          else
             if(gx%bmperr.ne.4051) write(*,*)'3E error decode const ',&
                  name4(1:len_trim(name4))
+            if(gx%bmperr.eq.4051 .and. &
+                 btest(phlista(lokph)%status1,PHMQMQA)) then
+! Claude 2026.10.12: a constituent which is not in the current system is
+! normally a species with an element not selected.  But in an MQMQA phase
+! all quads must be on SPECIES lines, if the name is not an element or
+! species anywhere in the TDB file it is misspelled.  Other phases are not
+! checked as many TDB files have parameters for undeclared gas species
+               gx%bmperr=0
+               call tdb_unknown_constituent(name4,tdbnames,ntdbnames,tdbname)
+               if(tdbname.ne.' ') then
+                  if(.not.silent) write(kou,298)trim(tdbname),&
+                       trim(name2),trim(name4),nl
+298               format(' *** Error, unknown constituent "',a,&
+                       '" in parameter ignored: ',a,',',a,')'/&
+                       '     around line ',i6,' in the TDB file')
+! tdbwarning not set as the pause would break macros reading such files
+                  gx%bmperr=0; reason=3; goto 888
+               endif
+            endif
             if(ocv()) write(*,*)'Skipping parameter: ',name4(1:len_trim(name4))
 !            notusedpar=notusedpar+1
 !            gx%bmperr=0; goto 100
@@ -5705,6 +5737,86 @@
    globaldata%status=ibset(globaldata%status,GSSILENT)
    return
  end subroutine readtdbsilent
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine tdb_remember_name
+!\begin{verbatim}
+ subroutine tdb_remember_name(names,nn,name)
+! Claude 2026.10.12: save the name of an element or species in a TDB file,
+! also if not selected.  Used to detect misspelled constituents in parameters
+   implicit none
+   character (len=24), allocatable :: names(:)
+   integer nn
+   character name*(*)
+!\end{verbatim}
+   character (len=24), allocatable :: more(:)
+   integer jj
+   do jj=1,nn
+      if(names(jj).eq.name) goto 1000
+   enddo
+   if(nn.ge.size(names)) then
+      allocate(more(2*size(names)))
+      more(1:nn)=names(1:nn)
+      call move_alloc(more,names)
+   endif
+   nn=nn+1
+   names(nn)=name
+1000 continue
+   return
+ end subroutine tdb_remember_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine tdb_unknown_constituent
+!\begin{verbatim}
+ subroutine tdb_unknown_constituent(constarr,names,nn,badname)
+! Claude 2026.10.12: find a constituent in the constituent array of a TDB
+! parameter which is neither a species in the current system nor an element
+! or species in the TDB file, i.e. it is misspelled.
+! badname is blank if all constituents are known
+   implicit none
+   character constarr*(*),badname*(*)
+   character (len=24) :: names(*)
+   integer nn
+!\end{verbatim}
+   character const*24
+   integer ip,jp,jj,loksp,quad,last
+   badname=' '
+   last=len_trim(constarr)
+   ip=1
+   loop: do while(ip.le.last)
+! constituents are separated by , or : and the array ends at ; or space
+      jp=ip
+      do while(jp.le.last)
+         if(index(',:; ',constarr(jp:jp)).gt.0) exit
+         jp=jp+1
+      enddo
+      const=constarr(ip:jp-1)
+      call capson(const)
+      if(const.ne.' ' .and. const.ne.'*') then
+         call find_species_record_exact(const,loksp)
+         if(gx%bmperr.ne.0) then
+            gx%bmperr=0
+! an MQMQA quad K/CL-Q in a parameter is K/CL on the SPECIES line
+            if(index(const,'/').gt.0) then
+               quad=index(const,'-Q')
+               if(quad.gt.0) const(quad:)=' '
+            endif
+            do jj=1,nn
+               if(names(jj).eq.const) goto 100
+            enddo
+            badname=constarr(ip:jp-1)
+            exit loop
+         endif
+      endif
+100   continue
+      if(jp.gt.last) exit loop
+      if(constarr(jp:jp).eq.';' .or. constarr(jp:jp).eq.' ') exit loop
+      ip=jp+1
+   enddo loop
+   return
+ end subroutine tdb_unknown_constituent
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

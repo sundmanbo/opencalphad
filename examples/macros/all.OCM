@@ -223,10 +223,10 @@ mac ./map18
 mac ./map19
 
 @&& *********************************************************
-@$ Removed test of the MQMQA model CsLaF system, mapping does not work
+@$ Test of the MQMQA model for CsLaF system
 @$ *********************************************************
 
-@$ mac ./map20
+mac ./map20
 
 @$ && *********************************************************
 @$ Third test of the MQMQA model with asymmetries

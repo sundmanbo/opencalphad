@@ -3094,7 +3094,9 @@
       enddo
    endif
 28  continue
-!   write(*,*)'3B enter_parameter mint2: ',mint,nint
+! looking for bug entering ternary MQMQA parameter
+!   if(mqenter) write(*,700)mint,nint
+700 format('3B enter_parameter mint2: ',2i3)
 15  format('enter_parameter x: ',4I4)
 16  format('enter_parameter y: ',4I4)
    if(mint.lt.nint) then
@@ -3183,10 +3185,10 @@
 90 continue
 !   if(fractyp.eq.2) then
 ! looking for bug entering 4 sublattice interaction parammeters ...
-!   write(*,116)'3B: endm & int: ',(iord(ii),ii=1,nsl),&
+! I do not understand why listing this
+!   if(mqenter) write(*,116)'3B: endm & int: ',(iord(ii),ii=1,nsl),&
 !        (jord(1,ii),jord(2,ii),ii=1,nint)
 116 format(a,4i3,' : ',2i3,2x,2i3)
-!   endif
    nullify(lastem)
 !---------------------------------------------
 ! check that interactions are in sublattice and alphabetical order!!
@@ -3912,6 +3914,160 @@
  subroutine enter_mqmqa_excess_param(lokph,endmemrec,typty,nint,jord,&
       ideg,lfun,refx)
 ! enter an mqmqa excess property linked from an endmember
+! Claude 2026.10.12: rewritten, the previous version is kept below as
+! enter_mqmqa_excess_param_old
+   implicit none
+   type(gtp_endmember), pointer :: endmemrec
+   integer :: lokph, typty, nint, jord(2,*),lfun,ideg
+   character refx*(*)
+! nint is number of interaction constituents, lfun is function link
+!\end{verbatim} %+
+! The endmember is the alphabetically first constituent, sem, and the
+! interacting constituents jord(2,1..nint) are in increasing order.
+! A binary MQMQA parameter has 3 constituents (A/X, AB/X, B/X), nint=2,
+! a ternary has 4 (one extra C/X), nint=3.
+!
+! The tree below the endmember (the same as for all other phases):
+!   endmemrec%intpointer -> list of level 1 records linked by %nextlink
+!   each record %highlink -> list of next level records linked by %nextlink
+! each list ordered by increasing %fraclink(1).  The property records are
+! linked from the record on level nint, %propointer -> %nextpr -> ...
+! Records on lower levels may have no property record (for example the
+! level 2 record of a ternary when there is no binary parameter).
+!
+   integer, dimension(24) :: intperm
+   integer, dimension(:,:), allocatable :: intlinks
+   type(gtp_interaction), pointer :: parent,intrec,previous,newintrec
+   type(gtp_property), pointer :: proprec
+   integer mint,ii,sem,parquad(5),mqconst(10),tersyslink,cation
+!
+   sem=endmemrec%fraclinks(1,1)
+! check the number of constituents and their order
+   if(nint.lt.2 .or. nint.gt.3) then
+      write(*,10)nint+1
+10    format('3B an MQMQA excess parameter must have 3 or 4 constituents, ',&
+           'not ',i2)
+      gx%bmperr=4399; goto 1000
+   endif
+   if(jord(2,1).le.sem) then
+      write(*,12)sem,(jord(2,mint),mint=1,nint)
+12    format('3B MQMQA excess constituents not in increasing order: ',4i4)
+      gx%bmperr=4399; goto 1000
+   endif
+   do mint=2,nint
+      if(jord(2,mint).le.jord(2,mint-1)) then
+         write(*,12)sem,(jord(2,ii),ii=1,nint)
+         gx%bmperr=4399; goto 1000
+      endif
+   enddo
+   if(mqmqtdb .or. mqenter) write(*,14)lfun,sem,(jord(2,mint),mint=1,nint)
+14 format('3B MQMQA excess: ',i5,' endmember: ',i3,', interaction: ',3i3)
+!
+! mqconst is used by mqmqa_add_tersys_link, number of quads and quad indices
+   mqconst(1)=nint+1
+   mqconst(2)=mqmqa_data%con2quad(sem)
+   do mint=1,nint
+      mqconst(mint+2)=mqmqa_data%con2quad(jord(2,mint))
+   enddo
+! intperm and intlinks are only used for FCC/BCC permutations
+   intperm(1)=0
+   allocate(intlinks(1,1))
+!
+! find or create one interaction record on each level 1..nint
+! on level 1 the list starts at endmemrec%intpointer,
+! on higher levels it starts at parent%highlink
+   nullify(parent)
+   levels: do mint=1,nint
+      if(mint.eq.1) then
+         intrec=>endmemrec%intpointer
+      else
+         intrec=>parent%highlink
+      endif
+      nullify(previous)
+! the list is ordered, skip records with lower constituent index
+      search: do while(associated(intrec))
+         if(intrec%fraclink(1).ge.jord(2,mint)) exit search
+         previous=>intrec
+         intrec=>intrec%nextlink
+      enddo search
+      found: if(associated(intrec)) then
+         if(intrec%fraclink(1).eq.jord(2,mint)) then
+! this record exists already, continue to next level from it
+            parent=>intrec
+            cycle levels
+         endif
+      endif found
+! create a new record and insert it before intrec (which may be null)
+      call create_interaction(newintrec,mint,jord,intperm,intlinks)
+      if(gx%bmperr.ne.0) goto 1000
+      newintrec%nextlink=>intrec
+      if(associated(previous)) then
+         previous%nextlink=>newintrec
+      elseif(mint.eq.1) then
+         endmemrec%intpointer=>newintrec
+      else
+         parent%highlink=>newintrec
+      endif
+      if(mqter) write(*,20)mint,jord(2,mint)
+20    format('3B created MQMQA interaction record at level ',i2,&
+           ' for constituent ',i3)
+      parent=>newintrec
+   enddo levels
+!
+! parent is the record on level nint, add the property record last
+   typty=ideg; ideg=0
+   if(.not.associated(parent%propointer)) then
+      call create_mqmqa_proprec(parent%propointer,typty,ideg,lfun,refx)
+      if(gx%bmperr.ne.0) goto 1000
+      proprec=>parent%propointer
+   else
+      proprec=>parent%propointer
+      do while(associated(proprec%nextpr))
+         proprec=>proprec%nextpr
+      enddo
+      call create_mqmqa_proprec(proprec%nextpr,typty,ideg,lfun,refx)
+      if(gx%bmperr.ne.0) goto 1000
+      proprec=>proprec%nextpr
+   endif
+!
+! MQMQA data in the property record, parquad(1) is the AB/X quad index
+   call convert_y2quadx(sem,nint,jord,parquad)
+   if(gx%bmperr.ne.0) goto 1000
+   proprec%asymdata%quad=parquad(1)
+   proprec%asymdata%alpha=parquad(2)
+   proprec%asymdata%beta=parquad(3)
+   proprec%asymdata%ternary=parquad(4)
+   proprec%asymdata%tersyslink=0
+   proprec%asymdata%tcat=0
+!
+! for a ternary parameter add link to tersys and the ternary cation
+   if(nint.eq.3) then
+      if(.not.allocated(tersys)) then
+         write(*,900)
+900      format('3B The tersys array not allocated')
+         gx%bmperr=4399; goto 1000
+      endif
+      tersyslink=0
+      call mqmqa_add_tersys_link(mqconst,tersyslink,cation)
+      if(gx%bmperr.ne.0) goto 1000
+      proprec%asymdata%tersyslink=tersyslink
+      proprec%asymdata%tcat=cation
+      if(mqter) write(*,905)tersyslink,cation
+905   format('3B added link ',i3,' to ternary array with cation',i3)
+   endif
+!
+1000 continue
+   return
+ end subroutine enter_mqmqa_excess_param
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine enter_mqmqa_excess_param_old
+!\begin{verbatim}
+ subroutine enter_mqmqa_excess_param_old(lokph,endmemrec,typty,nint,jord,&
+      ideg,lfun,refx)
+! enter an mqmqa excess property linked from an endmember
+! Claude 2026.10.12: OLD VERSION, not used, replaced by the routine above
    implicit none
    type(gtp_endmember), pointer :: endmemrec,extraem
    integer :: lokph, typty, nint, jord(2,*),lfun,ideg
@@ -3927,6 +4083,9 @@
    type(gtp_property), pointer :: proprec,lastprop,savedproplink
 ! mqconst should include all constituents involved in the interaction
    integer ii,ij,mint,sem,level,first,parquad(5),mqconst(10),tersyslink,cation
+   integer spix,lokcs,depth,zz
+! for debugging (probably needed many times more)
+   character*24, allocatable, dimension(:) :: constnames
 ! The mqmqa excess has no degree and minimum 3 constituents in addition
 ! to the enemember.  Two or 3 of these are A/X type and one AB/X type
 ! there can be several property records to a single excess record
@@ -3938,6 +4097,7 @@
 ! Claude 2026.10.11: include the endmember sem (the lowest constituent, which
 ! can be an A/X quad, e.g. K/CL for LINA/CL,K/CL,LI/CL,NA/CL) and convert
 ! constituent indices to quad indices as quad2cat expects quad indices
+   depth=0
    sem=endmemrec%fraclinks(1,1)
    mqconst(1)=nint+1
    mqconst(2)=mqmqa_data%con2quad(sem)
@@ -3947,15 +4107,36 @@
 !
    mint=0
    intrec=>endmemrec%intpointer
-   if(mqmqtdb) then
+   if(mqmqtdb .or. mqenter) then
      if(associated(intrec)) then
         write(*,10)mint,nint,lfun,intrec%fraclink(1),sem,(jord(2,ii),ii=1,nint)
      else
-        write(*,10)mint,nint,lfun,1000,sem,(jord(2,ii),ii=1,nint)
+        write(*,10)mint,nint,lfun,-1,sem,(jord(2,ii),ii=1,nint)
      endif
-10   format(/'3B At ENDMEMBER: ',2i3,i5,5x,i2,5x,i2,2x,6i3)
+10   format(/'3B line 3961 at ENDMEMBER: ',2i3,i5,5x,i3,i2,', jord: ',6i3)
    endif
 !  
+! would like to know the constiteunts names, not just numbers ...
+! is mint,jord(2..) are constituent indices, how to convert to species names
+! lokph is phase record
+   ii=size(phlista(lokph)%constitlist)
+   allocate(constnames(ii))
+   do spix=1,ii
+      lokcs=phlista(lokph)%constitlist(spix)
+      constnames(spix)=splista(lokcs)%symbol
+   enddo
+! debug information
+   debug1: if(mqter) then
+!      write(*,11)(trim(constnames(spix)),spix=1,ii)
+11    format('3B line 3973: ',20(a,1x))
+      write(*,12)endmemrec%fraclinks(1,1),constnames(endmemrec%fraclinks(1,1))
+12    format('3B endmember const: ',i3,2x,a)
+      write(*,13)(jord(2,ii),trim(constnames(jord(2,ii))),ii=1,nint)
+13    format('3B interation const:',4(i3,2x,a))
+!      write(*,13)(trim(constnames(jord(2,ii))),ii=1,nint)
+!13    format('3B interation const:',4(1x,a))
+   endif debug1
+!
 ! intperm, elinks and intlinks not needed here, used for FCC/BCC permutations
    intperm(1)=0
    allocate(intlinks(1,1))
@@ -3990,9 +4171,14 @@
 !      endif
       call create_interaction(newintrec,mint,jord,intperm,intlinks)
       if(gx%bmperr.ne.0) goto 1000
-!      write(*,155)level,mint,nint,jord(2,mint)
-!155   format('3B created interaction ',3i3,', for constituent: ',i3)
+      depth=depth+1
+      if(mqter) then
+         write(*,155)depth,level,mint,nint,jord(2,mint)
+155      format('3B created interaction ',4i3,', for constituent: ',i3)
+         write(*,154)jord(2,mint),constnames(jord(2,mint))
+154      format('3B interaction const: ',i3,2x,a)
 ! set the links to this new interaction record 
+      endif
       tohere: if(level.eq.-1) then
 ! if level=-1 this is the first interaction or replaces the previous first
 !         if(associated(endmemrec%intpointer)) then
@@ -4016,14 +4202,14 @@
             write(*,*)'3B highlink already set 2',intrec%fraclink(1)
             stop
          endif
-!         write(*,158)lastint%fraclink(1)
-!158      format('3B Above an interaction to ',i3)
+         write(*,158)lastint%fraclink(1)
+158      format('3B Adding a higher interaction to ',i3)
          lastint%highlink=>newintrec
       else
 ! if level=1 we have already found records on this level, set lastint%nextlink
 ! evidently that link was empty otherwise we had found a record
-!         write(*,158)lastint%fraclink(1)
-!159      format('3B After interaction on same level as ',i3)
+         if(mqter) write(*,158)lastint%fraclink(1)
+159      format('3B Add interaction on same level as ',i3)
          lastint%nextlink=>newintrec
       endif tohere
 ! we have a new record which is linked to previous records
@@ -4038,6 +4224,8 @@
 ! the link back will be to a lower level
          level=0
 ! the highlink should already be nullified and record will be created above
+         if(mqter) write(*,160)mint,nint
+160      format('3B adding record at higher level',2i3)
          nullify(intrec%highlink)
          intrec=>intrec%highlink
          goto 100
@@ -4052,12 +4240,12 @@
                proprec=>proprec%nextpr
             enddo
 ! this routine is in gtp3G.F90
-!            write(*,120)typty,lfun,associated(intrec)
-!120         format('3B creating property record 1A',2i5,l2)
+            write(*,120)typty,lfun,associated(intrec)
+120         format('3B adding second property record 1A',2i5,l2)
             call create_mqmqa_proprec(proprec%nextpr,typty,ideg,lfun,refx)
          else
-!            write(*,121)typty,lfun,associated(intrec)
-!121         format('3B creating property record 1B:',2i5,l2)
+            write(*,121)typty,lfun,associated(intrec)
+121         format('3B creating property record 1B:',2i5,l2)
             call create_mqmqa_proprec(intrec%propointer,typty,ideg,lfun,refx)
          endif
          if(gx%bmperr.ne.0) then
@@ -4068,6 +4256,9 @@
          proprec=>intrec%propointer
          do while(associated(proprec%nextpr))
 ! there can be several property records
+            write(*,312)
+312         format('3B there should be no trailing property records')
+            stop
             proprec=>proprec%nextpr
          enddo
 !         write(*,*)'3B associated? ',associated(proprec)
@@ -4081,12 +4272,16 @@
 !         write(*,334)'quad',(parquad(ii),ii=1,nint)
 ! these are the indices for quad and aymmetric compvar ...
 !         write(*,*)'3B back from convert_y2quadx 1'
+! Are they really needed??
          proprec%asymdata%quad=parquad(1)
          proprec%asymdata%alpha=parquad(2)
          proprec%asymdata%beta=parquad(3)
          proprec%asymdata%ternary=parquad(4)
 !         write(*,335)parquad
 !335      format('3B saved in propery quad mm:',5i3)
+         write(*,335)depth,trim(constnames(endmemrec%fraclinks(1,1))),&
+              (trim(constnames(jord(2,zz))),zz=1,depth)
+335      format('3B line 4130 param:',i2,1x,a,(',',a))
          exit findint
       else !-----------------------------------------------------------------
 ! we should never have mint lesser than nint !!!
@@ -4106,8 +4301,9 @@
          goto 100
       elseif(intrec%fraclink(1).eq.jord(2,mint)) then
 ! we have found an interaction record with correct constituent on this level
-!         write(*,344)intrec%fraclink(1),jord(2,mint),mint,nint
-!344      format('3B we have same the constituents',2i3,5x,2i3)
+! mint is current levet, nint is final level
+         write(*,344)typty,(jord(2,zz),zz=1,mint)
+344      format('3B Same constituents',i4,3x,2i3,3x,i5,3x,2i3)
          if(mint.eq.nint) then
 ! we have to add a second property!!
             proprec=>intrec%propointer
@@ -4150,7 +4346,8 @@
       elseif(intrec%fraclink(1).gt.jord(2,mint)) then
 ! insert new interaction before this one ======================================
 ! Maybe also change link from endmember if level=-1
-!         write(*,150)2,level,mint,nint,lun,jord(2,mint)
+         write(*,367)2,typty,constnames(sem),(constnames(jord(2,zz)),zz=1,mint)
+367      format('3B insert excess before: ',i2,i5,1x,4(1x,a))
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
          if(level.eq.-1) then
@@ -4230,7 +4427,7 @@
 !
 1000 continue
    return
- end subroutine enter_mqmqa_excess_param
+ end subroutine enter_mqmqa_excess_param_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

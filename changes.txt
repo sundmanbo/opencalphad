@@ -4,12 +4,14 @@ earlier.  This log started 2016-03-03.
 For general information please read the intro-OC7.pdf and the
 macros-OC7.pdf.
 
-There is an old precompiled installation of OC for Windows on the
+>> Important notes for next GitHub release
+
+There is a very old precompiled installation of OC for Windows on the
 OpenCalphad web page.  OC can handle many thermodynamic models and
 when the MQMQA model is installed I will probably not add anything new
-to OC, just clean up the code and work on the documentation.  Using
-the AI Claude I may be able to make the code easier to understand,
-simpler and faster.
+to OC, just clean up the code and work on the documentation.  With the
+help of AI Claude I may also be able to make the code easier to
+understand, maintain as well as simpler and faster.
 
 The documentation in the pdf files include a short introduction.  OC
 has a command line user interface and there are examples with macro
@@ -22,13 +24,27 @@ Fortran 2018 standard.  On Linux, MacOS and other OS the installation
 requires some general knowledge about compiling and linking of
 software.
 
-There is an installation manual (and an old mainly redundant video on
-You Tube) and if you are not familiar with such procedures please ask
-a local guru for help.  Installation problems depend on your local
-environment and we who provide this software for free do not have the
-time or knowledge to answer such questions.
+There is an old installation manual (and an very old mainly redundant
+video on You Tube) and if you are not familiar with such procedures
+please ask a local guru for help.  Installation problems depend on
+your local environment and we who provide this software for free do
+not have the time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
+
+2026.10.12 version 6.136. The subroutine to enter ternary parameters
+was finally provided by AI Claude after I hade made a complete mess of
+it.  Some additional minor changes also.
+
+2026.10.11 version 6.135. A minor cleanup of the code and structure of
+the MQMQA model calculations.  With the help of AI Claude I have
+removed the gtp_tooprec record which was introduced to handle
+asymmetries but never used.  References to this record in several
+other source files was carefully removed.  The gtp3XQ.F90 has also
+been cleaned up and Claude verified that the ternary parameters should
+be calculated correctly but must be compared with FactSage
+calculations.  Later I will probably try to ask Claude about some
+other global MQMQA data which are not well structured.
 
 2026.10.09 version 6.134. The code for ternary parameters added to OC
 but not yet tested.  Parts of the code that have become redundant
