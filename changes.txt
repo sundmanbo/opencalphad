@@ -32,6 +32,14 @@ not have the time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.10.12 version 6.136. The implementation of the MQMQA liquid salt
+model in OC is now finished with the limitation it can only handle a
+single anion.  Tests using Thermochimica shows total agreement for
+models with a single anion and various cations and asymmetries.  A
+special TDB format for the database is used.  Reports of problems or
+bugs are welcome together with a macro and TDB files.  Possibly
+multiple anions may be added later with the help of AI Claude.
+
 2026.10.12 version 6.136. The subroutine to enter ternary parameters
 was finally provided by AI Claude after I hade made a complete mess of
 it.  Some additional minor changes also.

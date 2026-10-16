@@ -353,7 +353,7 @@ contains
          'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
          'COMPONENTS      ','GENERAL         ','ASSESSMENT_RESLT',&
          'OPTIMIZING_COEFS','EQUILIBRIUM     ','REDUNDANT_SETS  ',&
-         'LINES           ','START_CONSTIT   ','MQMQA           ']
+         'LINES           ','START_CONSTIT   ','DEBUG_MQMQA     ']
 !-------------------
 ! subsubcommands to AMEND PHASE
 ! the UNIQUAC model specified when entering the phase
@@ -395,7 +395,7 @@ contains
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
           'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR',&
-          'XTDB_DEFAULTS   ','MACRO_DIRECTORY ','                ']
+          'XTDB_DEFAULTS   ','DEBUG           ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -511,7 +511,8 @@ contains
          "Hillert's equilibrium calculation algorithm version ",A,','/&
          'step/map/plot software version ',A,' using GNUPLOT 5.2 graphics.'/&
          'Numerical routines are extracted from LAPACK and BLAS and'/&
-         'the assessment procedure uses LMDIF from ANL.'/)
+         'the assessment procedure uses LMDIF from ANL.'/&
+         'Many users and AI Claude has been of great help to fix problems.'/)
 !
 ! lines starting with !$ will be included when compiling with -fopenmp
 !$    write(kou,11)
@@ -870,10 +871,12 @@ contains
 !        'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
 !        'COMPONENTS      ','GENERAL         ','ASSESSMENT_RESLT',&
 !        'OPTIMIZING_COEFS','EQUILIBRIUM     ','REDUNDANT_SETS  ',&
-!        'LINES            ','                ','                ']
+!        'LINES           ','START_CONSTIT   ','DEBUG           ']
 ! disable continue optimization
 !       iexit=0
 !       iexit(2)=1
+       iph=0
+! setting iph=0 means there is no phase in the subcommands below
        kom2=submenu(cbas(kom),cline,last,cam1,ncam1,4,'?TOPHLP')
        amend: SELECT CASE(kom2)
        CASE DEFAULT
@@ -1428,7 +1431,15 @@ contains
           END SELECT amendphase
 !------------------------- end of amend phase
        case(5) ! amend parameter
-          write(kou,*)'Not implemented yet, only ENTER PARAMETER'
+!          write(kou,*)'Not implemented yet, only ENTER PARAMETER'
+! Claude 2026.10.15: as ENTER PARAMETER but an existing parameter is replaced
+          if(btest(globaldata%status,GSNOPHASE)) then
+             write(kou,*)'You must enter a phase before'
+             goto 100
+          endif
+          amendparameter=.true.
+          call enter_parameter_interactivly(cline,last,0)
+          amendparameter=.false.
 !-------------------------
        case(6) ! amend bibliography (in gtp3D)
           call enter_bibliography_interactivly(cline,last,1,j4)
@@ -1711,8 +1722,8 @@ contains
           call copyfracs(fromeq,ceq)
 !          write(*,*)'Not implemented yet'
 !-------------------------
-       case(18) ! MQMQA
-! added special MQMQA option
+       case(18) ! AMEND DEBUG_MQMQA
+! added some special MQMQA option
           i2=1
 ! default is not allow
           call gparcdx('Allow multivalenced elements in MQMQA?',&
@@ -1725,6 +1736,15 @@ contains
              mqmqa_multival=.false.
              no_multiple_species_of_same_element=.true.
           endif
+!............
+! I am not sure this call is reasonable here ... code below for DEBUG options
+! list the constituents of the phase in the order they have in constitlink
+! THIS IS AN EMERGY SUBROUTINE IN gtp3XQ NOT CONFORMING WITH THE STRUCTURE
+          if(iph.gt.0) then
+             call listconst(iph)
+          endif
+!...........................
+!
        END SELECT amend
 !=================================================================
 ! calculate subcommands
@@ -2098,7 +2118,20 @@ contains
           endif
 ! calceq2 set appropriate bits for listing
           if(gx%bmperr.ne.0) then
-             if(gx%bmperr.eq.4204) write(*,2049)
+! Claude 2026.10.15: explain failures at exact salt composition
+             j4=gx%bmperr; gx%bmperr=0
+             if(mqmqa_exact_salt(ceq)) then
+                write(kou,20501)
+20501           format(' *** The overall composition is exactly that of a',&
+                     ' charge neutral salt.'/&
+                     ' *** The chemical potentials are then undetermined and',&
+                     ' the calculation'/' *** is meaningless.  Use tabulated',&
+                     ' data or add a small excess of the anion.')
+                gx%bmperr=j4
+             else
+                gx%bmperr=j4
+                if(gx%bmperr.eq.4204) write(*,2049)
+             endif
 2049         format('If the conditions allow using the global minimizer, ',&
                   ' try "CALCULATE CAREFULLY"')
              ceq%status=ibset(ceq%status,EQFAIL)
@@ -2631,7 +2664,7 @@ contains
 !          'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
 !          'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
 !          'NO_MACRO_STOP   ','PROTECTION      ','IGNORE_MACRO_ERR',&
-!          'XTDB_DEFAULTS   ','                ','                ']
+!          'XTDB_DEFAULTS   ','MACRO_DIRECTORY ','DEBUG           ']
           name1='Advanced command'
 !          kom3=submenu(name1,cline,last,cadv,ncadv,4,'?TOPHLP')
 ! changed default to working_directory
@@ -2817,7 +2850,9 @@ contains
                 write(kou,*)'Popup windows for open files enabled'
              endif
 !.................................................................
-          case(9,17) ! WORKING DIRECTORY and possibly MACRO
+!          case(9,17) ! WORKING DIRECTORY and possibly MACRO
+! case 17 used to be set advanced macro ...
+          case(9) ! WORKING DIRECTORY and possibly MACRO
              if(kom3.eq.9) then
                 write(kou,*)'Current working directory: ',trim(workingdir)
                 write(kou,'(a)')'To change directory please select an OCM file'
@@ -2980,12 +3015,76 @@ contains
              call gparcdx('Default bibiographic reference (One line!)',&
                   cline,last,5,bibrefdef,dummy,'?Set adv xtdb')
 !.................................................................
-!          case(17) ! SET ADVANCED MACRO_DIRECTORY, merged with 9
+          case(17) ! SET ADVANCED_DEBUG
 ! select macro and set default directory to the one with the macro for TDB
-!             
-!             continue
+! check consistency of some data in mqma_data!!
+! some also in gtp_mqmqa_var!!
+! the command AMEND DEBUG now has this question
+! temporarily it may remain part of LIST MQMQA <phase> DEBUG (and still is)
+             write(*,1687)mqmqa_data%nconst,mqmqa_data%nquad,&
+                  mqmqa_data%ncon1,mqmqa_data%ncat,&
+                  mqmqa_data%ncon2,mqmqa_data%nan,&
+                  mqmqa_data%npair,mqmqa_data%lcat
+1687         format(/'Values of some duplicate global data:',&
+                  'Number of quads: ',2i4/&
+                  'Number of cations: ',2i4/&
+                  'Number of anions: ',2i4/&
+                  'Number of pairs: ',i4/&
+               'Value of cation*(cation+1)/2: ',i4/)
+! the format labels currently also at the LIST MQMQA command
+             i2=0
+             mqmqdebug=.false.
+             mqmqdebug2=.false.
+             mqmqtdb=.false.
+             mqmqxcess=.false.
+             mqmqder=.false.
+             mqverbose=.false.
+             mqter=.false.
+             mqenter=.false.
+             write(*,1688)
+1688         format('Debug settings:'/'0 no debug'/'1 debug asymmetry'/&
+                  '2 debug some more'/&
+                  '3 debug reading TDB'/&
+                  '4 debug parameter calculation'/&
+                  '5 debug partial derivative calculation'/&
+                  '6 verbose listing of asymmetries'/&
+                  '7 debug ternary'/&
+                  '8 debug enter ternary parameter')
+             call gparidx('Set mqmqa debug?',cline,last,i1,i2,'?MQMQA debug')
+! set several ....
+1689         continue
+             if(i1.eq.1) then
+! asymmetry debug
+                mqmqdebug=.true.
+             elseif(i1.eq.2) then
+                mqmqdebug2=.true.
+             elseif(i1.eq.3) then
+! tdb reading debug
+                mqmqtdb=.true.
+             elseif(i1.eq.4) then
+! calculation debug
+                mqmqxcess=.true.
+             elseif(i1.eq.5) then
+! partial derivative debug
+                mqmqder=.true.
+             elseif(i1.eq.6) then
+! partial derivative debug more
+                mqverbose=.true.
+             elseif(i1.eq.7) then
+! ternary debug
+                mqter=.true.
+             elseif(i1.eq.8) then
+! bug entering ternary parameter
+                mqenter=.true.
+             endif
+             call gparidx('Set more debug?',cline,last,i1,i2,'?MQMQA debug')
+             if(i1.gt.0) goto 1689
+             write(*,1676)mqmqdebug,mqmqdebug2,mqmqtdb,&
+                  mqmqxcess,mqmqder,mqverbose,mqter,mqenter
+1676         format('MM debug:',8l2)
+             continue
 !.................................................................
-          case(18) ! not used
+          case(18) ! unused
              continue
           end select advanced
 !-----------------------------------------------------------
@@ -5406,13 +5505,14 @@ contains
           write(*,*)'CSV output saved on file: ',trim(plotfile)
 !          write(*,*)'Not implemented yet'
 !-------------------------------------------------------------------
-! list MQMQA_SPECIAL phase ..
+! list MQMQA_SPECIALS phase ..
 !    character (len=16), dimension(mqmqacc) :: mqmqalist=&
 !        ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
 !         'EXCESS          ','INTERNAL        ','                ']
        case(22)
 ! depreciated command
-          write(*,*)'MM Depreciated command, use list phase ... mqmqa_var'
+!          write(*,*)'MM Depreciated command, use list mqmqa ... mqmqa_var'
+          write(*,*)'MM Depreciated command, use amend mqmqa debug'
 !          goto 100
 ! allow output file
 !          lut=optionsset%lut
@@ -5606,32 +5706,35 @@ contains
 !...........................................................
 ! list DEBUG for implementation of asymmetric models
           case(3)
+!             write(*,4445)
+!4445         format('Depreciated command, use SET ADVANCED DEBUG')
 ! list the constituents of the phase in the order they have in constitlink
 ! THIS IS AN EMERGY SUBROUTINE IN gtp3XQ NOT CONFORMING WITH THE STRUCTURE
              call listconst(iph)
 !
+             goto 100
 ! check consistency of some data in mqma_data!!
-! some also in gtp_mqmqa_var!!
+! some also in gtp_mqmqa_var!!  The format statements are on line 1742
              write(*,1687)mqmqa_data%nconst,mqmqa_data%nquad,&
                   mqmqa_data%ncon1,mqmqa_data%ncat,&
                   mqmqa_data%ncon2,mqmqa_data%nan,&
                   mqmqa_data%npair,mqmqa_data%lcat
-1687         format(/'Values of some duplicate global data:',&
-                  'Number of quads: ',2i4/&
-                  'Number of cations: ',2i4/&
-                  'Number of anions: ',2i4/&
-                  'Number of pairs: ',i4/&
-                  'Value of cation*(cation+1)/2: ',i4/)
+!1687         format(/'Values of some duplicate global data:',&
+!                  'Number of quads: ',2i4/&
+!                  'Number of cations: ',2i4/&
+!                  'Number of anions: ',2i4/&
+!                  'Number of pairs: ',i4/&
+!                  'Value of cation*(cation+1)/2: ',i4/)
 !
              i2=0
              write(*,1688)
-1688         format('Debug settings:'/'0 no debug'/'1 debug asymmetry'/&
-                  '2 debug some more'/&
-                  '3 debug reading TDB'/&
-                  '4 debug parameter calculation'/&
-                  '5 debug partial derivative calculation'/&
-                  '6 verbose listing of asymmetries'/&
-                  '7 debug ternary')
+!1688         format('Debug settings:'/'0 no debug'/'1 debug asymmetry'/&
+!                  '2 debug some more'/&
+!                  '3 debug reading TDB'/&
+!                  '4 debug parameter calculation'/&
+!                  '5 debug partial derivative calculation'/&
+!                  '6 verbose listing of asymmetries'/&
+!                  '7 debug ternary')
              call gparidx('Set mqmqa debug?',cline,last,i1,i2,'?MQMQA debug')
              mqmqdebug=.false.
              mqmqdebug2=.false.
@@ -9407,4 +9510,3 @@ contains
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
 END MODULE cmon1oc
-

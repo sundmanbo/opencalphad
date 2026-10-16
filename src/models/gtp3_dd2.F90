@@ -573,7 +573,7 @@
        'Supressed value due to special circumstances                    ',&
        'Mobility parameters must not have wildcard constituents         ',&
        'No EET temperature calculated for this system                   ',&
-       '                                                                ',&
+       'Duplicate parameter, use AMEND PARAMETER to change it           ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
@@ -1098,21 +1098,14 @@
 ! binary:   1   2       n-1 | n   n+1 ... 2n-1 | 2n ...      |     | n*(n-1)/2
 ! elements: 1+2 1+3 ... 1+n | 2+3 2+4 ... 2+n  | 3+4 3+5 ... | ... | n-1+n
 ! at present only cation mixing.  Use function binsys to find system
-     integer seq,cat1,cat2,anion
-! for use in OC save also the actual cations (NOT ELEMENT/SPECIES) indices
-! for use in OC save also the cations species indices & cations with valencies
-     integer elcat1,elcat2,elan
-     integer quadicat1,quadicat2,quadian
-! should be quad names as LA/CL-Q
-     character*12 qcat1,qcat2,qan
-! the internal structure of allinone must be updated whenever the
-! symmetry of a ternary is changed.  This integer keep check of that
-     integer boxlastupdate
+! Claude 2026.10.16: this record has only the values which depend on the
+! constitution and it is part of phase_varres%mqmqaf for each composition set.
+! The data which depend only on the asymmetries (cations and the quad indices
+! ivk_ij etc) are in gtp_mqmqa_binary with the same index in mqbinary
 ! varkappa (vk) and xi are asymmetric, i.e xi_ji \ne xi_ji
 ! and take into account different ternary extrapolations
 ! they should be stored together because they are usually needed together
-! To handle ternary asymmetries we need to save which quadfrations to add
-     double precision vk_ij,vk_ji,denominator,xi_ij,xi_ji
+     double precision vk_ij,vk_ji,xi_ij,xi_ji
 !
 ! vk_ij and v_ji consists of a two sums of quad fractions in
 ! equation 21 in Max paper
@@ -1131,6 +1124,33 @@
 ! df/dx_v=-------------------------------------------   as \delta_mv = 1 if m=k
 !                   ( \sum_j x_k ) **2
 !
+! the derivatives of vk_ij are stored in dvk_ij and dvk_ji
+! they are calculated WHERE? using ivk_ij, jvk_ji, kvk_ijk at each iteration
+     double precision, allocatable, dimension(:) :: dvk_ij,dvk_ji
+! Claude 2026.10.12: dvk_ij and dvk_ji are calculated by dvkij_dzijk in
+! new_mqmqa_excess for the first parameter using this box after new fractions
+! and reused by all other parameters.  dvkdone is set FALSE in varkappa1 when
+! vk_ij and vk_ji are calculated for new fractions.  As each composition set
+! has its own phase_varres%mqmqaf they are also separate for each set.
+     logical :: dvkdone=.false.
+!     type(zquad), allocatable, dimension(:) :: dvkq_ij, dvkq_ji
+! second derivatives ... suck
+!
+! all the variables above must be initiated before calculations of vk, xi etc
+! the initiation and calculation of each record in the varkappa1 subroutine
+! probably more data will be added later, for example 2nd derivatives
+  end type gtp_allinone
+!\end{verbatim}
+!---------------------
+!\begin{verbatim}
+! Claude 2026.10.16: data for a binary which depend only on the cations and
+! the ternary asymmetries, not on the constitution.  They are the same for
+! all composition sets and equilibria and stored once in mqbinary with the
+! same index as phase_varres%mqmqaf%compvar.  Set by init_excess_asymm,
+! init_symmetric_varkappa, new_ternary_asym and loop_all_ternaries.
+  TYPE gtp_mqmqa_binary
+! the two cations and the anion (only one anion at present)
+     integer cat1,cat2,anion
 ! quad indices arrays for for asymmetric sum_ij vk_ij, dynamically allocated!!
 ! quad indices are indices in fraction array
 ! all_ijk has all quad indices of ivk_ij, jvk_ji, kvk_ijk
@@ -1139,12 +1159,6 @@
 ! Fortran ivk_ij=[k1] assigns value k1 to first index
 !         ivk_ij=[ivk_ij, k2] keep k1 and assigns value k2 to second!
 !  (the denominator is the same for vk_ij and vk_ji)
-!
-! the derivatives of vk_ij are stored in dvk_ij and dvk_ji
-! they are calculated WHERE? using ivk_ij, jvk_ji, kvk_ijk at each iteration
-     double precision, allocatable, dimension(:) :: dvk_ij,dvk_ji
-!     type(zquad), allocatable, dimension(:) :: dvkq_ij, dvkq_ji
-! second derivatives ... suck
 !
 ! The y_ik values are sum of all quadfractions that contain element i
 ! but the sum is not related to the stoichiomentry, it is simply:
@@ -1161,16 +1175,9 @@
 !     integer, allocatable, dimension(:) :: idxi_ij,idxi_ji
 ! These are the factors for derivatives d(xi_ij)/dx_ij
      double precision, allocatable, dimension(:) :: dxi_ij,dxi_ji
-!
-! I also need to store which ternary elements that are asymmetrical (m) 
-! in Max eq. 25 and 26 in Calphad paper from 2021
-     integer, allocatable, dimension(:) :: asymm_nu,asymm_gamma
-! these arrays can be extended in the same way as ivk_ij etc
-!
-! all the variables above must be initiated before calculations of vk, xi etc
-! the initiation and calculation of each record in the varkappa1 subroutine
-! probably more data will be added later, for example 2nd derivatives
-  end type gtp_allinone
+  end TYPE gtp_mqmqa_binary
+! one record for each binary, used by pointer bfix in gtp3XQ
+  type(gtp_mqmqa_binary), dimension(:), allocatable, target :: mqbinary
 !\end{verbatim}
 !
 ! some MQMQA new global variables <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1189,6 +1196,9 @@
 ! (e.g. U_A,U_B/CL) are always allowed.  Toggled from pmon6.F90.
   logical :: no_multiple_species_of_same_element=.true.
   logical :: mqmqtdb=.false.,mqmqxcess=.false.
+! Claude 2026.10.15: set by AMEND PARAMETER to replace an existing parameter,
+! otherwise entering an existing parameter gives error 4376
+  logical :: amendparameter=.false.
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! MUST be careful with ncat and nan !!! USED IN MQMQA
 ! this is dangerous ....... move into mqmqa_data
@@ -1730,6 +1740,17 @@
      integer, allocatable, dimension(:) :: el2quad
 ! asymmetries from database must be save temporarily before quads created
      character(len=:), allocatable :: tdbasymmetries
+! Claude 2026.10.16: moved here from gtp_mqmqa_var as they are the same for
+! all composition sets.
+! These are the factors of the x_ij needed to calculate y_ik
+! these are constants depending of the elements in the quad
+     double precision, dimension(:,:), allocatable :: dy_ik
+! Added for documentation 2026.08.07:
+! The constituent indices of the varkappa_ij and xi_j are in con2quad ??
+! The constituent indices of the y_ik(1..ncat) variables are in emquad ??
+     character*24, allocatable :: names_y_ik(:)
+     integer, allocatable :: spix_y_ik(:)
+     integer, allocatable :: spqx_y_ik(:)
   end TYPE gtp_mqmqa
 !-----------------------------------------------------------------
 ! it should be made private when everything work and removed from pmon6
@@ -1768,10 +1789,8 @@
 ! the arrays above should be in the record (type) mqmqa_var
 ! y_ik are the fraction of each cation (in which order?)
   double precision, dimension(:), allocatable :: y_ik
-! These are the factors of the x_ij needed to calculate y_ik
-! **** originally  dy_ik were in mqmqa_data%dy_ik
-! these are constants depending of the elements in the quad
-  double precision, dimension(:,:), allocatable :: dy_ik
+! Claude 2026.10.16: dy_ik, names_y_ik, spix_y_ik and spqx_y_ik moved to
+! mqmqa_data as they are the same for all composition sets
 ! To calculate xi_ij and xi_ji use compvar(cxq)%dxi_ij and dxi_ji
 ! xi_ij and xi_ji are affected by asymmetries !!
 ! y_ik(i,j) = 0.5*x_ii + (\sum_j 0.5*x_ij)  j loops for all i, x_ij not vk_ij!!
@@ -1793,12 +1812,6 @@
 ! constituent equivalent fractions, needed for excess parameters (NEW)
      double precision, allocatable :: eqf1(:),deqf1(:,:),d2eqf1(:,:)
      double precision, allocatable :: eqf2(:),deqf2(:,:),d2eqf2(:,:)
-! Added for documentation 2026.08.07:
-! The constituent indices of the varkappa_ij and xi_j are in con2quad ??
-! The constituent indices of the y_ik(1..ncat) variables are in emquad ??
-     character*24, allocatable :: names_y_ik(:)
-     integer, allocatable :: spix_y_ik(:)
-     integer, allocatable :: spqx_y_ik(:)
   end type gtp_mqmqa_var
 !===================================================================
 !

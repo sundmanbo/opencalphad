@@ -2217,11 +2217,9 @@
 ! max 9 composition sets
       gx%bmperr=4092; goto 1000
    endif
-! not available for PHMQMQX phase
-   if(btest(phlista(lokph)%status1,PHMQMQX)) then
-      write(*,*)'3B phases with MQMQX model cannot have extra composition sets'
-      gx%bmperr=4399; goto 1000
-   endif
+! Claude 2026.10.16: PHMQMQX phases can have composition sets, the
+! constitution independent data are in mqbinary and mqmqa_data and the
+! mqmqaf record is copied below
    ceq=>firsteq
    icsno=ncs+1
 
@@ -2338,6 +2336,9 @@
       neq%amfu=zero
 ! copy quasichemical bonds (if any)!!
       neq%qcbonds=peq%qcbonds
+! Claude 2026.10.16: copy the MQMQA variables, the assignment allocates
+! and copies all arrays in mqmqaf
+      if(btest(phlista(lokph)%status1,PHMQMQX)) neq%mqmqaf=peq%mqmqaf
 !      write(*,311)'3B amfu: ',leq,iph,icsno,neq%amfu,neq%abnorm,peq%abnorm
 311   format(a,3i3,6(1pe12.4))
 ! NOTE: these allocations below because create_parrecords does not work ...
@@ -3739,12 +3740,15 @@
 800 continue
    do while(associated(proprec))
       lastprop=>proprec
-      if(btest(phlista(lokph)%status1,PHMQMQX)) then
-         if(proprec%proptype.eq.typty) then
-            write(*,803)proprec%proptype,typty
-803         format('3B adding one more property',2i5)
-         endif
-      elseif(proprec%proptype.eq.typty) then
+! Claude 2026.10.15: MQMQA endmember parameters treated as other phases,
+! before a second property record was added and the two values summed
+!      if(btest(phlista(lokph)%status1,PHMQMQX)) then
+!         if(proprec%proptype.eq.typty) then
+!            write(*,803)proprec%proptype,typty
+!803         format('3B adding one more property',2i5)
+!         endif
+!      elseif(proprec%proptype.eq.typty) then
+      if(proprec%proptype.eq.typty) then
 ! With MQMQA one cannot change the expression of a property
 ! found property record, one should delete old and insert new function
 ! one must alse change the reference !!! And add the reference if new.
@@ -3756,6 +3760,9 @@
          if(ideg.le.proprec%degree) then
             if(lfun.eq.-1) then
                listfun=proprec%degreelink(ideg)
+            elseif(proprec%degreelink(ideg).gt.0 .and. .not.amendparameter) then
+! Claude 2026.10.15: the parameter exists, use AMEND PARAMETER to change it
+               gx%bmperr=4376; goto 2000
             else
                proprec%degreelink(ideg)=lfun
                proprec%reference=refx
@@ -3901,7 +3908,7 @@
 !           (endmemrec%intpointer%propointer%extra
 !     write(*,*)'without properties',associated(endmemrec%intpointer%propointer)
 !   endif
-   if(gx%bmperr.ne.0 .and. gx%bmperr.ne.4096) then
+   if(gx%bmperr.ne.0 .and. gx%bmperr.ne.4096 .and. gx%bmperr.ne.4376) then
       write(*,*)'3B Leaving enter_parameter with error ',gx%bmperr
    endif
    return
@@ -4016,6 +4023,22 @@
 !
 ! parent is the record on level nint, add the property record last
    typty=ideg; ideg=0
+! Claude 2026.10.15: check if this parameter exists (same type and powers),
+! create_mqmqa_proprec stores type 1000/2000/3000 as 34/35/36, powers in extra
+   proprec=>parent%propointer
+   do while(associated(proprec))
+      if(proprec%proptype.eq.33+typty/1000 .and. &
+           proprec%extra.eq.typty-1000*(typty/1000)) then
+         if(amendparameter) then
+            proprec%degreelink(0)=lfun
+            proprec%reference=adjustl(refx)
+         else
+            gx%bmperr=4376
+         endif
+         goto 1000
+      endif
+      proprec=>proprec%nextpr
+   enddo
    if(.not.associated(parent%propointer)) then
       call create_mqmqa_proprec(parent%propointer,typty,ideg,lfun,refx)
       if(gx%bmperr.ne.0) goto 1000
@@ -4055,7 +4078,7 @@
       if(mqter) write(*,905)tersyslink,cation
 905   format('3B added link ',i3,' to ternary array with cation',i3)
    endif
-!
+! this routine by Claude is 150 lines
 1000 continue
    return
  end subroutine enter_mqmqa_excess_param
@@ -4063,7 +4086,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine enter_mqmqa_excess_param_old
-!\begin{verbatim}
+!\begin{verbatim} ! this version is 450 lines ... suck
  subroutine enter_mqmqa_excess_param_old(lokph,endmemrec,typty,nint,jord,&
       ideg,lfun,refx)
 ! enter an mqmqa excess property linked from an endmember
@@ -7600,6 +7623,11 @@
 ! copy the disordered fraction record, that should take care of all
 ! array allocations inside the disfra record ???
          cpv%disfra=cp1%disfra
+! Claude 2026.10.16: the MQMQA variables of each composition set must be
+! copied, the assignment allocates and copies all arrays in mqmqaf
+         if(lokph.gt.0) then
+            if(btest(phlista(lokph)%status1,PHMQMQX)) cpv%mqmqaf=cp1%mqmqaf
+         endif
 !-------------------------------------------------------------------
 ! attempt to correct segmentation fault 2017.12.09/BoS
 ! This is correct but the varres records for the disordered fraction sets
@@ -9015,6 +9043,12 @@
 ! mqmqa1 data character ... problem reading MQMQA as TDB or XTDB 
 ! where is pinq set??
 !   write(*,*)'3B pinq:',pair,pinq(1),pinq(2),pinq(3)
+! Claude 2026.10.16: pinq allocated with 12 in mqmqa_species, pair is the
+! number of cations which can be larger when selecting from a big database
+   if(size(mqmqa_data%pinq).lt.pair) then
+      deallocate(mqmqa_data%pinq)
+      allocate(mqmqa_data%pinq(pair))
+   endif
    do s1=1,pair
 ! mqmqa_data%pinq destroyed here, where is it set?
       mqmqa_data%pinq(s1)=pinq(s1)

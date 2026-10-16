@@ -5,7 +5,7 @@
 !
 MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
-! Copyright 2011-2021, Bo Sundman, France
+! Copyright 2011-2026, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use ocparam
 !
 !! overall OC version number
-  character (len=8), parameter :: version='  6.136 '
+  character (len=8), parameter :: version='  6.137 '
 !
 !
 ! data structure for non-encrypted TP functions

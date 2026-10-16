@@ -311,7 +311,7 @@
 ! NO no 2state model, einstein, magnetism etc.
    if(mqmqa) then
 !      write(*,*)'3X Separate routine for nonconfig MQMQA'
-      call calc_mqmqa(lokph,phres,ceq)
+      call calc_mqmqa(lokph,phres,ceq,moded)
 !      write(*,*)'3X back from nonconfig MQMQA'
       goto 1000
    endif
@@ -5873,6 +5873,8 @@
 !   lokph=len(name)
    lokph=phases(iph)
    nsl=phlista(lokph)%noofsubl
+! Claude 2026.10.16: times<1 means calcg is never called and lokres not set
+   if(times.lt.1) times=1
 ! calculate G and derivatives, lokres returns index of phase_varres
    call cpu_time(cpu1)
    do loksp=1,times

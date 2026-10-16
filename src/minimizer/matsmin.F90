@@ -1049,6 +1049,9 @@ CONTAINS
     integer, allocatable, dimension(:,:) :: addremloop
 ! replace always FALSE except when we must replace a phase as we have max stable
     logical replace,force
+! Claude 2026.10.16: one more try if a dormant phase wants to be stable
+    logical dormretry
+    integer jprev
 ! number of iterations without adding or removing a phase
     replace=.FALSE.
     samephase=0
@@ -1270,6 +1273,7 @@ CONTAINS
        gx%bmperr=4370; goto 1000
     endif
     addremloop=0
+    dormretry=.false.
 !----------------------------------------------------------------
 !
 ! meq_sameset calculate the equilibrium for a given set of stable phases
@@ -1306,6 +1310,12 @@ CONTAINS
 !    call list_stable_phases('MM back:',meqrec%noofits,iadd,irem,meqrec,ceq)
 !    write(*,*)'MM line 1114:',irem,iadd
     if(irem.gt.0 .or. iadd.gt.0) then
+! Claude 2026.10.15: two stoichiometric phases with the same composition,
+! meq_sameset returns both, the stable one is replaced, also if it is the
+! only stable phase
+       if(irem.gt.0 .and. iadd.gt.0) then
+          if(same_fixcomp(meqrec%phr(iadd),meqrec%phr(irem))) replace=.TRUE.
+       endif
        if(iremsave.gt.0 .and. iadd.eq.iremsave) then
 ! if iadd=iremsave>0 there was a equil matrix error when removing iremsave
           irem=0
@@ -1321,7 +1331,10 @@ CONTAINS
 ! keep record of adding and removing phases
        if(iadd.gt.0) then
           addremloop(iadd,1)=meqrec%noofits
-          if(irem.eq.0) then
+! Claude 2026.10.13: do not count attempts ignored because too many phases
+! stable (toomanystable below), otherwise the phase is set dormant before
+! the code below has a chance to replace a stable phase by it
+          if(irem.eq.0 .and. meqrec%nstph.lt.meqrec%maxsph) then
              addremloop(iadd,2)=addremloop(iadd,2)+1
 !             write(*,'(a,4i5)')'MM adding:   ',addremloop(iadd,1),iadd,&
 !                  addremloop(iadd,2),addremloop(iadd,3)
@@ -1669,6 +1682,42 @@ CONTAINS
 !---------------------------------------------------
 ! found stable phase set or error
 1000 continue
+! Claude 2026.10.16: Bo's suggestion.  A phase which was added and removed
+! repeatedly has been set dormant.  If the calculation converged and such
+! a phase has a positive driving force make one more try with this phase
+! entered, other dormant phases remain dormant.  If it is set dormant
+! again and still wants to be stable it is error 4363 below.
+    if(gx%bmperr.eq.0 .and. .not.dormretry .and. meqrec%dormlink.ne.0) then
+       jph=0
+       jprev=0
+       jj=meqrec%dormlink
+       do while(jj.ne.0)
+          kk=meqrec%phr(jj)%dormlink
+          if(meqrec%phr(jj)%curd%dgm.gt.1.0D-2) then
+! remove jj from the dormant list and set it entered
+             if(jprev.eq.0) then
+                meqrec%dormlink=kk
+             else
+                meqrec%phr(jprev)%dormlink=kk
+             endif
+             meqrec%phr(jj)%dormlink=0
+             meqrec%phr(jj)%phasestatus=PHENTUNST
+             meqrec%phr(jj)%curd%phstate=PHENTUNST
+             addremloop(jj,2)=0
+             addremloop(jj,3)=0
+             if(.not.btest(meqrec%status,MMQUIET)) write(*,1003)jj
+1003         format('MM a dormant phase wants to be stable, one more try',i5)
+             jph=jj
+          else
+             jprev=jj
+          endif
+          jj=kk
+       enddo
+       if(jph.gt.0) then
+          dormretry=.true.
+          goto 200
+       endif
+    endif
     if(gx%bmperr.eq.0) then
 ! equilibrium calculation converged, one should add check on stability
 !
@@ -3093,7 +3142,10 @@ if(meqrec%noofits.eq.1) then
           if(jj.ne.iadd) then
              iy=meqrec%phr(jj)%phtupix
 ! check if same composition ... how? same_stoik in gtp3Y.F90
-             if(same_stoik(jy,iy)) then
+! Claude 2026.10.15: when not mapping also phases with different models
+! but the same fixed composition
+             if(same_stoik(jy,iy) .or. (inmap.eq.0 .and. &
+                  same_fixcomp(meqrec%phr(iadd),meqrec%phr(jj)))) then
                 srem=jj
                 exit samestoi
              endif
@@ -3101,6 +3153,12 @@ if(meqrec%noofits.eq.1) then
        enddo samestoi
     endif
     if(srem.gt.0) then
+! Claude 2026.10.15: when not mapping (inmap=0) the new stoichiometric phase
+! has a lower G than the stable one with the same composition, replace it
+       if(inmap.eq.0) then
+          irem=srem
+          goto 1100
+       endif
        jy=meqrec%phr(iadd)%phtupix
        call get_phasetup_name(jy,phnames)
        iz=len_trim(phnames)+2
@@ -3311,6 +3369,9 @@ if(meqrec%noofits.eq.1) then
 !\end{verbatim}
     integer increase,ioff,ik,jj,jph,ie,ierr,jmaxy
     integer kk,kkz,level3,mph,negam,negamph,nj,nk,nl
+! Claude 2026.10.15: unstable phases close to stability
+    integer nearstab
+    logical nearflag
     integer nz1,nz2
     TYPE(meq_phase), pointer :: pmi
 ! Using SAVE not possible for parallel calculations here once is just warning
@@ -3401,6 +3462,7 @@ if(meqrec%noofits.eq.1) then
     prevmaxycorr=zero
     increase=0
     level3=0
+    nearstab=0
 ! this is set TRUE after 3 iterations
     phasechangeok=meqrec%noofits
     if(phasechangeok.eq.1) then
@@ -3481,6 +3543,7 @@ if(meqrec%noofits.eq.1) then
        goto 1200
     endif
     converged=0
+    nearflag=.false.
     if(vbug) write(*,*)'Iteration: ',meqrec%noofits,converged
 ! loop for all phases and composition sets, loop over phr
 !    if(meqrec%tpindep(1)) write(*,*)'variable T: ',meqrec%noofits,ceq%tpval(1)
@@ -4306,6 +4369,19 @@ if(meqrec%noofits.eq.1) then
 !          write(*,111)converged,jj,nj,ys
 !111       format('Y corr: cc/ph/cons/y: ',i2,2i4,1pe12.4)
 ! should possibly be ycorr(nj) instead of ys (ycorrmax)
+! Claude 2026.10.15: an unstable phase close to stability with a fraction
+! which wants to grow a lot may be stable with its optimal constitution
+! (Fe-Cl gas FeCl3 2.6E-4 instead of 0.69, FE2CL6 2E-9 instead of 0.2).
+! The relative change matters, the absolute change can be below xconv
+          if(phr(jj)%stable.eq.0 .and. inmap.eq.0 .and. &
+               phr(jj)%curd%dgm.gt.-one .and. nearstab.lt.30 .and. &
+               ys.gt.phr(jj)%curd%yfr(nj) .and. ys.gt.1.0D-12) then
+             if(converged.lt.4) then
+                converged=4
+                cerr%mconverged=converged
+                nearflag=.true.
+             endif
+          endif
           abssys: if(abs(ys).gt.ceq%xconv) then
 ! if the change in any constituent fraction larger than xconv continue iterate
 !             write(*,*)'Convergence criteria, phase/const: ',jj,nk
@@ -4398,10 +4474,15 @@ if(meqrec%noofits.eq.1) then
 ! Problem here also with MQMQA, the KLiNa step calculation with N(Na)>.6
 !                write(*,*)'MM problem 1 with MQMQA? line 2904 ignored'
 ! just ignoring it works OK
-!                converged=4
-!                cerr%mconverged=converged
-!                yss=ys
-!                yst=phr(jj)%curd%yfr(nj)
+! Claude 2026.10.15: restored for large corrections, without it a stable
+! MQMQA phase can be accepted as converged far from its minimum (Fe-Cl,
+! 1.3 kJ error).  For all corrections larger than xconv the KLiNa step fails
+                if(abs(ys).gt.1.0D-4) then
+                   converged=4
+                   cerr%mconverged=converged
+                   yss=ys
+                   yst=phr(jj)%curd%yfr(nj)
+                endif
              endif
           elseif(phr(jj)%stable.eq.1) then
 ! check to find good convergence criteria in Re-V test case
@@ -4570,6 +4651,7 @@ if(meqrec%noofits.eq.1) then
        endif
     endif
 !-------------------------------------------------------
+    if(nearflag) nearstab=nearstab+1
     if(converged.eq.3) then
 ! force one extra iterations with large fraction variations in unstable phases
 !       write(*,267)'End of iteration: ',meqrec%noofits,converged,&
@@ -4608,7 +4690,10 @@ if(meqrec%noofits.eq.1) then
           if(jj.ne.iadd) then
              iy=meqrec%phr(jj)%phtupix
 ! check if same composition ... how? same_stoik in gtp3Y.F90
-             if(same_stoik(jy,iy)) then
+! Claude 2026.10.15: when not mapping also phases with different models
+! but the same fixed composition
+             if(same_stoik(jy,iy) .or. (inmap.eq.0 .and. &
+                  same_fixcomp(meqrec%phr(iadd),meqrec%phr(jj)))) then
                 srem=jj
                 exit samestoi
              endif
@@ -4616,6 +4701,12 @@ if(meqrec%noofits.eq.1) then
        enddo samestoi
     endif
     if(srem.gt.0) then
+! Claude 2026.10.15: when not mapping (inmap=0) the new stoichiometric phase
+! has a lower G than the stable one with the same composition, replace it
+       if(inmap.eq.0) then
+          irem=srem
+          goto 1100
+       endif
        jy=meqrec%phr(iadd)%phtupix
        call get_phasetup_name(jy,phnames)
        iz=len_trim(phnames)+2
@@ -8219,6 +8310,31 @@ if(meqrec%noofits.eq.1) then
   end subroutine corriliq_d2gdyidyj
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable logical function same_fixcomp
+!\begin{verbatim}
+  logical function same_fixcomp(pha,phb)
+! Claude 2026.10.15: TRUE if both phases have a fixed composition in this
+! system (xdone=1, no variable fractions) and the same mole fractions,
+! they may have different models.  Used outside STEP/MAP to replace a
+! stable phase by another with the same composition and lower G
+    implicit none
+    TYPE(meq_phase) :: pha,phb
+!\end{verbatim}
+    integer iz
+    same_fixcomp=.FALSE.
+    if(pha%xdone.ne.1 .or. phb%xdone.ne.1) goto 1000
+    if(pha%sumxmol.le.zero .or. phb%sumxmol.le.zero) goto 1000
+    do iz=1,size(pha%xmol)
+       if(abs(pha%xmol(iz)/pha%sumxmol-phb%xmol(iz)/phb%sumxmol).gt.&
+            1.0D-10) goto 1000
+    enddo
+    same_fixcomp=.TRUE.
+1000 continue
+    return
+  end function same_fixcomp
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\addtotable logical function same_composition
 !\begin{verbatim}

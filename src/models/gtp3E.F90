@@ -3484,11 +3484,20 @@
    character line*128,elsym*2,name1*24,name2*24,elsyms(10)*2,stoiline*72
 !   character longline*10000,reftext*512
 ! to read references in MatCalc TDB files
-   character longline*40000,reftext*512
+!   character longline*40000,reftext*512
+! Claude 2026.10.15: MSCL ternary asymmetries in MSTDB-TC V4.2 need 56000
+   character longline*100000,reftext*512
 ! to handle ternary_extrapolation lines
-   character ternaryxpol(mtxp)*2000
+!   character ternaryxpol(mtxp)*2000
+! Claude 2026.10.15: allocatable text as the asymmetry list can be very long
+   type txpline
+      character(len=:), allocatable :: text
+   end type txpline
+   type(txpline) ternaryxpol(mtxp)
    character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60,chd*1
    character refx*16,more*4
+! Claude 2026.10.15: parameter name for error messages
+   character parnam*128
    character (len=1), dimension(maxtypedefs) :: typedefchar
    integer, dimension(maxtypedefs) :: typedefaction
    integer, dimension(5) :: addphasetypedef
@@ -4204,9 +4213,11 @@
             TDthisphase=TDthisphase+1
             addphasetypedef(TDthisphase)=typedefaction(jt)
             ctxp=ctxp+1
-            ternaryxpol(ctxp)=trim(name1)//' '//ternaryxpol(ctxp)
+            if(.not.allocated(ternaryxpol(ctxp)%text)) &
+                 ternaryxpol(ctxp)%text=' '
+            ternaryxpol(ctxp)%text=trim(name1)//' '//ternaryxpol(ctxp)%text
             write(*,'(a,i4,": ",a)')'3E ternary around line 4137: ',&
-                 ctxp,trim(ternaryxpol(ctxp))
+                 ctxp,ternaryxpol(ctxp)%text(1:min(200,len(ternaryxpol(ctxp)%text)))
 ! this ignores the type letter, just assignes in same order as phases entered
 ! Or one must enforce that the TYPE_DEF for ternary is right after the phase?
          elseif(.not.(typedefaction(jt).eq.100.or.typedefaction(jt).eq.0)) then
@@ -4683,6 +4694,24 @@
          endif
       endif
       funname(kp:)=' '
+      parnam=funname
+! Claude 2026.10.15: a quad name -Q can only be followed by digits and a
+! separator.  A letter means a missing comma like "MG/CL-QLI/CL-Q"
+      cbug=index(funname(1:kp),'-Q')
+      do while(cbug.gt.0)
+         if(index('ABCDEFGHIJKLMNOPQRSTUVWXYZ',funname(cbug+2:cbug+2)).gt.0) then
+            if(.not.silent .and. dodis.eq.0) write(kou,2971)trim(funname),nl
+2971        format(' *** Error, missing comma after -Q, parameter ignored: ',&
+                 a/'     around line ',i6,' in the TDB file')
+            reason=3; goto 888
+         endif
+         jp=index(funname(cbug+2:kp),'-Q')
+         if(jp.gt.0) then
+            cbug=cbug+1+jp
+         else
+            cbug=0
+         endif
+      enddo
 ! extract symbol, normally G or L but TC, BMAGN and others can occur
       lp1=index(funname,'(')
       name1=funname(1:lp1-1)
@@ -5010,7 +5039,12 @@
 !               goto 1000
 ! Error 4096 means "no such constituent" and 4066 "... in a sublattice"
 ! Error 4154 means no reference but the parameter has been entered
-            if(gx%bmperr.eq.4096 .or. gx%bmperr.eq.4066 .or. &
+            if(gx%bmperr.eq.4376) then
+! Claude 2026.10.15: duplicate parameter, the first one is kept
+               if(.not.silent) write(kou,4092)trim(parnam),nl
+4092           format(' *** Error, duplicate parameter ignored: ',a/&
+                    '     around line ',i6,' in the TDB file')
+            elseif(gx%bmperr.eq.4096 .or. gx%bmperr.eq.4066 .or. &
                  gx%bmperr.eq.4154) then
 ! this means the user has not selected this component or forgot reference
 !            write(*,*)'readtdb entparerr: ',gx%bmperr,' >',&
@@ -5237,7 +5271,7 @@
 ! we must add the phase name first!!
 ! NO, that is done at label 778, line 4148 !!! double 
 !                     ternaryxpol(ntxp)=longline(pz1+1:pz2+1)//longline(km+zp:)
-                     ternaryxpol(ntxp)=longline(km+zp:)
+                     ternaryxpol(ntxp)%text=trim(longline(km+zp:))
 !                    write(*,'("3E line3: ",a,i3)')trim(ternaryxpol(ntxp)),ntxp
 !                     call merge_spaces(longline(km+zp:))
 ! Indicate we should execute ternaryxpol
@@ -5610,7 +5644,7 @@
          do zp=1,ntxp
 !         write(*,*)'3E call set_database_ternary: ',trim(ternaryxpol(zp))
 ! this subroutine is in gtp3XQ.F90, phase name is in line 
-            call set_ternary_asymmetry_TDB(ternaryxpol(zp))
+            call set_ternary_asymmetry_TDB(ternaryxpol(zp)%text)
          enddo
       endif
    endif

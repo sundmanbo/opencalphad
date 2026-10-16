@@ -133,11 +133,8 @@
 !   write(*,*)'3Y loop for all phases',nrph,globaldata%sysreal(1)
    ggloop: do iph=1,nrph
 ! include all phases with any composition set entered (but only once!)
-! EXCLUDE the MQMQA phase
-      if(test_phase_status_bit(iph,PHMQMQA)) then
-         write(*,*)'3Y The MQMQA phase excluded from gridminimizer'
-         cycle ggloop
-      endif
+! Claude 2026.10.15: the MQMQA phase included, special grid in
+! generate_mqmqa_grid
       do ics=1,noofcs(iph)
 ! new: -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
 ! ignore phases whith no entered composition sets
@@ -508,7 +505,8 @@
                   call enter_composition_set(kph,'    ','AUTO',icsno)
                   if(gx%bmperr.ne.0) then
 !                   write(*,*)'3Y Error entering composition set ',j1,gx%bmperr
-                     if(gx%bmperr.eq.4092) then
+! Claude 2026.10.15: 4399 is MQMQA phase which cannot have extra compsets
+                     if(gx%bmperr.eq.4092 .or. gx%bmperr.eq.4399) then
 ! skip entering this set, it may work anyway ...
                         if(.not.toomany) then
                            write(kou,298)iphl(j1)
@@ -772,6 +770,11 @@
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1020
 !---------------------------------------------------------
+! Claude 2026.10.15: special grid for the MQMQA liquid
+   if(test_phase_status_bit(iph,PHMQMQA)) then
+      call generate_mqmqa_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
+      goto 1000
+   endif
    if(test_phase_status_bit(iph,PHEXCB)) then
 ! This phase has charged endmembers, generate neutral gridpoints (also dense)
       call generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
@@ -1319,6 +1322,11 @@
 !   else
 !      write(*,*)'3Y searching for y: ',mode,iph,ngg,ny
 !   endif
+! Claude 2026.10.15: special grid for the MQMQA liquid
+   if(test_phase_status_bit(iph,PHMQMQA)) then
+      call generate_mqmqa_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
+      goto 1000
+   endif
    if(test_phase_status_bit(iph,PHEXCB)) then
 ! crystalline phase with charged endmembers
 !      write(*,*)'3Y charged grid ngg: ',ngg
@@ -3822,6 +3830,343 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine generate_mqmqa_grid
+!\begin{verbatim}
+ subroutine generate_mqmqa_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
+! Claude 2026.10.15: grid for the MQMQA liquid (one anion only)
+! The gridpoints are generated in the coordination-equivalent cation
+! fractions Y_i (pure, binary, ternary and quaternary combinations).
+! For each set of Y_i the quad fractions are set by the quasichemical
+! approximation using the constant part of the mixed quad parameters:
+!    X_ii = a_i**2, X_ij = 2 a_i a_j eta_ij, eta_ij = exp(-G(ij/X)/RT)
+!    with a_i from  a_i * sum_j eta_ij a_j = Y_i
+! A grid in quad fractions (mixing endmembers) gives mixtures of the
+! single cation quads with no mixed quads, i.e. G far too high.
+! mode=0: calculate G and composition for all gridpoints, ngg on entry
+!         is max number of gridpoints, on exit the number generated
+! mode>0: return constitution of gridpoint mode in yarr, ny constituents
+! The current constitution is restored at the end
+! A denser grid is used (5-10 times more gridpoints) if the global
+! grid density is 2 (GSXGRID) or the phase has the EXTRA_DENSE_GRID bit
+   implicit none
+   integer mode,iph,ngg,nrel,ny
+   real xarr(nrel,*),garr(*)
+   double precision yarr(*),gmax
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   double precision, parameter :: yzero=1.0D-12
+! fractions avoid round numbers which may coincide with stoichiometric phases
+   integer, parameter :: nbin=7
+   double precision, dimension(nbin), parameter :: &
+        fbin=[0.023D0,0.11D0,0.27D0,0.48D0,0.73D0,0.89D0,0.977D0]
+   integer, parameter :: nter=10
+   double precision, dimension(3,nter), parameter :: fter=reshape(&
+        [0.56D0,0.27D0,0.17D0, 0.17D0,0.56D0,0.27D0, 0.27D0,0.17D0,0.56D0, &
+        0.35D0,0.31D0,0.34D0, 0.89D0,0.06D0,0.05D0, 0.05D0,0.89D0,0.06D0, &
+        0.06D0,0.05D0,0.89D0, 0.48D0,0.41D0,0.11D0, 0.41D0,0.11D0,0.48D0, &
+        0.11D0,0.48D0,0.41D0],[3,nter])
+! for the dense grid, binary fractions and number of steps for
+! ternary and quaternary interior points
+   integer, parameter :: nbinx=27,nterx=16,nquax=8
+   double precision, dimension(nbinx), parameter :: fbinx=[&
+        0.002D0,0.005D0,0.01D0,0.02D0,0.035D0,0.05D0,0.075D0,0.1D0,0.15D0,&
+        0.2D0,0.25D0,0.3D0,0.4D0,0.5D0,0.6D0,0.7D0,0.75D0,0.8D0,0.85D0,&
+        0.9D0,0.925D0,0.95D0,0.965D0,0.98D0,0.99D0,0.995D0,0.998D0]
+   integer lokph,errsave,maxng,ncon,ncat,nsl,q,i,j,k,l,ip,iq,it,ib,mqendx
+   integer m,i1,i2,i3,i4
+   logical dense
+   integer nkl(maxsubl),knr(maxconst)
+   double precision ydum(maxconst),sites(maxsubl),qq(5),vals(6),rt,ss,dd
+   integer, allocatable :: pure(:),mix(:,:)
+   double precision, allocatable :: eta(:,:),yc(:),aa(:),yfra(:)
+   type(gtp_endmember), pointer :: endmemrec
+   type(gtp_property), pointer :: proprec
+!
+   lokph=phases(iph)
+   maxng=ngg
+   ngg=0
+! save current constitution, restored at the end
+   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1100
+   ncon=0
+   do i=1,nsl
+      ncon=ncon+nkl(i)
+   enddo
+   if(ncon.ne.mqmqa_data%nconst) then
+      write(*,*)'3Y mqmqa grid: unexpected number of constituents',&
+           ncon,mqmqa_data%nconst
+      gx%bmperr=4399; goto 1000
+   endif
+! cations are the pairs of the single cation quads, contyp(5,q)>0
+   ncat=0
+   do q=1,ncon
+      ncat=max(ncat,mqmqa_data%contyp(5,q))
+   enddo
+   allocate(pure(ncat),mix(ncat,ncat),eta(ncat,ncat),yc(ncat),aa(ncat),&
+        yfra(ncon))
+   pure=0; mix=0; eta=one
+   do q=1,ncon
+      ip=mqmqa_data%contyp(5,q)
+      if(ip.gt.0) then
+         pure(ip)=q
+      else
+! quads with more than two pairs (two anions) not allowed here
+         if(mqmqa_data%contyp(8,q).ne.0) then
+            write(*,*)'3Y mqmqa grid: only one anion allowed'
+            gx%bmperr=4399; goto 1000
+         endif
+         ip=mqmqa_data%contyp(6,q)
+         iq=mqmqa_data%contyp(7,q)
+         if(ip.le.0 .or. iq.le.0 .or. ip.gt.ncat .or. iq.gt.ncat) then
+            write(*,*)'3Y mqmqa grid: illegal quad pairs',q,ip,iq
+            gx%bmperr=4399; goto 1000
+         endif
+         mix(ip,iq)=q; mix(iq,ip)=q
+      endif
+   enddo
+! eta from the G parameter of the mixed quads (the quad exchange energy is
+! twice this value), missing parameter means eta=1
+   rt=globaldata%rgas*ceq%tpval(1)
+   endmemrec=>phlista(lokph)%ordered
+   do while(associated(endmemrec))
+      mqendx=endmemrec%antalem
+      if(mqendx.gt.0 .and. mqendx.le.ncon) then
+         if(mqmqa_data%contyp(5,mqendx).le.0) then
+            proprec=>endmemrec%propointer
+            if(associated(proprec)) then
+               if(proprec%proptype.eq.1) then
+                  call eval_tpfun(proprec%degreelink(0),ceq%tpval,vals,&
+                       ceq%eq_tpres)
+                  if(gx%bmperr.ne.0) goto 1000
+                  ip=mqmqa_data%contyp(6,mqendx)
+                  iq=mqmqa_data%contyp(7,mqendx)
+                  dd=exp(max(-2.0D2,min(2.0D2,-vals(1)/rt)))
+                  eta(ip,iq)=dd; eta(iq,ip)=dd
+               endif
+            endif
+         endif
+      endif
+      endmemrec=>endmemrec%nextem
+   enddo
+   dense=btest(globaldata%status,GSXGRID) .or. &
+        test_phase_status_bit(iph,PHXGRID)
+   if(dense) goto 600
+!--------------------------------------------------
+! pure cations
+   do i=1,ncat
+      yc=zero; yc(i)=one
+      call mqgridpoint
+      if(gx%bmperr.ne.0) goto 1000
+      if(ngg.eq.mode) goto 500
+   enddo
+! binaries
+   do i=1,ncat-1
+      do j=i+1,ncat
+         do ib=1,nbin
+            if(mode.eq.0 .and. ngg+1.gt.maxng) goto 900
+            yc=zero; yc(i)=fbin(ib); yc(j)=one-fbin(ib)
+            call mqgridpoint
+            if(gx%bmperr.ne.0) goto 1000
+            if(ngg.eq.mode) goto 500
+         enddo
+      enddo
+   enddo
+! ternaries
+   do i=1,ncat-2
+      do j=i+1,ncat-1
+         do k=j+1,ncat
+            do it=1,nter
+               if(mode.eq.0 .and. ngg+1.gt.maxng) goto 900
+               yc=zero; yc(i)=fter(1,it); yc(j)=fter(2,it); yc(k)=fter(3,it)
+               call mqgridpoint
+               if(gx%bmperr.ne.0) goto 1000
+               if(ngg.eq.mode) goto 500
+            enddo
+         enddo
+      enddo
+   enddo
+! quaternaries, only equal amounts
+   do i=1,ncat-3
+      do j=i+1,ncat-2
+         do k=j+1,ncat-1
+            do l=k+1,ncat
+               if(mode.eq.0 .and. ngg+1.gt.maxng) goto 900
+               yc=zero; yc(i)=0.27D0; yc(j)=0.24D0; yc(k)=0.32D0; yc(l)=0.17D0
+               call mqgridpoint
+               if(gx%bmperr.ne.0) goto 1000
+               if(ngg.eq.mode) goto 500
+            enddo
+         enddo
+      enddo
+   enddo
+   goto 900
+!--------------------------------------------------
+! dense grid
+600 continue
+! pure cations
+   do i=1,ncat
+      yc=zero; yc(i)=one
+      call mqgridpoint
+      if(gx%bmperr.ne.0) goto 1000
+      if(ngg.eq.mode) goto 500
+   enddo
+! binaries
+   do i=1,ncat-1
+      do j=i+1,ncat
+         do ib=1,nbinx
+            if(mode.eq.0 .and. ngg+1.gt.maxng) goto 900
+            yc=zero; yc(i)=fbinx(ib); yc(j)=one-fbinx(ib)
+            call mqgridpoint
+            if(gx%bmperr.ne.0) goto 1000
+            if(ngg.eq.mode) goto 500
+         enddo
+      enddo
+   enddo
+! ternaries, all interior points with step 1/nterx and 6 dilute points
+   do i=1,ncat-2
+      do j=i+1,ncat-1
+         do k=j+1,ncat
+            do i1=1,nterx-2
+               do i2=1,nterx-1-i1
+                  if(mode.eq.0 .and. ngg+1.gt.maxng) goto 900
+                  yc=zero; yc(i)=dble(i1)/nterx; yc(j)=dble(i2)/nterx
+                  yc(k)=dble(nterx-i1-i2)/nterx
+                  call mqgridpoint
+                  if(gx%bmperr.ne.0) goto 1000
+                  if(ngg.eq.mode) goto 500
+               enddo
+            enddo
+            do it=1,6
+               if(mode.eq.0 .and. ngg+1.gt.maxng) goto 900
+               yc=zero
+               if(it.le.3) then
+                  yc(i)=0.01D0; yc(j)=0.01D0; yc(k)=0.01D0
+                  if(it.eq.1) yc(i)=0.98D0
+                  if(it.eq.2) yc(j)=0.98D0
+                  if(it.eq.3) yc(k)=0.98D0
+               else
+                  yc(i)=0.495D0; yc(j)=0.495D0; yc(k)=0.495D0
+                  if(it.eq.4) yc(i)=0.01D0
+                  if(it.eq.5) yc(j)=0.01D0
+                  if(it.eq.6) yc(k)=0.01D0
+               endif
+               call mqgridpoint
+               if(gx%bmperr.ne.0) goto 1000
+               if(ngg.eq.mode) goto 500
+            enddo
+         enddo
+      enddo
+   enddo
+! quaternaries, all interior points with step 1/nquax
+   do i=1,ncat-3
+      do j=i+1,ncat-2
+         do k=j+1,ncat-1
+            do l=k+1,ncat
+               do i1=1,nquax-3
+                  do i2=1,nquax-2-i1
+                     do i3=1,nquax-1-i1-i2
+                        if(mode.eq.0 .and. ngg+1.gt.maxng) goto 900
+                        i4=nquax-i1-i2-i3
+                        yc=zero
+                        yc(i)=dble(i1)/nquax; yc(j)=dble(i2)/nquax
+                        yc(k)=dble(i3)/nquax; yc(l)=dble(i4)/nquax
+                        call mqgridpoint
+                        if(gx%bmperr.ne.0) goto 1000
+                        if(ngg.eq.mode) goto 500
+                     enddo
+                  enddo
+               enddo
+            enddo
+         enddo
+      enddo
+   enddo
+! quinaries, only equal amounts
+   do i=1,ncat-4
+      do j=i+1,ncat-3
+         do k=j+1,ncat-2
+            do l=k+1,ncat-1
+               do m=l+1,ncat
+                  if(mode.eq.0 .and. ngg+1.gt.maxng) goto 900
+                  yc=zero; yc(i)=0.2D0; yc(j)=0.2D0; yc(k)=0.2D0
+                  yc(l)=0.2D0; yc(m)=0.2D0
+                  call mqgridpoint
+                  if(gx%bmperr.ne.0) goto 1000
+                  if(ngg.eq.mode) goto 500
+               enddo
+            enddo
+         enddo
+      enddo
+   enddo
+900 continue
+   if(mode.gt.0) then
+      write(*,*)'3Y mqmqa grid: gridpoint not found',mode,ngg
+      gx%bmperr=4399
+   endif
+   goto 1000
+!--------------------------------------------------
+! return the constitution of gridpoint mode
+500 continue
+   ny=ncon
+   do q=1,ncon
+      yarr(q)=yfra(q)
+   enddo
+1000 continue
+! restore original constituent fractions, also if error
+   errsave=gx%bmperr
+   gx%bmperr=0
+   call set_constitution(iph,1,ydum,qq,ceq)
+   if(gx%bmperr.ne.0) then
+      write(*,*)'3Y Error restoring constitution for phase: ',iph,gx%bmperr
+   endif
+   gx%bmperr=errsave
+1100 continue
+   return
+!
+ contains
+!
+   subroutine mqgridpoint
+! set quad fractions in yfra from cation fractions yc by the quasichemical
+! fixed point iteration, calculate G for mode=0
+   integer i1,j1,itr
+   double precision dmax,anew,sumj
+   ngg=ngg+1
+   do i1=1,ncat
+      aa(i1)=sqrt(yc(i1))
+   enddo
+   do itr=1,200
+      dmax=zero
+      do i1=1,ncat
+         if(yc(i1).le.zero) cycle
+         sumj=zero
+         do j1=1,ncat
+            sumj=sumj+eta(i1,j1)*aa(j1)
+         enddo
+         anew=sqrt(aa(i1)*yc(i1)/sumj)
+         dmax=max(dmax,abs(anew-aa(i1))/anew)
+         aa(i1)=anew
+      enddo
+      if(dmax.lt.1.0D-10) exit
+   enddo
+   yfra=yzero
+   do i1=1,ncat
+      if(pure(i1).gt.0) yfra(pure(i1))=max(yzero,aa(i1)**2)
+      do j1=i1+1,ncat
+         if(mix(i1,j1).gt.0) yfra(mix(i1,j1))=&
+              max(yzero,2.0D0*aa(i1)*aa(j1)*eta(i1,j1))
+      enddo
+   enddo
+   sumj=sum(yfra)
+   yfra=yfra/sumj
+   if(mode.eq.0) then
+      call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
+      if(gx%bmperr.ne.0) return
+      if(garr(ngg).gt.gmax) gmax=garr(ngg)
+   endif
+   end subroutine mqgridpoint
+ end subroutine generate_mqmqa_grid
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !\addtotable subroutine calc_gridpoint
 !\begin{verbatim}
  subroutine calc_gridpoint(iph,yfra,nrel,xarr,gval,ceq)
@@ -4925,6 +5270,9 @@
 ! always merge gridpoints in ideal phases for example gas
                goto 200
             endif
+! Claude 2026.10.15: always merge gridpoints in the MQMQA phase as it
+! cannot have extra composition sets
+            if(test_phase_status_bit(iph,PHMQMQA)) goto 200
 ! do not merge gridpoints in other phases
             if(btest(globaldata%status,GSNOMERGE)) cycle secondgp
 ! calculate G at 0 and 1 and  0.25, 0.5, 0.75 mix of gridpoints

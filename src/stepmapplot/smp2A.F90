@@ -151,8 +151,16 @@
 ! but maybe there are no start equilibria??
 ! starteq is a ceq record, mapping will use maptop record ....
     write(*,*)'SMP2A call map_doallines'
+    nrestore=0
+950 continue
     call map_doallines(maptop,nax,axarr,seqxyz,starteq)
 !    write(*,*)'SMP2A back from map_doallines'
+! Claude 2026.10.15: for STEP, if a line terminated with an error, try to
+! continue with a new start point beyond the failed value
+    if(gx%bmperr.eq.0 .and. nax.eq.1) then
+       call step_restart_after_error(maptop,nax,axarr,seqxyz,jj,nrestore)
+       if(jj.gt.0) goto 950
+    endif
 !-----------------------------------------------------
 1000 continue
 !--------------------------------------------------
@@ -2589,6 +2597,7 @@
 75     format('Terminating line with ',i4,' equilibria at ',1pe12.4,&
             ' due to error',i5)
        mapline%termerr=gx%bmperr
+       mapline%termval=value
        gx%bmperr=0
 ! maybe do some cleanup ??
     else
@@ -2603,6 +2612,92 @@
     gx%bmperr=0
     return
   end subroutine map_lineend
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine step_restart_after_error
+!\begin{verbatim}
+  subroutine step_restart_after_error(maptop,nax,axarr,seqxyz,nnew,nrestart)
+! Claude 2026.10.15: For a STEP a line which terminated with an error is
+! continued by a new start point 2 axis increments beyond the failed value.
+! maptop is the first map_node, nax=1 (step), axarr the axis record
+! nnew returns the number of new start points created
+! nrestart counts restarts during this STEP, at most 10
+    implicit none
+    TYPE(map_node), pointer :: maptop
+    integer nax,seqxyz(*),nnew,nrestart
+    type(map_axis), dimension(nax) :: axarr
+!\end{verbatim}
+    TYPE(map_node), pointer :: mapnode,node2
+    type(map_line), pointer :: mapline
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    type(gtp_condition), pointer :: pcond
+    integer jl,kl,dir,inactive(4)
+    double precision newval,inc
+    logical done
+    nnew=0
+    if(.not.associated(maptop)) goto 1000
+    inc=axarr(1)%axinc
+    mapnode=>maptop
+100 continue
+    if(allocated(mapnode%linehead)) then
+       lines: do jl=1,mapnode%lines
+          mapline=>mapnode%linehead(jl)
+          if(mapline%termerr.le.0 .or. mapline%restarted.ne.0) cycle lines
+          mapline%restarted=1
+          if(nrestart.ge.10) cycle lines
+! the axis value which failed is the prescribed value of the axis condition
+! in the line equilibrium (the value given to map_lineend can be from
+! another line if this line has no equilibria)
+          ceq=>mapline%lineceq
+          call locate_condition(axarr(1)%seqz,pcond,ceq)
+          if(gx%bmperr.ne.0) then
+             gx%bmperr=0; cycle lines
+          endif
+          mapline%termval=pcond%prescribed
+! do not restart again close to a value already restarted
+          done=.false.
+          node2=>maptop
+200       continue
+          if(allocated(node2%linehead)) then
+             do kl=1,node2%lines
+                if(node2%linehead(kl)%restarted.eq.2 .and. &
+                     abs(node2%linehead(kl)%termval-mapline%termval).lt.&
+                     3.0D0*inc) done=.true.
+             enddo
+          endif
+          node2=>node2%next
+          if(.not.associated(node2,maptop)) goto 200
+          if(done) cycle lines
+          mapline%restarted=2
+          dir=sign(1,mapline%axandir)
+          newval=mapline%termval+dir*2.0D0*inc
+          if(newval.lt.axarr(1)%axmin .or. newval.gt.axarr(1)%axmax) &
+               cycle lines
+          write(kou,110)mapline%termval,newval
+110       format(' *** Warning, step failed at ',1pe12.4,&
+               ', trying to continue from ',1pe12.4)
+          pcond%prescribed=newval
+! a single line in the direction dir
+          inactive=0
+          inactive(1)=dir
+          nrestart=nrestart+1
+          call map_startpoint(maptop,nax,axarr,seqxyz,inactive,ceq)
+          if(gx%bmperr.ne.0) then
+             write(kou,120)newval,gx%bmperr
+120          format(' *** Could not calculate a new start point at ',&
+                  1pe12.4,', error ',i5)
+             gx%bmperr=0
+          else
+             nnew=nnew+1
+          endif
+       enddo lines
+    endif
+    mapnode=>mapnode%next
+    if(.not.associated(mapnode,maptop)) goto 100
+1000 continue
+    return
+  end subroutine step_restart_after_error
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

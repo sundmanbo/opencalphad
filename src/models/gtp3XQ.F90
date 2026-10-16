@@ -89,7 +89,9 @@
 ! f1s dimension for other arrays ceff1 etc
 !   integer, parameter :: fq=99, fz=20, f1=50
 ! Problem with fq=20 ...
-   integer, parameter :: fq=50, fz=50, f1s=50
+! Claude 2026.10.16: fq=99 (maxquads) as 13 cations give 91 quads, only the
+! used part of the large arrays is set to zero below
+   integer, parameter :: fq=99, fz=50, f1s=50
 ! max allower error in sum ceqf1=1 and ceqf2=1
    double precision, parameter :: ceqferr=1.0D-7
 ! number of pairs and sublattice fractions
@@ -168,6 +170,11 @@
    integer pq(4),pqq(4),sq1(2),sq2(2),fq1(2),fq2(2)
 ! test of indexing problem
    integer line757
+! Claude 2026.10.15 exact second derivatives: each entropy term is
+! y_q*c*ln(f(y)), cy1/cy2/cpr/cc1/cc2(k,q) collect the coefficient c of
+! ln(yy1(k)), ln(yy2(k)), ln(pair(k)), ln(ceqf1(k)), ln(ceqf2(k)) for quad q
+   double precision cy1(fz,fq),cy2(fz,fq),cpr(fq,fq),cc1(fz,fq),cc2(fz,fq)
+   double precision h2q(fq,fq),uu(fq),ww(fq)
 ! to avoid adding quadrupols twice
    logical ddebug
 !
@@ -473,18 +480,16 @@
 ! SAVE the sublattice location of species eesub for quad s1
                fff1=fffy*alone1/mqmqa_data%constoi(fq1(s2),s1)
                yy1(eesub)=yy1(eesub)+fff1*yfrac
-               b1iA(eesub,s1)=fff1
+! Claude 2026.10.15: += as the same constituent can occur twice
+               b1iA(eesub,s1)=b1iA(eesub,s1)+fff1
 !               write(*,13)'3X yy1 add2:',s1,s2,eesub,yy1(eesub),fff1*yfrac,&
 !                    fff1,yfrac,fffy,alone1,mqmqa_data%constoi(fq1(s2),s1)
 ! there can be more than one contribution to site fraction from this quad
-! nomix=1 if single in 1
-               if(nomix.ne.1) then
-                  b1iAB(s1)=b1iAB(s1)+fff1
-               else
-                  b1iAB(s1)=fff1
-               endif
+! Claude 2026.10.15: always add, also when nomix=1 (same constituent twice)
+! as yy1 and sum1AB include both contributions
+               b1iAB(s1)=b1iAB(s1)+fff1
                ceqf1(eesub)=ceqf1(eesub)+fffy*ffceq1*yfrac
-               dceqf1(eesub,s1)=fffy*ffceq1
+               dceqf1(eesub,s1)=dceqf1(eesub,s1)+fffy*ffceq1
             endif
 !---------- second sublattice
             if(sq2(s2).gt.0) then
@@ -503,18 +508,16 @@
                yy2(-ggsub)=yy2(-ggsub)+fff2*yfrac
 !               write(*,13)'3X yy2 add2:',s1,ggsub,s2,yy2(-ggsub),fff2,yfrac,&
 !                    fffy,alone2,mqmqa_data%constoi(fq2(s2),s1)
-               b2iX(-ggsub,s1)=fff2
-! nomix=2 if single in sublattice 2
-               if(nomix.ne.2) then
-                  b2iXY(s1)=b2iXY(s1)+fff2
-               else
-                  b2iXY(s1)=fff2
-               endif
+! Claude 2026.10.15: += as the same constituent can occur twice
+               b2iX(-ggsub,s1)=b2iX(-ggsub,s1)+fff2
+! Claude 2026.10.15: always add, also when nomix=2 (same constituent twice)
+! as yy2 and sum2XY include both contributions
+               b2iXY(s1)=b2iXY(s1)+fff2
 ! equivalent site fraction, each mixing element will be counted twice
 ! for quadrupole with 4 pairs fffy=0.25; otherwice 0.5
 ! >>>>>>>>>>>>>>>>>>> ................ EQUATION B17 part 2
                ceqf2(-ggsub)=ceqf2(-ggsub)+fffy*ffceq2*yfrac
-               dceqf2(-ggsub,s1)=fffy*ffceq2
+               dceqf2(-ggsub,s1)=dceqf2(-ggsub,s1)+fffy*ffceq2
 !               write(*,333)'3X ceqf1q:',s1,0,s3,1,eesub,ceqf1(eesub),&
 !                    yfrac,fffy*ffceq1,1,trim(spname1),trim(connames(s1))
 !               write(*,333)'3X ceqf2q:',s1,0,s3,2,ggsub,ceqf2(-ggsub),&
@@ -595,7 +598,7 @@
 !   write(*,*)'3X nspin2: ',nspin
 ! derivatives of sublattice fractions wrt quads
    all2=ncon*(ncon+1)/2
-   d2yy1=zero
+   d2yy1(1:nspin(1),1:all2)=zero
    dummy1=one/sum1AB**2
 ! ixsym finds the sequential storage place of (i,j) in a symmetrical array
 !   write(*,538)ncon,ixsym(ncon,ncon),ixsym(5,3),nspin
@@ -626,7 +629,7 @@
 !         write(*,87)'3X d2yyj: ',1,s1,(d2yy1(s1,s2),s2=1,all2)
 !      enddo
 !   enddo
-   d2yy2=zero
+   d2yy2(1:nspin(2),1:all2)=zero
    dummy1=one/sum1AB**2
    yder2: do s1=1,nspin(2)
 ! the line below works when there are no SRO quads (species)
@@ -863,7 +866,12 @@
 !-----------------------------------------------------------------
 !
    ssub=zero; dssub=zero
-   dvvv=zero
+   dvvv(1:ncon,1:ncon)=zero
+   if(moded.gt.1) then
+      cy1(1:nspin(1),1:ncon)=zero; cy2(1:nspin(2),1:ncon)=zero
+      cpr(1:noofpair,1:ncon)=zero
+      cc1(1:nspin(1),1:ncon)=zero; cc2(1:nspin(2),1:ncon)=zero
+   endif
 !   write(*,'(a,6(1pe12.4))')'3X quads: ',(phvar%yfr(q1),q1=1,ncon)
 ! NEW CODE, loop over all quads
    qsub: do q1=1,ncon
@@ -880,6 +888,8 @@
 ! Specie in first sublattice >0, if a single species fqq=2
             if(mqmqa_data%contyp(1,q1).eq.2) fqq=2.0d0
             tsub=tsub+fqq*log(yy1(s2))/mqmqa_data%constoi(s7,q1)
+            if(moded.gt.1) cy1(s2,q1)=cy1(s2,q1)+&
+                 fqq/mqmqa_data%constoi(s7,q1)
 !            write(*,700)'3X ssub1: ',q1,s1,s2,s7,tsub,&
 !                 fqq*log(yy1(s2))/mqmqa_data%constoi(s7,q1),fqq,yy1(s2),&
 !                 mqmqa_data%constoi(s7,q1)
@@ -893,6 +903,8 @@
 ! if a single species in second sublattice fqq=2
             if(mqmqa_data%contyp(s1,q1).eq.2) fqq=2.0d0
             tsub=tsub+log(yy2(-s2))/mqmqa_data%constoi(s7,q1)
+            if(moded.gt.1) cy2(-s2,q1)=cy2(-s2,q1)+&
+                 one/mqmqa_data%constoi(s7,q1)
 ! the derivative of fqq*log(yy2(s2))/mqmqa_data%constoi wrt all quads!
             do s3=1,ncon
                dvvv(s3,q1)=dvvv(s3,q1)+&
@@ -983,6 +995,11 @@
 ! %dfnnsnn can be different for different pairs, composition dependence???
 ! But it should be a sum? or is that taken care of by the sum over p_AB/XY ??
          tend=tend+fqq*log(endkvot(s2))
+         if(moded.gt.1) then
+            cpr(s2,q1)=cpr(s2,q1)+fqq
+            cc1(ee,q1)=cc1(ee,q1)-fqq
+            cc2(gg,q1)=cc2(gg,q1)-fqq
+         endif
 !         write(*,421)'3X pairs: ',q1,s1,s2,tend,endkvot(s2),&
 !              fqq/mqmqa_data%qfnnsnn(s2),fqq,mqmqa_data%qfnnsnn(s2)
 ! first derivatives, note multiplied by p_AB/XY ....
@@ -1083,6 +1100,16 @@
 !           ee,ff,gg,hh,pairceq
 !
       squad=squad+phvar%yfr(q1)*log(phvar%yfr(q1)/pairceq)
+      if(moded.gt.1) then
+         cpr(pair1,q1)=cpr(pair1,q1)-one
+         cpr(pair2,q1)=cpr(pair2,q1)-one
+         cpr(pair3,q1)=cpr(pair3,q1)-one
+         cpr(pair4,q1)=cpr(pair4,q1)-one
+         cc1(ee,q1)=cc1(ee,q1)+one
+         cc1(ff,q1)=cc1(ff,q1)+one
+         cc2(gg,q1)=cc2(gg,q1)+one
+         cc2(hh,q1)=cc2(hh,q1)+one
+      endif
 !      write(*,440)'3X squad: ',q1,squad,phvar%yfr(q1),pairceq
 !
 ! New code for the general case
@@ -1130,6 +1157,50 @@
    phvar%gval(1,1)=phvar%gval(1,1)+invnorm*(ssub+send+squad)
 ! derivative of G wrt T, i.e. -S/R
    phvar%gval(2,1)=phvar%gval(2,1)+invnorm*(ssub+send+squad)/tval
+   if(moded.gt.1) then
+! Claude 2026.10.15 exact second derivatives of all entropy terms
+! ln(y_q) term: 1/y_q on the diagonal
+      h2q(1:ncon,1:ncon)=zero
+      do s1=1,ncon
+         dummy1=phvar%yfr(s1)
+         if(dummy1.lt.1.0D-12) dummy1=1.0D-12
+         h2q(s1,s1)=one/dummy1
+      enddo
+! ln(yy1) = ln(A) - ln(B), A=sum b1iA(k,q)*y_q, B=sum1AB
+      do s1=1,nspin(1)
+         if(yy1(s1).le.zero) cycle
+         uu(1:ncon)=b1iA(s1,1:ncon)/(yy1(s1)*sum1AB)
+         ww(1:ncon)=b1iAB(1:ncon)/sum1AB
+         call mqmqa_addhess(ncon,fq,cy1(s1,1:ncon),phvar%yfr,uu,ww,.TRUE.,h2q)
+      enddo
+      do s1=1,nspin(2)
+         if(yy2(s1).le.zero) cycle
+         uu(1:ncon)=b2iX(s1,1:ncon)/(yy2(s1)*sum2XY)
+         ww(1:ncon)=b2iXY(1:ncon)/sum2XY
+         call mqmqa_addhess(ncon,fq,cy2(s1,1:ncon),phvar%yfr,uu,ww,.TRUE.,h2q)
+      enddo
+! pair and charge equivalent fractions are linear in the quad fractions
+      do s1=1,noofpair
+         if(pair(s1).le.zero) cycle
+         uu(1:ncon)=dpair(s1,1:ncon)/pair(s1)
+         call mqmqa_addhess(ncon,fq,cpr(s1,1:ncon),phvar%yfr,uu,ww,.FALSE.,h2q)
+      enddo
+      do s1=1,nspin(1)
+         if(ceqf1(s1).le.zero) cycle
+         uu(1:ncon)=dceqf1(s1,1:ncon)/ceqf1(s1)
+         call mqmqa_addhess(ncon,fq,cc1(s1,1:ncon),phvar%yfr,uu,ww,.FALSE.,h2q)
+      enddo
+      do s1=1,nspin(2)
+         if(ceqf2(s1).le.zero) cycle
+         uu(1:ncon)=dceqf2(s1,1:ncon)/ceqf2(s1)
+         call mqmqa_addhess(ncon,fq,cc2(s1,1:ncon),phvar%yfr,uu,ww,.FALSE.,h2q)
+      enddo
+      do s1=1,ncon
+         do s2=s1,ncon
+            phvar%d2gval(ixsym(s1,s2),1)=invnorm*h2q(s1,s2)
+         enddo
+      enddo
+   endif
    if(moded.gt.0) then
 ! This is if first derivatives are requested (must be exact)
 !      write(*,*)'3X start quad loop'
@@ -1138,17 +1209,7 @@
               invnorm*(dssub(s1)+dsend(s1)+dsquad(s1))
          phvar%dgval(2,s1,1)=phvar%dgval(2,s1,1)+&
               invnorm*(dssub(s1)+dsend(s1)+dsquad(s1))/tval
-         if(moded.gt.1) then
-! this is if second derivatives are requested
-!            do s2=s1,ncon
-!               phvar%d2gval(ixsym(s1,s2),1)=phvar%d2gval(ixsym(s1,s2),1)+&
-!                    invnorm*d2sm1(ixsym(s1,s2))
-!            enddo
-! We just set 1/quad
-            dummy1=phvar%yfr(s1)
-            if(dummy1.lt.1.0D-12) dummy1=1.0D-12
-            phvar%d2gval(ixsym(s1,s1),1)=one/dummy1
-         endif
+! second derivatives now calculated above (Claude 2026.10.15)
       enddo
 !      write(*,*)'3X done quad loop'
 !      write(*,431)'3X dS/Rq  :',(phvar%dgval(1,s1,1),s1=1,ncon)
@@ -1195,14 +1256,54 @@
  end subroutine config_entropy_mqmqa1
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine mqmqa_addhess
+!\begin{verbatim}
+ subroutine mqmqa_addhess(ncon,ldh,cq,yq,uu,ww,ratio,h2q)
+! Claude 2026.10.15: add the second derivatives of T = M*ln(f) to h2q
+! where M = sum_q cq(q)*yq(q) and f is a fraction:
+!   ratio=.FALSE.: f linear in y, uu(i) = (df/dy_i)/f
+!   ratio=.TRUE.:  f = A/B, A and B linear, uu(i)=(dA/dy_i)/A, ww(i)=(dB/dy_i)/B
+! d2T/dy_i dy_j = cq_i*phi_j + cq_j*phi_i + M*phi_ij with phi=ln(f)
+!   phi_i = uu_i - ww_i,  phi_ij = -uu_i*uu_j + ww_i*ww_j
+   implicit none
+! ldh is the declared leading dimension of h2q in the calling routine
+   integer ncon,ldh
+   logical ratio
+   double precision cq(*),yq(*),uu(*),ww(*),h2q(ldh,*)
+!\end{verbatim}
+   integer i,j
+   double precision mm,phi(ncon)
+   mm=zero
+   do i=1,ncon
+      mm=mm+cq(i)*yq(i)
+   enddo
+   if(mm.eq.zero .and. maxval(abs(cq(1:ncon))).eq.zero) goto 1000
+   if(ratio) then
+      phi(1:ncon)=uu(1:ncon)-ww(1:ncon)
+   else
+      phi(1:ncon)=uu(1:ncon)
+   endif
+   do j=1,ncon
+      do i=1,ncon
+         h2q(i,j)=h2q(i,j)+cq(i)*phi(j)+cq(j)*phi(i)-mm*uu(i)*uu(j)
+         if(ratio) h2q(i,j)=h2q(i,j)+mm*ww(i)*ww(j)
+      enddo
+   enddo
+1000 continue
+   return
+ end subroutine mqmqa_addhess
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
  
 !\addtotable subroutine calc_mqmqa
 !\begin{verbatim}
- subroutine calc_mqmqa(lokph,phres,ceq)
+ subroutine calc_mqmqa(lokph,phres,ceq,moded)
 ! Called from calcg_internal to calculate nonconfig G for the mqmqa phase
 ! another subroutine calculates the entropy using all data in phres%mqf
    implicit none
-   integer lokph
+! Claude 2026.10.15: moded>1 means 2nd derivatives of excess are calculated
+   integer lokph,moded
    type(gtp_phase_varres), pointer :: phres
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
@@ -1307,6 +1408,8 @@
       if(mqmqder) then
          write(*,*)'3XQ 2215 Derivatives of vk_ij relative to quads',ncv
          do icv=1,ncv
+! Claude 2026.10.12: dvk_ij allocated at first use in new_mqmqa_excess
+            if(.not.allocated(mqf%compvar(icv)%dvk_ij)) cycle
             write(*,79)'ij',(mqf%compvar(icv)%dvk_ij(dd),dd=1,nqx)
             write(*,79)'ji',(mqf%compvar(icv)%dvk_ji(dd),dd=1,nqx)
 79          format('3XQ dvk',a,10(1pe12.4))
@@ -1572,7 +1675,8 @@
       if(mqmqxcess) write(*,*)'3XQ excess with endmember constituent: ',&
            mqmqjy,ipy
 !      write(*,316)mqmqjy,ipy
-      call new_mqmqa_excess(lokph,intrec,mqmqjy,vals,dvals,d2vals,gz,ceq)
+      call new_mqmqa_excess(lokph,phres,intrec,mqmqjy,vals,dvals,d2vals,&
+           gz,ceq,moded)
 !      write(*,*)'3XQ back from new_mqmqa_excess',gx%bmperr
       if(gx%bmperr.ne.0) goto 1000
 !------------- important --------------------
@@ -1638,9 +1742,84 @@
 !        (phres%dgval(1,s1,1),s1=1,gz%nofc)
 !   write(*,990)'3XQ exit calc_mqmqa G:',rtg*phres%gval(1,1),rtg*vals(1)
 !        (phres%dgval(1,s1,1),s1=1,gz%nofc)
+! Claude 2026.10.15: the exact 2nd derivatives can be indefinite far from
+! equilibrium (G not convex in the quad fractions), then Newton steps are
+! useless.  If the Hessian projected on sum(y)=1 is not positive definite
+! add lambda*diag(1/y) with the smallest lambda making it positive definite
+   if(moded.gt.1) call mqmqa_safe_hessian(phres,gz%nofc)
 1000 continue
    return
  end subroutine calc_mqmqa
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine mqmqa_safe_hessian
+!\begin{verbatim}
+ subroutine mqmqa_safe_hessian(phres,nofc)
+! Claude 2026.10.15: test if the Hessian H of G wrt the quad fractions is
+! positive definite in the plane sum(y)=1 using a Cholesky factorization of
+! Z'(H+lambda*D)Z where the columns of Z are e_i - e_n and D=diag(1/y).
+! lambda is increased 0, 0.01, 0.1, 1, ... until positive definite, then
+! lambda*D is added to the Hessian (Levenberg-Marquardt type modification)
+   implicit none
+   type(gtp_phase_varres), pointer :: phres
+   integer nofc
+!\end{verbatim}
+   integer i,j,k,m,itry
+   double precision, allocatable :: hzz(:,:),dyy(:)
+   double precision sum,lambda
+   logical posdef
+   m=nofc-1
+   if(m.lt.1) goto 1000
+   allocate(hzz(m,m),dyy(nofc))
+   do j=1,nofc
+      dyy(j)=one/max(phres%yfr(j),1.0D-12)
+   enddo
+   lambda=zero
+   tries: do itry=1,20
+      do j=1,m
+         do i=j,m
+            hzz(i,j)=phres%d2gval(ixsym(i,j),1)-phres%d2gval(ixsym(i,nofc),1)&
+                 -phres%d2gval(ixsym(nofc,j),1)&
+                 +phres%d2gval(ixsym(nofc,nofc),1)+lambda*dyy(nofc)
+            if(i.eq.j) hzz(i,j)=hzz(i,j)+lambda*dyy(j)
+         enddo
+      enddo
+      posdef=.true.
+      chol: do j=1,m
+         sum=hzz(j,j)
+         do k=1,j-1
+            sum=sum-hzz(j,k)**2
+         enddo
+         if(sum.le.zero) then
+            posdef=.false.
+            exit chol
+         endif
+         hzz(j,j)=sqrt(sum)
+         do i=j+1,m
+            sum=hzz(i,j)
+            do k=1,j-1
+               sum=sum-hzz(i,k)*hzz(j,k)
+            enddo
+            hzz(i,j)=sum/hzz(j,j)
+         enddo
+      enddo chol
+      if(posdef) exit tries
+      if(lambda.eq.zero) then
+         lambda=1.0D-2
+      else
+         lambda=1.0D1*lambda
+      endif
+   enddo tries
+   if(lambda.gt.zero) then
+      do j=1,nofc
+         phres%d2gval(ixsym(j,j),1)=phres%d2gval(ixsym(j,j),1)+lambda*dyy(j)
+      enddo
+   endif
+   deallocate(hzz,dyy)
+1000 continue
+   return
+ end subroutine mqmqa_safe_hessian
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
@@ -1654,17 +1833,23 @@
 !\addtotable subroutine new_mqmqa_excess
 ! called from calc_mqmqa line 1429.  CALCULATES MQMQA excess
 !\begin{verbatim}
- subroutine new_mqmqa_excess(lokph,intrecin,mqmqj,vals,dvals,d2vals,gz,ceq)
+ subroutine new_mqmqa_excess(lokph,phres,intrecin,mqmqj,vals,dvals,d2vals,&
+      gz,ceq,moded)
 ! vals(1..6) are G, dG.T, dG.P, d2G.T.T, d2G.T.P and d2G.P.P for parameter
 ! dvals(1,i) are first derivatives wrt fracton and 2nd wrt fraction, T or P
 !     dvals(1,i) is dG.yi, dval2(2,i) is d2G.yi.T, dvals(3,i) is d2G.yi.P
 ! d2vals(i,j) are second derivatives to 2 fractions, IGNORED HERE
+! Claude 2026.10.15: if moded>1 the 2nd derivatives wrt the quads are added
+! directly to phres%d2gval(*,1), only for the quads involved in a parameter
 ! gz%nofc is number of fraction variables multiplied with this parameter(?)
 !
 ! written using the gtp_allinone data structure for asymmetric excess
    implicit none
 ! mqmqj is index of first constituent in endmemberrecord
-   integer lokph,mqmqj
+   integer lokph,mqmqj,moded
+! Claude 2026.10.12: phres is the phase_varres record of the composition set
+! calculated, previously composition set 1 was always used
+   type(gtp_phase_varres), pointer :: phres
 !   type(gtp_property), pointer :: lokpty
    type(gtp_parcalc) :: gz
    TYPE(gtp_mqmqa_var), pointer :: mqf
@@ -1705,7 +1890,18 @@
 ! py3 is just the product of the ternary composition and derivatives
    double precision py3
 ! calculated ternary fraction derivatives
-   double precision, allocatable :: dpy3dyi(:),d2py3dyidyj(:)
+   double precision, allocatable :: dpy3dyi(:)
+! Claude 2026.10.15: for 2nd derivatives, see ternary_factor1
+   double precision tfa,tfb,tfd,gg,gg1,gg2,ggz,ggw,ggzw,azw,bzw,py3zw
+   double precision, allocatable :: tfz(:,:)
+! dden(q) is how often quad q is in the denominator of vk_ij and vk_ji, dsumk
+! is the denominator, sup(1..nsup) are the quads involved in the parameter
+! a1, a2 are d(vk_ij**ppow)/dq and d(vk_ji**qpow)/dq, pz is d(a1*a2)/dq
+! fz is d(xquad*a1*a2)/dq for the quads in sup
+   integer nsup,isup,jsup,zq,wq,kk
+   integer, allocatable :: sup(:)
+   double precision, allocatable :: dden(:),a1(:),a2(:),pz(:),fz(:)
+   double precision dsumk,vk1zw,vk2zw,t1zw,t2zw,pzw,fzw,hzw
 !
 ! composition derivatives are only relative to quads  !!!!!!!
 ! the composition variables for a parameters are expressions using asymmetric
@@ -1726,6 +1922,7 @@
 ! These are short for the values of vk_ij and vk_ji
    double precision vk_ij,vk_ji
    type(gtp_allinone), pointer :: box
+   type(gtp_mqmqa_binary), pointer :: bfix
 ! partial derivative for one parameter contribution
 ! FactSage Factor
 !   double precision :: FSF=1.0d0
@@ -1781,8 +1978,10 @@
 ! ceq%phase_varres(lokcs)%mqmqaf%compvar(icv)%vi_ij etc
 ! access to composition variables
 !
-   lokcs=phlista(lokph)%linktocs(1)
-   mqf=>ceq%phase_varres(lokcs)%mqmqaf
+!   lokcs=phlista(lokph)%linktocs(1)
+!   mqf=>ceq%phase_varres(lokcs)%mqmqaf
+! Claude 2026.10.12: use the composition set calculated, not always set 1
+   mqf=>phres%mqmqaf
 !
 ! when we are here intrec must be associated
 ! All interaction records from a single endmember record will be calculated
@@ -1802,8 +2001,10 @@
 ! In the array we store derivatives of the ternary factor as funtion of quads
 !   if(.not.allocated) allocate(dpy3dyi(nqx))
    allocate(dpy3dyi(nqx))
-! this is 2nd derivative wrt T and quads, 2nd derivatives are not used below
-   allocate(d2py3dyidyj(nqx*(nqx-1)/2))
+   allocate(tfz(nqx,3))
+   if(moded.gt.1) then
+      allocate(sup(nqx),dden(nqx),a1(nqx),a2(nqx),pz(nqx),fz(nqx))
+   endif
 !
 ! summing G and partial derivatives for each separate parameter, no P derivative
    intloop: do while(associated(intrec))
@@ -1878,7 +2079,7 @@
             call list_tpfun(lokfun,1,funtext)
             write(*,1210)trim(text),trim(funtext),&
                  (trim(splista(phlista(lokph)%constitlist(ylinks(jy)))%symbol),&
-                 ceq%phase_varres(lokcs)%yfr(ylinks(jy)),jy=1,nfr)
+                 phres%yfr(ylinks(jy)),jy=1,nfr)
 1210        format(/'3XQ mqter parameter: ',a,' ',a/&
                  ('3XQ   y(',a,')=',1pe14.6,:,3x,'y(',a,')=',1pe14.6))
          endif
@@ -1891,6 +2092,7 @@
 ! where are they calculated?
          cxq=mqmqa_data%quad2compvar(xq)
          box=>mqf%compvar(cxq)
+         bfix=>mqbinary(cxq)
          vk_ij=box%vk_ij
          vk_ji=box%vk_ji
 !         vk_ij=mqf%compvar(cxq)%vk_ij
@@ -1916,7 +2118,7 @@
 ! this is a call which should calculate the ternary factor
 ! and its derivatives.  DO NOT INCLUDE TPFUN
             call ternary_factor1(mqf,cxq,py3,&
-                 dpy3dyi,d2py3dyidyj,proprec,verbose)
+                 dpy3dyi,tfa,tfb,tfd,tfz,proprec,verbose)
             if(gx%bmperr.ne.0) goto 1000
             if(mqter) then
 ! py3 is the composition product of the ternary factor
@@ -1996,7 +2198,7 @@
 ! any quad can be involved in compvar(cxq)%vk_ij
 ! For ternary parameters some additional derivatives
             if(mqmqder) then
-               write(*,992)xq,cxq,mqf%compvar(cxq)%cat1,mqf%compvar(cxq)%cat2
+               write(*,992)xq,cxq,mqbinary(cxq)%cat1,mqbinary(cxq)%cat2
 992            format('3XQ derivatives of quad: ',i2,', and vk_ij and vk_ji: ',&
                     i3,2x,2i3)
                write(*,*)'3XQ calling dvkij_dzijkl for varkappa: ',cxq
@@ -2008,8 +2210,22 @@
 ! should calculated only once
 ! dvkijz(1, 1..nqx) are derivatives of vk_ij: dvk_ij/dxz
 ! dvkijz(2, 1..nqx) are derivatives of vk_ji: dvk_ji/dxz
-            call dvkij_dzijk(mqf,cxq,dvkijz)
-            if(gx%bmperr.ne.0) goto 1000
+! Claude 2026.10.12: calculate the derivatives only for the first parameter
+! using this box after new fractions, save them in the box for the others
+            if(.not.box%dvkdone) then
+               call dvkij_dzijk(mqf,cxq,dvkijz)
+               if(gx%bmperr.ne.0) goto 1000
+               if(.not.allocated(box%dvk_ij)) then
+                  allocate(box%dvk_ij(nqx))
+                  allocate(box%dvk_ji(nqx))
+               endif
+               box%dvk_ij=dvkijz(1,:)
+               box%dvk_ji=dvkijz(2,:)
+               box%dvkdone=.true.
+            else
+               dvkijz(1,:)=box%dvk_ij
+               dvkijz(2,:)=box%dvk_ji
+            endif
 !
 ! loop for derivatives of parameter for all quads
             zkijloop: do zkij=1,nqx
@@ -2060,6 +2276,96 @@
 ! this is just for debug output below
                debugder(zkij)=dsum
             enddo zkijloop
+!
+! Claude 2026.10.15: 2nd derivatives of xquad(xq)*vk_ij**p*vk_ji**q*py3
+! vk_ij=N_ij/D, vk_ji=N_ji/D with N and D sums of quads, thus
+! d2vk/dz dw = -(dvk/dz*dden(w)+dvk/dw*dden(z))/D
+! py3=a*(1-b)**(r-1), a and b are Y/D with Y and D linear in the quads
+            secder: if(moded.gt.1) then
+               dden(1:nqx)=zero
+               dsumk=zero
+               do kk=1,size(bfix%ivk_ij)
+                  dden(bfix%ivk_ij(kk))=dden(bfix%ivk_ij(kk))+one
+                  dsumk=dsumk+mqf%xquad(bfix%ivk_ij(kk))
+               enddo
+               do kk=1,size(bfix%jvk_ji)
+                  dden(bfix%jvk_ji(kk))=dden(bfix%jvk_ji(kk))+one
+                  dsumk=dsumk+mqf%xquad(bfix%jvk_ji(kk))
+               enddo
+               do kk=1,size(bfix%kvk_ijk)
+                  dden(bfix%kvk_ijk(kk))=dden(bfix%kvk_ijk(kk))+one
+                  dsumk=dsumk+mqf%xquad(bfix%kvk_ijk(kk))
+               enddo
+               if(dsumk.eq.zero) dsumk=one
+! the quads involved in this parameter
+               nsup=0
+               do zq=1,nqx
+                  if(zq.eq.xq .or. dden(zq).ne.zero .or. &
+                       dvkijz(1,zq).ne.zero .or. dvkijz(2,zq).ne.zero) then
+                     nsup=nsup+1; sup(nsup)=zq
+                  elseif(nfr.gt.3) then
+                     if(tfz(zq,1).ne.zero .or. tfz(zq,2).ne.zero .or. &
+                          tfz(zq,3).ne.zero) then
+                        nsup=nsup+1; sup(nsup)=zq
+                     endif
+                  endif
+               enddo
+               do isup=1,nsup
+                  zq=sup(isup)
+                  a1(isup)=zero
+                  if(ppow.gt.0) a1(isup)=ppow*vk_ij**(ppow-1)*dvkijz(1,zq)
+                  a2(isup)=zero
+                  if(qpow.gt.0) a2(isup)=qpow*vk_ji**(qpow-1)*dvkijz(2,zq)
+                  pz(isup)=a1(isup)*term2+term1*a2(isup)
+                  fz(isup)=mqf%xquad(xq)*pz(isup)
+                  if(zq.eq.xq) fz(isup)=fz(isup)+term1*term2
+               enddo
+               if(nfr.gt.3) then
+! gg=(1-b)**(r-1), gg1 and gg2 are factors in its 1st and 2nd derivatives
+                  gg=one; gg1=zero; gg2=zero
+                  if(rpow.gt.1) then
+                     gg=(one-tfb)**(rpow-1)
+                     gg1=(rpow-1)*(one-tfb)**(rpow-2)
+                     if(rpow.gt.2) gg2=(rpow-1)*(rpow-2)*(one-tfb)**(rpow-3)
+                  endif
+               endif
+               do isup=1,nsup
+                  zq=sup(isup)
+                  do jsup=isup,nsup
+                     wq=sup(jsup)
+                     vk1zw=-(dvkijz(1,zq)*dden(wq)+dvkijz(1,wq)*dden(zq))/dsumk
+                     vk2zw=-(dvkijz(2,zq)*dden(wq)+dvkijz(2,wq)*dden(zq))/dsumk
+                     t1zw=zero
+                     if(ppow.gt.0) t1zw=ppow*vk_ij**(ppow-1)*vk1zw
+                     if(ppow.gt.1) t1zw=t1zw+ppow*(ppow-1)*vk_ij**(ppow-2)*&
+                          dvkijz(1,zq)*dvkijz(1,wq)
+                     t2zw=zero
+                     if(qpow.gt.0) t2zw=qpow*vk_ji**(qpow-1)*vk2zw
+                     if(qpow.gt.1) t2zw=t2zw+qpow*(qpow-1)*vk_ji**(qpow-2)*&
+                          dvkijz(2,zq)*dvkijz(2,wq)
+                     pzw=t1zw*term2+a1(isup)*a2(jsup)+a1(jsup)*a2(isup)+&
+                          term1*t2zw
+                     fzw=mqf%xquad(xq)*pzw
+                     if(zq.eq.xq) fzw=fzw+pz(jsup)
+                     if(wq.eq.xq) fzw=fzw+pz(isup)
+                     if(nfr.gt.3) then
+! 2nd derivative of the ternary factor py3=a*gg
+                        azw=-(tfz(zq,1)*tfz(wq,3)+tfz(wq,1)*tfz(zq,3))/tfd
+                        bzw=-(tfz(zq,2)*tfz(wq,3)+tfz(wq,2)*tfz(zq,3))/tfd
+                        ggz=-gg1*tfz(zq,2)
+                        ggw=-gg1*tfz(wq,2)
+                        ggzw=gg2*tfz(zq,2)*tfz(wq,2)-gg1*bzw
+                        py3zw=azw*gg+tfz(zq,1)*ggw+tfz(wq,1)*ggz+tfa*ggzw
+                        hzw=fzw*py3+fz(isup)*dpy3dyi(wq)+fz(jsup)*dpy3dyi(zq)+&
+                             compprod2*py3zw
+                     else
+                        hzw=fzw
+                     endif
+                     phres%d2gval(ixsym(zq,wq),1)=phres%d2gval(ixsym(zq,wq),1)+&
+                          hzw*tpfun(1)
+                  enddo
+               enddo
+            endif secder
 ! This ends the calculation of a BINARY parameter and its derivatives
 !
 ! For the minimizer one has to calculate the derivatives wrt all quads, x_ij
@@ -2181,6 +2487,7 @@
 !   type(gtp_phase_varres), pointer :: phres
    type(gtp_mqmqa_var), pointer :: mqf
    type(gtp_allinone), pointer :: box
+   type(gtp_mqmqa_binary), pointer :: bfix
    integer cxq
 ! there are mqmqa_data%nquad variable and derivatives 
    double precision dvkijk(2,mqmqa_data%nquad)
@@ -2240,9 +2547,10 @@
 !
    mxq=mqmqa_data%nquad
    box=>mqf%compvar(cxq)
-   denomx=size(box%all_ijk)
-   cat1=box%cat1
-   cat2=box%cat2
+   bfix=>mqbinary(cxq)
+   denomx=size(bfix%all_ijk)
+   cat1=bfix%cat1
+   cat2=bfix%cat2
 ! initiate done with all quad indices
 !   allocate(qdone(denomx))
 !   qdone=mqf%compvar(cxq)%all_ijk
@@ -2257,10 +2565,10 @@
 !      write(*,20)mqf%compvar(cxq)%jvk_ji
 !      write(*,30)mqf%compvar(cxq)%kvk_ijk
 !      write(*,30)mqf%compvar(cxq)%all_ijk
-      write(*,10)box%ivk_ij
-      write(*,20)box%jvk_ji
-      write(*,30)box%kvk_ijk
-      write(*,40)box%all_ijk
+      write(*,10)bfix%ivk_ij
+      write(*,20)bfix%jvk_ji
+      write(*,30)bfix%kvk_ijk
+      write(*,40)bfix%all_ijk
 10    format('3XQ ivk_ij: ',10i3)
 20    format('3XQ jvk_ji: ',10i3)
 30    format('3XQ kvk_ijk:',10i3)
@@ -2289,9 +2597,9 @@
 !         skip=.true.
 !
    sumk=0.0d0
-   denominator: do kk=1,size(box%all_ijk)
+   denominator: do kk=1,size(bfix%all_ijk)
 ! a quad fraction term can only apper once
-      vkix=box%all_ijk(kk)
+      vkix=bfix%all_ijk(kk)
       sumk=sumk+mqf%xquad(vkix)
 ! listing of derivative calculations
 ! 3XQ kloop for mqf%compvar( 1)%all_ijk( 1)    1 sum  3.5933E-02 1 1 1
@@ -2331,9 +2639,9 @@
 !      sumi=zero
 !
    sumi=0.0d0
-   nominator1: do kk=1,size(box%ivk_ij)
+   nominator1: do kk=1,size(bfix%ivk_ij)
 !      dgij=0
-      vkix=box%ivk_ij(kk)
+      vkix=bfix%ivk_ij(kk)
       sumi=sumi+mqf%xquad(vkix)
 !         if(mqf%compvar(cxq)%ivk_ij(kk).eq.ijkl) then 
 !         if(box%ivk_ij(kk).eq.ijkl) then
@@ -2350,9 +2658,9 @@
 ! note sumi and/or sumj can be zero
 !
    sumj=0.0d0
-   nominator2: do kk=1,size(box%jvk_ji)
+   nominator2: do kk=1,size(bfix%jvk_ji)
 !      dgji=0
-      vkix=box%jvk_ji(kk)
+      vkix=bfix%jvk_ji(kk)
       sumj=sumj+mqf%xquad(vkix)
 !         if(mqf%compvar(cxq)%jvk_ji(kk).eq.ijkl) then
 !         if(box%jvk_ji(kk).eq.ijkl) then
@@ -2376,8 +2684,8 @@
 ! there are asymmetries, use the same denominator as varkappa1:
 ! sum of ivk_ij, jvk_ji and kvk_ijk
    sumk=sumi+sumj
-   do kk=1,size(box%kvk_ijk)
-      sumk=sumk+mqf%xquad(box%kvk_ijk(kk))
+   do kk=1,size(bfix%kvk_ijk)
+      sumk=sumk+mqf%xquad(bfix%kvk_ijk(kk))
    enddo
    if(sumk.eq.zero) then
       write(*,*)'3XQ line 2691, division by zero, check source code!!!'
@@ -2386,18 +2694,18 @@
 ! d(vk_ij)/dx_q = (n_ij(q) - vk_ij*n_den(q))/sumk where n_ij(q) is how often
 ! x_q is in ivk_ij and n_den(q) how often it is in ivk_ij+jvk_ji+kvk_ijk
 ! Accumulate with += so a quad occurring several times is handled correctly
-   do kk=1,size(box%ivk_ij)
-      ijkl=box%ivk_ij(kk)
+   do kk=1,size(bfix%ivk_ij)
+      ijkl=bfix%ivk_ij(kk)
       dvkijk(1,ijkl)=dvkijk(1,ijkl)+1.0d0/sumk-sumi/sumk**2
       dvkijk(2,ijkl)=dvkijk(2,ijkl)-sumj/sumk**2
    enddo
-   do kk=1,size(box%jvk_ji)
-      ijkl=box%jvk_ji(kk)
+   do kk=1,size(bfix%jvk_ji)
+      ijkl=bfix%jvk_ji(kk)
       dvkijk(1,ijkl)=dvkijk(1,ijkl)-sumi/sumk**2
       dvkijk(2,ijkl)=dvkijk(2,ijkl)+1.0d0/sumk-sumj/sumk**2
    enddo
-   do kk=1,size(box%kvk_ijk)
-      ijkl=box%kvk_ijk(kk)
+   do kk=1,size(bfix%kvk_ijk)
+      ijkl=bfix%kvk_ijk(kk)
       dvkijk(1,ijkl)=dvkijk(1,ijkl)-sumi/sumk**2
       dvkijk(2,ijkl)=dvkijk(2,ijkl)-sumj/sumk**2
    enddo
@@ -2648,20 +2956,26 @@
 !\addtotable subroutine ternary_factor1
 !\begin{verbatim}
 ! subroutine ternary_factor1
- subroutine ternary_factor1(mqf,cxq,py3,dpy3dyi,d2py3,&
+ subroutine ternary_factor1(mqf,cxq,py3,dpy3dyi,tfa,tfb,tfd,tfz,&
       proprec,verbose)
 ! calculates the ternary factor of a parameter
    implicit none
    integer cxq
 ! py3 is the product of the fractions and
 ! dpy3dyi and d2py3 derivatives of this wrt to quads
-   double precision py3,dpy3dyi(*),d2py3(*)
+   double precision py3,dpy3dyi(*)
+! Claude 2026.10.15: for 2nd derivatives the factor is written py3=a*(1-b)**(r-1)
+! with a=Y_a/D and b=Y_b/D where Y_a, Y_b and D are linear in the quads
+! (D=1 if symmetric).  Returned are tfa=a, tfb=b, tfd=D and their derivatives
+! tfz(q,1)=da/dq, tfz(q,2)=db/dq, tfz(q,3)=dD/dq.  2nd derivatives of py3
+! are calculated from these in new_mqmqa_excess
+   double precision tfa,tfb,tfd,tfz(mqmqa_data%nquad,3)
    logical verbose
 ! return parameter and d(parameter)/dT  ?? and d(parameter)/d(fracs) ??
 ! cxq is the index of the compvar record with vk_ij, vk_ji and xi_ij, x_ji
 ! py3 is the product of fractions for the parameter
 ! dpy3dyi is derivatives of fractions to be multiplied with the parameter
-! d2py3dy are 2nd derivatives, not used
+! tfa, tfb, tfd and tfz are used to calculate 2nd derivatives, see above
 ! proprec is the property record with the TPFUN expression and other data
    type(gtp_property), pointer :: proprec
    TYPE(gtp_mqmqa_var), pointer :: mqf
@@ -2687,6 +3001,7 @@
    integer tcat,catasym,nqx
    integer dd
    type(gtp_allinone), pointer :: box
+   type(gtp_mqmqa_binary), pointer :: bfix
 !
 ! we must update xi_ij, xi_ji and v_ik ONCE for each iteration
 ! It updates all xi_ij etc so called only once per iteration
@@ -2728,8 +3043,9 @@
 ! nqx set to number of quads
    nqx=mqmqa_data%nquad
    box=>mqf%compvar(cxq)
-   cat1=box%cat1
-   cat2=box%cat2
+   bfix=>mqbinary(cxq)
+   cat1=bfix%cat1
+   cat2=bfix%cat2
 ! ylinks are OC phase constituent indices, not necessarily same as quad indices
 !
 ! mqmqa_data%emquad(1..n) are indices of quads with single caton: A/X, B/X etc.
@@ -2791,7 +3107,7 @@
 !                gg*dy_ik
          do dd=1,nqx
             dpy3dyi(dd) = -(rpow-1)*ffm2*&
-                 (box%dxi_ij(dd)+box%dxi_ji(dd)) * mqf%y_ik(tcat) 
+                 (bfix%dxi_ij(dd)+bfix%dxi_ji(dd)) * mqf%y_ik(tcat) 
          enddo
 !      else
 ! this already set
@@ -2801,7 +3117,16 @@
 ! if rpow=1 then above dpy3dy=0.0 and gg=1.0 were set above.  rpow<=0 illegal
       py3=mqf%y_ik(cat3)*gg
       do dd=1,nqx
-         dpy3dyi(dd) = dpy3dyi(dd) + mqf%dy_ik(cat3,dd)*gg
+         dpy3dyi(dd) = dpy3dyi(dd) + mqmqa_data%dy_ik(cat3,dd)*gg
+      enddo
+! Claude 2026.10.15: a=Y_m, b=xi_ij+xi_ji, D=1
+      tfa=mqf%y_ik(cat3)
+      tfb=box%xi_ij+box%xi_ji
+      tfd=one
+      do dd=1,nqx
+         tfz(dd,1)=mqmqa_data%dy_ik(cat3,dd)
+         tfz(dd,2)=bfix%dxi_ij(dd)+bfix%dxi_ji(dd)
+         tfz(dd,3)=zero
       enddo
 ! debug output
       if(mqter) write(*,100)1,py3,gg,(dpy3dyi(dd),dd=1,nqx)
@@ -2829,15 +3154,24 @@
 !                gg*dy_ik
          do dd=1,nqx
             dpy3dyi(dd) = -(rpow-1)*asymp*ffm2/zz*&
-                 (mqf%dy_ik(cat2,dd)*box%xi_ji-mqf%y_ik(cat2)*box%dxi_ji(dd))
+                 (mqmqa_data%dy_ik(cat2,dd)*box%xi_ji-mqf%y_ik(cat2)*bfix%dxi_ji(dd))
          enddo
 ! values for rpow=1 set above
       endif
       py3=asymp*gg
       do dd=1,nqx
          dpy3dyi(dd) = dpy3dyi(dd)+gg*&
-              (mqf%dy_ik(cat3,dd)*box%xi_ji-&
-              mqf%y_ik(cat3)*box%dxi_ji(dd))/zz
+              (mqmqa_data%dy_ik(cat3,dd)*box%xi_ji-&
+              mqf%y_ik(cat3)*bfix%dxi_ji(dd))/zz
+      enddo
+! Claude 2026.10.15: a=Y_m/xi_ji, b=Y_j/xi_ji, D=xi_ji
+      tfa=asymp
+      tfb=mqf%y_ik(cat2)/box%xi_ji
+      tfd=box%xi_ji
+      do dd=1,nqx
+         tfz(dd,3)=bfix%dxi_ji(dd)
+         tfz(dd,1)=(mqmqa_data%dy_ik(cat3,dd)-tfa*tfz(dd,3))/tfd
+         tfz(dd,2)=(mqmqa_data%dy_ik(cat2,dd)-tfb*tfz(dd,3))/tfd
       enddo
       if(mqter) write(*,100)2,py3,gg,(dpy3dyi(dd),dd=1,nqx)
 ! wow
@@ -2860,15 +3194,24 @@
 ! derivatives wrt quads ... , loop dq=1,nqx
          do dd=1,nqx
             dpy3dyi(dd) = -(rpow-1)*asymp*ffm2*&
-                 (mqf%dy_ik(cat1,dd)*box%xi_ij-&
-                 mqf%y_ik(cat1)*box%dxi_ij(dd))/zz
+                 (mqmqa_data%dy_ik(cat1,dd)*box%xi_ij-&
+                 mqf%y_ik(cat1)*bfix%dxi_ij(dd))/zz
          enddo
       endif
       py3=asymp*gg
       do dd=1,nqx
          dpy3dyi(dd) = dpy3dyi(dd)+gg*&
-              (mqf%dy_ik(cat3,dd)*box%xi_ij-&
-              mqf%y_ik(cat3)*box%dxi_ij(dd))/zz
+              (mqmqa_data%dy_ik(cat3,dd)*box%xi_ij-&
+              mqf%y_ik(cat3)*bfix%dxi_ij(dd))/zz
+      enddo
+! Claude 2026.10.15: a=Y_m/xi_ij, b=Y_i/xi_ij, D=xi_ij
+      tfa=asymp
+      tfb=mqf%y_ik(cat1)/box%xi_ij
+      tfd=box%xi_ij
+      do dd=1,nqx
+         tfz(dd,3)=bfix%dxi_ij(dd)
+         tfz(dd,1)=(mqmqa_data%dy_ik(cat3,dd)-tfa*tfz(dd,3))/tfd
+         tfz(dd,2)=(mqmqa_data%dy_ik(cat1,dd)-tfb*tfz(dd,3))/tfd
       enddo
       if(mqter) write(*,100)3,py3,gg,(dpy3dyi(dd),dd=1,nqx)
 ! double wow
@@ -2876,9 +3219,9 @@
 !
 !----------------------------------------------------------------
 1000 continue
-   if(verbose) write(*,1010)py3,(dpy3dyi(di),di=1,6),(d2Py3(di),di=1,6)
+   if(verbose) write(*,1010)py3,(dpy3dyi(di),di=1,6)
 1010 format('3XQ leaving ternary factor G=',2(1pe12.4)/&
-          '     dG/dx_ij=',6f10.6,/'  d2G/dTdx_ij=',6f10.6)
+          '     dG/dx_ij=',6f10.6)
    return
  end subroutine ternary_factor1
 
@@ -3193,6 +3536,9 @@
 !
 ! HERE THE COMPVAR ARRAY IS CREATED line 3439, later called BOX
    allocate(mqf%compvar(mqmqa_data%ncat*(mqmqa_data%ncat-1)/2*mqmqa_data%nan))
+! Claude 2026.10.16: the data independent of the constitution are in mqbinary
+   if(allocated(mqbinary)) deallocate(mqbinary)
+   allocate(mqbinary(size(mqf%compvar)))
 !   write(*,*)'3XQ, initiating compvar for excess model variables',&
 !        mqmqa_data%ncat,size(mqf%compvar)
    if(allocated(mqmqa_data%el2ancat)) then
@@ -3238,9 +3584,9 @@
 !        mqmqa_data%cat2species
 ! emquad is constituent index of endmember species
 !   write(*,'(a,10i3)')'3XQ line 3669 allocating names_y_ik'
-   allocate(mqf%names_y_ik(mqmqa_data%ncat))
-   allocate(mqf%spix_y_ik(mqmqa_data%ncat))
-   allocate(mqf%spqx_y_ik(mqmqa_data%ncat))
+   allocate(mqmqa_data%names_y_ik(mqmqa_data%ncat))
+   allocate(mqmqa_data%spix_y_ik(mqmqa_data%ncat))
+   allocate(mqmqa_data%spqx_y_ik(mqmqa_data%ncat))
 ! needed for asymmetries <<<<<<<<<<<<<<< this is where it is allocated
    allocate(mqmqa_data%el2quad(mqmqa_data%ncat))
 !   write(*,*)'3XQ **** ALLOCATED EL2QUAD **** ',size(mqmqa_data%el2quad)
@@ -3263,23 +3609,23 @@
          if(j.eq.i) then
 ! only save names when i=j         
             jiy=jiy+1
-            mqf%names_y_ik(jiy)=splista(mm)%symbol
+            mqmqa_data%names_y_ik(jiy)=splista(mm)%symbol
 ! remove numbers trailing -Q
-            k=index(mqf%names_y_ik(jiy),'-Q')
+            k=index(mqmqa_data%names_y_ik(jiy),'-Q')
             if(k.le.0) then
-               write(*,*)'3XQ illegal quadname: ',mqf%names_y_ik(jiy)
+               write(*,*)'3XQ illegal quadname: ',mqmqa_data%names_y_ik(jiy)
             else
-               mqf%names_y_ik(jiy)(k+2:)=' '
+               mqmqa_data%names_y_ik(jiy)(k+2:)=' '
             endif
 ! Hm, mm is not correct, probably the order they were added
 ! maybe splista(mm)%alphaorder ?
 !            write(*,82)nn,mm,splista(mm)%alphaindex,splista(mm)%symbol
-            mqf%spix_y_ik(jiy)=splista(mm)%alphaindex
+            mqmqa_data%spix_y_ik(jiy)=splista(mm)%alphaindex
 !            write(*,*)'3XQ y_ik index',mm,splista(mm)%alphaindex,nn
 !            mqf%spix_y_ik(jiy)=splista(mm)
-            mqf%spix_y_ik(jiy)=splista(mm)%alphaindex
+            mqmqa_data%spix_y_ik(jiy)=splista(mm)%alphaindex
 !  mm is species index, nn is constituent index
-            mqf%spqx_y_ik(jiy)=nn
+            mqmqa_data%spqx_y_ik(jiy)=nn
 ! needed for asymmetry !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             mqmqa_data%el2quad(jiy)=nn
          endif
@@ -3318,12 +3664,12 @@
                      tersys(mm)%el(2)=j
                      tersys(mm)%el(3)=k
 ! tersys(mm)%emquads are the indices in mqf%spqx_y_ik(i) ....?
-                     if(allocated(mqf%spqx_y_ik)) then
-                        tersys(mm)%emquad(1)=mqf%spqx_y_ik(i)
-                        tersys(mm)%emquad(2)=mqf%spqx_y_ik(j)
-                        tersys(mm)%emquad(3)=mqf%spqx_y_ik(k)
+                     if(allocated(mqmqa_data%spqx_y_ik)) then
+                        tersys(mm)%emquad(1)=mqmqa_data%spqx_y_ik(i)
+                        tersys(mm)%emquad(2)=mqmqa_data%spqx_y_ik(j)
+                        tersys(mm)%emquad(3)=mqmqa_data%spqx_y_ik(k)
                      else
-                        write(*,*)'3XQ sorry mqf%spqx_y_ik)) not allocated'
+                        write(*,*)'3XQ sorry mqmqa_data%spqx_y_ik)) not allocated'
                      endif
 ! set symmetric
                      tersys(mm)%asymm='KKK'
@@ -3373,10 +3719,9 @@
       second: do j=i+1,mqmqa_data%ncat
 ! initiallize allinone record, allocated as compvar array, called box later
          nseq=nseq+1
-         mqf%compvar(nseq)%seq=nseq
 ! these indices are from 1 to n-1 ignoring anions and actual element/species
-         mqf%compvar(nseq)%cat1=i
-         mqf%compvar(nseq)%cat2=j
+         mqbinary(nseq)%cat1=i
+         mqbinary(nseq)%cat2=j
 ! these are the element indices in OC
 ! These should be cation species as set above!!
 !         if(i.gt.mqmqa_data%xanionalpha) mqf%compvar(nseq)%elcat1=i+1
@@ -3384,20 +3729,9 @@
 ! these are species indices of cations
 !         mqf%compvar(nseq)%elcat1=mqf%spix_y_ik(i)
 !         mqf%compvar(nseq)%elcat2=mqf%spix_y_ik(j)
-         mqf%compvar(nseq)%quadicat1=mqf%spix_y_ik(i)
-         mqf%compvar(nseq)%quadicat2=mqf%spix_y_ik(j)
-! these are used when determining asymmetries
-         mqf%compvar(nseq)%elcat1=mqf%spqx_y_ik(i)
-         mqf%compvar(nseq)%elcat2=mqf%spqx_y_ik(j)
-! note it is negative of element alphabetical index
-         mqf%compvar(nseq)%elan=-mqmqa_data%xanionalpha
-         mqf%compvar(nseq)%anion=1
-         mqf%compvar(nseq)%boxlastupdate=-1
-! should be cation/anon species names
-!         write(*,65)i,j,mqf%names_y_ik(i),mqf%names_y_ik(j)
-         mqf%compvar(nseq)%qcat1=mqf%names_y_ik(i)
-         mqf%compvar(nseq)%qcat2=mqf%names_y_ik(j)
-         mqf%compvar(nseq)%qan='X  '
+! Claude 2026.10.16: removed elcat1/2, elan, quadicat1/2, qcat1/2, qan,
+! seq and boxlastupdate, they were only listed
+         mqbinary(nseq)%anion=1
 ! ivk_ij, jvi_ji, kvk_ijk, xi_ij etc allocated in init_varkappa_symmetry
 !         or when asymmetric in loop_tersys
 ! NOTE vk_ij, xi_ij are single variables in each box, no need to allocate
@@ -3411,11 +3745,11 @@
 ! %dvk_ij and %vdk_ji are single variables, arrays for derivatives
 ! %dvkx_ij and %vdkx_ji are type(zquad) ??, alternative arrays for derivatives
 ! allocated at first calculation
-         allocate(mqf%compvar(nseq)%dxi_ij(mqmqa_data%nquad)) ! dxi_ij/dquad_k
-         allocate(mqf%compvar(nseq)%dxi_ji(mqmqa_data%nquad)) ! dxi_ji/dquad_k
+         allocate(mqbinary(nseq)%dxi_ij(mqmqa_data%nquad)) ! dxi_ij/dquad_k
+         allocate(mqbinary(nseq)%dxi_ji(mqmqa_data%nquad)) ! dxi_ji/dquad_k
 ! The arrays dxi_ij are allocated here and assigned below
-         mqf%compvar(nseq)%dxi_ij=0.0d0
-         mqf%compvar(nseq)%dxi_ji=0.0d0
+         mqbinary(nseq)%dxi_ij=0.0d0
+         mqbinary(nseq)%dxi_ji=0.0d0
 !         write(*,77)nseq,i,j
       enddo second
    enddo first
@@ -3425,8 +3759,8 @@
 !   write(*,*)'3XQ line 3939 initiate symmetric x_ij and x_ji'
    do ix=1,size(mqf%compvar)
       do jx=1,mqmqa_data%nquad
-         mqf%compvar(ix)%dxi_ij(jx)=mqf%dy_ik(mqf%compvar(ix)%cat1,jx)
-         mqf%compvar(ix)%dxi_ji(jx)=mqf%dy_ik(mqf%compvar(ix)%cat2,jx)
+         mqbinary(ix)%dxi_ij(jx)=mqmqa_data%dy_ik(mqbinary(ix)%cat1,jx)
+         mqbinary(ix)%dxi_ji(jx)=mqmqa_data%dy_ik(mqbinary(ix)%cat2,jx)
       enddo
    enddo
 !
@@ -3499,15 +3833,15 @@
 ! dy_ik is a structure information, independent of current constitution
 ! This failes when mqmqa_data%nan > 1, check above that nan=1
 !   if(.not.allocated(mqmqa_data%dy_ik)) then
-   if(.not.allocated(mqf%dy_ik)) then
+   if(.not.allocated(mqmqa_data%dy_ik)) then
 !    write(*,*)'3XQ line 3859 already allocated dy_ik',size(mqmqa_data%dy_ik),&
 !           mqmqa_data%ncat*mqmqa_data%nquad
 !   else
 !      write(*,*)'3XQ line 3872 allocating dy_ik'
 !      allocate(mqmqa_data%dy_ik(mqmqa_data%ncat,mqmqa_data%nquad))
-      allocate(mqf%dy_ik(mqmqa_data%ncat,mqmqa_data%nquad))
+      allocate(mqmqa_data%dy_ik(mqmqa_data%ncat,mqmqa_data%nquad))
    endif
-   mqf%dy_ik=0.0d0
+   mqmqa_data%dy_ik=0.0d0
 !
 !   write(*,*)'3XQ line 4015 in pairfracs initiating dy_ik'
    catloop1: do i=1,mqmqa_data%ncat
@@ -3518,11 +3852,11 @@
          v=v+1
          seq=ijklx(i,j,1,1)
          if(i.eq.j) then
-            mqf%dy_ik(i,seq)=1.0D0
+            mqmqa_data%dy_ik(i,seq)=1.0D0
          elseif(j.gt.i) then
 ! this works !!!
-            mqf%dy_ik(i,seq)=0.5D0
-            mqf%dy_ik(j,seq)=0.5D0
+            mqmqa_data%dy_ik(i,seq)=0.5D0
+            mqmqa_data%dy_ik(j,seq)=0.5D0
          endif
       enddo catloop2
    enddo catloop1
@@ -3533,7 +3867,7 @@
 6     format(/'3XQ line 3843 Listing pair fractions'/&
            'dy_ik  quad: 1   2   3   4   5   6')
       do i=1,mqmqa_data%ncat
-         write(*,12)i,(mqf%dy_ik(i,dd),dd=1,mqmqa_data%nquad)
+         write(*,12)i,(mqmqa_data%dy_ik(i,dd),dd=1,mqmqa_data%nquad)
 12       format('dy_ik(',i1,',*): ',20F4.1)
       enddo
    endif
@@ -3681,7 +4015,7 @@
 ! Declartion of variables from varkappa1
 !   integer mii,mij,mjj,ia
 ! this is the compvar record ... box should not be used
-   type(gtp_allinone), pointer :: box
+   type(gtp_mqmqa_binary), pointer :: bfix
    logical verbose
 !
    character*3 asymmetric
@@ -3722,9 +4056,9 @@
 !
 !   write(*,*)'3XQ line 4404 added asymmetries for xi_ij in loop'
    do nn=1,size(mqf%compvar)
-      box=>mqf%compvar(nn)
-      cat1=box%cat1; cat2=box%cat2
-      if(verbose) write(*,18)box%seq,cat1,cat2
+      bfix=>mqbinary(nn)
+      cat1=bfix%cat1; cat2=bfix%cat2
+      if(verbose) write(*,18)nn,cat1,cat2
 18    format('3XQ set asymmetries for varkappa ',i2,' with cations: ',2i3)
 ! inititiate as symmetric, use the [ ... ] facility to store integers
 ! ijklx generate the index of the quadruple to the cation
@@ -3732,12 +4066,12 @@
 !   this_ji=[ijklx(cat2,cat2,ia,ia)]
 !   denom_ij=[ijklx(cat1,cat2,ia,ia)]
 ! remove any previous values in box%
-      if(allocated(box%ivk_ij)) deallocate(box%ivk_ij)
-      if(allocated(box%jvk_ji)) deallocate(box%jvk_ji)
-      if(allocated(box%kvk_ijk)) deallocate(box%kvk_ijk)
+      if(allocated(bfix%ivk_ij)) deallocate(bfix%ivk_ij)
+      if(allocated(bfix%jvk_ji)) deallocate(bfix%jvk_ji)
+      if(allocated(bfix%kvk_ijk)) deallocate(bfix%kvk_ijk)
 ! Here this_ij and this_ji are inititaed for a symmetric ternary
-      box%ivk_ij=[ijklx(cat1,cat1,ia,ia)]
-      box%jvk_ji=[ijklx(cat2,cat2,ia,ia)]
+      bfix%ivk_ij=[ijklx(cat1,cat1,ia,ia)]
+      bfix%jvk_ji=[ijklx(cat2,cat2,ia,ia)]
 ! All quadruplets for ivk_ij and jvk_ji are added automatically to divisor
 ! but we may have to add explicitly mixed quadruplets below
 !   box%kvk_ijk=[ijklx(cat1,cat2,ia,ia)]
@@ -3752,15 +4086,15 @@
 !
       do jx=1,mqmqa_data%nquad
 !  dy_ik(cat1,jx) is 1.0 for the emquad and  0.5 for quads with cat1 or cat2
-         box%dxi_ij(jx)=mqf%dy_ik(cat1,jx)
-         box%dxi_ji(jx)=mqf%dy_ik(cat2,jx)
+         bfix%dxi_ij(jx)=mqmqa_data%dy_ik(cat1,jx)
+         bfix%dxi_ji(jx)=mqmqa_data%dy_ik(cat2,jx)
       enddo
 !      write(*,100)'xi_ij',box%dxi_ij
 !      write(*,100)'xi_ji',box%dxi_ji
 !100   format('3XQ line 4552 reinitiated ',a,': '/15f5.1)
 !      enddo
 ! inside this loop set asymmetries for all ternaries
-      call loop_all_ternaries(phres,box,verbose)
+      call loop_all_ternaries(phres,bfix,nn,verbose)
    enddo
 !
 !-------------------------------------------------------------------
@@ -3776,9 +4110,10 @@
 !
 !\addtotable subroutine loop_all_ternaries
 !\begin{verbatim}
- subroutine loop_all_ternaries(phres,box,inverbose)
+ subroutine loop_all_ternaries(phres,bfix,nbin,inverbose)
 !
 ! This is at least the 5th time I rewrite this routine
+! Claude 2026.10.16: called with bfix, the record mqbinary(nbin) for the binary
 ! It is called for a binary in "box" and tests if this binary i-j 
 ! has any asymmetries by looping all ternaries in tersys to check
 ! Any ternary with an asymmetry can modify the expressions for 
@@ -3790,7 +4125,8 @@
 !
    implicit none
    type(gtp_phase_varres), pointer :: phres
-   type(gtp_allinone), pointer :: box
+   integer nbin
+   type(gtp_mqmqa_binary), pointer :: bfix
    logical inverbose
 !\end{verbatim}
 !
@@ -3803,10 +4139,10 @@
    mqf=>phres%mqmqaf
    verbose=inverbose
 !
-   if(verbose) write(*,10)box%seq,box%cat1,box%cat2
+   if(verbose) write(*,10)nbin,bfix%cat1,bfix%cat2
 10 format(/'3XQ loop ternary asymmetries for varkappa and xi ',i3,5x,2i3)
    ia=1
-   cat1=box%cat1; cat2=box%cat2
+   cat1=bfix%cat1; cat2=bfix%cat2
 !
 !   write(*,3)'Symmetric','x_ij',cat1,cat2,box%dxi_ij
 !   write(*,3)'Symmetric','x_ji',cat1,cat2,box%dxi_ji
@@ -3932,13 +4268,13 @@
    mixed1a: do mix=2,size(this_ij)
 ! Add any asymmetric cations quadruplets and their mixed ones
       elk=this_ij(mix)
-      box%ivk_ij=[box%ivk_ij, ijklx(elk,elk,ia,ia), ijklx(cat1,elk,ia,ia)]
+      bfix%ivk_ij=[bfix%ivk_ij, ijklx(elk,elk,ia,ia), ijklx(cat1,elk,ia,ia)]
 !
 ! Added for ternary parameters which use xi_ij
 ! Add the y_ik of elk cation
 !      write(*,404)'Symmetric: ',cat1,cat2,elk,box%dxi_ij
       do di=1,mqmqa_data%nquad
-         box%dxi_ij(di)=box%dxi_ij(di)+mqf%dy_ik(elk,di)
+         bfix%dxi_ij(di)=bfix%dxi_ij(di)+mqmqa_data%dy_ik(elk,di)
       enddo
 ! this is the asymmetric list
 !      write(*,405)box%dxi_ij
@@ -3948,21 +4284,21 @@
          elm=this_ij(myx)
 ! Claude 2026.09.28: elm is taken from this_ij so addcat(this_ij,elm) was
 ! always false and x_elk,elm never added.  Check the quad list instead.
-         if(addquad(box%ivk_ij, elk, elm)) then
-            box%ivk_ij=[box%ivk_ij, ijklx(elk,elm,ia,ia)]
+         if(addquad(bfix%ivk_ij, elk, elm)) then
+            bfix%ivk_ij=[bfix%ivk_ij, ijklx(elk,elm,ia,ia)]
          endif
       enddo mixed1b
    enddo mixed1a
 !
    mixed2a: do mjx=2,size(this_ji)
       elk=this_ji(mjx)
-      box%jvk_ji=[box%jvk_ji, ijklx(elk,elk,ia,ia), ijklx(cat2,elk,ia,ia)]
+      bfix%jvk_ji=[bfix%jvk_ji, ijklx(elk,elk,ia,ia), ijklx(cat2,elk,ia,ia)]
 !
 ! Added for ternary parameters which use xi_ji
 ! Add the y_ik of elk cation
 !      write(*,406)'Symmetric: ',cat1,cat2,elk,box%dxi_ji
       do di=1,mqmqa_data%nquad
-         box%dxi_ji(di)=box%dxi_ji(di)+mqf%dy_ik(elk,di)
+         bfix%dxi_ji(di)=bfix%dxi_ji(di)+mqmqa_data%dy_ik(elk,di)
       enddo
 !      write(*,405)box%dxi_ji
 !405   format(10f5.2)
@@ -3970,8 +4306,8 @@
       mixed2b: do myx=mjx+1,size(this_ji)
 ! if there are 2 or more ternaries with toop ... add their mixed quadruplets
          elm=this_ji(myx)
-         if(addquad(box%jvk_ji, elk, elm)) then
-            box%jvk_ji=[box%jvk_ji, ijklx(elk,elm,ia,ia)]
+         if(addquad(bfix%jvk_ji, elk, elm)) then
+            bfix%jvk_ji=[bfix%jvk_ji, ijklx(elk,elm,ia,ia)]
          endif
       enddo mixed2b
    enddo mixed2a
@@ -3979,7 +4315,7 @@
 ! The denominator kvk_ijk is the sum of ivk_ij and jvk_ji + some mixed terns
    if(verbose) write(*,180)size(this_ij),size(this_ji)
 180 format('3XQ now the denominator',2i3)
-   box%kvk_ijk=[ijklx(cat1,cat2,ia,ia)]
+   bfix%kvk_ijk=[ijklx(cat1,cat2,ia,ia)]
 !
    mixed1c: do mix=1,size(this_ij)
       elk=this_ij(mix)
@@ -3994,17 +4330,17 @@
          if(addcat(this_ij, elm) .and. &
               .not.(elk.eq.cat1 .and. elm.eq.cat2)) then
 ! the .not. above to avoid duplicate ...
-            if(verbose) write(*,200)elk,elm,box%seq
+            if(verbose) write(*,200)elk,elm,nbin
 200         format('3XQ cation pair ',2i3,' added to denominator ',i3)
-            box%kvk_ijk=[box%kvk_ijk, ijklx(elk,elm,ia,ia)]
+            bfix%kvk_ijk=[bfix%kvk_ijk, ijklx(elk,elm,ia,ia)]
          else
-            if(verbose) write(*,210)elk,elm,box%seq
+            if(verbose) write(*,210)elk,elm,nbin
 210         format('3XQ cation pair ',2i3,' already in denominator: ',i3)
          endif
       enddo mixed2c
    enddo mixed1c
 !
-   if(verbose) write(*,*)'Exit loop_all_ternaries',box%seq,size(box%kvk_ijk)
+   if(verbose) write(*,*)'Exit loop_all_ternaries',nbin,size(bfix%kvk_ijk)
    return
  end subroutine loop_all_ternaries
 
@@ -4162,6 +4498,7 @@
    logical verbose
 !\end{verbatim}
    type(gtp_allinone), pointer :: box
+   type(gtp_mqmqa_binary), pointer :: bfix
    type(gtp_mqmqa_var), pointer :: mqf
    integer seq,icat,jcat,mii,mij,mjj,ia
    
@@ -4175,39 +4512,32 @@
    do seq=1,size(mqf%compvar)
 ! What is in box?
       box=>mqf%compvar(seq)
-      if(verbose) write(*,10)seq,box%qcat1,box%qcat2,box%qan, &
-           box%cat1,box%cat2,-box%anion,&
-           box%elcat1,box%elcat2,box%elan,&
-           box%quadicat1,box%quadicat2,box%quadian,&
-           box%vk_ij,box%vk_ji,box%denominator,box%xi_ij,box%xi_ji
-10    format('3XQ box:',i3,1x,3(a,', '),'" '/&
-           3i3,3x,3i3,3x,3i3,&
-           'vk: ',2(f10.6),',  denom: ',f10.6,', xi: ',2(f10.6))
+      bfix=>mqbinary(seq)
+! Claude 2026.10.16: names and indices removed from the output, see list_compvar
+      if(verbose) write(*,10)seq,trim(mqmqa_data%names_y_ik(bfix%cat1)),&
+           trim(mqmqa_data%names_y_ik(bfix%cat2)),&
+           bfix%cat1,bfix%cat2,-bfix%anion,&
+           box%vk_ij,box%vk_ji,box%xi_ij,box%xi_ji
+10    format('3XQ box:',i3,1x,2(a,', '),'" ',3i3,&
+           ' vk: ',2(f10.6),', xi: ',2(f10.6))
 ! box%icat1, %icat2 are just sequential indices staring from 1 ???
 ! initiate symetric compvar(bin)%ivk etc.
-      icat=box%cat1; jcat=box%cat2
+      icat=bfix%cat1; jcat=bfix%cat2
       mii=ijklx(icat,icat,ia,ia)
       mij=ijklx(icat,jcat,ia,ia)
       mjj=ijklx(jcat,jcat,ia,ia)
-      box%ivk_ij=[mii]; box%jvk_ji=[mjj]; box%kvk_ijk=[mij]
+      bfix%ivk_ij=[mii]; bfix%jvk_ji=[mjj]; bfix%kvk_ijk=[mij]
 ! to simplify handling derivatives the denominator is summed separately
-      box%all_ijk=[mii, mjj, mij]
-      box%ivk_ij=[mii]
+      bfix%all_ijk=[mii, mjj, mij]
+      bfix%ivk_ij=[mii]
       if(verbose) then
-         if(allocated(box%ivk_ij)) then
-            write(*,20)-size(box%ivk_ij),box%ivk_ij,-size(box%jvk_ji),&
-                 box%jvk_ji,-size(box%kvk_ijk),box%kvk_ijk
+         if(allocated(bfix%ivk_ij)) then
+            write(*,20)-size(bfix%ivk_ij),bfix%ivk_ij,-size(bfix%jvk_ji),&
+                 bfix%jvk_ji,-size(bfix%kvk_ijk),bfix%kvk_ijk
 20          format('3XQ ivk_ij mm:',20i3)
          else
-            write(*,*)'3XQ line 5030 box%ivk_ij not allocated'
+            write(*,*)'3XQ line 5030 bfix%ivk_ij not allocated'
          endif
-         if(allocated(box%asymm_nu)) then
-            write(*,30)'3XQ asymm_nu:    ',box%asymm_nu
-         endif
-         if(allocated(box%asymm_gamma)) then
-            write(*,30)'3XQ asymm_gamma: ',box%asymm_gamma
-         endif
-30       format(a,20i3)
 ! Are the dxi_ij, dy_ik etc already initiated from database ??
 !      write(*,*)'3XQ line 4698 dy_ik:',mqmqa_data%dy_ik
 !      write(*,*)'3XQ line 4698 dxi_ij:',mqf%compvar(1)%dxi_ij
@@ -4286,6 +4616,7 @@
 ! these are quad indices of i,i, i,j abd j,j
    integer ia
    type(gtp_allinone), pointer :: box
+   type(gtp_mqmqa_binary), pointer :: bfix
    type(gtp_mqmqa_var), pointer :: mqf
 !
 ! ia represent the single anion
@@ -4318,7 +4649,7 @@
    integer, dimension(:), allocatable :: savenu
    integer, dimension(:), allocatable :: savegamma
 ! debug output
-   integer nn1,nn2,nn3,nn4,nn5,nn6,nn7
+   integer nn1,nn2,nn3,nn4,nn5
 !   character*3 nyasym
 ! local variables used for updating quad indices for iasymm, jasymm, etc
 !    integer, dimension(:), allocatable :: vk_ij,vk_ji,vk_ijk,xi_ij,xi_ji
@@ -4410,10 +4741,11 @@
 ! content of box will be allocated below using the [ ... ] notation
 !   write(*,*)
    box=>mqf%compvar(seq)
+   bfix=>mqbinary(seq)
 ! icat and jcat represent cations ... duplicated here (and many other places)
-   icat=box%cat1
-   jcat=box%cat2
-   ia=box%anion
+   icat=bfix%cat1
+   jcat=bfix%cat2
+   ia=bfix%anion
 !   write(*,8)seq,size(box%ivk_ij),size(box%jvk_ji),size(box%kvk_ijk)
 !   write(*,'(a,4i4,5x,a)')'3XQ varkappa1 line 4267: ',seq,icat,jcat,ia
 ! the xquad values i,j and j,i are the same but for varkappa they are different
@@ -4424,7 +4756,7 @@
    endif
 !--------------------- 
 !
-   if(allocated(box%ivk_ij)) goto 600
+   if(allocated(bfix%ivk_ij)) goto 600
 !
    write(*,*)'3XQ vk_ij, vk_ji etc not allocated!'
 ! a lot of old code to initiate and modify vk_ij removed here .........
@@ -4444,16 +4776,16 @@
 ! if seq=0 we must loop for cloop box using saved %ivk_ij indices
 ! incrementing cloop and return to label 600 until all done
    varkappaij=0.0d0; varkappaji=0.0d0; sum=0.0d0; nugamma=0.0d0
-   do ii=1,size(box%ivk_ij)
-      varkappaij=varkappaij+mqf%xquad(box%ivk_ij(ii))
+   do ii=1,size(bfix%ivk_ij)
+      varkappaij=varkappaij+mqf%xquad(bfix%ivk_ij(ii))
 !       write(*,697)'ivk_ij',ii,box%ivk_ij(ii),varkappaij,xquad(box%ivk_ij(ii))
    enddo
-   do ii=1,size(box%jvk_ji)
-      varkappaji=varkappaji+mqf%xquad(box%jvk_ji(ii))
+   do ii=1,size(bfix%jvk_ji)
+      varkappaji=varkappaji+mqf%xquad(bfix%jvk_ji(ii))
 !       write(*,697)'jvk_ji',ii,box%jvk_ji(ii),varkappaji,xquad(box%jvk_ji(ii))
    enddo
-   do ii=1,size(box%kvk_ijk)
-      sum=sum+mqf%xquad(box%kvk_ijk(ii))
+   do ii=1,size(bfix%kvk_ijk)
+      sum=sum+mqf%xquad(bfix%kvk_ijk(ii))
 !       write(*,697)'sum',ii,box%kvk_ijk(ii),sum,xquad(box%kvk_ijk(ii))
    enddo
 ! all quad indices
@@ -4465,8 +4797,9 @@
    if(sum.eq.0.0d0) sum=1.0d0
    box%vk_ij=varkappaij/sum
    box%vk_ji=varkappaji/sum
+! Claude 2026.10.12: new values, the derivatives must be calculated again
+   box%dvkdone=.false.
 ! the denominantor needed for derivatives
-   box%denominator=sum
 !    write(*,605)' vk_ij and vk_ji: ',box%vk_ij,box%vk_ji
 ! and the derivatives ....
 !
@@ -4482,7 +4815,7 @@
    do v=1,mqmqa_data%ncat
       mqf%y_ik(v)=0.0d0
       do w=1,mqmqa_data%nquad
-         mqf%y_ik(v)=mqf%y_ik(v)+mqf%dy_ik(v,w)*mqf%xquad(w)
+         mqf%y_ik(v)=mqf%y_ik(v)+mqmqa_data%dy_ik(v,w)*mqf%xquad(w)
       enddo
    enddo
 !
@@ -4490,8 +4823,8 @@
 !
    sum1=0.0d0; sum2=0.0d0
    do di=1,mqmqa_data%nquad
-      sum1=sum1+box%dxi_ij(di)*mqf%xquad(di)
-      sum2=sum2+box%dxi_ji(di)*mqf%xquad(di)
+      sum1=sum1+bfix%dxi_ij(di)*mqf%xquad(di)
+      sum2=sum2+bfix%dxi_ji(di)*mqf%xquad(di)
    enddo
    box%xi_ij=sum1
    box%xi_ji=sum2
@@ -4502,29 +4835,16 @@
 ! debug output, ivk_ij, jvk_ji, kvk_ijk, dxi_ij, dxi_ji ---------------------
 !    
    if(mqmqdebug .or. mqmqxcess) then
-      nn1=size(box%ivk_ij); nn2=size(box%jvk_ji); nn3=size(box%kvk_ijk)
+      nn1=size(bfix%ivk_ij); nn2=size(bfix%jvk_ji); nn3=size(bfix%kvk_ijk)
       nn4=mqmqa_data%nquad; nn5=mqmqa_data%nquad;
-      if(allocated(box%asymm_nu)) then
-         nn6=size(box%asymm_nu)
-      else
-         nn6=0
-      endif
-      if(allocated(box%asymm_gamma)) then
-         nn7=size(box%asymm_gamma)
-      else
-         nn7=0
-      endif
-      write(*,700)2,nn1,nn2,nn3,nn4,nn5,nn6,nn7,nugamma
-700   format('3XQ Sizes: ',i1,': ',7i3,1pe12.4)
-      write(*,710)'ivk_ij  ',(box%ivk_ij(i),i=1,nn1)
-      write(*,710)'jvk_ji  ',(box%jvk_ji(i),i=1,nn2)
-      write(*,710)'kvk_ijk ',(box%kvk_ijk(i),i=1,nn3)
-      write(*,709)'dxi_ij  ',(box%dxi_ij(i),i=1,nn4)
-      write(*,709)'dxi_ji  ',(box%dxi_ji(i),i=1,nn5)
-      if(nn6.gt.0) write(*,708)'nu      ',(box%asymm_nu(i),i=1,nn6)
-      if(nn7.gt.0) write(*,708)'gamma   ',(box%asymm_gamma(i),i=1,nn7)
+      write(*,700)2,nn1,nn2,nn3,nn4,nn5,nugamma
+700   format('3XQ Sizes: ',i1,': ',5i3,1pe12.4)
+      write(*,710)'ivk_ij  ',(bfix%ivk_ij(i),i=1,nn1)
+      write(*,710)'jvk_ji  ',(bfix%jvk_ji(i),i=1,nn2)
+      write(*,710)'kvk_ijk ',(bfix%kvk_ijk(i),i=1,nn3)
+      write(*,709)'dxi_ij  ',(bfix%dxi_ij(i),i=1,nn4)
+      write(*,709)'dxi_ji  ',(bfix%dxi_ji(i),i=1,nn5)
 709   format('Factors ',a,': ',10f6.3)
-708   format('Ternary quad asymmetry ',a,': ',5i4)
 710   format('Quad in ',a,': ',5i4)
 !
       write(*,607)3,box%vk_ij,box%vk_ji
@@ -4539,10 +4859,6 @@
 !
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
-   if(box%boxlastupdate.ne.newXupdate) then
-      box%boxlastupdate=newXupdate
-!      write(*,1001)box%seq,box%boxlastupdate
-   endif
 !
 1000 continue
    if(mqmqder) write(*,*)'3XQ Leaving varkappa1'
@@ -4664,11 +4980,13 @@
    type(gtp_mqmqa_var), pointer :: mqf
    integer ip,jj,qq,asp,spord(3),selected,toop,length,kkp,asymter
    logical verbose
+! Claude 2026.10.13: for checking the asymmetry code and sorting the quads
+   integer ntoop,it,itmp,kk
 !
 !   write(*,*)'3XQ in set_tdbasymmetries extracting TDB asymmetries'
 !
    mqf=>phres%mqmqaf
-   if(.not.allocated(mqf%names_y_ik)) then
+   if(.not.allocated(mqmqa_data%names_y_ik)) then
       write(*,*)'3XQ names_y_ik not allocated'
       stop
    endif
@@ -4679,12 +4997,20 @@
    verbose=mqverbose
 !
 ! it seems this routine should inititae symmetric compvar
-   call init_symmetric_varkappa(phres,verbose) 
+   call init_symmetric_varkappa(phres,verbose)
 !
 !   write(*,*)'3XQ listing of vk_ij, vk_ji'
 !   call list_compvar(phres)
 
 !------------------------------------------------------------
+! Claude 2026.10.16: new format with chemical groups and exceptions
+   ip=1
+   if(.not.eolch(line,ip)) then
+      if(line(ip:ip+6).eq.'GROUPS ') then
+         call set_tdbgroups(phres,line(ip+7:),verbose)
+         goto 1000
+      endif
+   endif
    length=len_trim(line)
 !   write(*,10)length,trim(line)
 !
@@ -4708,10 +5034,10 @@
             exit extractasym
          endif
 !         write(*,91)ip,const
-         nameok: do jj=1,size(mqf%names_y_ik)
-            qq=index(mqf%names_y_ik(jj),'-Q')-1
+         nameok: do jj=1,size(mqmqa_data%names_y_ik)
+            qq=index(mqmqa_data%names_y_ik(jj),'-Q')-1
 !            write(*,93)const(1:qq),mqf%names_y_ik(jj)(1:qq)
-            if(mqf%names_y_ik(jj)(1:qq).eq.const(1:qq)) then
+            if(mqmqa_data%names_y_ik(jj)(1:qq).eq.const(1:qq)) then
                selected=selected+1
                spord(selected)=jj
 !               write(*,96)asp,spord
@@ -4726,37 +5052,67 @@
 !         write(*,222)line(kkp:ip),ip,spord
       else
 ! decode asymmetry only if all 3 constituents selected
+! Claude 2026.10.13: OC allows only one Toop cation per ternary.
+! A 3 letter code like KTK has T at the position of the Toop cation,
+! a 5 letter code like T2KT2 has the position as a digit after each T.
+! toop=0 means symmetric (Kohler), new_ternary_asym then removes asymmetry
+         toop=0
+         ntoop=0
          if(len_trim(asymcode).eq.3) then
-            ocasym=asymcode(1:3)
-            toop=index(ocasym,'T')
+            do jj=1,3
+               if(asymcode(jj:jj).eq.'T') then
+                  ntoop=ntoop+1
+                  if(toop.eq.0) toop=jj
+               endif
+            enddo
          else
-            jj=index(asymcode,'T')
-            if(asymcode(jj+1:jj+1).eq.'1') then
-               ocasym='TKK'; toop=1
-            elseif(asymcode(jj+1:jj+1).eq.'2') then
-               ocasym='KTK'; toop=2
-            elseif(asymcode(jj+1:jj+1).eq.'3') then
-               ocasym='KKT'; toop=3
-            endif
+            do jj=1,len_trim(asymcode)-1
+               if(asymcode(jj:jj).eq.'T') then
+                  it=index('123',asymcode(jj+1:jj+1))
+                  if(it.eq.0) then
+                     write(kou,224)trim(asymcode),line(kkp:ip)
+224                  format('3XQ Illegal asymmetry code ',a,' ignored: ',a)
+                     cycle extractasym
+                  endif
+                  if(toop.eq.0) then
+                     toop=it; ntoop=1
+                  elseif(it.ne.toop) then
+                     ntoop=ntoop+1
+                  endif
+               endif
+            enddo
          endif
+         if(ntoop.gt.1) then
+            write(kou,225)trim(asymcode),toop,line(kkp:ip)
+225         format('3XQ Only one Toop cation allowed, code ',a,&
+                 ' uses cation ',i1,': ',a)
+         endif
+         ocasym='KKK'
+         if(toop.gt.0) ocasym(toop:toop)='T'
 ! if selected=3 then all 3 asymmetric quads are constituents
 ! we have found 3 species names and checked if they are constituents
          write(*,223)line(kkp:ip),ip,spord,toop,ocasym
 223      format('3XQ Asymmetri by TDB: "',a,'" ',i4,3x,3i3,3x,i2,2x,a)
 !         write(*,38)selected,spord,asymcode
 ! make sure spord(1..3) are in increasing order (bubbelsort)
-!
-         if(spord(1).lt.spord(2) .and. &
-              spord(2).lt.spord(3)) then
-            if(mqverbose) write(*,*)'3XQ asymmetric quads are in order'
-         else
-            write(*,*)'3XQ problem: the asymmetrical quads in not in order'
-            stop
-         endif
+! Claude 2026.10.13: sort instead of stop, the Toop position follows
+         do jj=1,2
+            do kk=1,3-jj
+               if(spord(kk).gt.spord(kk+1)) then
+                  itmp=spord(kk); spord(kk)=spord(kk+1); spord(kk+1)=itmp
+                  if(toop.eq.kk) then
+                     toop=kk+1
+                  elseif(toop.eq.kk+1) then
+                     toop=kk
+                  endif
+               endif
+            enddo
+         enddo
 ! we have to find this ternary in tersys
-! tersys has the ternaries ordered 
+! tersys has the ternaries ordered
 !  1 2 3;  1 2 4;  1 3 4; 2 3 4;  with 1, 2, 3, 4 in the order of names_y_ik
 ! loop tersys until we find the one with spord(1..3)
+         asymter=0
          tloop: do jj=1,size(tersys)
 !            write(*,300)jj,tersys(jj)%el
             if(tersys(jj)%el(1).eq.spord(1) .and. &
@@ -4765,6 +5121,11 @@
                asymter=jj
             endif
          enddo tloop
+         if(asymter.eq.0) then
+            write(kou,226)line(kkp:ip)
+226         format('3XQ Ternary not found, asymmetry ignored: ',a)
+            cycle extractasym
+         endif
 ! this is the asymmetrical ternary
 !         write(*,*)'3XQ set ternary asymmetric: ',asymter,toop
 ! Something must be initiated before we can add a ternary asymmetry, what?
@@ -4785,6 +5146,215 @@
    if(mqverbose) write(*,*)'3XQ Exit from set_tdbasymmetries'
    return
  end subroutine set_tdbasymmetries
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine set_tdbgroups
+!\begin{verbatim}
+ subroutine set_tdbgroups(phres,line,verbose)
+! Claude 2026.10.16: ternary asymmetries from chemical groups and exceptions
+! in the TDB file, similar to the DAT file:
+!   TYPE_DEFINITION 0 GES A_P_D MSCL TERNARY
+!     GROUPS NA K LI ; MG CA ; ...
+!     EXCEPTIONS MG:NA,K NA,MG,U2 ... !
+! GROUPS: cation names, groups separated by ;
+! In a ternary where exactly two cations are in the same group the third
+! is the Toop cation, otherwise the ternary is symmetric (Kohler).
+! EXCEPTIONS: X:A,B means X is Toop cation in X-A-B,
+!             A,B,C means A-B-C is symmetric (Kohler)
+! An exception replaces the group rule.  Names which are not constituents
+! are ignored as some elements may not be selected.
+   implicit none
+   type(gtp_phase_varres), pointer :: phres
+   character line*(*)
+   logical verbose
+!\end{verbatim}
+   type(gtp_mqmqa_var), pointer :: mqf
+   integer, allocatable :: grp(:),ttoop(:),listed(:)
+   integer ncat,ngrp,ip,jj,kk,k1,k2,ic,nc,toop,itmp,asymter,nasym
+   integer spord(3),ignored
+   character token*80,cname(3)*24
+   logical exceptions
+!
+   mqf=>phres%mqmqaf
+   ncat=size(mqmqa_data%names_y_ik)
+   allocate(grp(ncat))
+   grp=0
+   ngrp=1
+   ignored=0
+   exceptions=.FALSE.
+   ip=1
+!---------------------------------- groups
+   groups: do while(next_asymtoken(line,ip,token))
+      if(token.eq.'EXCEPTIONS') then
+         exceptions=.TRUE.
+         exit groups
+      elseif(token.eq.';') then
+         ngrp=ngrp+1
+      else
+         ic=tdbcation(token)
+         if(ic.eq.0) then
+            ignored=ignored+1
+         elseif(grp(ic).ne.0) then
+            write(kou,100)trim(token)
+100         format('3XQ Cation ',a,' in more than one group, ignored')
+         else
+            grp(ic)=ngrp
+         endif
+      endif
+   enddo groups
+! a cation not in any group is placed in a group of its own
+   do ic=1,ncat
+      if(grp(ic).eq.0) then
+         ngrp=ngrp+1
+         grp(ic)=ngrp
+         write(kou,110)trim(mqmqa_data%names_y_ik(ic))
+110      format('3XQ Warning, ',a,' not in any chemical group')
+      endif
+   enddo
+!---------------------------------- the group rule for all ternaries
+   allocate(ttoop(size(tersys)))
+   allocate(listed(size(tersys)))
+   listed=0
+   do jj=1,size(tersys)
+      k1=grp(tersys(jj)%el(1))
+      k2=grp(tersys(jj)%el(2))
+      kk=grp(tersys(jj)%el(3))
+      ttoop(jj)=0
+      if(k1.eq.k2 .and. kk.ne.k1) then
+         ttoop(jj)=3
+      elseif(k1.eq.kk .and. k2.ne.k1) then
+         ttoop(jj)=2
+      elseif(k2.eq.kk .and. k1.ne.k2) then
+         ttoop(jj)=1
+      endif
+   enddo
+!---------------------------------- exceptions
+   if(exceptions) then
+      except: do while(next_asymtoken(line,ip,token))
+! X:A,B or A,B,C
+         toop=0
+         kk=index(token,':')
+         if(kk.gt.0) then
+            toop=1
+            token(kk:kk)=','
+         endif
+         k1=index(token,',')
+         k2=index(token(k1+1:),',')+k1
+         if(k1.le.1 .or. k2.le.k1+1 .or. k2.ge.len_trim(token) .or. &
+              index(token(k2+1:),',').gt.0) then
+            write(kou,200)trim(token)
+200         format('3XQ Illegal ternary exception ignored: ',a)
+            cycle except
+         endif
+         cname(1)=token(1:k1-1)
+         cname(2)=token(k1+1:k2-1)
+         cname(3)=token(k2+1:)
+         do nc=1,3
+            spord(nc)=tdbcation(cname(nc))
+            if(spord(nc).eq.0) then
+               ignored=ignored+1
+               cycle except
+            endif
+         enddo
+! sort the cations, the Toop position follows
+         do jj=1,2
+            do kk=1,3-jj
+               if(spord(kk).gt.spord(kk+1)) then
+                  itmp=spord(kk); spord(kk)=spord(kk+1); spord(kk+1)=itmp
+                  if(toop.eq.kk) then
+                     toop=kk+1
+                  elseif(toop.eq.kk+1) then
+                     toop=kk
+                  endif
+               endif
+            enddo
+         enddo
+         asymter=0
+         do jj=1,size(tersys)
+            if(tersys(jj)%el(1).eq.spord(1) .and. &
+                 tersys(jj)%el(2).eq.spord(2) .and. &
+                 tersys(jj)%el(3).eq.spord(3)) then
+               asymter=jj
+               exit
+            endif
+         enddo
+         if(asymter.eq.0) then
+            write(kou,210)trim(token)
+210         format('3XQ Ternary not found, exception ignored: ',a)
+         elseif(listed(asymter).ne.0) then
+            write(kou,220)trim(token)
+220         format('3XQ Ternary exception given twice, second ignored: ',a)
+         else
+            listed(asymter)=1
+            ttoop(asymter)=toop
+         endif
+      enddo except
+   endif
+!---------------------------------- set the asymmetries
+   nasym=0
+   do jj=1,size(tersys)
+      if(ttoop(jj).gt.0) then
+         nasym=nasym+1
+         if(verbose) write(*,300)jj,tersys(jj)%el,ttoop(jj)
+300      format('3XQ Asymmetry by groups: ',i6,3x,3i3,3x,i2)
+         call new_ternary_asym(jj,ttoop(jj),phres,verbose)
+      endif
+   enddo
+   write(kou,310)ngrp,count(listed.ne.0),nasym,size(tersys)
+310 format('3XQ Chemical groups: ',i3,', exceptions: ',i4,&
+         ', asymmetric ternaries: ',i6,' of ',i6)
+   if(verbose .and. ignored.gt.0) write(*,320)ignored
+320 format('3XQ ',i5,' names ignored as not constituents')
+   deallocate(grp,ttoop,listed)
+   return
+ contains
+!
+   logical function next_asymtoken(text,jp,tok)
+! extract next token separated by spaces, ; is a token by itself,
+! returns .FALSE. at the end or at !
+   character text*(*),tok*(*)
+   integer jp,jq
+   tok=' '
+   next_asymtoken=.FALSE.
+   do while(jp.le.len_trim(text))
+      if(text(jp:jp).ne.' ') exit
+      jp=jp+1
+   enddo
+   if(jp.gt.len_trim(text)) return
+   if(text(jp:jp).eq.'!') return
+   if(text(jp:jp).eq.';') then
+      tok=';'
+      jp=jp+1
+   else
+      jq=jp
+      do while(jq.le.len_trim(text))
+         if(text(jq:jq).eq.' ' .or. text(jq:jq).eq.';' .or. &
+              text(jq:jq).eq.'!') exit
+         jq=jq+1
+      enddo
+      tok=text(jp:jq-1)
+      jp=jq
+   endif
+   next_asymtoken=.TRUE.
+   end function next_asymtoken
+!
+   integer function tdbcation(cat)
+! index in names_y_ik of a cation, the names_y_ik are like MG/CL-Q
+   character cat*(*)
+   integer jc,js
+   tdbcation=0
+   do jc=1,size(mqmqa_data%names_y_ik)
+      js=index(mqmqa_data%names_y_ik(jc),'/')
+      if(js.le.1) cycle
+      if(mqmqa_data%names_y_ik(jc)(1:js-1).eq.cat) then
+         tdbcation=jc
+         return
+      endif
+   enddo
+   end function tdbcation
+!
+ end subroutine set_tdbgroups
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
@@ -5146,9 +5716,9 @@
    emq=0
    kk=1
 ! I may have to resort to list the phase constituents ...........
-   loop1: do iv1=1,size(mqf%names_y_ik)
-      write(*,20)iv1,mqf%names_y_ik(iv1),'x_'//char(i0+iv1)//char(i0+iv1),&
-           mqf%spqx_y_ik(iv1),mqf%spix_y_ik(iv1)
+   loop1: do iv1=1,size(mqmqa_data%names_y_ik)
+      write(*,20)iv1,mqmqa_data%names_y_ik(iv1),'x_'//char(i0+iv1)//char(i0+iv1),&
+           mqmqa_data%spqx_y_ik(iv1),mqmqa_data%spix_y_ik(iv1)
 20    format(i3,2x,a,a,2i16)
    enddo loop1
    return
@@ -5397,12 +5967,12 @@
       write(*,11)
 11    format(/'3XQ Ternary Quadruplets',36x,'Quadruplet indices')
       do i1=1,size(tersys)
-         write(*,20)i1,trim(mqf%names_y_ik(tersys(i1)%el(1))),&
-              trim(mqf%names_y_ik(tersys(i1)%el(2))),&
-              trim(mqf%names_y_ik(tersys(i1)%el(3))),&
-              mqf%spqx_y_ik(tersys(i1)%el(1)),&
-              mqf%spqx_y_ik(tersys(i1)%el(2)),&
-              mqf%spqx_y_ik(tersys(i1)%el(3))
+         write(*,20)i1,trim(mqmqa_data%names_y_ik(tersys(i1)%el(1))),&
+              trim(mqmqa_data%names_y_ik(tersys(i1)%el(2))),&
+              trim(mqmqa_data%names_y_ik(tersys(i1)%el(3))),&
+              mqmqa_data%spqx_y_ik(tersys(i1)%el(1)),&
+              mqmqa_data%spqx_y_ik(tersys(i1)%el(2)),&
+              mqmqa_data%spqx_y_ik(tersys(i1)%el(3))
 !              mqmqa_data%el2quad(tersys(i1)%el(1)),&
 !              mqmqa_data%el2quad(tersys(i1)%el(2)),&
 !              mqmqa_data%el2quad(tersys(i1)%el(3))
@@ -5411,9 +5981,9 @@
    else
 ! list just one ternary with new asymmetry
       i1=asymter
-         write(*,20)i1,trim(mqf%names_y_ik(tersys(i1)%el(1))),&
-              trim(mqf%names_y_ik(tersys(i1)%el(2))),&
-              trim(mqf%names_y_ik(tersys(i1)%el(3)))
+         write(*,20)i1,trim(mqmqa_data%names_y_ik(tersys(i1)%el(1))),&
+              trim(mqmqa_data%names_y_ik(tersys(i1)%el(2))),&
+              trim(mqmqa_data%names_y_ik(tersys(i1)%el(3)))
    endif
    return
  end subroutine list_ternary_cations
@@ -5429,6 +5999,7 @@
 !\end{verbatim}
    integer nv,i,j,k,ip,i0,nv2,ix,jx,lenhead
    type(gtp_allinone), pointer :: box
+   type(gtp_mqmqa_binary), pointer :: bfix
    character*300 line1,line2,qline,xijheader
    character*2, dimension(:), allocatable :: quadcat
    character*3 fact(0:2)
@@ -5574,44 +6145,45 @@
    vkloop2: do nv=1,size(mqf%compvar)
 ! _ij
       box=>mqf%compvar(nv)
+      bfix=>mqbinary(nv)
 !      write(*,103)nv,size(box%ivk_ij),size(box%jvk_ji),&
 !           size(box%all_ijk),size(box%kvk_ijk)
 !103   format('Varkappa record: ',i3,', function of quads: ',4i4)
       write(*,103)nv
 103   format('Varkappa variable: ',i3,', summing quads: ')
-      line1='x_'//quadcat(box%ivk_ij(1))
+      line1='x_'//quadcat(bfix%ivk_ij(1))
       ip=len_trim(line1)+1
       k=2
-      do while(k.le.size(box%ivk_ij))
-         line1(ip:)='+x_'//quadcat(box%ivk_ij(k))
+      do while(k.le.size(bfix%ivk_ij))
+         line1(ip:)='+x_'//quadcat(bfix%ivk_ij(k))
          k=k+1
          ip=ip+5
       enddo
 ! To fix problems here see around line 4100 about box%ivk_ij, %jvk_ji %kvk_ijk
       write(vk_val,104)box%vk_ij
 104   format(f10.6)
-      write(*,105)'vk_'//char(i0+box%cat1)//char(i0+box%cat2)//&
+      write(*,105)'vk_'//char(i0+bfix%cat1)//char(i0+bfix%cat2)//&
            ' = '//vk_val//' ('//trim(line1)//')/denom'
 ! _ji
 105   format(a)
-      line2='x_'//quadcat(box%jvk_ji(1))
+      line2='x_'//quadcat(bfix%jvk_ji(1))
       ip=len_trim(line2)+1
       k=2
-      do while(k.le.size(box%jvk_ji))
-         line2(ip:)='+x_'//quadcat(box%jvk_ji(k))
+      do while(k.le.size(bfix%jvk_ji))
+         line2(ip:)='+x_'//quadcat(bfix%jvk_ji(k))
          k=k+1
          ip=ip+5
       enddo
       write(vk_val,104)box%vk_ji
-      write(*,105)'vk_'//char(i0+box%cat2)//char(i0+box%cat1)//&
+      write(*,105)'vk_'//char(i0+bfix%cat2)//char(i0+bfix%cat1)//&
            ' = '//vk_val//' ('//trim(line2)//')/denom'
 ! _denom
 ! NOTE some quad fractions may appear twice!! should be removed
-      qline=trim(line1)//'+'//trim(line2)//' +x_'//quadcat(box%kvk_ijk(1))
+      qline=trim(line1)//'+'//trim(line2)//' +x_'//quadcat(bfix%kvk_ijk(1))
       ip=len_trim(qline)+1
       k=2
-      do while(k.le.size(box%kvk_ijk))
-         qline(ip:)='+x_'//quadcat(box%kvk_ijk(k))
+      do while(k.le.size(bfix%kvk_ijk))
+         qline(ip:)='+x_'//quadcat(bfix%kvk_ijk(k))
          k=k+1
          ip=ip+5
       enddo
@@ -5649,8 +6221,8 @@
       write(line1(7:16),'(F10.6)')mqf%y_ik(ix)
       ip=17
       coeffs1: do nv=1,mqmqa_data%nquad
-         if(mqf%dy_ik(ix,nv).ne.0.0D0) then
-            write(line1(ip:ip+4),808)mqf%dy_ik(ix,nv)
+         if(mqmqa_data%dy_ik(ix,nv).ne.0.0D0) then
+            write(line1(ip:ip+4),808)mqmqa_data%dy_ik(ix,nv)
 808         format(F4.1)
          else
             line1(ip:ip+4)='  - '
@@ -5703,10 +6275,10 @@
       ip=17
 ! xij_ij should be the same as y_ik
       do nv2=1,mqmqa_data%nquad
-         if(mqf%compvar(nv)%dxi_ij(nv2).eq.0.0D0) then
+         if(mqbinary(nv)%dxi_ij(nv2).eq.0.0D0) then
             line1(ip:ip+4)='   - '
          else
-            write(line1(ip:ip+4),777)mqf%compvar(nv)%dxi_ij(nv2)
+            write(line1(ip:ip+4),777)mqbinary(nv)%dxi_ij(nv2)
 777         format(f5.1)
          endif
          ip=ip+5
@@ -5717,10 +6289,10 @@
       ip=17
 ! xji_ij should be the same as y_jk
       do nv2=1,mqmqa_data%nquad
-         if(mqf%compvar(nv)%dxi_ji(nv2).eq.0.0d0) then
+         if(mqbinary(nv)%dxi_ji(nv2).eq.0.0d0) then
             line1(ip:ip+4)='   - '
          else
-            write(line1(ip:ip+4),777)mqf%compvar(nv)%dxi_ji(nv2)
+            write(line1(ip:ip+4),777)mqbinary(nv)%dxi_ji(nv2)
          endif
          ip=ip+5
       enddo
@@ -5795,6 +6367,7 @@
 !\end{verbatim}
    type(gtp_mqmqa_var), pointer :: mqf
    type(gtp_allinone), pointer :: box   
+   type(gtp_mqmqa_binary), pointer :: bfix
    character*300 line1,line2,qline
    character*10 vk_val
    character*2, dimension(:), allocatable :: quadcat
@@ -5822,41 +6395,42 @@
    vkloop2: do nv=1,size(mqf%compvar)
 ! _ij
       box=>mqf%compvar(nv)
-      write(*,103)nv,size(box%ivk_ij),size(box%jvk_ji),size(box%kvk_ijk)
+      bfix=>mqbinary(nv)
+      write(*,103)nv,size(bfix%ivk_ij),size(bfix%jvk_ji),size(bfix%kvk_ijk)
 103   format('Varkappa variable: ',i3,', sizes: ',3i3,', summing quads: ')
-      line1='x_'//quadcat(box%ivk_ij(1))
+      line1='x_'//quadcat(bfix%ivk_ij(1))
       ip=len_trim(line1)+1
       k=2
-      do while(k.le.size(box%ivk_ij))
-         line1(ip:)='+x_'//quadcat(box%ivk_ij(k))
+      do while(k.le.size(bfix%ivk_ij))
+         line1(ip:)='+x_'//quadcat(bfix%ivk_ij(k))
          k=k+1
          ip=ip+5
       enddo
 ! To fix problems here see around line 4100 about box%ivk_ij, %jvk_ji %kvk_ijk
       write(vk_val,104)box%vk_ij
 104   format(f10.6)
-      write(*,105)'vk_'//char(i0+box%cat1)//char(i0+box%cat2)//&
+      write(*,105)'vk_'//char(i0+bfix%cat1)//char(i0+bfix%cat2)//&
            ' = '//vk_val//' ('//trim(line1)//')/denom'
 ! _ji
 105   format(a)
-      line2='x_'//quadcat(box%jvk_ji(1))
+      line2='x_'//quadcat(bfix%jvk_ji(1))
       ip=len_trim(line2)+1
       k=2
-      do while(k.le.size(box%jvk_ji))
-         line2(ip:)='+x_'//quadcat(box%jvk_ji(k))
+      do while(k.le.size(bfix%jvk_ji))
+         line2(ip:)='+x_'//quadcat(bfix%jvk_ji(k))
          k=k+1
          ip=ip+5
       enddo
       write(vk_val,104)box%vk_ji
-      write(*,105)'vk_'//char(i0+box%cat2)//char(i0+box%cat1)//&
+      write(*,105)'vk_'//char(i0+bfix%cat2)//char(i0+bfix%cat1)//&
            ' = '//vk_val//' ('//trim(line2)//')/denom'
 ! _denom
 ! NOTE some quad fractions may appear twice!! should be removed
-      qline=trim(line1)//'+'//trim(line2)//' +x_'//quadcat(box%kvk_ijk(1))
+      qline=trim(line1)//'+'//trim(line2)//' +x_'//quadcat(bfix%kvk_ijk(1))
       ip=len_trim(qline)+1
       k=2
-      do while(k.le.size(box%kvk_ijk))
-         qline(ip:)='+x_'//quadcat(box%kvk_ijk(k))
+      do while(k.le.size(bfix%kvk_ijk))
+         qline(ip:)='+x_'//quadcat(bfix%kvk_ijk(k))
          k=k+1
          ip=ip+5
       enddo
@@ -5874,33 +6448,34 @@
 ! repeat using quad fraction indices
    vkloop3: do nv=1,size(mqf%compvar)
       box=>mqf%compvar(nv)
+      bfix=>mqbinary(nv)
 ! ij
       line1=' '
       q2=1
-      do q1=1,size(box%ivk_ij)
-         write(line1(q2:q2+3),205)box%ivk_ij(q1)
+      do q1=1,size(bfix%ivk_ij)
+         write(line1(q2:q2+3),205)bfix%ivk_ij(q1)
 205      format(' +',i2)
          q2=q2+4
       enddo
-      write(*,105)'vk_'//char(i0+box%cat1)//char(i0+box%cat2)//&
+      write(*,105)'vk_'//char(i0+bfix%cat1)//char(i0+bfix%cat2)//&
            ' = ('//trim(line1)//')/denom'
 ! ji
       line2=' '
       q2=1
-      do q1=1,size(box%jvk_ji)
-         write(line2(q2:q2+3),205)box%jvk_ji(q1)
+      do q1=1,size(bfix%jvk_ji)
+         write(line2(q2:q2+3),205)bfix%jvk_ji(q1)
          q2=q2+4
       enddo
-      write(*,105)'vk_'//char(i0+box%cat2)//char(i0+box%cat1)//&
+      write(*,105)'vk_'//char(i0+bfix%cat2)//char(i0+bfix%cat1)//&
            ' = ('//trim(line2)//')/denom'
 ! denom
       qline=trim(line1)//trim(line2)
       q2=len_trim(qline)+1
-      do q1=1,size(box%kvk_ijk)
-         write(qline(q2:q2+3),205)box%kvk_ijk(q1)
+      do q1=1,size(bfix%kvk_ijk)
+         write(qline(q2:q2+3),205)bfix%kvk_ijk(q1)
          q2=q2+4
       enddo
-      write(*,105)'      demom = '//trim(qline)
+      write(*,105)'      denom = '//trim(qline)
    enddo vkloop3
 !
    return
@@ -5947,6 +6522,75 @@
    enddo loop1
    return
  end subroutine quad2cat
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable logical function mqmqa_exact_salt
+!\begin{verbatim}
+ logical function mqmqa_exact_salt(ceq)
+! Claude 2026.10.15: TRUE if the overall composition from the mass balance
+! conditions is exactly a charge neutral salt of the MQMQA phase.  Then the
+! chemical potentials are undetermined and the calculation is meaningless.
+! Only for systems with all elements in the MQMQA phase.  For elements with
+! several valencies the salt composition is a range, the calculation is
+! meaningless only at the ends, all cations with lowest or highest valency.
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer, parameter :: mspel=10
+   double precision tpval(2),xknown(maxel),antot,rmin(maxel),rmax(maxel)
+   double precision stoi(mspel),extra(5),smass,qsp,summin,summax,xan,rat
+   integer lokph,jl,loksp,nspel,ielno(mspel),nextra,ie,ian,icat
+   mqmqa_exact_salt=.false.
+   ian=mqmqa_data%xanionalpha
+   if(ian.le.0) goto 1000
+! rmin(ie), rmax(ie) smallest and largest number of anions per atom of
+! cation element ie from quads with a single cation, negative if none
+   rmin=-one; rmax=-one
+   do lokph=1,noofph
+      if(.not.btest(phlista(lokph)%status1,PHMQMQX)) cycle
+      do jl=1,phlista(lokph)%tnooffr
+         loksp=phlista(lokph)%constitlist(jl)
+         call get_species_data(loksp,nspel,ielno,stoi,smass,qsp,nextra,extra)
+         if(gx%bmperr.ne.0) then
+            gx%bmperr=0; goto 1000
+         endif
+! only quads with one cation element and the anion
+         if(nspel.ne.2) cycle
+         if(ielno(1).eq.ian) then
+            icat=ielno(2); rat=stoi(1)/stoi(2)
+         elseif(ielno(2).eq.ian) then
+            icat=ielno(1); rat=stoi(2)/stoi(1)
+         else
+            cycle
+         endif
+         if(rmin(icat).lt.zero) then
+            rmin(icat)=rat; rmax(icat)=rat
+         else
+            rmin(icat)=min(rmin(icat),rat); rmax(icat)=max(rmax(icat),rat)
+         endif
+      enddo
+   enddo
+   tpval=zero
+   call extract_massbalcond(tpval,xknown,antot,ceq)
+   if(gx%bmperr.ne.0) then
+      gx%bmperr=0; goto 1000
+   endif
+   xan=xknown(ian)
+   if(xan.le.zero) goto 1000
+   summin=zero; summax=zero
+   do ie=1,noel()
+      if(ie.eq.ian .or. xknown(ie).le.zero) cycle
+! an element not in the MQMQA phase
+      if(rmin(ie).lt.zero) goto 1000
+      summin=summin+rmin(ie)*xknown(ie)
+      summax=summax+rmax(ie)*xknown(ie)
+   enddo
+   if(abs(summin-xan).le.1.0D-5*xan .or. abs(summax-xan).le.1.0D-5*xan) &
+        mqmqa_exact_salt=.true.
+1000 continue
+   return
+ end function mqmqa_exact_salt
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 

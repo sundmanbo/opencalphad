@@ -125,6 +125,10 @@ MODULE ocsmp
 ! problem is nonzero if map_problems has been called
 ! lasterr is the last error occured calculating this line
      integer more,termerr,problems,lasterr
+! Claude 2026.10.15: axis value where a STEP line terminated with an error
+! and a counter used to restart the step beyond that value only once
+     double precision :: termval=0.0D0
+     integer :: restarted=0
 ! firstinc is a value to add the the axis variable for the first equilibrium
 ! to avoid finding the node point again.  Evenvalue is the next value
 ! to calculate during a step calculation.  Both set when creating the node.

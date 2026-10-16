@@ -848,10 +848,11 @@
       if(allocated(mqmqa_data%emquad)) deallocate(mqmqa_data%emquad)
 ! added 2026.08.25
       mqf=>phdyn%mqmqaf
-      if(allocated(mqf%names_y_ik)) deallocate(mqf%names_y_ik)
-      if(allocated(mqf%dy_ik)) deallocate(mqf%dy_ik)
-      if(allocated(mqf%spix_y_ik)) deallocate(mqf%spix_y_ik)
-      if(allocated(mqf%spqx_y_ik)) deallocate(mqf%spqx_y_ik)
+! Claude 2026.10.16: these are now in mqmqa_data
+      if(allocated(mqmqa_data%names_y_ik)) deallocate(mqmqa_data%names_y_ik)
+      if(allocated(mqmqa_data%dy_ik)) deallocate(mqmqa_data%dy_ik)
+      if(allocated(mqmqa_data%spix_y_ik)) deallocate(mqmqa_data%spix_y_ik)
+      if(allocated(mqmqa_data%spqx_y_ik)) deallocate(mqmqa_data%spqx_y_ik)
       if(allocated(mqmqa_data%el2quad)) deallocate(mqmqa_data%el2quad)
 ! end additions
 !      if(allocated(mqf%dy_ik)) deallocate(mqf%dy_ik)
@@ -861,6 +862,8 @@
       mqmqa_data%npair=0
 ! more to deallocate ......... see also at line 780 above
       if(allocated(tersys)) deallocate(tersys)
+! Claude 2026.10.16: binary data common for all composition sets
+      if(allocated(mqbinary)) deallocate(mqbinary)
 !      mqf=>phres%mqmqaf
 !      write(*,*)'3A cleaning up some more mqmqa data'
    endif
@@ -1496,6 +1499,9 @@
 ! different each time ...
    quad=index(symbol,'-Q')
    if(quad.gt.0) then
+! Claude 2026.10.15: only digits allowed after -Q, a TDB parameter with a
+! missing comma like "LI/CL-QK/CL-Q" was accepted as "LI/CL-Q"
+      if(verify(trim(symbol(quad+2:)),'0123456789').ne.0) goto 900
       quad=quad-1
    else
       quad=0
@@ -1504,7 +1510,9 @@
 !       write(*,17)'find species 17: ',loksp,splista(loksp)%symbol,name
 !17     format(a,i3,' "',a,'" "',a,'"')
       if(quad.gt.0) then
-         if(symbol(1:quad).eq.splista(loksp)%symbol(1:quad)) goto 1000
+! Claude 2026.10.15: also require -Q in the species name after the match
+         if(symbol(1:quad).eq.splista(loksp)%symbol(1:quad) .and. &
+              splista(loksp)%symbol(quad+1:quad+2).eq.'-Q') goto 1000
       else
 ! problem that V was not read from database ...
          if(symbol.eq.splista(loksp)%symbol) goto 1000
@@ -1512,6 +1520,7 @@
    enddo
 ! This message cannot be written as it is used when reading a TDB file ...
 !   write(kou,*)'Exact match to species name requited'
+900 continue
    gx%bmperr=4051
    loksp=0
 1000 continue
