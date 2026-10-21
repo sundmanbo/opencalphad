@@ -1188,6 +1188,9 @@
   logical :: mqter=.false.
 ! enter ternary parameters
   logical :: mqenter=.false.
+! Claude 2026.10.21: set by mqmqa_species when a quad has a second anion,
+! such quads are skipped silently by the TDB read
+  logical :: mqmqa_secondanion=.false.
 ! this is explicitly set .false. in pmon6.F90 for the NEW command
   logical :: mqmqa_multival=.false.
 ! When .TRUE., mqmqa_species rejects a 2-cation quad only if the same

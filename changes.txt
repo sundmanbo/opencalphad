@@ -24,15 +24,19 @@ Fortran 2018 standard.  On Linux, MacOS and other OS the installation
 requires some general knowledge about compiling and linking of
 software.
 
-There is an old installation manual (and an very old mainly redundant
-video on You Tube) and if you are not familiar with such procedures
-please ask a local guru for help.  Installation problems depend on
-your local environment and we who provide this software for free do
-not have the time or knowledge to answer such questions.
+There is an old installation manual (and an very old redundant video
+on You Tube) and if you are not familiar with such procedures please
+ask a local guru for help.  Installation problems depend on your local
+environment and we who provide this software for free do not have the
+time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
-2026.10.12 version 6.136. The implementation of the MQMQA liquid salt
+2026.10.12 version 6.138. Some modifications made how to set
+asymmetries for the MQMQA phase.  A lot of redundant debug information
+supressed.
+
+2026.10.12 version 6.137. The implementation of the MQMQA liquid salt
 model in OC is now finished with the limitation it can only handle a
 single anion.  Tests using Thermochimica shows total agreement for
 models with a single anion and various cations and asymmetries.  A
@@ -40,7 +44,7 @@ special TDB format for the database is used.  Reports of problems or
 bugs are welcome together with a macro and TDB files.  Possibly
 multiple anions may be added later with the help of AI Claude.
 
-2026.10.12 version 6.136. The subroutine to enter ternary parameters
+2026.10.12 version 6.136 The subroutine to enter ternary parameters
 was finally provided by AI Claude after I hade made a complete mess of
 it.  Some additional minor changes also.
 
@@ -571,7 +575,7 @@ I am not familiar with Makefiles but has created a rudimentary one
 compiling OC with -O2 and -OpenMP and a second Makefile_debug with
 several compiler checks which is much more stable.  I was quite happy
 that the TINYFILEDIALOGS works on the Mac and I also found that the
-linee diting facility and the "history" feature works although one has
+line editing facility and the "history" feature works although one has
 to use (as in emacs) ctrl-P to call back a previous line.
 
 Fixing this is done in parallel with implementing the MQMQA model
@@ -1003,7 +1007,7 @@ only the amount of atomes in a phase, whereas OC (and TC) has defined
 a property called "Formula Unit" (FU) of a phase and normally one has
 values of properties "per FU" as well as "per mole of atoms".  The
 difference can be big as phases such as sigma has 30 atoms per FU and
-23-catbide contains 29 atoms.  The FU simplifies slightly the modeling
+23-carbide contains 29 atoms.  The FU simplifies slightly the modeling
 of phases because the Gibbs energy of a phase in OC is defined per
 mole formula unit wheras in FactSage it is defined per mole of atoms
 in the phase.  Thus in OC there is a property "amount of phase per

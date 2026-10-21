@@ -4998,6 +4998,9 @@
 !
 ! it seems this routine should inititae symmetric compvar
    call init_symmetric_varkappa(phres,verbose)
+! Claude 2026.10.18: with less than 3 cations there are no ternaries and
+! tersys is not allocated (size of unallocated array crashed with 2 cations)
+   if(.not.allocated(tersys)) goto 1000
 !
 !   write(*,*)'3XQ listing of vk_ij, vk_ji'
 !   call list_compvar(phres)
@@ -5164,6 +5167,12 @@
 !             A,B,C means A-B-C is symmetric (Kohler)
 ! An exception replaces the group rule.  Names which are not constituents
 ! are ignored as some elements may not be selected.
+! Claude 2026.10.21: also Nathalie's format, the anions after / at the end
+! of GROUPS and the anion after each exception:
+!     GROUPS NA K LI ; MG CA ; ... ; / CL I ;
+!     EXCEPTIONS MG;NA,K/CL NA,MG,U2/CL ... !
+! X;A,B is the same as X:A,B.  An exception for another anion is ignored,
+! an exception without anion is for all anions.
    implicit none
    type(gtp_phase_varres), pointer :: phres
    character line*(*)
@@ -5173,11 +5182,17 @@
    integer, allocatable :: grp(:),ttoop(:),listed(:)
    integer ncat,ngrp,ip,jj,kk,k1,k2,ic,nc,toop,itmp,asymter,nasym
    integer spord(3),ignored
-   character token*80,cname(3)*24
-   logical exceptions
+   character token*80,cname(3)*24,anion*24
+   logical exceptions,anions,lastsemi
 !
    mqf=>phres%mqmqaf
    ncat=size(mqmqa_data%names_y_ik)
+! the anion of the phase, names_y_ik are like MG/CL-Q
+   anion=mqmqa_data%names_y_ik(1)(index(mqmqa_data%names_y_ik(1),'/')+1:)
+   kk=index(anion,'-')
+   if(kk.gt.0) anion(kk:)=' '
+   anions=.FALSE.
+   lastsemi=.FALSE.
    allocate(grp(ncat))
    grp=0
    ngrp=1
@@ -5185,12 +5200,21 @@
    exceptions=.FALSE.
    ip=1
 !---------------------------------- groups
-   groups: do while(next_asymtoken(line,ip,token))
+   groups: do while(next_asymtoken(line,ip,token,.TRUE.))
       if(token.eq.'EXCEPTIONS') then
          exceptions=.TRUE.
          exit groups
+      elseif(anions) then
+! the anion group ends with ; the anion names are not used
+         if(token.eq.';') anions=.FALSE.
+      elseif(token(1:1).eq.'/') then
+! no new cation group after the ; before /
+         if(lastsemi) ngrp=ngrp-1
+         anions=.TRUE.
       elseif(token.eq.';') then
          ngrp=ngrp+1
+         lastsemi=.TRUE.
+         cycle groups
       else
          ic=tdbcation(token)
          if(ic.eq.0) then
@@ -5202,6 +5226,7 @@
             grp(ic)=ngrp
          endif
       endif
+      lastsemi=.FALSE.
    enddo groups
 ! a cation not in any group is placed in a group of its own
    do ic=1,ncat
@@ -5231,10 +5256,19 @@
    enddo
 !---------------------------------- exceptions
    if(exceptions) then
-      except: do while(next_asymtoken(line,ip,token))
-! X:A,B or A,B,C
+      except: do while(next_asymtoken(line,ip,token,.FALSE.))
+! X:A,B or A,B,C or X;A,B optionally followed by /anion
+         kk=index(token,'/')
+         if(kk.gt.0) then
+            if(token(kk+1:).ne.anion) then
+               ignored=ignored+1
+               cycle except
+            endif
+            token(kk:)=' '
+         endif
          toop=0
          kk=index(token,':')
+         if(kk.eq.0) kk=index(token,';')
          if(kk.gt.0) then
             toop=1
             token(kk:kk)=','
@@ -5310,11 +5344,12 @@
    return
  contains
 !
-   logical function next_asymtoken(text,jp,tok)
-! extract next token separated by spaces, ; is a token by itself,
-! returns .FALSE. at the end or at !
+   logical function next_asymtoken(text,jp,tok,semi)
+! extract next token separated by spaces, if semi is TRUE ; is a token
+! by itself, otherwise part of a token, returns .FALSE. at the end or at !
    character text*(*),tok*(*)
    integer jp,jq
+   logical semi
    tok=' '
    next_asymtoken=.FALSE.
    do while(jp.le.len_trim(text))
@@ -5323,14 +5358,14 @@
    enddo
    if(jp.gt.len_trim(text)) return
    if(text(jp:jp).eq.'!') return
-   if(text(jp:jp).eq.';') then
+   if(semi .and. text(jp:jp).eq.';') then
       tok=';'
       jp=jp+1
    else
       jq=jp
       do while(jq.le.len_trim(text))
-         if(text(jq:jq).eq.' ' .or. text(jq:jq).eq.';' .or. &
-              text(jq:jq).eq.'!') exit
+         if(text(jq:jq).eq.' ' .or. text(jq:jq).eq.'!' .or. &
+              (semi .and. text(jq:jq).eq.';')) exit
          jq=jq+1
       enddo
       tok=text(jp:jq-1)

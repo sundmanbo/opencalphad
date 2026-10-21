@@ -3900,7 +3900,12 @@
 !         write(*,572)trim(name1),trim(longline(ip:))
 572      format('3E Call mqmqa_species: "',a,'" "',a,'" ')
          call mqmqa_species(name1,longline(ip:),nend)
-         if(gx%bmperr.ne.0) then
+         if(mqmqa_secondanion) then
+! Claude 2026.10.21: only one anion allowed in MQMQA, skip without message
+            mqmqa_secondanion=.false.
+            gx%bmperr=0
+            goto 100
+         elseif(gx%bmperr.ne.0) then
 ! 2026-05-23: bad MQMQA quad (e.g. multivalent species with
 ! mqmqa_multival=.FALSE.) used to fall through to label 573 and abort the
 ! whole TDB read.  mqmqa_species now rolls back its partial state, so we
@@ -4216,7 +4221,8 @@
             if(.not.allocated(ternaryxpol(ctxp)%text)) &
                  ternaryxpol(ctxp)%text=' '
             ternaryxpol(ctxp)%text=trim(name1)//' '//ternaryxpol(ctxp)%text
-            write(*,'(a,i4,": ",a)')'3E ternary around line 4137: ',&
+! Claude 2026.10.21: only with the ternary debug, mqter
+            if(mqter) write(*,'(a,i4,": ",a)')'3E ternary around line 4137: ',&
                  ctxp,ternaryxpol(ctxp)%text(1:min(200,len(ternaryxpol(ctxp)%text)))
 ! this ignores the type letter, just assignes in same order as phases entered
 ! Or one must enforce that the TYPE_DEF for ternary is right after the phase?

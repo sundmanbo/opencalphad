@@ -1669,8 +1669,10 @@
    mqmqa_data%ncat=mqmqa_data%ncon1
    mqmqa_data%nan=mqmqa_data%ncon2
    mqmqa_data%lcat=mqmqa_data%ncat*(mqmqa_data%ncat+1)/2
-   if(mqmqa_data%ncat.gt.9) then
-      write(*,6)mqmqa_data%ncat,10
+! Claude 2026.10.21: max was 10, the limit is now maxquads=99 quads
+! (13 cations with one anion) which is also checked in mqmqa_species
+   if(mqmqa_data%ncat.gt.13) then
+      write(*,6)mqmqa_data%ncat,13
 6     format('3B **** Warning, too many cations: ',i2,' code assume max ',i2)
    endif
 !
@@ -8205,6 +8207,7 @@
 ! this save is probably redundant
    save seqnum,nfnnq,nsnnq,fnnquads,snnrefs,nwarned,warned
 !
+   mqmqa_secondanion=.false.
    if(nend.lt.0) then
 ! nend should be a global variable which can be reinitiated with NEW
       nend=0
@@ -8335,7 +8338,9 @@
       ntot=ntot+1
       species(ntot)=quadname(jp+kp:)
 ! this is a second anion
-      write(kou,*)'3B second anion found "',trim(species(ntot)),'" aborting.'
+! Claude 2026.10.21: no message, the TDB read skips the quad silently
+!      write(kou,*)'3B second anion found "',trim(species(ntot)),'" aborting.'
+      mqmqa_secondanion=.true.
       gx%bmperr=4399; goto 1000
 !      write(kou,*)'3B two anions detected, only one normally allowed: ',&
 !           trim(species(ntot))
@@ -8559,7 +8564,8 @@
             if(ielno(jp).eq.jelno(ee)) then
 ! debug info
 ! Problems here if species has more than 2 cations ............
-               write(kou,3001)trim(quadname),jp,nspel,ee,nel,thiscon
+! Claude 2026.10.21: multiple valences of an element works, warning removed
+!               write(kou,3001)trim(quadname),jp,nspel,ee,nel,thiscon
 3001           format('3B Warning: same element twice in: ',&
                     a,2x,2i3,2i3,i3)
 !               write(*,3005)thiscon
