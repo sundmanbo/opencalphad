@@ -638,7 +638,8 @@
       do s2=1,ncon
 ! b2iXY may contain contributions from two constituents in same quads
          dyy2(s1,s2)=(b2iX(s1,s2)-yy2(s1)*b2iXY(s2))/sum2XY
-         cycle yder2
+! skip second derivatives (was "cycle yder2" which left dyy2(s1,2:ncon) unset)
+         cycle
          do s3=1,ncon
             if(nspin(2).eq.1) then
 ! single sublattice fractions should not have any second derivaties ??
@@ -2385,7 +2386,7 @@
 ! vals(2) = vals(2) + fraction_product * d(parameter)/dT
 ! dvals(1,yi) = dvals(1,yi) + d(fractions)/dyi * parameter
 ! dvals(2,yi) = dvals(2,y1) + d(fractions)/dyi * d(parameter)dT
-! At present I ingnore the 2nd derivatives
+! 2nd derivatives are added to phres%d2gval (Claude 2026.10.15)
 !
 ! partial derivative of G end >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             if(mqmqder) write(*,122)(dvals(1,zkij),zkij=1,nqx)
@@ -2421,6 +2422,7 @@
       push_ornext: if(associated(intrec%highlink)) then
 ! go to  higher level of interaction but save link to next for other parameters
          intlev=intlev+1
+!         write(*,*)'3XQ line 2425 higher excess level ',intlev
          if(associated(intrec%nextlink)) then
             if(mqmqxcess) write(*,97)intlev,intrec%nextlink%fraclink
 97          format('3XQ saved nextlink at intlev: ',2i3)
@@ -2434,8 +2436,8 @@
          endif
          intrec=>intrec%highlink
          if(once) then
-            write(*,98)associated(intrec)
-98          format('3XQ wow, a ternary parameter ',l2)
+!            write(*,98)associated(intrec)
+98          format('3XQ line 2439 wow, a ternary parameter ',l2)
             once=.false.
          endif
 ! for ternary parameters we just cycle intloop with one more constituent
@@ -2971,7 +2973,8 @@
 ! are calculated from these in new_mqmqa_excess
    double precision tfa,tfb,tfd,tfz(mqmqa_data%nquad,3)
    logical verbose
-! return parameter and d(parameter)/dT  ?? and d(parameter)/d(fracs) ??
+! Only the composition factor is calculated here, the TPFUN value of the
+! parameter and its T derivative are multiplied in new_mqmqa_excess
 ! cxq is the index of the compvar record with vk_ij, vk_ji and xi_ij, x_ji
 ! py3 is the product of fractions for the parameter
 ! dpy3dyi is derivatives of fractions to be multiplied with the parameter
@@ -3003,30 +3006,28 @@
    type(gtp_allinone), pointer :: box
    type(gtp_mqmqa_binary), pointer :: bfix
 !
-! we must update xi_ij, xi_ji and v_ik ONCE for each iteration
-! It updates all xi_ij etc so called only once per iteration
-! mqmqa_pairupdate is in gtp3_dd2
+! xi_ij, xi_ji and y_ik must already be updated for the current quad
+! fractions, this routine does not change them
 !
-! A ternary will be multipiled with x_ij*(vk_ij**ppow)*(vk_ji**qpow)*L
+! The ternary parameter L(ij,i,j,m;p,q,r) in new_mqmqa_excess contributes
+!    x_ij*(vk_ij**ppow)*(vk_ji**qpow)*L*py3
+! where i=cat1, j=cat2, m=cat3 and py3 is calculated here:
 !
-! if no asymmetry wrt the ij :
+! symmetric (Kohler), or the Toop cation is m:
 !
-!   Y_m/k ( 1 - xi_ij/k - xi_ji/k )**(r-1) * L if neither cases below
+!   py3 = Y_m * ( 1 - xi_ij - xi_ji )**(r-1)
 !
-! if rpow=1 the ternary factor is simply y_ik(cat3)
-! if rpow>1 the ternary factor y_ik(cat3) * (1 -xi_ij-xi_ji)**rpow
+! the Toop cation is i (j and m in the same group):
 !
-! if asymmetric wrt cat1
+!          Y_m             Y_j
+!   py3 = -------- ( 1 -  ------- )**(r-1)
+!          xi_ji           xi_ji
 !
-!   Y_m/k             Y_j/k
-! (---------) ( 1 -  --------- )**(r-1) * L    if i is asymmetric in i-j-m ?
-!   xi_ji/k           xi_ji/k
+! the Toop cation is j (i and m in the same group):
 !
-! if asymmetric wrt cat2
-!
-!   Y_m/k             Y_i/k
-! (---------) ( 1 -  --------- )**(r-1) * L    if j is asymmetric in i-j-m ?
-!   xi_ij/k           xi_ij/k
+!          Y_m             Y_i
+!   py3 = -------- ( 1 -  ------- )**(r-1)
+!          xi_ij           xi_ij
 !
    rpow=proprec%asymdata%rpow
    if(rpow.le.0) then
@@ -3046,17 +3047,8 @@
    bfix=>mqbinary(cxq)
    cat1=bfix%cat1
    cat2=bfix%cat2
-! ylinks are OC phase constituent indices, not necessarily same as quad indices
 !
-! mqmqa_data%emquad(1..n) are indices of quads with single caton: A/X, B/X etc.
-! The quadruplet index for the ternary quad is in ylinks(4)
-!   do ii=1,size(mqmqa_data%emquad)
-!      if(ylinks(4).eq.mqmqa_data%emquad(ii)) goto 12
-!   enddo
-!   write(*,*)'3XQ cannot find the ternary C/X quad'
-!   gx%bmperr=4399; goto 1000
-!
-! this is the link to the ternary, tcat is 1, 2 or 3 if it is asymmetrical
+! t1 is the link to the ternary in tersys, tcat is the index of the 3rd cation
    t1=proprec%asymdata%tersyslink
    tcat=proprec%asymdata%tcat
 ! identify the 3rd cation of the ternary
@@ -3069,31 +3061,27 @@
    else
       cat3=tersys(t1)%el(1)
    endif
-!      write(*,5)t1,cat1,cat2,tcat
-!5     format('3XQ something wrong with ternary parameter',i3,2x,2i3,2x,i3)
-!      gx%bmperr=4399; goto 1000
-!   endif
 ! zero result arrays
    gg=1.0d0
    do dd=1,nqx
       dpy3dyi(dd)=0.0d0
    enddo
    catasym=index(tersys(t1)%asymm,'T')
-! the T only indicate 1, 2 or 3.  There can be several ternaries ...
+! the position of T (1, 2 or 3) in asymm is converted to a cation index
    if(catasym.gt.0) catasym=tersys(t1)%el(catasym)
 ! debug output
    if(mqter) write(*,7)t1,rpow,cat1,cat2,cat3,catasym,tcat
 7  format('3XQ line 2796 in tf1: t1,rpow: ',2i2,', cat1/2: ',2i2,&
         ', cat3: ',i2,', Toop:',i2,', tcat:',i2)
-! there are 3 ternary cases: not asymmetric wrt cat1 or cat2
-!                            asymmetric wrt cat2,
-!                            asymmetric wrt cat2,
+! there are 3 ternary cases: symmetric or Toop cation is cat3,
+!                            Toop cation is cat1,
+!                            Toop cation is cat2
 !
    if(catasym.eq.0 .or. catasym.eq.tcat) then
-! symmetric or asymmetric wrt to the 3rd cation, box is compvar(cxq)
+! symmetric or the Toop cation is the 3rd cation, box is compvar(cxq)
 !   here only composition variables, multiply with L in calling routine
 !
-!   Y_m/k * ( 1 - xi_ij/k - xi_ji/k )**(r-1) * L    as gg*y_ik
+!   py3 = Y_m * ( 1 - xi_ij - xi_ji )**(r-1)    as y_ik*gg
 !
       if(rpow.gt.1) then
          ff=(one-box%xi_ij-box%xi_ji)
@@ -3101,10 +3089,9 @@
 ! Claude 2026.10.11: ffm2=ff**(rpow-2) replaces gg/ff which is 0/0=NaN
 ! when the 3rd cation is almost absent and ff rounds to zero
          ffm2=ff**(rpow-2)
-! chain rule of derivatives d(gg*y_ik)/dz = f*dgg/dz+gg*dg/dz
-! derivatives wrt quads ... , loop dq=1,nqx
-!       dff/dq = -(rpow-1)*(ff**(rpow-2))*(dxi_ij/dq + dxi_ji/dq) * y_ik +
-!                gg*dy_ik
+! chain rule d(y_ik*gg)/dq = y_ik*dgg/dq + gg*dy_ik/dq with
+!   dgg/dq = -(rpow-1)*ff**(rpow-2)*(dxi_ij/dq + dxi_ji/dq)
+! the first term here, the second below (tcat is the same as cat3)
          do dd=1,nqx
             dpy3dyi(dd) = -(rpow-1)*ffm2*&
                  (bfix%dxi_ij(dd)+bfix%dxi_ji(dd)) * mqf%y_ik(tcat) 
@@ -3132,15 +3119,14 @@
       if(mqter) write(*,100)1,py3,gg,(dpy3dyi(dd),dd=1,nqx)
 100   format('3XQ line 2827 mode, py3, gg:',i2,2(1pe12.4)/' dpy: ',(10(0pf5.2)))
    elseif(catasym.eq.cat1) then
-!  asymmetric with cat1 as Toop -----------------------------------
+!  cat1 is the Toop cation, cat2 and cat3 in the same group -------------
 !
-!   Y_m/k             Y_j/k
-! (---------) ( 1 -  --------- )**(r-1) *L    if i is asymmetric in i-j-m
-!   xi_ji/k           xi_ji/k
+!          Y_m             Y_j
+!   py3 = -------- ( 1 -  ------- )**(r-1)
+!          xi_ji           xi_ji
 !
-!      write(*,*)'3XQ not implemented ternary asymmetry'
 ! Claude 2026.10.10: py3 = asymp*gg with asymp=Y_m/xi_ji, so
-! 
+!
 ! dpy3/dz = asymp*dgg/dz + gg*dasymp/dz.  zz must be set also when rpow=1
       zz=box%xi_ji**2
       asymp=mqf%y_ik(cat3)/box%xi_ji
@@ -3148,10 +3134,7 @@
          ff=(one-mqf%y_ik(cat2)/box%xi_ji)
          gg=ff**(rpow-1)
          ffm2=ff**(rpow-2)
-! chain rule of derivatives d(gg*y_ik)/dz = f*dgg/dz+gg*dg/dz
-! derivatives wrt quads ... , loop dq=1,nqx
-!       dff/dq = -(rpow-1)*(ff**(rpow-2))*(dxi_ij/dq + dxi_ji/dq) * y_ik +
-!                gg*dy_ik
+! asymp*dgg/dz with gg=(1-Y_j/xi_ji)**(r-1)
          do dd=1,nqx
             dpy3dyi(dd) = -(rpow-1)*asymp*ffm2/zz*&
                  (mqmqa_data%dy_ik(cat2,dd)*box%xi_ji-mqf%y_ik(cat2)*bfix%dxi_ji(dd))
@@ -3176,13 +3159,12 @@
       if(mqter) write(*,100)2,py3,gg,(dpy3dyi(dd),dd=1,nqx)
 ! wow
    elseif(catasym.eq.cat2) then
-! asymmetric with cat2 as Toop -----------------------------------
+! cat2 is the Toop cation, cat1 and cat3 in the same group -------------
 !
-!   Y_m/k             Y_i/k
-! (---------) ( 1 -  --------- )**(r-1) *L    if j is asymmetric in i-j-m ?
-!   xi_ij/k           xi_ij/k
+!          Y_m             Y_i
+!   py3 = -------- ( 1 -  ------- )**(r-1)
+!          xi_ij           xi_ij
 !
-!      write(*,*)'3XQ not implemented ternary asymmetry'
 ! Claude 2026.10.10: same correction as for cat1 above, asymp=Y_m/xi_ij
       zz=box%xi_ij**2
       asymp=mqf%y_ik(cat3)/box%xi_ij
@@ -3190,8 +3172,7 @@
          ff=(one-mqf%y_ik(cat1)/box%xi_ij)
          gg=ff**(rpow-1)
          ffm2=ff**(rpow-2)
-! chain rule of derivatives d(gg*y_ik)/dz = f*dgg/dz+gg*dg/dz
-! derivatives wrt quads ... , loop dq=1,nqx
+! asymp*dgg/dz with gg=(1-Y_i/xi_ij)**(r-1)
          do dd=1,nqx
             dpy3dyi(dd) = -(rpow-1)*asymp*ffm2*&
                  (mqmqa_data%dy_ik(cat1,dd)*box%xi_ij-&
@@ -4576,7 +4557,8 @@
 ! tersym is a structure with all combination of 3 cations for the asymmetries
 ! tersym(tt)%el(1) %el(2) and %el(3) are cation indices in the ternary
 ! tersym(tt)%isasym(1) %isasym(2) %isasym(3) is 0 or asymmetric cation index
-! tersym(tt)%asymm is a 3 character variable of asymmetry DO NOT USE
+! tersym(tt)%asymm is a 3 character variable of asymmetry like 'KTK' where
+!   the position of T is the Toop cation, used in ternary_factor1
 ! this routine may initiate, calculate and store varkappa_ij, varkappa_ji, and
 !    xi_ij and xi_ji for symmetric and asymmetric systems with Kohler/Toop
 ! It is programmed for a single anion and just for the MQMQX phase!
@@ -5215,6 +5197,12 @@
          ngrp=ngrp+1
          lastsemi=.TRUE.
          cycle groups
+! Claude 2026.10.28: a typo like "U2 U3Q: U ;" made U3Q: an unknown name
+! which was silently ignored and U was put in the same group as U2
+      elseif(scan(token,':,').gt.0) then
+         write(kou,105)trim(token)
+105      format('3XQ Error in GROUPS, illegal character in "',a,&
+              '", separate groups with ;')
       else
          ic=tdbcation(token)
          if(ic.eq.0) then
@@ -5336,8 +5324,8 @@
       endif
    enddo
    write(kou,310)ngrp,count(listed.ne.0),nasym,size(tersys)
-310 format('3XQ Chemical groups: ',i3,', exceptions: ',i4,&
-         ', asymmetric ternaries: ',i6,' of ',i6)
+310 format('3XQ Chemical groups: ',i2,', exceptions: ',i3,&
+         ', asymmetric ternaries: ',i3,' of ',i5)
    if(verbose .and. ignored.gt.0) write(*,320)ignored
 320 format('3XQ ',i5,' names ignored as not constituents')
    deallocate(grp,ttoop,listed)
@@ -5683,7 +5671,8 @@
    implicit none
    integer kk
 !\end{verbatim}
-   integer nel,iv1
+   integer nel,iv1,isp
+   integer, allocatable, dimension(:) :: quadix
 !
    kk=0
    write(*,2)(ellista(elements(nel))%symbol,nel=1,noofel)   
@@ -5700,26 +5689,54 @@
            mqmqa_data%xanione
 4     format('The anion element name, index and link: ',a,2i3)
    endif
+! extract species index of quad
+! mqmqa_data%cat2species set in correlate_const_and_quads which is maybe used
+! elsewhere (config etropy?) and I do not dare change.  Just set a correct index
+! Maybe this should be moved to gtp3B when reading database??
+   allocate(quadix(size(mqmqa_data%cat2species)))
+!
+   do iv1=1,size(mqmqa_data%cat2species)
+! very very clumsy but I forgotten the whole data structure ...
+      call find_species_by_name_exact(&
+           splista(mqmqa_data%cat2species(iv1))%symbol,isp)
+      quadix(iv1)=isp
+!      write(*,333)iv1,trim(splista(mqmqa_data%cat2species(iv1))%symbol),isp,&
+!           mqmqa_data%cat2species(iv1)
+! I do not understand ... mqmqa_data%cat2species has wrong index ???
+333   format('3XQ cation:',i2,', name: "',a,'" species index: ',2i5)
+   enddo
+! cat elx spx  usimg mqmqa_data%cat2species(iv1)
+! LA  2    3    3
+! MG  3   11    5
+! U   4   20    2??
+! U2  -   22   18
+! U3Q -   25   19
+!
    write(*,3)size(mqmqa_data%el2ancat),mqmqa_data%el2ancat
 3  format('3XQ el2ancat (element-alpha -> first cation idx):',i3,2x,20i3)
    if(allocated(mqmqa_data%cat2species)) then
       write(*,5)size(mqmqa_data%cat2species), &
            (splista(mqmqa_data%cat2species(iv1))%symbol, &
-            mqmqa_data%cat2species(iv1), &
-            mqmqa_data%cat2el(iv1), iv1=1,size(mqmqa_data%cat2species))
-5     format('3XQ cation species cat -> symbol(splista/element-alpha)',i3,':'/&
-           20(a4,'(',i3,'/',i2,') '))
+!           mqmqa_data%cat2el(iv1), quadix(iv1), &
+           mqmqa_data%cat2el(iv1), quadix(iv1), &
+           iv1=1,size(mqmqa_data%cat2species))
+!            mqmqa_data%cat2species(iv1), &
+!            mqmqa_data%cat2el(iv1), iv1=1,size(mqmqa_data%cat2species))
+5     format('3XQ cation species cat -> symbol(element-alpha/species)',i3,':'/&
+           20(a4,'(',i3,'/',i3,') '))
    endif
 ! one line per cation
    if(allocated(mqmqa_data%cat2species)) then
       write(*,10)
-10    format(/'Cati Name',10x,'Species index')
+10    format(/'Cati Name',11x,'Species index')
       do iv1=1,size(mqmqa_data%cat2species)
 ! ONLY ENDMEMBER CATIONS, NO MIXED CATIONS LISTED HERE
 ! is cat2species really correct for multivalent cations as U
          write(*,20)iv1,splista(mqmqa_data%cat2species(iv1))%symbol,&
-              mqmqa_data%cat2species(iv1)
-20       format(i3,2x,a,2x,a)
+              quadix(iv1)
+20       format(i3,2x,a,2x,i2)
+!              mqmqa_data%cat2species(iv1)
+!20       format(i3,2x,a,2x,a)
       enddo
    endif
 !
@@ -6025,8 +6042,53 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
+!\addtotable subroutine list_my_opinion_of_mqmqa
+!\begin{verbatim}
+ subroutine list_my_opinion_of_mqmqa
+! subroutine to list this
+   implicit none
+!\end{verbatim}
+!23456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.
+!        '23456789.123456789.123456789.123456789.123456789.123456789.123456789.
+! 72-80  '123456789.------    
+   write(kou,100)
+100 format(/'3XQ Listing the composition variables in the MQMQA model and ',&
+         'their relations.'/&
+         'The MQMQA model for salts has 2 sublattices but describes its ',&
+         'composition using ',/&
+       'a single set of sites with quadruplet fractions with a single anion.',/&
+         'The quadruplets are denoted x_ij here and their sum is unity and ',&
+         'they provide ',/&
+         'the correct mass balance. The subscript _ij denotes two cations ',&
+         'and the indexing',/&
+         'is normally x_(i=1..n,j=i..n) for n cations, but x_ij and x_ji ',&
+         'is the same.'/&
+       'For the other constitution variables the order of the index matters!',/&
+         'The variables vk_ij, xi_ij and y_i/k do not fulfil ',&
+         'massbalance relations.',/&
+         'vk stands for the greek varkappa letter and xi for the ksi letter.'//&
+         'The reference state of the MQMQA phase has one endmember parameter ',&
+         'for each',/&
+         'quadruplet fraction x_ij because this implementation assumes a ',&
+         'single anion.',/&
+         'The y_i/k variables have a redundant anion index k and are related ',&
+         'to the amount ',/&
+         'of cation i but it is not the correct fraction of cation i.',//&
+         'The xi_ij and y_i/k are the same unless j is a Toop element in ',&
+         'the ternary',/&
+         'i-j-m, in such cases y_m/k is added to xi_ij.'//&
+         'The quasichemical configurational entropy has additional ',&
+         'constituent variables ',/&
+         'which are not used for the excess Gibbs energy.',//&
+         'Is this enough? ')
+!
+   return
+ end subroutine list_my_opinion_of_mqmqa
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
 !addtotable subroutine list_mqmqa_variables
-!\begin(verbatim} subroutine varkappadefs
+!\begin(verbatim} subroutine list_mqmqa_variables
  subroutine list_mqmqa_variables(phres)
 ! subroutine to list \varkappa, \xi and y_ik definitions
    implicit none
@@ -6046,40 +6108,6 @@
    fact(2)='0.5'
    mqf=>phres%mqmqaf
 !
-!23456789.123456789.123456789.123456789.123456789.123456789.123456789.123456789.
-!        '23456789.123456789.123456789.123456789.123456789.123456789.123456789.
-! 72-80  '123456789.------    
-   write(*,100)
-100 format(/'3XQ Listing the composition variables in the MQMQA model and ',&
-         'their relations.'/&
-         'The MQMQA model for salts has 2 sublattices but describes its ',&
-         'composition using ',/&
-       'a single set of sites with quadruplet fractions with a single anion.',/&
-         'The quadruples are denoted x_ij here and their sum is unity and ',&
-         'they provide ',/&
-         'the correct mass balance. The subscript _ij denotes two cations ',&
-         'and the indexing',/&
-         'is normally x_(i=1..n,j=i..n) for n cations, but x_ij and x_ji ',&
-         'is the same.'/&
-       'For the other constitution variables the order of the index matters!',/&
-         'The variables vk_ij, xi_ij and y_i/k do not fullfil ',&
-         'massbalance relations.',/&
-         'vk stands for the greek varkappa letter and xi for the ksi letter.'//&
-         'The reference state of the MQMQA phase has one endmember parameter ',&
-         'for each',/&
-         'quadruplet fraction x_ij because this implementation assumes a ',&
-         'single anion.',/&
-         'The y_i/k variables has a redundant anion index k and is related ',&
-         'to the amount ',/&
-         'of cation i but it is not the correct fraction of cation i.',//&
-         'The xi_ij and y_i/k are the same unless j is a Toop element in ',&
-         'the ternary',/&
-         'i-j-m, in such cases y_m/k is added to xi_ij.'//&
-         'The quasichemical configurational entropy have additional ',&
-         'constituent variables ',/&
-         'which are not used for the excess Gibbs energy.',//&
-         'Is this enough? ')
-
    write(kou,4124)mqmqa_data%nquad,mqmqa_data%ncat
 4124 format(/'3XQ Listing of quads and asymmetries using varkappadefs:'/&
         'The ',i3,' quads for ',i2,' cations are arranged ',&
@@ -6339,8 +6367,8 @@
       endif
    enddo xiloop
 !
-   write(*,333)
-333 format(/'3XQ The symmetries of the ternary systems')
+!   write(*,333)
+!333 format(/'3XQ The symmetries of the ternary systems')
    call list_tersys
 !
 1000 continue

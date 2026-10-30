@@ -1618,7 +1618,7 @@
    implicit none
    character filename*(*)
 !\end{verbatim}
-   integer iph,ipos,unit,isp,noq
+   integer iph,ipos,unit,isp,noq,jpass
 ! the retured file name can be very long
    character text*512, text2*2000
    character date*8,CHTD*1
@@ -1644,17 +1644,27 @@
       write(unit,107)
 107   format(/'$ =================',/)
       text=' '
+! Claude 2026.10.27: MQMQA quads are written after all other species
+! because a quad like NAU2/CL-Q needs the species U2 entered before
+      quadpass: do jpass=1,2
       sploop: do isp=1, nosp()
 ! skip vacancy species and species that are elements
          iph=species(isp)
          ipos=1
 ! special format of text for MQMQA species
          if(splista(iph)%quadindex.gt.0) then
+            if(jpass.eq.1) cycle sploop
 ! remove the 2 number after -Q
             noq=index(splista(iph)%symbol,'-Q')
-            text=splista(iph)%symbol(1:noq+1)//'      '//splista(iph)%mqmqa1
+! mqmqa1 is the TDB text after the name, the reader replaced the final !
+! by : and may have kept a comment after it.  Write only up to the first :
+            text2=splista(iph)%mqmqa1
+            ipos=index(text2,':')
+            if(ipos.gt.0) text2(ipos:)=' '
+            text=splista(iph)%symbol(1:noq+1)//'      '//trim(text2)
 !            write(*,*)'3C quad: ',trim(text)
          else
+            if(jpass.eq.2) cycle sploop
             call list_species_data2(text,ipos,iph)
 ! not very logical, using species index below and location above ... suck
          endif
@@ -1662,8 +1672,9 @@
             cycle sploop
          endif
          write(unit,110)trim(text)
-110      format('SPECIES ',A,' !')     
+110      format('SPECIES ',A,' !')
       end do sploop
+      enddo quadpass
       write(unit,107)
       text2=' '
 ! skip the first two functions which are R and RTLNP (using R)
@@ -2275,19 +2286,18 @@
          endif
          prplink=0
          if(associated(endmemrec%propointer)) prplink=1
-! keep this output for the moment
-!         if(parlist.eq.1) write(kou,207)endmemrec%antalem,&
-         if(parlist.eq.1) then
-            if(prplink.eq.1) then
-               write(kou,207)endmemrec%antalem,&
-                    endmemrec%noofpermut,intpq,prplink
-            elseif(intpq.gt.0) then
-               write(kou,208)endmemrec%antalem,&
-                    endmemrec%noofpermut,intpq,prplink
-207      format('3C Endmember check: id, permut, inter, pty: ',4i5)
-208      format('3C Link to excesss: id, permut, inter, pty: ',4i5)
-            endif
-         endif
+! keep this comment for the while, it is related to GD parameters for ordering
+!         gd: if(parlist.eq.1) then
+!            if(prplink.eq.1) then
+!               write(kou,207)endmemrec%antalem,&
+!                    endmemrec%noofpermut,intpq,prplink
+!            elseif(intpq.gt.0) then
+!               write(kou,208)endmemrec%antalem,&
+!                    endmemrec%noofpermut,intpq,prplink
+!207      format('3C Endmember check: id, permut, inter, pty: ',4i5)
+!208      format('3C Link to excesss: id, permut, inter, pty: ',4i5)
+!            endif
+!         endif gd
       endif
       endmemrec=>endmemrec%nextem
    enddo endmemberlist
@@ -2505,10 +2515,10 @@
             prplink=0
             if(associated(intrec%propointer)) prplink=1
 ! keep this output for the moment
-            if(parlist.eq.1) write(*,302)intrec%antalint,&
-                 nz,nint,iqhigh,iqnext,prplink
-302         format('3C Inter check 1: id, permut, level, high, next, pty: ',&
-                 i5,i3,i3,i4,i4,i2)
+!            if(parlist.eq.1) write(*,302)intrec%antalint,&
+!                 nz,nint,iqhigh,iqnext,prplink
+!302         format('3C Inter check 1: id, permut, level, high, next, pty: ',&
+!                 i5,i3,i3,i4,i4,i2)
          endif
          intrec=>intrec%highlink
          empty: do while(.not.associated(intrec))
@@ -2666,7 +2676,41 @@
       addrec=>addrec%nextadd
    enddo lastadd
 60 continue
-   write(*,*)'3C Not saving any asymmetric data for ',trim(phname)
+! Claude 2026.10.27: MQMQA ternary asymmetries written as TYPE_DEF TERNARY
+! in the original syntax, one line for each ternary with a Toop cation:
+!    K/CL NA/CL U/CL KKT     (T at the position of the Toop cation)
+! ternaries not listed are symmetric, see set_tdbasymmetries
+   if(btest(phlista(lokph)%status1,PHMQMQX) .and. allocated(tersys)) then
+      nk=0
+      do ll=1,size(tersys)
+         if(maxval(tersys(ll)%isasym).gt.0) nk=nk+1
+      enddo
+      if(nk.gt.0) then
+         CHTD=char(ichar(CHTD)+1)
+         isp=isp+1
+         special(isp:isp)=CHTD
+         kk=index(phname,':')-1
+         if(kk.le.0) kk=len_trim(phname)
+         write(lut,61)CHTD,phname(1:kk)
+61       format(' TYPE_DEFINITION ',a,' GES A_P_D ',a,' TERNARY')
+         nk=0
+         do ll=1,size(tersys)
+            do kk=1,3
+               if(tersys(ll)%isasym(kk).gt.0) exit
+            enddo
+            if(kk.gt.3) cycle
+            prop='KKK'
+            prop(kk:kk)='T'
+            nk=nk+1
+            write(lut,62)(trim(tdbquadname(tersys(ll)%el(ij))),ij=1,3),&
+                 prop(1:3)
+62          format(5x,4(a,1x))
+         enddo
+         write(lut,'(5x,a)')'!'
+      endif
+   else
+      write(*,*)'3C Not saving any asymmetric data for ',trim(phname)
+   endif
 ! This subroutine is independent of current equilibrium, use firsteq
 !   write(lut,10)phname,phlista(lokph)%status1,special,&
 !        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
@@ -3143,6 +3187,14 @@
 1000 continue
 !   write(*,*)'3C listing by list_phase_data2'
    return
+ contains
+! the quad name without -Q from names_y_ik like U2/CL-Q
+   character*24 function tdbquadname(ic)
+   integer ic,kp
+   tdbquadname=mqmqa_data%names_y_ik(ic)
+   kp=index(tdbquadname,'-Q')
+   if(kp.gt.0) tdbquadname(kp:)=' '
+   end function tdbquadname
  END subroutine list_phase_data2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

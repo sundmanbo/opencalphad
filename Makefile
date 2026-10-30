@@ -87,6 +87,7 @@ getkey.o:
 	# Mac >>
 	#$(C) -c $(FCOPT) -DBSD src/utilities/GETKEY/getkey.c
 	# Linux >>
+	# echo "In some cases termios.h should be user rather than termio.h"
 	$(C) -c  -DLinux src/utilities/GETKEY/getkey.c
 	# other UNIX systems >>
 	#$(C) -c  -DG77 src/utilities/GETKEY/getkey.c

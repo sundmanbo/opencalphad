@@ -84,11 +84,14 @@ enter param G(FCC_4SL,A,B:A,B:*:*) 1 GSRO; 6000 N test
 
 amend biblio test prototype FCC ordering;
 
-@$ The disordered paramaters has a suffix D (This may be changed!!)
+@$ The disordered paramaters used to have a suffix D (but this has changed!!)
 @$ This is the SRO parameter for the disordered FCC_4SL
-enter param GD(FCC_4SL,A,B;0) 1 L0+LD0; 6000 N test
-enter param GD(FCC_4SL,A,B;2) 1 LD2; 6000 N test
+enter param G(FCC_4SL,A,B;0) 1 L0+LD0; 6000 N test
+enter param G(FCC_4SL,A,B;2) 1 LD2; 6000 N test
 
+
+@$ CHECK the parameters now without suffix D
+@&
 
 list data ,,
 
@@ -146,9 +149,12 @@ map
 @&
 
 plot
-
-
+x(*,B)
+T
 title Fig 1, SRO-CEF fcc prototype phase diagram
+text   0.05 70 1 0 N A1
+text N 0.24 70 1 0 N L1_2
+text N 0.46 70 1 0 N L1_0
 
 
 @$ Sometimes parts are missing, one may have to add a second start point
@@ -244,16 +250,22 @@ plot
 x(b)
 gm(*)
 title Fig 4, SRO-CEF Gibbs energy for A1,L12 and L10 at T=50
+text   0.24 -2600 1 0 L1_2
+text N 0.45 -3200 1 0 L1_0
+text N 0.11 -1000 1 0 A1
 
 @$ The Gibbs energy curves for the A1, L12 and L10 phases acress the
 @$ composition range
 @&
 
+
 pl
 x(b)
 sm(*)
 title Fig 5, SRO-CEF Entropy curves for A1,L12 and L10 at T=50
-
+text    0.15    4  1   0 A1
+text N  0.15   1.7 1   0 L1_2
+text N  0.28   3.5  1   0 L1_0
 
 @$ The entropy curves for the A1, L12 and L10 phases acress the
 @$ composition range
@@ -264,7 +276,8 @@ title Fig 5, SRO-CEF Entropy curves for A1,L12 and L10 at T=50
 pl
 x(b)
 hm(*)
-title Fig 6, SRO CEF Entropy curves for A1,L12 and L10 at T=50
+title Fig 6, SRO CEF Enthalpy
+curves for A1,L12 and L10 at T=50
 
 
 @$ The enthalpy curves for the A1, L12 and L10 phases acress the
@@ -275,7 +288,9 @@ pl
 x(b)
 y(fcc#3,*)
 title Fig 7, SRO-CEF fraction curves for one of the phases at T=50
-
+text    0.13  0.19  1  0  y(A1) 
+text N  0.25  0.85  1  0  y(L1_2)
+text N  0.25  0.30  1  0  y(L1_0)
 
 @$ One can also plot the individual phase fractions and figure out
 @$ which composition set is A1, L12 or L10
@@ -286,20 +301,45 @@ enter symbol
 cp1
 hm(fcc#1).T;
 
+@$ The follwong plot will give a lot of error message related to
+@$ points where fcc#1 is not stable.  Do not worry
+
 pl
 
 cp1
-title Fig 8, Heat capacity for L1_2 including metastable ranges
+title Fig 8, Heat capacity for the phases including metastable ranges
+text 0.15 5 1 0 Cp L10 metastable+stable
+
 
 @$ This is the heat capacity of the L1_2 phase.  It remains metatsble
 @$ up to 50% B but disorder to A1 arount 10% B (also as metastable)
 @$ There is a small peak of the heat capacity at x(b)=0.25, the ideal ordering
+@&
 
+pl
 
+cp
+title Fig 9, Heat capacity for all ordered forms
+text 0.05    7  1   0 Cp L1_0 metastable
+text N 0.26 11  1   0 Cp L1_2 stable
+text N 0.39 3.5 1   0 Cp L1_0 stable
+text N 0.25 0.5 0.8 0 Cp L1_0 metastable
 
+@&
 @$==========================================================================
 @$ end of sro-cef macro
 @$==========================================================================
 
 set inter
+
+FIX also:
+
+What I'm sure of:
+- As the macro stands, the two GD lines are rejected, so L0+LD0 and LD2 never get into the disordered part. The macro continues past the error, so it looks like it works, but it calculates a different model from the one the comments describe.
+- Removing the D is enough to get the parameters entered. In my test run both appeared under "Disordered fraction set parameters", and the Gibbs energies changed by about 90 J.
+
+What I haven't checked:
+- Whether the fixed macro reproduces the original results. I have no output from the time when GD still worked. The macro's own comment says L1_0 is not stable above 92.23 K at x(b)=0.5. I haven't pulled that number out of the step result yet, but it's a quick check. If you have an old plot or log from this macro, comparing against it would settle the question.
+- The "Should the ordered part cancel when disordered?" answer. The macro answers NO there. The comments next to it, though, talk about "the partitioned model" where the ordered contribution cancels and has to be added back as LD0/LD2. If NO means it doesn't cancel, the LD parameters might be counted twice. You know which answer the model intends better than I do; I'm only pointing out that the comment and the answer don't obviously match.
+- The other four macros (SROCEF-proto.OCM, proto0-redundant.OCM, map8.OCM, step4.OCM) are probably fixed the same way, but I haven't run them.
 

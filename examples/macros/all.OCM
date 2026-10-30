@@ -228,13 +228,19 @@ mac ./map19
 
 mac ./map20
 
-@$ && *********************************************************
-@$ Third test of the MQMQA model with asymmetries
+@&& *********************************************************
+@$ Third test of the MQMQA model with asymmetries using STEP
 @$ *********************************************************
 
 mac ./MQMQA-KLiNa-variants
 
 @&& *********************************************************
+@$ A final test of the MQMQA model with multivalent elements
+@$ *********************************************************
+
+@$ mac ./KNaU-MQMQA
+
+@$ && *********************************************************
 @$ Testing the CEF SRO calculations
 @$ *********************************************************
 
@@ -275,16 +281,16 @@ mac ./parallel2
 @&& *********************************************************
 @$ Assessment using fictitious binary experimental data
 @$ *********************************************************
+@$ Skipping because problems with saving on unformatted file
 
 @$ mac ./opttest1
 
-@&& *********************************************************
-@$ Assessment start of the Cu-Mg case study must be run by itself
-@$ on the directory with the macro files
+@$ && *********************************************************
+@$ Tentative assessment of the Cu-Mg binary
 @$ *********************************************************
-@$
-@$ mac ./opttest2
-@$
+
+mac ./opttest2
+
 @&&  *********************************************************
 @$ that is all and hopefully enough
 @$ *********************************************************

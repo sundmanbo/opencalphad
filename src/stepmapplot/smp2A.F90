@@ -9001,7 +9001,8 @@
 ! This is first solid appearing, change fast elements to MU conditions
           do jfast=1,nfast
              iel=mucond(jfast)%p1%statvar(1)%component
-             mucondition='MU('//trim(fast(iel))//')'
+! fast has only mfast entries, iel is the component index, use jfast
+             mucondition='MU('//trim(fast(jfast))//')'
              call get_state_var_value(mucondition,xxx,encoded,ceq)
              if(gx%bmperr.ne.0) goto 1000
              write(*,*)'SMP2A first solid, ',trim(mucondition),xxx,iadd

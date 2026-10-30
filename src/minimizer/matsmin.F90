@@ -3414,6 +3414,8 @@ if(meqrec%noofits.eq.1) then
     nextch=meqrec%noofits+4
     stoikph=.true.
     nophasechange=0
+! converged is written in the too-many-iterations message before it is set
+    converged=0
     maxphasechange=zero
 ! this is set each time the set of phases changes, controls change in T
 ! when there is a condition on y

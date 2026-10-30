@@ -32,6 +32,15 @@ time or knowledge to answer such questions.
 
 In the list below the most recent changes come first.
 
+2026.10.30 version 6.139. This may be the final release of OC6.  So
+may new things have been added so it is time to start with version 7.
+The implementation of MQMQA (with a single anion) works well and with
+the help of AI Claude a large number of bugs have been eliminated.
+There are also some minor changes in the user interface that hopefully
+will help beginners.  The assessment module and example has also been
+updated so OC can be used with the important research fitting model
+parameters to experimental and theoretical data.
+
 2026.10.12 version 6.138. Some modifications made how to set
 asymmetries for the MQMQA phase.  A lot of redundant debug information
 supressed.

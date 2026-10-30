@@ -3381,7 +3381,8 @@ CONTAINS
 !
 ! ip is cursor position (>=1), lastp is last character on line (>=0)
     integer ip,lastp,kiud,jj,kou,size,hlast
-    character line*128,ch1*1
+    integer, parameter :: lenline=128
+    character line*(lenline),ch1*1
 !    character getkey
     logical endoftext
 ! global structure myhistory
@@ -3429,6 +3430,8 @@ CONTAINS
 !    write(*,*)'got from getkey: ',ichar(ch1)
 ! handle control character
     if(ichar(ch1).ge.32 .and. ichar(ch1).lt.127) then
+! if buffer full ignore character
+       if(ip.gt.lenline) goto 100
 ! printable character, write on screen and store inline     
        if(ip.eq.lastp+1 .or. .not.insert) then
           write(kou,10,advance='no')ch1
@@ -3439,7 +3442,8 @@ CONTAINS
 ! insert a character inside a text
           line(ip+1:)=line(ip:)
           line(ip:ip)=ch1
-          lastp=lastp+1
+! if line already full drop the last character of the line
+          if(lastp.lt.lenline) lastp=lastp+1
 !          write(kou,10,advance='no')tbackspace
           write(kou,10,advance='no')line(ip:lastp)
           do jj=ip,lastp-1
@@ -3588,7 +3592,9 @@ CONTAINS
 ! saving the first line as
           myhistory%hpos=1
           myhistory%hline(myhistory%hpos)=line
-       elseif(line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
+!       elseif(line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
+! problems if ip=lenline
+       elseif(line.eq.myhistory%hline(myhistory%hpos)) then
           continue
 !          write(*,*)'Not saving same line'
        else

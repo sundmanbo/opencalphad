@@ -1,5 +1,19 @@
 ! included in smp2.F90.  Generating graphics using GNUPLOT
 
+  character*24 function screenpos()
+! returns " position x,y" to be added to the screen terminal so that each
+! new plot window is displaced 30 pixels right and down from the previous
+! one, restart at top left after 10 windows
+    integer, save :: nscreen=0
+    integer ixy
+    ixy=50+30*mod(nscreen,10)
+    nscreen=nscreen+1
+    write(screenpos,'(" position ",i0,",",i0)')ixy,ixy
+    return
+  end function screenpos
+
+!---------------------------------------------------------------------
+
 !\addtotable subroutine ocplot2
 !\begin{verbatim}
   subroutine ocplot2(ndx,maptop,axarr,graphopt,version,ceq)
@@ -1396,6 +1410,10 @@
     character labelfont*32,linespoints*12,tablename*16,year*16,hour*16
 ! for handling appended plots use $Appendx    
     character datablock*8,applot*13
+! for data from a 'plot "-"' append file copied to datablocks
+    character appblock*12
+    integer nappblock
+    logical inappblock
     logical isoplethplot
 ! write the gnuplot command file with data appended
 !
@@ -1444,8 +1462,9 @@
 840    format('#set terminal ',a/'set terminal ',a/'set output "',a,'"')
     else
 ! terminal 1 is screen without any output file, add PDF as comment
-       write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel)),&
-            trim(graphopt%gnuterminal(3))
+! screenpos displaces each new plot window a little
+       write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))//&
+            trim(screenpos()),trim(graphopt%gnuterminal(3))
 841    format('set terminal ',a/'#set terminal ',a/'#set output "ocgnu.pdf"')
 !841    format('set terminal ',a)
     endif
@@ -2100,10 +2119,11 @@
        write(*,*)'Appfile header lines: ',nofapl
        ic=0
        write(21,'(a)')'# Copying appfile data'
-! these line contain the 'plot "-" ..."
-       do jj=1,nofapl
-          write(21,'(a)')trim(applines(jj))
-       enddo
+! gnuplot does not allow plot "-" inside multiplot.  Each data set (ended
+! by a line with "e") is copied to a datablock $Appd1, $Appd2 ... and the
+! "-" (or "") in the plot command lines below replaced by the datablock name
+       nappblock=0
+       inappblock=.FALSE.
 1900   continue
 ! this is copying the actual data to plot from the append file.
 !       write(*,*)'Copying appfile data'
@@ -2112,11 +2132,46 @@
        ic=ic+1
 ! skip pause mouse
        if(appline(1:12).eq.'pause mouse ') goto 1900
+! a single "e" ends a data set
+       if(trim(appline).eq.'e') then
+          if(inappblock) write(21,884)'EOD'
+          inappblock=.FALSE.
+          goto 1900
+       endif
+! the first data line of a data set starts a new datablock
+       if(.not.inappblock .and. appline(1:1).ne.'#' .and. &
+            len_trim(appline).gt.0) then
+          nappblock=nappblock+1
+          write(21,'("$Appd",i0," << EOD")')nappblock
+          inappblock=.TRUE.
+       endif
        write(21,884)trim(appline)
        goto 1900
 ! end of copying appfile data
 1910   continue
+       if(inappblock) write(21,884)'EOD'
        write(*,*)'Appended ',ic,' data lines'
+! these line contain the 'plot "-" ...", replace "-" with datablock names
+       kk=0
+       do jj=1,nofapl
+          appline=applines(jj)
+! iz is the length of "-" or ""
+          iz=3
+          ii=index(appline,'"-"')
+          if(ii.le.0) ii=index(appline,"'-'")
+          if(ii.le.0) then
+! "" means next data set only at the beginning of a continuation line
+             iz=2
+             ii=index(appline,'""')
+             if(ii.ne.verify(appline,' ')) ii=0
+          endif
+          if(ii.gt.0) then
+             kk=kk+1
+             write(appblock,'("$Appd",i0)')kk
+             appline=appline(1:ii-1)//trim(appblock)//appline(ii+iz:)
+          endif
+          write(21,'(a)')trim(appline)
+       enddo
 !       if(multibuffline.gt.0) then
 ! ocplot2B  add multiple plot "multplot" commands ....
 !          write(*,*)'ocplot2B adding prevous multplot ...',multibuffline
@@ -2709,8 +2764,9 @@
 ! 840    format('set terminal ',a/'set output "',a,'"')
     else
 ! terminal 1 is screen without any output file, add PDF as comment
-       write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel)),&
-            trim(graphopt%gnuterminal(3))
+! screenpos displaces each new plot window a little
+       write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))//&
+            trim(screenpos()),trim(graphopt%gnuterminal(3))
 841    format('set terminal ',a/'#set terminal ',a/'#set output "ocgnu.pdf"')
 !841    format('set terminal ',a)
     endif
@@ -2718,6 +2774,8 @@
 !       write(*,*)'Gibbs triangle diagrams are under development!'
 ! xmax should be the largest scale value of x and y axis (same length!!)
        xmax=one
+! xmin and ymin are written as axis labels below
+       xmin=zero; ymin=zero
        plotgt=.true.
        if(graphopt%rangedefaults(1).ne.0) then
           xmax=min(xmax,graphopt%plotmax(1))

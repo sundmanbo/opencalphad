@@ -2449,6 +2449,8 @@ end subroutine get_condition
         ' or NONE for no default')
    name=' '
    ky=0
+! xxx is not set by getrel if the answer is not a number
+   xxx=zero
    do ll=1,phlista(lokph)%noofsubl
       if(phlista(lokph)%nooffr(ll).gt.1) then
 ! more than one constituent

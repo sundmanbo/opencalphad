@@ -109,7 +109,8 @@ enter param G(part,Fe,Ni:Fe,Ni:*:*),,GSRO; 6000 N test
 amend biblio test VASP calculation by test;
 
 @$ These are possible disordered parameters
-enter param GD(part,Fe,Ni;0),,L0; 6000 N test
+@$ enter param GD(part,Fe,Ni;0),,L0; 6000 N test
+enter param G(part,Fe,Ni;0),,L0; 6000 N test
 
 
 list data ,,

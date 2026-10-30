@@ -5110,6 +5110,8 @@
          goto 100
       endif
       nytypedef=nytypedef+1
+! typedefaction is not set below for all kinds of TYPE_DEF
+      typedefaction(nytypedef)=0
       typedefchar(nytypedef)=longline(nextc+1:nextc+1)
 ! in TC the same typedef "letter" can be used several times
       do ip=1,nooftypedefs

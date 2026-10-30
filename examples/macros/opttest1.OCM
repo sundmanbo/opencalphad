@@ -327,7 +327,7 @@ l opt short
 
 @$ Save the results to take a coffee break
 
-@$ Answer Y if file already exist
+@$ Answer Y if file already exist so it is overwritten
 save unf ./opttest1
 Y
 
@@ -336,6 +336,7 @@ Y
 @$ Back from coffee break
 @$ =========================
 new Y
+
 
 @$ ******************************************************************
 @$ rerun the optimization with larger experimental uncertainties for Cp
@@ -349,6 +350,12 @@ l opt short
 l symb
 
 
+@$ *************************************
+@$ PROBLEM, no experimental data, check OCU format
+
+exit
+
+@$ *************************************
 @$ Assuming the experiment of Cp are less reliable than HDIFF we can
 @$ increase their uncertainty of the Cp values.
 @&
