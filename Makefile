@@ -1,9 +1,9 @@
 #
 # Modified 2020.04.25 for the new direcory structure.  Bo Sundman
 #
-OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o minpack1.o  gtp3.o matsmin.o smp2.o pmon6.o
+OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o minpack1.o  gtp3.o matsmin.o smp2.o pmon7.o
 LIBS=liboctq.o liboctqisoc.o liboctqcpp.o
-EXE=oc6P
+EXE=oc7P
 
 #
 # IMPORTANT 1. select getkey version 
@@ -135,14 +135,14 @@ smp2.o:		src/stepmapplot/smp2.F90
 	$(FC) -c $(FCOPT) -Dnotwin src/stepmapplot/smp2.F90
 
 # IMPORTANT 2: select GNUPLOT terminal
-pmon6.o:	src/userif/pmon6.F90
+pmon7.o:	src/userif/pmon7.F90
 	# default wxt graphical driver
 	# use -Dqtplt for Qt or (also smaller window)
 	# use -Daqplt for aqua plot drivers (also smaller window)
 	# use -Dx11 for X11 plot drivers DEFAULT
 	# use -Dlixhlp for online help in Linux
 	# use -Dmachlp for online help in MacOS (browser)
-	$(FC) -c $(FCOPT) -Dx11 -Dlixhlp src/userif/pmon6.F90
+	$(FC) -c $(FCOPT) -Dx11 -Dlixhlp src/userif/pmon7.F90
 
 liboctq.o:	./examples//TQ4lib/Cpp/liboctq.F90
 	$(FC) -c -g $(FCOPT) ./examples/TQ4lib/Cpp/liboctq.F90
@@ -167,5 +167,5 @@ $(EXE):
 	# you have forgotten to uncomment a line above at getkey.o !!
 	# static: $(FC) -o $(EXE) $(FCOPT) -static-libgfortran pmain1.F90 $(OBJS) liboceq.a
 	#$(FC) -o $(EXE) $(FCOPT) src/pmain1.F90 $(OBJS) libs/liboceq.a
-	$(FC) -o $(EXE) $(FCOPT) src/pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o getkey.o libs/liboceq.a
+	$(FC) -o $(EXE) $(FCOPT) src/pmain1.F90 pmon7.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o getkey.o libs/liboceq.a
 

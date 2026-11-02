@@ -92,8 +92,8 @@ contains
 ! argline and narg are inline arguments
     character linkdate*(*),version*(*),argline(*)*(*)
     integer narg
-! various symbols and texts, version 6
-    character :: ocprompt*8='--->OC6:'
+! various symbols and texts, version 7
+    character :: ocprompt*8='--->OC7:'
     character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort*1
     integer, parameter :: ocmonversion=75
 ! for the on-line help, at present turn off by default, if a HTML file set TRUE
@@ -4835,7 +4835,7 @@ contains
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
 ! subroutines extracted from oc_command_monitor
-#include "pmon6A.F90"
+#include "pmon7A.F90"
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

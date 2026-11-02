@@ -62,7 +62,7 @@ FCOPT = $(FCOMP)
 #==============================================================================
 OBJS = getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o \
        ocparam.o metlib4.o oclablas.o ocnum.o minpack1.o \
-       gtp3.o matsmin.o smp2.o pmon6.o
+       gtp3.o matsmin.o smp2.o pmon7.o
 
 #==============================================================================
 # gtp3.F90 pulls in these files via #include — list them so a change
@@ -137,8 +137,8 @@ smp2.o: src/stepmapplot/smp2.F90 $(SMP2_INCS) matsmin.o
 	$(FC) -c $(FCOPT) $(WINFLAG) src/stepmapplot/smp2.F90
 
 # PLOTFLAG: -Dqtplt (Darwin/Qt), -Daqplt (Aqua), or empty (wxt default)
-pmon6.o: src/userif/pmon6.F90 smp2.o
-	$(FC) -c $(FCOPT) $(PLOTFLAG) $(HELPFLAG) src/userif/pmon6.F90
+pmon7.o: src/userif/pmon7.F90 smp2.o
+	$(FC) -c $(FCOPT) $(PLOTFLAG) $(HELPFLAG) src/userif/pmon7.F90
 
 #==============================================================================
 # Link
