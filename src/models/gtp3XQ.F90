@@ -54,6 +54,11 @@
 ! list_ternary_cations listing of vk_ij, xi_ij and y_k expressions
 ! list_mqmqa_variables list MQMQA variables expressions and values
 ! list_tersys          lists ternary systems
+! list_mqmqa_asym2     lists quads, groups and ternaries for several anions
+! mqmqa_asymsets2      asymmetric constituents of a binary, several anions
+! list_mqmqa_var2      lists quad, pair and binary fractions, several anions
+! mqmqa_quad_of_species  constituent index of a quad species
+! list_quads_as_species  LIST QUADS AS_SPECIES or SHORT, x_ABxy and quad name
 ! list_compvar         lists composition variables
 ! quad2cat             extract cation indices (one or two) from a quad
 ! -------------------- no more
@@ -82,6 +87,7 @@
    type(gtp_phase_varres), pointer :: phvar
    integer moded,lokph
    double precision tval
+!\end{verbatim}
 ! modified arguments for call
    integer ncon
 ! fq is max number of quads
@@ -1258,6 +1264,1416 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
+!\addtotable subroutine config_entropy_mqmqa2
+!\begin{verbatim}
+ subroutine config_entropy_mqmqa2(phvar,moded,lokph,tval)
+! Claude 2026.11.06: MQMQA configurational entropy for any number of
+! cations and anions, used when there are 2 or more anions.  The old
+! routine config_entropy_mqmqa1 is kept unchanged for a single anion.
+! The model is FactSage SUBQ as in Thermochimica
+! (CompExcessGibbsEnergySUBG.f90).  For each quad q = AB/XY the
+! contribution to G/RT per mole of quads, mu_q, is
+!   sum_s (1/Z^s_q) ln X_s                          s = A,B,X,Y sites
+! + sum_ik (m_iq*m_kq/zeta_ik) ln( X*_ik/(F_i F_k) )   pairs i/k in q
+! + ln( X_q / ( W_q (X_AX X_AY X_BX X_BY)^0.75 / (Y_A Y_B Y_X Y_Y)^0.5 ))
+! X_s site fractions, X*_ik zeta-weighted pair fractions, F_i=sum_k X*_ik,
+! X_ik pair fractions, Y_s equivalent fractions, m_iq = 1 or 2 is the number
+! of i in q and W_q=1, 2 or 4 (2 for each sublattice with 2 constituents).
+! Every logarithm is of a ratio of sums L_k = sum_q a(k,q) y_q, i.e.
+!   mu_q = sum_k c(q,k) ln L_k - ln W_q
+! and for these sums G = sum_q y_q mu_q, dG/dy_q = mu_q and
+! d2G/dy_q dy_r = sum_k c(q,k) a(k,r)/L_k exactly.  As in the old routine
+! the fractions X_q are y_q, not y_q/sum(y), i.e. S*ln(S), S=sum_q y_q,
+! is added to G (zero at S=1, adds 1 to dG/dy and 1/S to d2G/dy2).
+! Values are G/RT for one formula unit stored as in config_entropy_mqmqa1.
+   implicit none
+   type(gtp_phase_varres), pointer :: phvar
+   integer moded,lokph
+   double precision tval
+!\end{verbatim}
+   integer ncon,nc,na,np,q,r,s,k,i,x,p,ii,jj
+   integer kNc,kNct,kNa,kNat,kS,kSi,kSx,kSt,kP,kPt,kYc,kYa,kSum,kQ
+   integer cat(2),an(2),ncq,naq,nterms
+   double precision zz(4),zc(2),za(2),w,ss,gg
+   double precision, allocatable :: aa(:,:),cc(:,:),ll(:),lnl(:),cw(:)
+   double precision, allocatable :: mu(:),h2(:,:)
+   integer, allocatable :: pidx(:,:)
+   double precision, parameter :: lmin=1.0D-300
+!
+   ncon=phlista(lokph)%tnooffr
+   nc=mqmqa_data%ncon1
+   na=mqmqa_data%ncon2
+   np=mqmqa_data%npair
+! index of the first-1 position of each kind of sum L_k
+   kNc=0                ! N_i cation sites, i=1..nc
+   kNct=kNc+nc+1        ! sum of N_i
+   kNa=kNct             ! N_x anion sites, x=1..na
+   kNat=kNa+na+1        ! sum of N_x
+   kS=kNat              ! n*_ik, p=1..np
+   kSi=kS+np            ! n*_i. = sum_k n*_ik
+   kSx=kSi+nc           ! n*_.k
+   kSt=kSx+na+1         ! N* = sum n*_ik
+   kP=kSt               ! n_ik pair amounts
+   kPt=kP+np+1          ! sum n_ik
+   kYc=kPt              ! Y_i numerator, cations
+   kYa=kYc+nc           ! Y_x numerator, anions
+   kSum=kYa+na+1        ! sum of y_q
+   kQ=kSum              ! y_q itself
+   nterms=kQ+ncon
+   allocate(aa(nterms,ncon),cc(ncon,nterms),ll(nterms),lnl(nterms))
+   allocate(cw(ncon),mu(ncon),h2(ncon,ncon),pidx(nc,na))
+   aa=zero; cc=zero; cw=zero
+! pair index of cation i and anion x
+   pidx=0
+   do q=1,ncon
+      p=mqmqa_data%contyp(5,q)
+      if(p.gt.0) then
+         i=mqmqa_data%contyp(11,q)
+         x=-mqmqa_data%contyp(12,q)
+         if(i.lt.1 .or. i.gt.nc .or. x.lt.1 .or. x.gt.na) then
+            write(*,*)'3XQ entropy2: wrong pair indices',q,i,x
+            gx%bmperr=4399; goto 1000
+         endif
+         pidx(i,x)=p
+      endif
+   enddo
+!------------------------------------------------------------
+! the coefficients a(k,q) of the sums and c(q,k) of the logarithms
+   quads: do q=1,ncon
+      zz=mqmqa_data%constoi(1:4,q)
+      cat=0; an=0; ncq=0; naq=0
+      if(mqmqa_data%contyp(5,q).gt.0) then
+! a pair A/X, i.e. AA/XX, Z^A and Z^X in constoi(1..2)
+         ncq=1; naq=1
+         cat(1)=mqmqa_data%contyp(11,q); zc(1)=zz(1)
+         an(1)=-mqmqa_data%contyp(12,q); za(1)=zz(2)
+      else
+! cations (positive) followed by anions (negative) in contyp(11..14)
+         do s=1,4
+            jj=mqmqa_data%contyp(10+s,q)
+            if(jj.gt.0) then
+               ncq=ncq+1; cat(ncq)=jj; zc(ncq)=zz(s)
+            elseif(jj.lt.0) then
+               naq=naq+1; an(naq)=-jj; za(naq)=zz(s)
+            endif
+         enddo
+      endif
+      if(ncq.lt.1 .or. naq.lt.1) then
+         write(*,*)'3XQ entropy2: quad without cation or anion',q
+         gx%bmperr=4399; goto 1000
+      endif
+      cw(q)=one
+      if(ncq.eq.1) then
+         cat(2)=cat(1); zc(2)=zc(1)
+      else
+         cw(q)=2.0D0*cw(q)
+      endif
+      if(naq.eq.1) then
+         an(2)=an(1); za(2)=za(1)
+      else
+         cw(q)=2.0D0*cw(q)
+      endif
+! site amounts, both sites of each sublattice (same species twice if alone)
+      do s=1,2
+         i=cat(s)
+         aa(kNc+i,q)=aa(kNc+i,q)+one/zc(s)
+         aa(kNct,q)=aa(kNct,q)+one/zc(s)
+         cc(q,kNc+i)=cc(q,kNc+i)+one/zc(s)
+         cc(q,kNct)=cc(q,kNct)-one/zc(s)
+         x=an(s)
+         aa(kNa+x,q)=aa(kNa+x,q)+one/za(s)
+         aa(kNat,q)=aa(kNat,q)+one/za(s)
+         cc(q,kNa+x)=cc(q,kNa+x)+one/za(s)
+         cc(q,kNat)=cc(q,kNat)-one/za(s)
+! equivalent fractions Y, numerators m/2, the denominator is sum y_q
+         aa(kYc+i,q)=aa(kYc+i,q)+0.5D0
+         aa(kYa+x,q)=aa(kYa+x,q)+0.5D0
+         cc(q,kYc+i)=cc(q,kYc+i)+0.5D0
+         cc(q,kYa+x)=cc(q,kYa+x)+0.5D0
+         cc(q,kSum)=cc(q,kSum)-one
+      enddo
+! the pairs in the quad, each of the 4 combinations of the sites
+      do ii=1,2
+         do jj=1,2
+            i=cat(ii); x=an(jj)
+            p=pidx(i,x)
+            if(p.le.0) then
+               write(*,*)'3XQ entropy2: missing pair for quad',q,i,x
+               gx%bmperr=4399; goto 1000
+            endif
+! pair amounts n_ik, each combination adds 1, together m_i*m_k
+            aa(kP+p,q)=aa(kP+p,q)+one
+            aa(kPt,q)=aa(kPt,q)+one
+            cc(q,kP+p)=cc(q,kP+p)-0.75D0
+            cc(q,kPt)=cc(q,kPt)+0.75D0
+! zeta weighted pair amounts n*_ik
+            w=one/mqmqa_data%qfnnsnn(p)
+            aa(kS+p,q)=aa(kS+p,q)+w
+            aa(kSi+i,q)=aa(kSi+i,q)+w
+            aa(kSx+x,q)=aa(kSx+x,q)+w
+            aa(kSt,q)=aa(kSt,q)+w
+            cc(q,kS+p)=cc(q,kS+p)+w
+            cc(q,kSt)=cc(q,kSt)+w
+            cc(q,kSi+i)=cc(q,kSi+i)-w
+            cc(q,kSx+x)=cc(q,kSx+x)-w
+         enddo
+      enddo
+! the quad itself
+      aa(kQ+q,q)=one
+      aa(kSum,q)=one
+      cc(q,kQ+q)=cc(q,kQ+q)+one
+      cc(q,kSum)=cc(q,kSum)-one
+   enddo quads
+!------------------------------------------------------------
+! the sums, their logarithms and mu_q
+   do k=1,nterms
+      ss=zero
+      do q=1,ncon
+         ss=ss+aa(k,q)*phvar%yfr(q)
+      enddo
+      ll(k)=max(ss,lmin)
+      lnl(k)=log(ll(k))
+   enddo
+   ss=ll(kSum)
+   gg=zero
+   do q=1,ncon
+      mu(q)=-log(cw(q))
+      do k=1,nterms
+         if(cc(q,k).ne.zero) mu(q)=mu(q)+cc(q,k)*lnl(k)
+      enddo
+      gg=gg+phvar%yfr(q)*mu(q)
+   enddo
+! add S*ln(S), X_q=y_q as in the old routine
+   gg=gg+ss*log(ss)
+   phvar%gval(1,1)=phvar%gval(1,1)+gg
+   phvar%gval(2,1)=phvar%gval(2,1)+gg/tval
+   if(moded.gt.0) then
+      do q=1,ncon
+         w=mu(q)+log(ss)+one
+         phvar%dgval(1,q,1)=phvar%dgval(1,q,1)+w
+         phvar%dgval(2,q,1)=phvar%dgval(2,q,1)+w/tval
+      enddo
+   endif
+   if(moded.gt.1) then
+      h2=zero
+      do q=1,ncon
+         do k=1,nterms
+            if(cc(q,k).eq.zero) cycle
+            w=cc(q,k)/ll(k)
+            do r=1,ncon
+               if(aa(k,r).ne.zero) h2(q,r)=h2(q,r)+w*aa(k,r)
+            enddo
+         enddo
+      enddo
+      do q=1,ncon
+         do r=q,ncon
+            phvar%d2gval(ixsym(q,r),1)=0.5D0*(h2(q,r)+h2(r,q))+one/ss
+         enddo
+      enddo
+   endif
+!------------------------------------------------------------
+! fractions needed by excess parameters and listings, as config_entropy_mqmqa1
+! yy1, yy2 site fractions, ceqf1, ceqf2 equivalent fractions, pair fractions
+   if(.not.allocated(phvar%mqmqaf%yy1)) then
+      phvar%mqmqaf%nquad=ncon; phvar%mqmqaf%npair=np
+      phvar%mqmqaf%ns1=nc; phvar%mqmqaf%ns2=na
+      allocate(phvar%mqmqaf%yy1(nc),phvar%mqmqaf%yy2(na))
+      allocate(phvar%mqmqaf%dyy1(nc,ncon),phvar%mqmqaf%dyy2(na,ncon))
+      allocate(phvar%mqmqaf%d2yy1(nc,ncon*(ncon+1)/2))
+      allocate(phvar%mqmqaf%d2yy2(na,ncon*(ncon+1)/2))
+      allocate(phvar%mqmqaf%ceqf1(nc),phvar%mqmqaf%ceqf2(na))
+      allocate(phvar%mqmqaf%dceqf1(nc,ncon),phvar%mqmqaf%dceqf2(na,ncon))
+      allocate(phvar%mqmqaf%pair(np),phvar%mqmqaf%dpair(np,ncon))
+      phvar%mqmqaf%d2yy1=zero; phvar%mqmqaf%d2yy2=zero
+   endif
+   do i=1,nc
+      phvar%mqmqaf%yy1(i)=ll(kNc+i)/ll(kNct)
+      phvar%mqmqaf%ceqf1(i)=ll(kYc+i)/ss
+      do q=1,ncon
+         phvar%mqmqaf%dyy1(i,q)=(aa(kNc+i,q)-&
+              phvar%mqmqaf%yy1(i)*aa(kNct,q))/ll(kNct)
+         phvar%mqmqaf%dceqf1(i,q)=(aa(kYc+i,q)-phvar%mqmqaf%ceqf1(i))/ss
+      enddo
+   enddo
+   do x=1,na
+      phvar%mqmqaf%yy2(x)=ll(kNa+x)/ll(kNat)
+      phvar%mqmqaf%ceqf2(x)=ll(kYa+x)/ss
+      do q=1,ncon
+         phvar%mqmqaf%dyy2(x,q)=(aa(kNa+x,q)-&
+              phvar%mqmqaf%yy2(x)*aa(kNat,q))/ll(kNat)
+         phvar%mqmqaf%dceqf2(x,q)=(aa(kYa+x,q)-phvar%mqmqaf%ceqf2(x))/ss
+      enddo
+   enddo
+   do p=1,np
+      phvar%mqmqaf%pair(p)=ll(kP+p)/ll(kPt)
+      do q=1,ncon
+         phvar%mqmqaf%dpair(p,q)=(aa(kP+p,q)-&
+              phvar%mqmqaf%pair(p)*aa(kPt,q))/ll(kPt)
+      enddo
+   enddo
+1000 continue
+   return
+ end subroutine config_entropy_mqmqa2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine mqmqa_groups2
+!\begin{verbatim}
+ subroutine mqmqa_groups2(line)
+! Claude 2026.11.06: chemical groups and exceptions for MQMQA with several
+! anions, same TDB syntax as set_tdbgroups:
+!     GROUPS NA K LI ; MG CA ; ... ; / CL I ;
+!     EXCEPTIONS MG;NA,K/CL NA,MG,U2/CL ... !
+! line is the text after GROUPS.  The result is stored in mqmqa_data%catgroup,
+! %angroup, %excat and %nexc and used by mqmqa_excess2.  The rule is the same
+! as in Thermochimica: for a binary A-B with A and B in different groups a
+! third cation in the group of A (or B) is asymmetric (Toop) with A (or B),
+! otherwise symmetric (Kohler).  The same for anions.  X;A,B (or X:A,B) means
+! X is the Toop cation in X-A-B, A,B,C symmetric.  /anion means only for that
+! anion, without anion for all anions.
+   implicit none
+   character line*(*)
+!\end{verbatim}
+   integer nc,na,ip,ngrp,kk,k1,k2,ic,ia,toop,jc,ignored,ian
+   character token*80,cname(3)*24
+   logical exceptions,anions,lastsemi
+   integer cats(3)
+!
+   nc=mqmqa_data%ncon1
+   na=mqmqa_data%ncon2
+   if(allocated(mqmqa_data%catgroup)) deallocate(mqmqa_data%catgroup)
+   if(allocated(mqmqa_data%angroup)) deallocate(mqmqa_data%angroup)
+   if(allocated(mqmqa_data%excat)) deallocate(mqmqa_data%excat)
+   allocate(mqmqa_data%catgroup(nc),mqmqa_data%angroup(na))
+   allocate(mqmqa_data%excat(5,100))
+   mqmqa_data%catgroup=0; mqmqa_data%angroup=0; mqmqa_data%excat=0
+   mqmqa_data%nexc=0
+   ngrp=1; ignored=0
+   exceptions=.FALSE.; anions=.FALSE.; lastsemi=.FALSE.
+   ip=1
+   groups: do while(next_token2(line,ip,token,.TRUE.))
+      if(token.eq.'EXCEPTIONS') then
+         exceptions=.TRUE.
+         exit groups
+      elseif(token(1:1).eq.'/') then
+         if(lastsemi) ngrp=ngrp-1
+         anions=.TRUE.
+         if(len_trim(token).gt.1) then
+! the first anion directly after /
+            ia=anion_index(token(2:))
+            if(ia.gt.0) mqmqa_data%angroup(ia)=ngrp
+         endif
+      elseif(token.eq.';') then
+         ngrp=ngrp+1
+         lastsemi=.TRUE.
+         cycle groups
+      elseif(anions) then
+         ia=anion_index(token)
+         if(ia.gt.0) then
+            mqmqa_data%angroup(ia)=ngrp
+         else
+            ignored=ignored+1
+         endif
+      else
+         ic=cation_index(token)
+         if(ic.gt.0) then
+            if(mqmqa_data%catgroup(ic).ne.0) then
+               write(kou,100)trim(token)
+100            format('3XQ Cation ',a,' in more than one group, ignored')
+            else
+               mqmqa_data%catgroup(ic)=ngrp
+            endif
+         else
+            ignored=ignored+1
+         endif
+      endif
+      lastsemi=.FALSE.
+   enddo groups
+! a constituent in no group is in a group of its own
+   do ic=1,nc
+      if(mqmqa_data%catgroup(ic).eq.0) then
+         ngrp=ngrp+1; mqmqa_data%catgroup(ic)=ngrp
+      endif
+   enddo
+   do ia=1,na
+      if(mqmqa_data%angroup(ia).eq.0) then
+         ngrp=ngrp+1; mqmqa_data%angroup(ia)=ngrp
+      endif
+   enddo
+!------------ exceptions
+   if(exceptions) then
+      except: do while(next_token2(line,ip,token,.FALSE.))
+         ian=0
+         kk=index(token,'/')
+         if(kk.gt.0) then
+            ian=anion_index(token(kk+1:))
+            if(ian.eq.0) then
+               ignored=ignored+1
+               cycle except
+            endif
+            token(kk:)=' '
+         endif
+         toop=0
+         kk=index(token,':')
+         if(kk.eq.0) kk=index(token,';')
+         if(kk.gt.0) then
+            toop=1
+            token(kk:kk)=','
+         endif
+         k1=index(token,',')
+         k2=index(token(k1+1:),',')+k1
+         if(k1.le.1 .or. k2.le.k1+1 .or. k2.ge.len_trim(token) .or. &
+              index(token(k2+1:),',').gt.0) then
+            write(kou,200)trim(token)
+200         format('3XQ Illegal ternary exception ignored: ',a)
+            cycle except
+         endif
+         cname(1)=token(1:k1-1)
+         cname(2)=token(k1+1:k2-1)
+         cname(3)=token(k2+1:)
+         do jc=1,3
+            cats(jc)=cation_index(cname(jc))
+            if(cats(jc).eq.0) then
+               ignored=ignored+1
+               cycle except
+            endif
+         enddo
+         if(mqmqa_data%nexc.ge.size(mqmqa_data%excat,2)) then
+            write(kou,*)'3XQ Too many ternary exceptions, rest ignored'
+            exit except
+         endif
+         mqmqa_data%nexc=mqmqa_data%nexc+1
+         mqmqa_data%excat(1:3,mqmqa_data%nexc)=cats
+         if(toop.gt.0) mqmqa_data%excat(4,mqmqa_data%nexc)=cats(1)
+         mqmqa_data%excat(5,mqmqa_data%nexc)=ian
+      enddo except
+   endif
+   write(kou,310)ngrp,mqmqa_data%nexc
+310 format('3XQ Chemical groups: ',i3,', exceptions: ',i3,&
+         ' (MQMQA with several anions)')
+   return
+ contains
+!
+   logical function next_token2(text,jp,tok,semi)
+! next token separated by spaces, if semi is TRUE ; is a token by itself
+! FALSE at the end of text or at !
+   character text*(*),tok*(*)
+   integer jp,jq
+   logical semi
+   tok=' '
+   next_token2=.FALSE.
+   do while(jp.le.len_trim(text))
+      if(text(jp:jp).ne.' ') exit
+      jp=jp+1
+   enddo
+   if(jp.gt.len_trim(text)) return
+   if(text(jp:jp).eq.'!') return
+   if(semi .and. text(jp:jp).eq.';') then
+      tok=';'
+      jp=jp+1
+   else
+      jq=jp
+      do while(jq.le.len_trim(text))
+         if(text(jq:jq).eq.' ' .or. text(jq:jq).eq.'!' .or. &
+              (semi .and. text(jq:jq).eq.';')) exit
+         jq=jq+1
+      enddo
+      tok=text(jp:jq-1)
+      jp=jq
+   endif
+   next_token2=.TRUE.
+   end function next_token2
+!
+   integer function cation_index(cat)
+! sublattice index of a cation from its species name, 0 if not a cation
+   character cat*(*)
+   integer jj
+   cation_index=0
+   do jj=1,size(mqmqa_data%cat2species)
+      if(splista(mqmqa_data%cat2species(jj))%symbol.eq.cat) then
+         cation_index=jj
+         return
+      endif
+   enddo
+   end function cation_index
+!
+   integer function anion_index(an)
+! sublattice index of an anion from its species name, 0 if not an anion
+   character an*(*)
+   integer jj
+   anion_index=0
+   do jj=1,size(mqmqa_data%an2species)
+      if(mqmqa_data%an2species(jj).le.0) cycle
+      if(splista(mqmqa_data%an2species(jj))%symbol.eq.an) then
+         anion_index=jj
+         return
+      endif
+   enddo
+   end function anion_index
+ end subroutine mqmqa_groups2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine mqmqa_excess2
+!\begin{verbatim}
+ subroutine mqmqa_excess2(lokph,phres,ceq,moded)
+! Claude 2026.11.06: MQMQA excess parameters when there are several anions,
+! the FactSage SUBQ formulation as in Thermochimica
+! (CompExcessGibbsEnergySUBG.f90).  A binary parameter has 3 quads, a block
+! quad AB/XX (cation binary A-B with anion X) or AA/XY (anion binary X-Y with
+! cation A) and the two pairs A/X, B/X or A/X, A/Y.  The p power belongs to
+! the pair with the lowest constituent index (A or X), q to the other one.
+!  G type: L * chi_1^p * chi_2^q
+!  Q type: L * xi_1^p * xi_2^q / (xi_1+xi_2)^(p+q)
+! The chi are fractions of quads, in a cation binary A-B with anion X
+!  chi_1 = sum(quads i,j/k,l with i,j in S1, weight) / sum(i,j in S1 or S2)
+! with weight 1 if k=l=X, 0.5 if one of k,l is X, otherwise 0.  S1 has A and
+! the cations asymmetric with A (Toop), S2 has B and those asymmetric with B.
+! The xi are sums of the pair fractions i/X for i in S1 or S2 (/4).
+! Anion binaries the same with cations and anions exchanged.
+! The parameter is multiplied with y_block + sum of y_q for quads AB/XZ
+! (cation binary) or AC/XY (anion binary) times Z^X_block/(2*Z^X_q) or
+! Z^A_block/(2*Z^A_q).  The TDB values are half of the DAT values.
+! Each term is L * product_m (a_m . y)^e_m with linear a_m, so the first and
+! second derivatives are exact:
+!   dF/dy_r = F sum_m e_m a_mr/L_m
+!   d2F/dy_r dy_s = F (g_r g_s - sum_m e_m a_mr a_ms/L_m^2)
+! Ternary (4 quads), B and R type parameters are not yet implemented.
+   implicit none
+   integer lokph,moded
+   type(gtp_phase_varres), pointer :: phres
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   type(gtp_endmember), pointer :: endmemrec
+   type(gtp_interaction), pointer :: int1,int2,int3
+   integer ncon,nc,na,q,cons(4)
+   integer, allocatable :: qc(:,:),qa(:,:)
+   double precision rtg
+   logical, save :: warn1=.TRUE.,warn2=.TRUE.
+!
+   ncon=phlista(lokph)%tnooffr
+   nc=mqmqa_data%ncon1
+   na=mqmqa_data%ncon2
+   rtg=globaldata%rgas*ceq%tpval(1)
+! cations and anions of all quads
+   allocate(qc(2,ncon),qa(2,ncon))
+   do q=1,ncon
+      call mqmqa_quad_cat_an(q,qc(1,q),qc(2,q),qa(1,q),qa(2,q))
+   enddo
+! loop through the parameter tree
+   endmemrec=>phlista(lokph)%ordered
+   do while(associated(endmemrec))
+      cons(1)=endmemrec%fraclinks(1,1)
+! the G parameter of an SNN quad, for AB/XX and AA/XY quads it is also added
+! to the reciprocal quads AB/XZ and AC/XY like the excess parameters
+      if(mqmqa_data%contyp(5,cons(1)).eq.0) then
+         call endmemparam(cons(1))
+         if(gx%bmperr.ne.0) goto 1000
+      endif
+      int1=>endmemrec%intpointer
+      do while(associated(int1))
+         cons(2)=int1%fraclink(1)
+         call oneparam(int1,2)
+         if(gx%bmperr.ne.0) goto 1000
+         int2=>int1%highlink
+         do while(associated(int2))
+            cons(3)=int2%fraclink(1)
+            call oneparam(int2,3)
+            if(gx%bmperr.ne.0) goto 1000
+            int3=>int2%highlink
+            do while(associated(int3))
+               cons(4)=int3%fraclink(1)
+               call oneparam(int3,4)
+               if(gx%bmperr.ne.0) goto 1000
+               int3=>int3%nextlink
+            enddo
+            int2=>int2%nextlink
+         enddo
+         int1=>int1%nextlink
+      enddo
+      endmemrec=>endmemrec%nextem
+   enddo
+1000 continue
+   return
+ contains
+!------------------------------------------------------------------
+   subroutine oneparam(intrec,nq)
+! all property records of interaction record intrec with nq quads in cons
+! nq=3 binary, nq=4 ternary (block AB/XX, A/X, B/X and D/X)
+   type(gtp_interaction), pointer :: intrec
+   integer nq
+   type(gtp_property), pointer :: proprec
+   integer jj,blk,e1,e2,ed,ia,ib,id,ix,iy,ppow,qpow,rpow,i,j,k,l,s,r,nf,q
+   integer lokfun,npair,pp(3)
+   logical catbin,s1(max(nc,na)),s2(max(nc,na))
+   double precision tpf(6),w
+   double precision av(ncon,7),ex(7),xi1(ncon),xi2(ncon),yd(ncon),yo(ncon)
+   proprec=>intrec%propointer
+   props: do while(associated(proprec))
+      if(proprec%proptype.lt.34 .or. proprec%proptype.gt.36) then
+         proprec=>proprec%nextpr; cycle props
+      endif
+      if(proprec%proptype.eq.36) then
+         if(warn1) write(kou,10)
+10       format('3XQ Warning: B type MQMQA parameters not yet',&
+              ' implemented for several anions, ignored')
+         warn1=.FALSE.
+         proprec=>proprec%nextpr; cycle props
+      endif
+! the block quad is the one which is not a pair
+      blk=0; npair=0
+      do jj=1,nq
+         if(mqmqa_data%contyp(5,cons(jj)).eq.0) then
+            if(blk.ne.0) blk=-1
+            if(blk.eq.0) blk=cons(jj)
+         else
+            npair=npair+1; pp(npair)=cons(jj)
+         endif
+      enddo
+      if(blk.le.0 .or. (nq.ne.3 .and. nq.ne.4)) goto 800
+      catbin=qc(1,blk).ne.qc(2,blk)
+      if(.not.catbin .and. nq.eq.4) goto 800
+! e1 < e2 are the pairs of the binary, ed the third cation of a ternary
+      e1=0; e2=0; ed=0
+      do jj=1,npair
+         if(catbin) then
+            if(mqmqa_data%pair2an(mqmqa_data%contyp(5,pp(jj))).ne.qa(1,blk)) &
+                 goto 800
+            i=mqmqa_data%pair2cat(mqmqa_data%contyp(5,pp(jj)))
+            if(i.ne.qc(1,blk) .and. i.ne.qc(2,blk)) then
+               ed=pp(jj); cycle
+            endif
+         endif
+         if(e1.eq.0) then
+            e1=pp(jj)
+         else
+            e2=pp(jj)
+         endif
+      enddo
+      if(e2.eq.0 .or. (nq.eq.4 .and. ed.eq.0)) goto 800
+      if(catbin) then
+         ia=mqmqa_data%pair2cat(mqmqa_data%contyp(5,e1))
+         ib=mqmqa_data%pair2cat(mqmqa_data%contyp(5,e2))
+         ix=qa(1,blk); iy=ix
+      else
+         ia=qc(1,blk); ib=ia
+         ix=mqmqa_data%pair2an(mqmqa_data%contyp(5,e1))
+         iy=mqmqa_data%pair2an(mqmqa_data%contyp(5,e2))
+      endif
+      id=0
+      if(ed.gt.0) id=mqmqa_data%pair2cat(mqmqa_data%contyp(5,ed))
+      call mqmqa_asymsets2(catbin,ia,ib,ix,iy,s1,s2)
+      lokfun=proprec%degreelink(0)
+      call eval_tpfun(lokfun,ceq%tpval,tpf,ceq%eq_tpres)
+      if(gx%bmperr.ne.0) goto 900
+      tpf=tpf/rtg
+      ppow=proprec%asymdata%ppow
+      qpow=proprec%asymdata%qpow
+      rpow=proprec%asymdata%rpow
+!--------- the linear factors, av(:,1) is the multiplier of the parameter
+      av=zero; ex=zero
+      call prefactor(blk,catbin,ia,ib,ix,iy,av(:,1))
+      ex(1)=one
+! xi1, xi2 sums of pair fractions i/X (i in S1 or S2) /4, yd for cation id,
+! for an anion binary the pairs A/k with k in S1 or S2
+      xi1=zero; xi2=zero; yd=zero; yo=zero
+      do q=1,ncon
+         do s=1,2
+            do r=1,2
+               if(catbin) then
+                  if(qa(r,q).ne.ix) cycle
+                  if(s1(qc(s,q))) xi1(q)=xi1(q)+0.25D0
+                  if(s2(qc(s,q))) xi2(q)=xi2(q)+0.25D0
+                  if(qc(s,q).eq.id) yd(q)=yd(q)+0.25D0
+               else
+                  if(qc(s,q).ne.ia) cycle
+                  if(s1(qa(r,q))) xi1(q)=xi1(q)+0.25D0
+                  if(s2(qa(r,q))) xi2(q)=xi2(q)+0.25D0
+               endif
+            enddo
+         enddo
+      enddo
+      do q=1,ncon
+         i=qc(1,q); j=qc(2,q); k=qa(1,q); l=qa(2,q)
+         if(proprec%proptype.eq.34) then
+! G type, chi fractions
+            if(catbin) then
+               w=zero
+               if(k.eq.ix .and. l.eq.ix) then
+                  w=one
+               elseif(k.eq.ix .or. l.eq.ix) then
+                  w=0.5D0
+               endif
+               if(s1(i) .and. s1(j)) av(q,2)=w
+               if(s2(i) .and. s2(j)) av(q,3)=w
+               if((s1(i).or.s2(i)) .and. (s1(j).or.s2(j))) av(q,4)=w
+            else
+               w=zero
+               if(i.eq.ia .and. j.eq.ia) then
+                  w=one
+               elseif(i.eq.ia .or. j.eq.ia) then
+                  w=0.5D0
+               endif
+               if(s1(k) .and. s1(l)) av(q,2)=w
+               if(s2(k) .and. s2(l)) av(q,3)=w
+               if((s1(k).or.s2(k)) .and. (s1(l).or.s2(l))) av(q,4)=w
+            endif
+         else
+! Q type, xi fractions
+            av(q,2)=xi1(q); av(q,3)=xi2(q); av(q,4)=xi1(q)+xi2(q)
+         endif
+      enddo
+      ex(2)=dble(ppow); ex(3)=dble(qpow); ex(4)=-dble(ppow+qpow)
+      nf=4
+      if(nq.eq.4) then
+! ternary factor as in Thermochimica, Y_d is yd
+         av(:,5)=yd; ex(5)=one
+         nf=7
+         if(s2(id)) then
+! (Y_d/xi2)*(1-Y_b/xi2)**(r-1)
+            yo=zero
+            call pairsum(ib,ix,yo)
+            av(:,6)=xi2; ex(6)=-dble(rpow)
+            av(:,7)=xi2-yo; ex(7)=dble(rpow-1)
+         elseif(s1(id)) then
+            yo=zero
+            call pairsum(ia,ix,yo)
+            av(:,6)=xi1; ex(6)=-dble(rpow)
+            av(:,7)=xi1-yo; ex(7)=dble(rpow-1)
+         else
+! Y_d*(1-xi1-xi2)**(r-1), 1 written as sum of y
+            ex(6)=zero
+            av(:,7)=one-xi1-xi2; ex(7)=dble(rpow-1)
+         endif
+      endif
+      call addterm(av,ex,nf,tpf)
+      proprec=>proprec%nextpr
+      cycle props
+! unexpected combination of quads
+800   continue
+      if(warn2) write(kou,20)
+20    format('3XQ Warning: MQMQA parameter with unexpected quads ignored')
+      warn2=.FALSE.
+      proprec=>proprec%nextpr
+   enddo props
+900 continue
+   end subroutine oneparam
+!------------------------------------------------------------------
+   subroutine pairsum(ic,ix,yy)
+! sum of pair fraction ic/ix /4 as linear coefficients of the quads
+   integer ic,ix
+   double precision yy(ncon)
+   integer q,s,r
+   do q=1,ncon
+      do s=1,2
+         do r=1,2
+            if(qc(s,q).eq.ic .and. qa(r,q).eq.ix) yy(q)=yy(q)+0.25D0
+         enddo
+      enddo
+   enddo
+   end subroutine pairsum
+!------------------------------------------------------------------
+   subroutine endmemparam(blk)
+! G parameter of the SNN quad blk (no composition dependence)
+   integer blk
+   type(gtp_property), pointer :: proprec
+   integer ia,ib,ix,iy,lokfun
+   logical catbin
+   double precision tpf(6),av(ncon,1),ex(1)
+   proprec=>endmemrec%propointer
+   do while(associated(proprec))
+      if(proprec%proptype.eq.1) then
+         call eval_tpfun(proprec%degreelink(0),ceq%tpval,tpf,ceq%eq_tpres)
+         if(gx%bmperr.ne.0) return
+         tpf=tpf/rtg
+         av=zero
+         if(qc(1,blk).ne.qc(2,blk) .and. qa(1,blk).ne.qa(2,blk)) then
+! a reciprocal quad AB/XY, only its own fraction
+            av(blk,1)=one
+         else
+            catbin=qc(1,blk).ne.qc(2,blk)
+            ia=qc(1,blk); ib=qc(2,blk); ix=qa(1,blk); iy=qa(2,blk)
+            call prefactor(blk,catbin,ia,ib,ix,iy,av(:,1))
+         endif
+         ex(1)=one
+         call addterm(av,ex,1,tpf)
+      endif
+      proprec=>proprec%nextpr
+   enddo
+   end subroutine endmemparam
+!------------------------------------------------------------------
+   subroutine prefactor(blk,catbin,ia,ib,ix,iy,pf)
+! the multiplier of a binary parameter with block quad blk: y_blk plus
+! y_q*Z_blk/(2*Z_q) for the quads AB/XZ (cation binary A-B with anion X) or
+! AC/XY (anion binary X-Y with cation A), Z of X or A
+   integer blk,ia,ib,ix,iy
+   logical catbin
+   double precision pf(ncon)
+   integer q
+   double precision zb
+   pf(blk)=one
+   if(catbin) then
+      zb=zsite(blk,ix,.FALSE.)
+   else
+      zb=zsite(blk,ia,.TRUE.)
+   endif
+   do q=1,ncon
+      if(q.eq.blk) cycle
+      if(catbin) then
+         if(qc(1,q).eq.min(ia,ib) .and. qc(2,q).eq.max(ia,ib) .and. &
+              qa(1,q).ne.qa(2,q) .and. (qa(1,q).eq.ix .or. qa(2,q).eq.ix)) &
+              pf(q)=zb/(2.0D0*zsite(q,ix,.FALSE.))
+      else
+         if(qa(1,q).eq.min(ix,iy) .and. qa(2,q).eq.max(ix,iy) .and. &
+              qc(1,q).ne.qc(2,q) .and. (qc(1,q).eq.ia .or. qc(2,q).eq.ia)) &
+              pf(q)=zb/(2.0D0*zsite(q,ia,.TRUE.))
+      endif
+   enddo
+   end subroutine prefactor
+!------------------------------------------------------------------
+   double precision function zsite(iq,isp,cation)
+! coordination number of cation (or anion) isp (sublattice index) in quad iq
+   integer iq,isp
+   logical cation
+   integer jj,kk
+   zsite=one
+   if(mqmqa_data%contyp(5,iq).gt.0) then
+      if(cation) then
+         zsite=mqmqa_data%constoi(1,iq)
+      else
+         zsite=mqmqa_data%constoi(2,iq)
+      endif
+      return
+   endif
+   do jj=1,4
+      kk=mqmqa_data%contyp(10+jj,iq)
+      if((cation .and. kk.eq.isp) .or. (.not.cation .and. kk.eq.-isp)) then
+         zsite=mqmqa_data%constoi(jj,iq)
+         return
+      endif
+   enddo
+   end function zsite
+!------------------------------------------------------------------
+   subroutine addterm(av,ex,nf,tpf)
+! add tpf * product_m (av(:,m).y)^ex(m) and its derivatives to phres
+   integer nf
+   double precision av(ncon,nf),ex(nf),tpf(6)
+   double precision lm(nf),ff,gr(ncon),w2
+   integer m,r,s,itp
+   double precision, parameter :: lmin=1.0D-200
+   ff=one
+   do m=1,nf
+      lm(m)=zero
+      if(ex(m).eq.zero) cycle
+      do r=1,ncon
+         lm(m)=lm(m)+av(r,m)*phres%yfr(r)
+      enddo
+      lm(m)=max(lm(m),lmin)
+      ff=ff*lm(m)**ex(m)
+   enddo
+   gr=zero
+   do r=1,ncon
+      do m=1,nf
+         if(ex(m).ne.zero .and. av(r,m).ne.zero) &
+              gr(r)=gr(r)+ex(m)*av(r,m)/lm(m)
+      enddo
+   enddo
+   do itp=1,6
+      phres%gval(itp,1)=phres%gval(itp,1)+tpf(itp)*ff
+   enddo
+   if(moded.gt.0) then
+      do r=1,ncon
+         if(gr(r).eq.zero) cycle
+         do itp=1,3
+            phres%dgval(itp,r,1)=phres%dgval(itp,r,1)+tpf(itp)*ff*gr(r)
+         enddo
+      enddo
+   endif
+   if(moded.gt.1) then
+      do r=1,ncon
+         do s=r,ncon
+            w2=gr(r)*gr(s)
+            do m=1,nf
+               if(ex(m).ne.zero) w2=w2-ex(m)*av(r,m)*av(s,m)/lm(m)**2
+            enddo
+            if(w2.ne.zero) phres%d2gval(ixsym(r,s),1)=&
+                 phres%d2gval(ixsym(r,s),1)+tpf(1)*ff*w2
+         enddo
+      enddo
+   endif
+   end subroutine addterm
+ end subroutine mqmqa_excess2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine mqmqa_asymsets2
+!\begin{verbatim}
+ subroutine mqmqa_asymsets2(catbin,ia,ib,ix,iy,s1,s2)
+! Claude 2026.11.06, moved out of mqmqa_excess2 2026.11.07 to be used also
+! by list_mqmqa_asym2.  Several anions: the constituents asymmetric with the
+! first (s1) and second (s2) constituent of a binary, either the cations
+! ia-ib with anion ix (catbin true) or the anions ix-iy with cation ia.
+! All indices are sublattice indices.
+   implicit none
+   logical catbin,s1(*),s2(*)
+   integer ia,ib,ix,iy
+!\end{verbatim}
+   integer i,e,t,n,nc,na
+   logical found
+   nc=mqmqa_data%ncon1
+   na=mqmqa_data%ncon2
+   if(catbin) then
+      n=nc
+   else
+      n=na
+   endif
+   s1(1:n)=.FALSE.; s2(1:n)=.FALSE.
+   if(catbin) then
+      s1(ia)=.TRUE.; s2(ib)=.TRUE.
+      do i=1,nc
+         if(i.eq.ia .or. i.eq.ib) cycle
+! an exception for the ternary ia-ib-i replaces the group rule
+         found=.FALSE.
+         do e=1,mqmqa_data%nexc
+            if(mqmqa_data%excat(5,e).ne.0 .and. mqmqa_data%excat(5,e).ne.ix) &
+                 cycle
+            if(.not.(any(mqmqa_data%excat(1:3,e).eq.ia) .and. &
+                 any(mqmqa_data%excat(1:3,e).eq.ib) .and. &
+                 any(mqmqa_data%excat(1:3,e).eq.i))) cycle
+            found=.TRUE.
+            t=mqmqa_data%excat(4,e)
+            if(t.eq.ib) s1(i)=.TRUE.
+            if(t.eq.ia) s2(i)=.TRUE.
+            exit
+         enddo
+         if(found .or. .not.allocated(mqmqa_data%catgroup)) cycle
+         if(mqmqa_data%catgroup(ia).ne.mqmqa_data%catgroup(ib)) then
+            if(mqmqa_data%catgroup(i).eq.mqmqa_data%catgroup(ia)) then
+               s1(i)=.TRUE.
+            elseif(mqmqa_data%catgroup(i).eq.mqmqa_data%catgroup(ib)) then
+               s2(i)=.TRUE.
+            endif
+         endif
+      enddo
+   else
+      s1(ix)=.TRUE.; s2(iy)=.TRUE.
+      if(.not.allocated(mqmqa_data%angroup)) goto 1000
+      if(mqmqa_data%angroup(ix).eq.mqmqa_data%angroup(iy)) goto 1000
+      do i=1,na
+         if(i.eq.ix .or. i.eq.iy) cycle
+         if(mqmqa_data%angroup(i).eq.mqmqa_data%angroup(ix)) then
+            s1(i)=.TRUE.
+         elseif(mqmqa_data%angroup(i).eq.mqmqa_data%angroup(iy)) then
+            s2(i)=.TRUE.
+         endif
+      enddo
+   endif
+1000 continue
+   return
+ end subroutine mqmqa_asymsets2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine list_mqmqa_asym2
+!\begin{verbatim}
+ subroutine list_mqmqa_asym2
+! Claude 2026.11.07: LIST PHASE ... TERNARY_ASYM for an MQMQA phase with 2
+! or more anions.  Cations are denoted by upper case letters A, B, C ...,
+! anions by lower case x, y, z ... and the quad AB/XY by x_ABxy.
+! Lists the quads, the chemical groups, the exceptions and the asymmetry of
+! each cation ternary (for each anion) and each anion ternary.  The
+! asymmetries are those used by mqmqa_excess2 (via mqmqa_asymsets2).
+   implicit none
+!\end{verbatim}
+   integer nc,na,lokph,ncon,q,c1,c2,a1,a2,i,j,k,ix,e,ip,g,ng,nter,nasym,mm
+   integer w(3)
+   character text*256
+   logical, allocatable :: s1(:),s2(:)
+   character(len=26), parameter :: catlet='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+   character(len=26), parameter :: anlet='xyzuvwtsrqponmlkjihgfedcba'
+!
+   nc=mqmqa_data%ncon1
+   na=mqmqa_data%ncon2
+   if(nc.gt.26 .or. na.gt.26) then
+      write(kou,*)'3XQ Too many cations or anions to use letters'
+      goto 1000
+   endif
+   do lokph=1,noofph
+      if(btest(phlista(lokph)%status1,PHMQMQA)) goto 100
+   enddo
+   write(kou,*)'3XQ No MQMQA phase'
+   goto 1000
+100 continue
+   ncon=phlista(lokph)%tnooffr
+   write(kou,110)trim(phlista(lokph)%name),nc,na,ncon
+110 format(/'3XQ MQMQA phase ',a,' with',i3,' cations,',i3,' anions and',&
+        i4,' quads'/'Cations are denoted A, B, C ..., anions x, y, z ...',&
+        ' and the quad AB/XY is x_ABxy')
+! the cations and anions with their letters
+   text='Cations:'; ip=11
+   do i=1,nc
+      call addtext(catlet(i:i)//'='//&
+           trim(splista(mqmqa_data%cat2species(i))%symbol))
+   enddo
+   write(kou,'(a)')trim(text)
+   text='Anions:'; ip=11
+   do i=1,na
+      call addtext(anlet(i:i)//'='//&
+           trim(splista(mqmqa_data%an2species(i))%symbol))
+   enddo
+   write(kou,'(a)')trim(text)
+! the quads, 3 on each line
+   write(kou,'(/a)')'Quads:'
+   text=' '; ip=1
+   do q=1,ncon
+      call mqmqa_quad_cat_an(q,c1,c2,a1,a2)
+      write(text(ip:),120)q,catlet(c1:c1)//catlet(c2:c2)//&
+           anlet(a1:a1)//anlet(a2:a2),&
+           splista(phlista(lokph)%constitlist(q))%symbol(1:14)
+120   format(i3,1x,'x_',a4,1x,a14)
+      ip=ip+26
+      if(ip.gt.70 .or. q.eq.ncon) then
+         write(kou,'(a)')trim(text)
+         text=' '; ip=1
+      endif
+   enddo
+! chemical groups, the group numbers are common for cations and anions
+   write(kou,'(/a)')'Chemical groups:'
+   ng=0
+   if(allocated(mqmqa_data%catgroup)) ng=maxval(mqmqa_data%catgroup)
+   if(allocated(mqmqa_data%angroup)) ng=max(ng,maxval(mqmqa_data%angroup))
+   if(ng.eq.0) write(kou,'(a)')'  none'
+! the groups are numbered 1, 2, ... in the listing, the internal numbers have
+! gaps for groups with no selected constituent
+   mm=0
+   do g=1,ng
+      text=' '
+      ip=9
+      if(allocated(mqmqa_data%catgroup)) then
+         do i=1,nc
+            if(mqmqa_data%catgroup(i).eq.g) then
+               text(ip:)=catlet(i:i); ip=ip+2
+            endif
+         enddo
+      endif
+      if(allocated(mqmqa_data%angroup)) then
+         do i=1,na
+            if(mqmqa_data%angroup(i).eq.g) then
+               text(ip:)=anlet(i:i); ip=ip+2
+            endif
+         enddo
+      endif
+      if(ip.gt.9) then
+         mm=mm+1
+         write(text(1:6),'(i5,":")')mm
+         write(kou,'(a)')trim(text)
+      endif
+   enddo
+! exceptions
+   write(kou,'(/a,i3)')'Exceptions:',mqmqa_data%nexc
+   do e=1,mqmqa_data%nexc
+      text='  '//catlet(mqmqa_data%excat(1,e):mqmqa_data%excat(1,e))//&
+           catlet(mqmqa_data%excat(2,e):mqmqa_data%excat(2,e))//&
+           catlet(mqmqa_data%excat(3,e):mqmqa_data%excat(3,e))
+      if(mqmqa_data%excat(5,e).gt.0) then
+         text(6:)='/'//anlet(mqmqa_data%excat(5,e):mqmqa_data%excat(5,e))
+      else
+         text(6:)='/all anions'
+      endif
+      if(mqmqa_data%excat(4,e).gt.0) then
+         text(20:)='Toop '//&
+              catlet(mqmqa_data%excat(4,e):mqmqa_data%excat(4,e))
+      else
+         text(20:)='Kohler'
+      endif
+      write(kou,'(a)')trim(text)
+   enddo
+! the ternaries
+   allocate(s1(max(nc,na)),s2(max(nc,na)))
+   write(kou,200)
+200 format(/'Ternary systems.  For each binary in parenthesis the third',&
+        ' constituent'/'is asymmetric with the letter after ":"',&
+        ' or symmetric "-".')
+   nter=0; nasym=0
+   do ix=1,na
+      do i=1,nc-2
+         do j=i+1,nc-1
+            do k=j+1,nc
+               nter=nter+1
+               call mqmqa_asymsets2(.TRUE.,i,j,ix,ix,s1,s2)
+               w(1)=withwho(i,j,k)
+               call mqmqa_asymsets2(.TRUE.,i,k,ix,ix,s1,s2)
+               w(2)=withwho(i,k,j)
+               call mqmqa_asymsets2(.TRUE.,j,k,ix,ix,s1,s2)
+               w(3)=withwho(j,k,i)
+               call oneline(catlet(i:i)//catlet(j:j)//catlet(k:k)//'/'//&
+                    anlet(ix:ix),catlet,i,j,k)
+            enddo
+         enddo
+      enddo
+   enddo
+! anion ternaries, the asymmetry does not depend on the cation
+   do i=1,na-2
+      do j=i+1,na-1
+         do k=j+1,na
+            nter=nter+1
+            call mqmqa_asymsets2(.FALSE.,1,1,i,j,s1,s2)
+            w(1)=withwho(i,j,k)
+            call mqmqa_asymsets2(.FALSE.,1,1,i,k,s1,s2)
+            w(2)=withwho(i,k,j)
+            call mqmqa_asymsets2(.FALSE.,1,1,j,k,s1,s2)
+            w(3)=withwho(j,k,i)
+            call oneline(anlet(i:i)//anlet(j:j)//anlet(k:k)//&
+                 ' all cations',anlet,i,j,k)
+         enddo
+      enddo
+   enddo
+   if(nter.eq.0) then
+      write(kou,'(a)')'  none'
+   else
+      write(kou,210)nasym,nter
+210   format('Asymmetric ternaries:',i4,' of',i4)
+   endif
+1000 continue
+   return
+ contains
+!------------------------------------------------------------------
+   subroutine addtext(str)
+! add str to text, write the line when full
+   character(len=*) str
+   if(ip+len(str).gt.78) then
+      write(kou,'(a)')trim(text)
+      text=' '; ip=11
+   endif
+   text(ip:)=str
+   ip=ip+len(str)+3
+   end subroutine addtext
+!------------------------------------------------------------------
+   integer function withwho(a,b,c)
+! c is asymmetric with a or b in the binary a-b, 0 if symmetric
+   integer a,b,c
+   withwho=0
+   if(s1(c)) then
+      withwho=a
+   elseif(s2(c)) then
+      withwho=b
+   endif
+   end function withwho
+!------------------------------------------------------------------
+   subroutine oneline(tname,let,i,j,k)
+! one line for the ternary i-j-k using w(1..3), let are the letters
+   character(len=*) tname,let
+   integer i,j,k
+   character res*24
+   if(all(w.eq.0)) then
+      res='Kohler'
+   else
+      nasym=nasym+1
+      res='other'
+! Toop t: in t-o1 the third o2 is with o1, in t-o2 o1 is with o2
+! and in o1-o2 t is symmetric
+      if(w(1).eq.0 .and. w(2).eq.i .and. w(3).eq.j) then
+         res='Toop '//let(k:k)
+      elseif(w(2).eq.0 .and. w(1).eq.i .and. w(3).eq.k) then
+         res='Toop '//let(j:j)
+      elseif(w(3).eq.0 .and. w(1).eq.j .and. w(2).eq.k) then
+         res='Toop '//let(i:i)
+      endif
+   endif
+   text='  '//tname
+   ip=18
+   call onebin(let,i,j,k,w(1))
+   call onebin(let,i,k,j,w(2))
+   call onebin(let,j,k,i,w(3))
+   text(ip+1:)=res
+   write(kou,'(a)')trim(text)
+   end subroutine oneline
+!------------------------------------------------------------------
+   subroutine onebin(let,a,b,c,ww)
+! one binary a-b with the third c, ww is a, b or 0, let are the letters
+   character(len=*) let
+   integer a,b,c,ww
+   if(ww.eq.0) then
+      text(ip:)=let(a:a)//let(b:b)//'('//let(c:c)//'):-'
+   else
+      text(ip:)=let(a:a)//let(b:b)//'('//let(c:c)//'):'//let(ww:ww)
+   endif
+   ip=ip+10
+   end subroutine onebin
+ end subroutine list_mqmqa_asym2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine list_mqmqa_var2
+!\begin{verbatim}
+ subroutine list_mqmqa_var2(phres)
+! Claude 2026.11.07: LIST PHASE ... ASYMMETRIES for an MQMQA phase with 2 or
+! more anions.  Lists the current quad fractions x_ABxy, the pair fractions
+! p_Ax, the coordination-equivalent fractions y_A and y_x and for each binary
+! the chi (G type) and xi (Q type) sums used by mqmqa_excess2.
+! Letters as in list_mqmqa_asym2.
+   implicit none
+   type(gtp_phase_varres), pointer :: phres
+!\end{verbatim}
+   integer nc,na,lokph,ncon,q,i,j,k,l,ia,ib,ix,iy,ip
+   double precision chi1,chi2,chid,xi1,xi2,w
+   double precision, allocatable :: pf(:,:)
+   integer, allocatable :: qc(:,:),qa(:,:)
+   logical, allocatable :: s1(:),s2(:)
+   character text*256
+   character(len=26), parameter :: catlet='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+   character(len=26), parameter :: anlet='xyzuvwtsrqponmlkjihgfedcba'
+!
+   nc=mqmqa_data%ncon1
+   na=mqmqa_data%ncon2
+   lokph=phres%phlink
+   if(.not.btest(phlista(lokph)%status1,PHMQMQA)) then
+      write(kou,*)'3XQ This is not the MQMQA liquid phase'
+      goto 1000
+   endif
+   if(nc.gt.26 .or. na.gt.26) then
+      write(kou,*)'3XQ Too many cations or anions to use letters'
+      goto 1000
+   endif
+   ncon=phlista(lokph)%tnooffr
+   allocate(qc(2,ncon),qa(2,ncon),pf(nc,na))
+   allocate(s1(max(nc,na)),s2(max(nc,na)))
+   do q=1,ncon
+      call mqmqa_quad_cat_an(q,qc(1,q),qc(2,q),qa(1,q),qa(2,q))
+   enddo
+   write(kou,100)trim(phlista(lokph)%name),nc,na,ncon
+100 format(/'3XQ MQMQA phase ',a,' with',i3,' cations,',i3,' anions and',&
+        i4,' quads'/'Letters as in LIST PHASE ... TERNARY_ASYM')
+! quad fractions, 3 on each line
+   write(kou,'(/a)')'Quad fractions:'
+   text=' '; ip=1
+   do q=1,ncon
+      write(text(ip:),110)catlet(qc(1,q):qc(1,q))//catlet(qc(2,q):qc(2,q))//&
+           anlet(qa(1,q):qa(1,q))//anlet(qa(2,q):qa(2,q)),phres%yfr(q)
+110   format('x_',a4,'=',1pe12.5)
+      ip=ip+22
+      if(ip.gt.60 .or. q.eq.ncon) then
+         write(kou,'(a)')trim(text)
+         text=' '; ip=1
+      endif
+   enddo
+! pair fractions, each cation-anion corner of a quad counts 1/4
+   pf=zero
+   do q=1,ncon
+      do i=1,2
+         do j=1,2
+            pf(qc(i,q),qa(j,q))=pf(qc(i,q),qa(j,q))+0.25D0*phres%yfr(q)
+         enddo
+      enddo
+   enddo
+   write(kou,120)
+120 format(/'Pair fractions p_Ax (each cation-anion corner of a quad',&
+        ' counts 1/4)'/'and the coordination-equivalent fractions',&
+        ' y_A and y_x (sums of p_Ax)')
+   text=' '
+   do ix=1,na
+      text(12+13*(ix-1):)=anlet(ix:ix)
+   enddo
+   text(11+13*na:)='y_A'
+   write(kou,'(a)')trim(text)
+   do i=1,nc
+      write(kou,130)catlet(i:i),(pf(i,ix),ix=1,na),sum(pf(i,:))
+130   format(2x,a1,2x,27(1pe13.5))
+   enddo
+   write(kou,140)(sum(pf(:,ix)),ix=1,na)
+140 format(' y_x ',26(1pe13.5))
+! cation binaries for each anion
+   write(kou,200)
+200 format(/'Binary fractions used by the excess parameters.  S1 and S2',&
+        ' are the first'/'constituent of the binary and those asymmetric',&
+        ' with it.  chi are the'/'G type and xi the Q type fractions.'/&
+        '  binary  S1      S2         chi_1        chi_2',&
+        '         xi_1         xi_2')
+   do ix=1,na
+      do ia=1,nc-1
+         do ib=ia+1,nc
+            call mqmqa_asymsets2(.TRUE.,ia,ib,ix,ix,s1,s2)
+            chi1=zero; chi2=zero; chid=zero; xi1=zero; xi2=zero
+            do q=1,ncon
+               i=qc(1,q); j=qc(2,q); k=qa(1,q); l=qa(2,q)
+               w=zero
+               if(k.eq.ix .and. l.eq.ix) then
+                  w=one
+               elseif(k.eq.ix .or. l.eq.ix) then
+                  w=0.5D0
+               endif
+               if(s1(i) .and. s1(j)) chi1=chi1+w*phres%yfr(q)
+               if(s2(i) .and. s2(j)) chi2=chi2+w*phres%yfr(q)
+               if((s1(i).or.s2(i)) .and. (s1(j).or.s2(j))) &
+                    chid=chid+w*phres%yfr(q)
+            enddo
+            do i=1,nc
+               if(s1(i)) xi1=xi1+pf(i,ix)
+               if(s2(i)) xi2=xi2+pf(i,ix)
+            enddo
+            call oneline(catlet(ia:ia)//catlet(ib:ib)//'/'//anlet(ix:ix),&
+                 catlet,nc)
+         enddo
+      enddo
+   enddo
+! anion binaries for each cation
+   do ia=1,nc
+      do ix=1,na-1
+         do iy=ix+1,na
+            call mqmqa_asymsets2(.FALSE.,ia,ia,ix,iy,s1,s2)
+            chi1=zero; chi2=zero; chid=zero; xi1=zero; xi2=zero
+            do q=1,ncon
+               i=qc(1,q); j=qc(2,q); k=qa(1,q); l=qa(2,q)
+               w=zero
+               if(i.eq.ia .and. j.eq.ia) then
+                  w=one
+               elseif(i.eq.ia .or. j.eq.ia) then
+                  w=0.5D0
+               endif
+               if(s1(k) .and. s1(l)) chi1=chi1+w*phres%yfr(q)
+               if(s2(k) .and. s2(l)) chi2=chi2+w*phres%yfr(q)
+               if((s1(k).or.s2(k)) .and. (s1(l).or.s2(l))) &
+                    chid=chid+w*phres%yfr(q)
+            enddo
+            do k=1,na
+               if(s1(k)) xi1=xi1+pf(ia,k)
+               if(s2(k)) xi2=xi2+pf(ia,k)
+            enddo
+            call oneline(anlet(ix:ix)//anlet(iy:iy)//'/'//catlet(ia:ia),&
+                 anlet,na)
+         enddo
+      enddo
+   enddo
+1000 continue
+   return
+ contains
+!------------------------------------------------------------------
+   subroutine oneline(bname,let,n)
+! one line for a binary, let are the letters of the n constituents
+   character(len=*) bname,let
+   integer n
+   integer m,jp
+   text='  '//bname
+   jp=11
+   do m=1,n
+      if(s1(m)) then
+         text(jp:jp)=let(m:m); jp=jp+1
+      endif
+   enddo
+   jp=max(jp+1,19)
+   do m=1,n
+      if(s2(m)) then
+         text(jp:jp)=let(m:m); jp=jp+1
+      endif
+   enddo
+   if(chid.gt.zero) then
+      chi1=chi1/chid; chi2=chi2/chid
+   endif
+   jp=max(jp+1,25)
+   write(text(jp:),'(4(1pe13.5))')chi1,chi2,xi1,xi2
+   write(kou,'(a)')trim(text)
+   end subroutine oneline
+ end subroutine list_mqmqa_var2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable integer function mqmqa_quad_of_species
+!\begin{verbatim}
+ integer function mqmqa_quad_of_species(loksp)
+! Claude 2026.11.07: the constituent (quad) index in the MQMQA phase of the
+! species with location loksp, 0 if it is not a constituent.  Used in
+! LIST MQMQA_SPECIAL ... QUADS as the species are listed alphabetically.
+   implicit none
+   integer loksp
+!\end{verbatim}
+   integer lokph,q
+   mqmqa_quad_of_species=0
+   do lokph=1,noofph
+      if(.not.btest(phlista(lokph)%status1,PHMQMQA)) cycle
+      do q=1,phlista(lokph)%tnooffr
+         if(phlista(lokph)%constitlist(q).eq.loksp) then
+            mqmqa_quad_of_species=q
+            goto 1000
+         endif
+      enddo
+   enddo
+1000 continue
+   return
+ end function mqmqa_quad_of_species
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine list_quads_as_species
+!\begin{verbatim}
+ subroutine list_quads_as_species(lut,short)
+! Claude 2026.11.07: LIST QUADS AS_SPECIES, one line for each quad with its
+! identifier x_ABxy and species name, e.g. "x_AAxx  K/CL-Q".  Cations are
+! upper case letters A, B, ... and anions lower case x, y, ... in the order
+! of the sublattice constituents.  For one or several anions.
+! LIST QUADS SHORT (short=.TRUE.): 3 quads on each line with their index.
+   implicit none
+   integer lut
+   logical short
+!\end{verbatim}
+   integer lokph,q,jj,kk,nc2,na2,cc(2),aa(2),ip
+   character text*80
+   character(len=26), parameter :: catlet='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+   character(len=26), parameter :: anlet='xyzuvwtsrqponmlkjihgfedcba'
+!
+   if(mqmqa_data%ncon1.gt.26 .or. mqmqa_data%ncon2.gt.26) then
+      write(kou,*)'3XQ Too many cations or anions to use letters'
+      goto 1000
+   endif
+   do lokph=1,noofph
+      if(btest(phlista(lokph)%status1,PHMQMQA)) goto 100
+   enddo
+   write(kou,*)'3XQ No MQMQA phase'
+   goto 1000
+100 continue
+   text=' '; ip=1
+   do q=1,phlista(lokph)%tnooffr
+! contyp(11..14,q) >0 cation index, <0 anion index, for a pair A/X only
+! 11 and 12 are used (13 and 14 are species indices)
+      kk=14
+      if(mqmqa_data%contyp(5,q).gt.0) kk=12
+      nc2=0; na2=0; cc=0; aa=0
+      do jj=11,kk
+         if(mqmqa_data%contyp(jj,q).gt.0 .and. nc2.lt.2) then
+            nc2=nc2+1; cc(nc2)=mqmqa_data%contyp(jj,q)
+         elseif(mqmqa_data%contyp(jj,q).lt.0 .and. na2.lt.2) then
+            na2=na2+1; aa(na2)=-mqmqa_data%contyp(jj,q)
+         endif
+      enddo
+      if(nc2.eq.1) cc(2)=cc(1)
+      if(na2.eq.1) aa(2)=aa(1)
+      if(any(cc.le.0) .or. any(aa.le.0)) then
+         write(lut,'(a,i4)')'3XQ cannot identify quad ',q
+         cycle
+      endif
+      if(short) then
+         write(text(ip:),120)q,catlet(cc(1):cc(1))//catlet(cc(2):cc(2))//&
+              anlet(aa(1):aa(1))//anlet(aa(2):aa(2)),&
+              splista(phlista(lokph)%constitlist(q))%symbol(1:14)
+120      format(i3,1x,'x_',a4,1x,a14)
+         ip=ip+26
+         if(ip.gt.70) then
+            write(lut,'(a)')trim(text)
+            text=' '; ip=1
+         endif
+      else
+         write(lut,110)catlet(cc(1):cc(1))//catlet(cc(2):cc(2))//&
+              anlet(aa(1):aa(1))//anlet(aa(2):aa(2)),&
+              trim(splista(phlista(lokph)%constitlist(q))%symbol)
+110      format('x_',a4,2x,a)
+      endif
+   enddo
+   if(short .and. ip.gt.1) write(lut,'(a)')trim(text)
+1000 continue
+   return
+ end subroutine list_quads_as_species
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
 !\addtotable subroutine mqmqa_addhess
 !\begin{verbatim}
  subroutine mqmqa_addhess(ncon,ldh,cq,yq,uu,ww,ratio,h2q)
@@ -1380,7 +2796,8 @@
 !   enddo
 !--------------------------------------
 ! debug output of varkappa mm moved to beginning of calc_mqmqa
-   if(mqmqxcess .and. btest(phlista(lokph)%status1,PHMQMQX)) then
+   if(mqmqxcess .and. btest(phlista(lokph)%status1,PHMQMQX) .and. &
+        mqmqa_data%nan.le.1) then
       write(*,*)'3XQ Debug output of quads, \varkappa_ij, \xi_ij and y_i/k'
 !
 ! these variables are in the TYPE GTP_MQMQA_VAR
@@ -1444,6 +2861,12 @@
       kend=mqmqa_data%contyp(5,mqendx)
 !      write(*,*)'3XQ endmemloop1A: ',mqmqj,mqendx,kend,nrealem
       if(kend.le.0) then
+! Claude 2026.11.06: with several anions the G of AB/XX and AA/XY quads is
+! also added to the reciprocal quads, done in mqmqa_excess2
+         if(mqmqa_data%nan.ge.2) then
+            endmemrec=>endmemrec%nextem
+            cycle endmemloop1
+         endif
 ! This is an SNN parameter we calculate and add SNN energy and interactions ...
 !         write(*,*)'3XQ SNN endmember record found',mqmqj
          proprec=>endmemrec%propointer
@@ -1462,14 +2885,16 @@
                vals=vals*dummy1
 ! This is an SNN ordering parameter, reference state addel in second loop
             endif
-            pyq=phres%yfr(mqmqj)
+! Claude 2026.11.06: use the constituent index mqendx, not the endmember
+! counter mqmqj, they differ when a quad has no G parameter
+            pyq=phres%yfr(mqendx)
 ! Should I use any factor??
 !         aff=mqmqa_data%pp(1,mqmqj)
             aff=one
 ! NOTE the reference state contribution to this SNN added in next loop
 ! for all quads!!
             do itp=1,3
-               phres%dgval(itp,mqmqj,ipy)=phres%dgval(itp,mqmqj,ipy)+vals(itp)
+               phres%dgval(itp,mqendx,ipy)=phres%dgval(itp,mqendx,ipy)+vals(itp)
             enddo
 ! Initially ignore 2nd derivatives, d2G/dy2=1/y set by entropy calculation
 ! ipy is property, ipy=1 means G, ipy=2 means Curie T etc.
@@ -1489,7 +2914,8 @@
 ! This is an FNN parameter, we calculate and save the value for later use
       nrealem=nrealem+1
       proprec=>endmemrec%propointer
-      aff=one/mqmqa_data%pp(1,mqmqj)
+! Claude 2026.11.06: mqendx (fix of 2026.05.30 that was lost)
+      aff=one/mqmqa_data%pp(1,mqendx)
 !     write(*,'(a,3i3,1pe12.4)')'3XQ endmemloop1B: ',mqmqj,kend,nrealem,aff
       mq1: do while(associated(proprec))
          typty=proprec%proptype
@@ -1615,6 +3041,12 @@
            4(1pe14.6))
    endif
 !
+! Claude 2026.11.06: with several anions all excess parameters are calculated
+! by mqmqa_excess2 (Thermochimica SUBQ formulation)
+   if(mqmqa_data%nan.ge.2) then
+      call mqmqa_excess2(lokph,phres,ceq,moded)
+      goto 990
+   endif
    mqmqj=0
    endmemrec=>phlista(lokph)%ordered
    endmemloop2: do while(associated(endmemrec))
@@ -1747,6 +3179,7 @@
 ! equilibrium (G not convex in the quad fractions), then Newton steps are
 ! useless.  If the Hessian projected on sum(y)=1 is not positive definite
 ! add lambda*diag(1/y) with the smallest lambda making it positive definite
+990 continue
    if(moded.gt.1) call mqmqa_safe_hessian(phres,gz%nofc)
 1000 continue
    return
@@ -3971,6 +5404,52 @@
  end function ijklx
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+!\addtotable subroutine mqmqa_quad_cat_an(iq,c1,c2,a1,a2)
+!\begin{verbatim}
+ subroutine mqmqa_quad_cat_an(iq,c1,c2,a1,a2)
+! Claude 2026.11.06: return the cation indices c1<=c2 and anion indices
+! a1<=a2 (sublattice indices) of quad iq, c1=c2 or a1=a2 if the same
+! constituent twice.  Uses pair2cat and pair2an, only for 2 or more anions.
+   implicit none
+   integer iq,c1,c2,a1,a2
+!\end{verbatim}
+   integer jj,pp
+   c1=0; c2=0; a1=0; a2=0
+   pp=mqmqa_data%contyp(5,iq)
+   if(pp.gt.0) then
+! a pair A/X
+      c1=mqmqa_data%pair2cat(pp); c2=c1
+      a1=mqmqa_data%pair2an(pp); a2=a1
+      goto 1000
+   endif
+! the 2 or 4 pairs of an SNN quad are in contyp(6..9)
+   do jj=6,9
+      pp=mqmqa_data%contyp(jj,iq)
+      if(pp.le.0) exit
+      if(c1.eq.0) then
+         c1=mqmqa_data%pair2cat(pp)
+      elseif(mqmqa_data%pair2cat(pp).ne.c1) then
+         c2=mqmqa_data%pair2cat(pp)
+      endif
+      if(a1.eq.0) then
+         a1=mqmqa_data%pair2an(pp)
+      elseif(mqmqa_data%pair2an(pp).ne.a1) then
+         a2=mqmqa_data%pair2an(pp)
+      endif
+   enddo
+   if(c2.eq.0) c2=c1
+   if(a2.eq.0) a2=a1
+   if(c2.lt.c1) then
+      jj=c1; c1=c2; c2=jj
+   endif
+   if(a2.lt.a1) then
+      jj=a1; a1=a2; a2=jj
+   endif
+1000 continue
+   return
+ end subroutine mqmqa_quad_cat_an
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 
 !\addtotable subroutine new_ternary_asym(asymter,new_toop,phres)
@@ -4865,7 +6344,7 @@
 !   type(gtp_mqmqa_var), pointer :: mqf
 !
    integer i,ip,iq
-   integer iph,ics
+   integer iph,ics,lokph
    character phase*24
 !
    ip=0
@@ -4888,8 +6367,24 @@
          goto 1000
       endif
 !      write(*,*)'3XQ Found phase ',iph
-      if(phase(1:4).ne.'MSCL') then
-         write(*,*)'3XQ skipping asymmetries of phase ',phase
+! Claude 2026.10.31: test that the phase has the MQMQA model, not that
+! its name starts with MSCL (Nathalie's liquid is called SOLUSOLN)
+      lokph=phases(iph)
+      if(.not.btest(phlista(lokph)%status1,PHMQMQA)) then
+         write(*,*)'3XQ skipping asymmetries of non-MQMQA phase ',trim(phase)
+         goto 1000
+      endif
+! Claude 2026.11.06: with several anions only the GROUPS format is used,
+! stored by mqmqa_groups2 for mqmqa_excess2
+      if(mqmqa_data%nan.ge.2) then
+         i=index(line,'GROUPS')
+         if(i.gt.0) then
+            call mqmqa_groups2(line(i+6:))
+         else
+            write(*,22)trim(phase)
+22          format('3XQ Ternary asymmetries for phase "',a,'" ignored,',&
+                 ' with several anions only GROUPS can be used')
+         endif
          goto 1000
       endif
    else
@@ -4991,7 +6486,8 @@
 ! Claude 2026.10.16: new format with chemical groups and exceptions
    ip=1
    if(.not.eolch(line,ip)) then
-      if(line(ip:ip+6).eq.'GROUPS ') then
+! Claude 2026.10.31: len check, a short line crashed with -fbounds-check
+      if(len(line).ge.ip+6 .and. line(ip:min(len(line),ip+6)).eq.'GROUPS ') then
          call set_tdbgroups(phres,line(ip+7:),verbose)
          goto 1000
       endif
@@ -5332,12 +6828,14 @@
    return
  contains
 !
+!\begin{verbatim}
    logical function next_asymtoken(text,jp,tok,semi)
 ! extract next token separated by spaces, if semi is TRUE ; is a token
 ! by itself, otherwise part of a token, returns .FALSE. at the end or at !
    character text*(*),tok*(*)
    integer jp,jq
    logical semi
+!\end{verbatim}
    tok=' '
    next_asymtoken=.FALSE.
    do while(jp.le.len_trim(text))
@@ -5362,9 +6860,11 @@
    next_asymtoken=.TRUE.
    end function next_asymtoken
 !
+!\begin{verbatim}
    integer function tdbcation(cat)
 ! index in names_y_ik of a cation, the names_y_ik are like MG/CL-Q
    character cat*(*)
+!\end{verbatim}
    integer jc,js
    tdbcation=0
    do jc=1,size(mqmqa_data%names_y_ik)
@@ -5428,6 +6928,7 @@
 !   
    implicit none
    integer lokph,loksp,nfr,isp,iel,jp,el1,el2
+!\end{verbatim}
    integer cat1,cat2
    integer iv1
    integer, allocatable, dimension(:) :: inverse
@@ -5511,6 +7012,31 @@
 ! contyp(11,12) with sublattice indices, not splista indices.
    allocate(catindex(2*nfr))
    catindex=0
+   if(mqmqa_data%nan.ge.2) then
+! Claude 2026.11.06: several anions, the pair index contyp(5) is no longer
+! the cation index.  Use the sublattice indices of the pair, contyp(11) for
+! the cation and -contyp(12) for the anion, the same as in the entropy.
+      if(allocated(mqmqa_data%pair2cat)) deallocate(mqmqa_data%pair2cat)
+      if(allocated(mqmqa_data%pair2an)) deallocate(mqmqa_data%pair2an)
+      if(allocated(mqmqa_data%an2species)) deallocate(mqmqa_data%an2species)
+      allocate(mqmqa_data%pair2cat(mqmqa_data%npair))
+      allocate(mqmqa_data%pair2an(mqmqa_data%npair))
+      allocate(mqmqa_data%an2species(mqmqa_data%nan))
+      mqmqa_data%pair2cat=0; mqmqa_data%pair2an=0; mqmqa_data%an2species=0
+      do isp=1,nfr
+         jp=mqmqa_data%contyp(5,isp)
+         if(jp.gt.0) then
+            iv1=mqmqa_data%contyp(11,isp)
+            iel=-mqmqa_data%contyp(12,isp)
+            mqmqa_data%pair2cat(jp)=iv1
+            mqmqa_data%pair2an(jp)=iel
+            if(iv1.ge.1 .and. iv1.le.size(catindex)) &
+                 catindex(iv1)=mqmqa_data%contyp(13,isp)
+            if(iel.ge.1 .and. iel.le.mqmqa_data%nan) &
+                 mqmqa_data%an2species(iel)=mqmqa_data%contyp(14,isp)
+         endif
+      enddo
+   else
    do isp=1,nfr
       if(mqmqa_data%contyp(5,isp).gt.0) then
          iv1=mqmqa_data%contyp(5,isp)
@@ -5518,6 +7044,7 @@
               catindex(iv1)=mqmqa_data%contyp(13,isp)
       endif
    enddo
+   endif
 ! Step 2: count contiguous cations.
    noofcations=0
    do iv1=1,size(catindex)
@@ -5569,6 +7096,17 @@
    if(mqmqa_data%anionspix.ge.1 .and. mqmqa_data%anionspix.le.noofsp) then
       mqmqa_data%sp2cat(mqmqa_data%anionspix)=-1
    endif
+   if(mqmqa_data%nan.ge.2) then
+! Claude 2026.11.06: mark all anion species (-anion index) and elements
+      do iv1=1,mqmqa_data%nan
+         isp=mqmqa_data%an2species(iv1)
+         if(isp.ge.1 .and. isp.le.noofsp) then
+            mqmqa_data%sp2cat(isp)=-iv1
+            jp=ellista(splista(isp)%ellinks(1))%alphaindex
+            mqmqa_data%el2ancat(jp)=-jp
+         endif
+      enddo
+   endif
 !
    if(mqmqtdb) then
       write(*,604)noofcations,(mqmqa_data%cat2species(iv1),iv1=1,noofcations)
@@ -5591,6 +7129,12 @@
    if(allocated(mqmqa_data%con2quad)) deallocate(mqmqa_data%con2quad)
    allocate(mqmqa_data%con2quad(nfr))
    con2quadvalency: do isp=1,nfr
+      if(mqmqa_data%nan.ge.2) then
+! Claude 2026.11.06: several anions, cations and anions from the pairs
+         call mqmqa_quad_cat_an(isp,cat1,cat2,el1,el2)
+         mqmqa_data%con2quad(isp)=ijklx(cat1,cat2,el1,el2)
+         cycle con2quadvalency
+      endif
       try1: if(mqmqa_data%contyp(5,isp).gt.0) then
          cat1=mqmqa_data%contyp(5,isp)
          cat2=cat1
@@ -5964,8 +7508,8 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !addtotable subroutine quadprops
-!\begin(verbatim} subroutine quadprops
 ! subroutine quadprops(lokcs,spix)
+!\begin{verbatim}
  subroutine quadprops
 ! subroutine to list mqmqa_data%contyp used in pmon6
 !   integer lokcs
@@ -6000,7 +7544,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !addtotable subroutine list_ternary_cations
-!\begin(verbatim} subroutine list_ternary_cations
+!\begin{verbatim}
  subroutine list_ternary_cations(asymter,phres)
 ! subroutine list_ternary_cations(asymter,new_toop,phres)
 ! subroutine to list \varkappa, \xi and y_ik definitions
@@ -6088,7 +7632,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !addtotable subroutine list_mqmqa_variables
-!\begin(verbatim} subroutine list_mqmqa_variables
+!\begin{verbatim}
  subroutine list_mqmqa_variables(phres)
 ! subroutine to list \varkappa, \xi and y_ik definitions
    implicit none
@@ -6389,6 +7933,11 @@
 !   type(gtp_allinone), pointer :: box
    integer iz,j4
 !
+! Claude 2026.11.07: several anions have their own listing
+   if(mqmqa_data%ncon2.ge.2) then
+      call list_mqmqa_asym2
+      goto 1000
+   endif
    ts: if(allocated(tersys)) then
 ! this popular listing is repeated twice in gtp3XQ.F90, 3 times in pmon6.F90
       write(*,3101)size(tersys)
@@ -6416,6 +7965,7 @@
       write(kou,*)'No ternary asymmetry data allocated'
    endif ts
 !
+1000 continue
    return
  end subroutine list_tersys
 
@@ -6605,6 +8155,8 @@
    double precision stoi(mspel),extra(5),smass,qsp,summin,summax,xan,rat
    integer lokph,jl,loksp,nspel,ielno(mspel),nextra,ie,ian,icat
    mqmqa_exact_salt=.false.
+! Claude 2026.11.06: only implemented for a single anion
+   if(mqmqa_data%nan.ge.2) goto 1000
    ian=mqmqa_data%xanionalpha
    if(ian.le.0) goto 1000
 ! rmin(ie), rmax(ie) smallest and largest number of anions per atom of

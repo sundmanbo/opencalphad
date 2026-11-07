@@ -112,12 +112,14 @@
 !
 !--------------------------------------------------------
   
+!\begin{verbatim}
   subroutine xtdbread(masterfile,nel,el)
 ! To read xtdb files and extract tags and attributes including nesting
     implicit none
     character*(*) masterfile
     character*2 el(*)
     integer nel
+!\end{verbatim}
 ! if nel=0 extract all elements from database
 !----------------------------
 ! Reading the XTDB file with AppendXTDB: Models, Parameters, TPfun and Biblio
@@ -1356,10 +1358,12 @@
 
 ! \/!\/!\/!\/!\/!/!\/!\/!\/!\/!/!\/!\/!\/!\/!/!\/!\/!\/!\/!/!\/!\/!\/!\/!/!
 
+!\begin{verbatim}
   subroutine list_selected_xtdbdata
 ! temporary listing from xtdb local arrays
 !
     implicit none
+!\end{verbatim}
     character line*128, charge*24, spline*24,ch1*1
     integer jj,kk,ip,lk,nn
     type(octerxpol), pointer :: terxpol
@@ -1485,6 +1489,7 @@
     
 ! \/!\/!\/!\/!\/!/!\/!\/!\/!\/!/!\/!\/!\/!\/!/!\/!\/!\/!\/!/!\/!\/!\/!\/!/!
 
+!\begin{verbatim}
   subroutine xtdbtag(unit,fline,tagname,matt,pretag,attributes)
 ! this subroutine extract a tag and its attributes from lines read from file.  
 ! Tag begins with "<tagname>" if no attributes, otherwise "<tagname "
@@ -1500,6 +1505,7 @@
 !    character attributes*(1024)
     character tagname*(*),pretag*(*)
     integer unit,fline,matt
+!\end{verbatim}
 !-------------
     character line*512
     integer ep,ip,jp,kp,tp,taglen,tagend,lines,lentagname
@@ -1746,11 +1752,13 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   logical function xeolch(line,ip)
 ! identical to eolch in METLIB, except it can handle endofline
 !...End Of Line CHeck, TO SKIP SPACES/TAB FROM IP. RETURNS .TRUE. IF another
     character line*(*)
     integer ip
+!\end{verbatim}
 !
     integer, parameter :: itab=9
     xeolch=.true.
@@ -1770,10 +1778,12 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   logical function getatt(text,ip,attname,value)
 ! extract "values" of any XML "attname" in text from position ip
     character*(*) text,attname,value
     integer ip
+!\end{verbatim}
 !
     integer jp,kp,attlen
 !
@@ -1814,9 +1824,11 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   logical function check_mpid(mpid,phase)
 ! check that phase has a model corresponding to the mpid of a parameter
     character*(*) mpid,phase
+!\end{verbatim}
 !
     integer np,ip
 ! 1. loop to find the phase
@@ -1830,10 +1842,12 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine getxtdbatt(attname,text,ip,values)
 ! extract "values" of attribute "att" of "tag" from text at position ip
     character*(*) text,attname,values
     integer att,ip
+!\end{verbatim}
 !
     integer jp,kp,attlen
 ! seach for attribute att is the array with attributes
@@ -1870,10 +1884,12 @@
 ! xtdbinitmpid removed
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine xtdbmodels(appfile)
 ! reads an AppendXTDB file with models and MPID
 ! may change a default MPID
     character*(*) appfile
+!\end{verbatim}
 !
 !    character(len=:), allocatable :: attributes
 !    character attributes*(1024)
@@ -2090,10 +2106,12 @@
 
  !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine xtdbbiblio(appfile)
 ! Listing bibitems from appfile with bibitems inside a bibliography tag
 !    integer nselbib,maxbib
     character*(*) appfile
+!\end{verbatim}
     character tagname*18,pretag*24
     character(len=:), allocatable :: attributes
 !    character*1024 attributes
@@ -2177,10 +2195,12 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine addmissingtp(origin)
 ! extract TPfuns called inside wholexpr and add those missing to seltpfun
 ! with seltpfun(*)%status -1
     character*(*) origin
+!\end{verbatim}
 ! all variables global
 !
     integer ip,jp,kp,ntp
@@ -2214,10 +2234,12 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine istpfun(line,ip,symbol)
 ! extract unknown symbols (TPfuns) from an expression after position ip
     character line*(*),symbol*(*)
     integer ip
+!\end{verbatim}
 !------
 ! Strange error here when everyting was accepted as TPfuns ....
     integer jp,kp,mp
@@ -2294,10 +2316,12 @@
 !
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine xtdbentertpfun(tpfun,add)
 ! check if TPfun is needed and of so enter it in seltpfun
     character*(*) tpfun
     logical add
+!\end{verbatim}
 !
     integer lentp,jj
     lentp=len_trim(tpfun)
@@ -2332,11 +2356,13 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine xtdbaddbibref(bibref,selbib,nselbib,maxbib)
 ! adding new bibrefs to selbib if not already there
     integer nselbib,maxbib
     type(ocbib) :: selbib(*)
     character*(*) bibref
+!\end{verbatim}
     integer nbib,lbib,kk,same
     lbib=len_trim(bibref)
     do nbib=1,nselbib
@@ -2378,11 +2404,13 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine OCenterel(spel,name,refstate,mass,h298,s298)
 !  subroutine OCenterel(spel,data)
 ! enter Element/species from the xtdb file.  Name is full name in OC, ignored
     character spel*2,name*(*),refstate*(*)
     double precision mass,h298,s298
+!\end{verbatim}
 ! data is a text: Mass="5.199600E+01" H298="4.050000E+03" S298="2.354290E+01"
 ! /- and Va introduced automatically
     if(spel.eq.'/-' .or. spel.eq.'VA') goto 1000
@@ -2417,10 +2445,12 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine OCenterspecies(spname,stoi,mqmqa,uniquac)
 ! enter Element/species in xtdb file
     implicit none
     character*(*) spname,stoi,mqmqa,uniquac
+!\end{verbatim}
 ! this requires extracting the stoichiometry ... 
     integer ia,ib,nel,kk,mel,kp
     character*2 el(10)
@@ -2523,6 +2553,7 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine extractstoi(spstoi,nel,el,coef)
 ! decode a species stoiciometry as element/number/ without spaces
 ! The element can be one or two letters and the number an integer, real
@@ -2537,6 +2568,7 @@
     character*2 el(*)
     integer nel
     double precision coef(*)
+!\end{verbatim}
 !
     double precision stf,nom,kvot
     double precision, parameter :: one=1.0D0, zero=0.0D0
@@ -2787,10 +2819,12 @@
   
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine OCenterphase(phrec)
 ! listing phase data to be entered in OC
 !    type(phnest), pointer :: phrec
     type(phnest) :: phrec
+!\end{verbatim}
     integer ms,ns,ip,jp,js,lk
     character*24 constituent,ch1*1
     character*1024 ccxx
@@ -2923,8 +2957,10 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine alphabetical_order
 ! this should arrange elements and species in alphabetical order as in TDB
+!\end{verbatim}
     integer nn,ia,ib,ic,mel,kk,jj
     character bytel*2,ch1*1,byt2*24
     character*24, dimension(:), allocatable :: ss
@@ -3002,11 +3038,13 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine OCenterpar(parname,skip,bibref)
 ! enter Parameter in OC if phase and constituents entered, FUNCTION IN wholexpr
     character*(*) parname,bibref
 ! bibfref can be just a space if not used
     integer skip
+!\end{verbatim}
 ! return skip -1 or -2 if not needed
 !
     character*24 phase, constituent
@@ -3075,6 +3113,7 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine checkifparisneeded(parname,lph)
 ! check if phase and constituents present in this parameter
 ! The phase name may be abbreviated between "_" characters
@@ -3083,6 +3122,7 @@
     character*24 phasename,constituent
     character(len=:), allocatable :: mpid
     integer lk,lm,ln,lph,lcomma,lcolon,lsemic,lright,lend
+!\end{verbatim}
     integer js,jmod,jmpid
 !
     lph=0
@@ -3260,9 +3300,11 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine findabbrphname(phasename,lp)
     character phasename*(*)
     integer lp ! is position after phase name ?? or phase index??
+!\end{verbatim}
 !----------------
     integer lpp,lpx,ok1,lenph
     logical debug
@@ -3350,9 +3392,11 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine OCentertpfun(tpfuname)
 ! enter TPfun data in OC.  MISSING check if needed. Function in wholexpr
     character*(*) tpfuname
+!\end{verbatim}
 ! the call to addmissingtp should only be used if the parameter is entered
     integer nn
 ! check if tpfun uses other tpfun
@@ -3365,9 +3409,11 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine OCenterbibitem(bibitem,text)
 ! enter referenced bibitem in OC
     character*(*) bibitem,text
+!\end{verbatim}
 ! should only be used if the parameter is entered
     integer nbib,ll
     write(*,*)'In OCenterbibitem'

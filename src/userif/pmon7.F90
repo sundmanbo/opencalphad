@@ -84,6 +84,7 @@ MODULE cmon1oc
 !
 contains
 !
+!\begin{verbatim}
   subroutine oc_command_monitor(version,linkdate,narg,argline)
 ! command monitor
     implicit none
@@ -92,6 +93,7 @@ contains
 ! argline and narg are inline arguments
     character linkdate*(*),version*(*),argline(*)*(*)
     integer narg
+!\end{verbatim}
 ! various symbols and texts, version 7
     character :: ocprompt*8='--->OC7:'
     character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort*1
@@ -301,13 +303,13 @@ contains
     character (len=16), dimension(nclist) :: clist=&
          ['DATA            ','SHORT           ','PHASE           ',&
          'STATE_VARIABLES ','BIBLIOGRAPHY    ','MODEL_PARAM_ID  ',&
-         'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
+         'AXIS            ','TPFUN_SYMBOLS   ','                ',&
          'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
          'ACTIVE_EQUILIBR ','ELEMENTS        ','EXCELL_CSV_FILE ',&
          'MQMQA_SPECIAL   ','ESTIMAT_ACCURACY','WORKING_DIRECTOR',&
-         '                ','                ','                ']
+         'QUADS           ','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -2729,6 +2731,11 @@ contains
 ! clumsy way check this is the MQMQA phase
              lokcs=phasetuple(iph)%lokvares
              parres=>ceq%phase_varres(lokcs)
+! Claude 2026.11.07: separate listing for several anions
+             if(mqmqa_data%ncon2.ge.2) then
+                call list_mqmqa_var2(parres)
+                goto 100
+             endif
              if(.not.allocated(parres%mqmqaf%y_ik)) then
                 write(*,*)'MM This is not the MQMQA liquid phase'
                 goto 990
@@ -2802,7 +2809,7 @@ contains
              call list_all_funs(lut)
           endif
 !------------------------------------------------------------
-       case(9) ! list quit
+       case(9) ! list quit, removed 2026.11.07 (QUIT and QUADS both start with Q)
 !------------------------------------------------------------
        case(10) ! list parameter for a phase (just one). Last 1 means list
           call enter_parameter_interactivly(cline,last,1)
@@ -3043,7 +3050,11 @@ contains
                         (ellist(j4),stoik(j4),j4=1,i2)
 1680               format(3x,i3,i4,1x,a,1x,4(a2,F8.6,1x))
 ! this is in quad alphabetical order, not in alphabetical order of quad elements
-                   call mqmqa_quadbonds(jquad,quadbonds)
+! Claude 2026.11.07: mqmqa_quadbonds needs the constituent index, not jquad
+!                   call mqmqa_quadbonds(jquad,quadbonds)
+                   j4=mqmqa_quad_of_species(loksp)
+                   if(j4.le.0) cycle qlista
+                   call mqmqa_quadbonds(j4,quadbonds)
                    if(i2.eq.2) then
                       write(kou,1681)(quadbonds(j4),j4=1,3)
                    else
@@ -3064,6 +3075,13 @@ contains
 ! list mqmqa_special <phase> ASYMMETRIES
 ! note: tersys, xquad, compvar are not linked from the phase!!!
              case(2)
+! Claude 2026.11.07: several anions have their own listings
+                if(mqmqa_data%ncon2.ge.2) then
+                   call list_tersys
+                   mqmqavar=>ceq%phase_varres(lokcs)
+                   call list_mqmqa_var2(mqmqavar)
+                   goto 4445
+                endif
 ! list element names, numbers and quad indices, i1 set to number of quads
                 call list_quads(i1)
 ! tersys is global data
@@ -3146,8 +3164,26 @@ contains
              write(kou,1685)trim(workingdir)
 1685         format('Current working directory is: ',a)
 !------------------------------
+! list QUADS, Claude 2026.11.07, AS_SPECIES: x_ABxy and species name,
+! SHORT: the same 3 on each line with the quad index
+          case(25)
+             if(.not.allocated(mqmqa_data%contyp)) then
+                write(kou,*)'No MQMQA phase'
+                goto 100
+             endif
+             call gparcdx('How (AS_SPECIES or SHORT): ',cline,last,1,name1,&
+                  'AS_SPECIES','?List quads')
+             call capson(name1)
+             if(name1(1:1).eq.'A') then
+                call list_quads_as_species(lut,.FALSE.)
+             elseif(name1(1:1).eq.'S') then
+                call list_quads_as_species(lut,.TRUE.)
+             else
+                write(kou,*)'Only AS_SPECIES or SHORT implemented'
+             endif
+!------------------------------
 ! list ??
-          case(25,26,27)
+          case(26,27)
              write(kou,*)'Not implemented yet'
           end SELECT list
 !=================================================================
@@ -4546,7 +4582,7 @@ contains
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\bergin{verbatim}
+!\begin{verbatim}
   integer function submenu(query,cline,last,ccomnd,ncomnd,kdef,menutarget)
 ! general subcommand decoder
 ! query is the prompt

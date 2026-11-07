@@ -1,9 +1,11 @@
 ! included in smp2.F90.  Generating graphics using GNUPLOT
 
+!\begin{verbatim}
   character*24 function screenpos()
 ! returns " position x,y" to be added to the screen terminal so that each
 ! new plot window is displaced 30 pixels right and down from the previous
 ! one, restart at top left after 10 windows
+!\end{verbatim}
     integer, save :: nscreen=0
     integer ixy
     ixy=50+30*mod(nscreen,10)

@@ -3442,6 +3442,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
  subroutine tpwrite(c2,lfun,nrange,cfun)
 ! temporary debug output
 ! ************************* ATTENTION
@@ -3450,6 +3451,7 @@
    integer nrange,lfun
    character c2*2
    type(gtp_tpfun_as_coeff) :: cfun
+!\end{verbatim}
 ! 
    integer i1,i2
    do i1=1,nrange
@@ -3464,6 +3466,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
  subroutine tpmult(lfun,mfun,ccc,ctpf)
 ! multiples all terms in cfpf(lfun) with the factor ccc and returns that
 ! in ctpf(mfun)
@@ -3472,6 +3475,7 @@
    integer lfun,mfun
    double precision ccc
    type(gtp_tpfun2dat) :: ctpf(*)
+!\end{verbatim}
 !   type(gtp_tpfun_as_coeff) :: cfun
 ! 
    integer, parameter :: maxnc=15,maxnr=20

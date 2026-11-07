@@ -3910,11 +3910,10 @@
       if(ip.gt.0) then
          pure(ip)=q
       else
-! quads with more than two pairs (two anions) not allowed here
-         if(mqmqa_data%contyp(8,q).ne.0) then
-            write(*,*)'3Y mqmqa grid: only one anion allowed'
-            gx%bmperr=4399; goto 1000
-         endif
+! Claude 2026.11.06: reciprocal quads AB/XY (4 pair links) are skipped,
+! they keep the fraction yzero at the gridpoints.  AA/XY and AB/XX have
+! 2 pair links and are treated as the mixed quads with one anion
+         if(mqmqa_data%contyp(8,q).ne.0) cycle
          ip=mqmqa_data%contyp(6,q)
          iq=mqmqa_data%contyp(7,q)
          if(ip.le.0 .or. iq.le.0 .or. ip.gt.ncat .or. iq.gt.ncat) then
@@ -4124,9 +4123,11 @@
 !
  contains
 !
+!\begin{verbatim}
    subroutine mqgridpoint
 ! set quad fractions in yfra from cation fractions yc by the quasichemical
 ! fixed point iteration, calculate G for mode=0
+!\end{verbatim}
    integer i1,j1,itr
    double precision dmax,anew,sumj
    ngg=ngg+1

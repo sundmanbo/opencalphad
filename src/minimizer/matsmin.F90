@@ -10376,7 +10376,7 @@ if(meqrec%noofits.eq.1) then
 ! NOTE order of X and F switched in CALFUN and ASSESSMENT_CALFUN !!!
     integer m,n,info,i,niter
     double precision f(m),x(n)
-!\end{veratim}
+!\end{verbatim}
     double precision sum
 !    write(*,*)'MM enter calfun',info,niter,m,n
     if(info.eq.0) then

@@ -928,8 +928,9 @@
      integer, dimension(:), allocatable :: ellinks
      double precision, dimension(:), allocatable :: stoichiometry
 ! Can be used for extra species properties as in UNIQUAC models (area, volume)
+! or for MQMQA values of Z_ij/xy
      double precision, dimension(:), allocatable :: spextra
-! new property, not included in unformatted save NEVER USED
+! new property, not included in unformatted save NOT YET USED
      character(len=:), allocatable :: mqmqa1
 ! Index in mqmqa_data%contyp ... must be updated after reading a database
      integer :: quadindex
@@ -1191,6 +1192,9 @@
 ! Claude 2026.10.21: set by mqmqa_species when a quad has a second anion,
 ! such quads are skipped silently by the TDB read
   logical :: mqmqa_secondanion=.false.
+! Claude 2026.11.06: config_entropy_mqmqa2 is always used with 2 or more
+! anions; set this TRUE to use it also with a single anion (for testing)
+  logical :: mqmqa_entropy2=.false.
 ! this is explicitly set .false. in pmon6.F90 for the NEW command
   logical :: mqmqa_multival=.false.
 ! When .TRUE., mqmqa_species rejects a 2-cation quad only if the same
@@ -1696,6 +1700,19 @@
      integer xanione,xanionalpha
 ! index of element as cation (-1 for anion)
      integer, dimension(:), allocatable :: el2ancat
+! Claude 2026.11.06: for several anions the pair index is not the cation
+! index.  pair2cat(p) and pair2an(p) are the cation and anion (sublattice)
+! indices of pair p, an2species(k) the species index of anion k.
+! Allocated in correlate_const_and_quads only when there are 2 or more anions
+     integer, dimension(:), allocatable :: pair2cat,pair2an,an2species
+! Claude 2026.11.06: chemical groups and exceptions for several anions, set
+! by mqmqa_groups2 from the TYPE_DEFINITION with GROUPS and EXCEPTIONS.
+! catgroup(i), angroup(k) group numbers of cation i and anion k (sublattice
+! indices).  excat(1:3,e) cations of exception e, excat(4,e) its Toop cation
+! (0 for Kohler) and excat(5,e) the anion (0 for all anions)
+     integer, dimension(:), allocatable :: catgroup,angroup
+     integer, dimension(:,:), allocatable :: excat
+     integer :: nexc=0
 ! 26.04.30 added: index of cation as species, needed when several valencies
      integer, dimension(:), allocatable :: cat2species
 ! 2026-05-10 redesign: cation indexing now by species, not element.
@@ -1762,7 +1779,8 @@
   integer :: mqmqanend=-100
 ! probably only one of these needed ...
   integer, parameter :: maxmqmqa=200
-  integer, parameter :: maxquads=99    ! because only 2 digits
+! Claude 2026.11.06: not used, the limit in mqmqa_species is now maxconst
+  integer, parameter :: maxquads=1000
 !
 !
 !-----------------------------------------------------------------

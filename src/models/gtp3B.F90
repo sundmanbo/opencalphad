@@ -652,6 +652,8 @@
    integer old_p,new_p,jj
 ! 2026-05-11: canonical (AA, AB, BB, ...) sort scratch space
    integer :: can_a(maxconst),can_b(maxconst),perm(maxconst)
+! Claude 2026.11.06: anion sort keys for several anions, ncq cations in quad
+   integer :: can_c(maxconst),can_d(maxconst),ncq
    integer :: found_k,nclen
    integer, allocatable :: tmpcl(:)
 !
@@ -1264,26 +1266,47 @@
 ! alphabetical species-name order in the normal single-valence case.  The
 ! raw splista index is TDB-declaration order and can put cation groups in
 ! arbitrary order when the elements are not declared alphabetically.
-         if(mqmqa_data%contyp(5,found_k).gt.0) then
-! pair quad: single cation in contyp(11)
+! Claude 2026.11.06: species in contyp(11..14) are the cation(s) followed
+! by the anion(s).  contyp(1,q)=2 means a single cation (AA/XX or AA/XY),
+! contyp(1,q)=1 two cations (AB/XX or AB/XY).  The anion pair is the
+! outermost sort key so quads with the same anions stay together (the
+! order assumed by ijklx).  With a single anion the order is unchanged.
+         if(mqmqa_data%contyp(1,found_k).eq.2) then
+            ncq=1
             can_a(jk)=splista(mqmqa_data%contyp(11,found_k))%alphaindex
             can_b(jk)=can_a(jk)
          else
-! cross quad: cations in contyp(11) and contyp(12)
+            ncq=2
             can_a(jk)=min(splista(mqmqa_data%contyp(11,found_k))%alphaindex, &
                           splista(mqmqa_data%contyp(12,found_k))%alphaindex)
             can_b(jk)=max(splista(mqmqa_data%contyp(11,found_k))%alphaindex, &
                           splista(mqmqa_data%contyp(12,found_k))%alphaindex)
          endif
+         can_c(jk)=splista(mqmqa_data%contyp(11+ncq,found_k))%alphaindex
+         if(mqmqa_data%contyp(12+ncq,found_k).gt.0 .and. ncq+2.le.4) then
+            can_d(jk)=splista(mqmqa_data%contyp(12+ncq,found_k))%alphaindex
+            if(can_d(jk).lt.can_c(jk)) then
+               s1=can_c(jk); can_c(jk)=can_d(jk); can_d(jk)=s1
+            endif
+         else
+            can_d(jk)=can_c(jk)
+         endif
          perm(jk)=jk
       enddo
-! Bubble sort perm by (can_a, can_b) ascending
+! Bubble sort perm by (can_c, can_d, can_a, can_b) ascending
       do
          s1=0
          do jk=2,nclen
-            if(can_a(perm(jk)).lt.can_a(perm(jk-1)) .or. &
-               (can_a(perm(jk)).eq.can_a(perm(jk-1)) .and. &
-                can_b(perm(jk)).lt.can_b(perm(jk-1)))) then
+            if(can_c(perm(jk)).lt.can_c(perm(jk-1)) .or. &
+               (can_c(perm(jk)).eq.can_c(perm(jk-1)) .and. &
+                can_d(perm(jk)).lt.can_d(perm(jk-1))) .or. &
+               (can_c(perm(jk)).eq.can_c(perm(jk-1)) .and. &
+                can_d(perm(jk)).eq.can_d(perm(jk-1)) .and. &
+                can_a(perm(jk)).lt.can_a(perm(jk-1))) .or. &
+               (can_c(perm(jk)).eq.can_c(perm(jk-1)) .and. &
+                can_d(perm(jk)).eq.can_d(perm(jk-1)) .and. &
+                can_a(perm(jk)).eq.can_a(perm(jk-1)) .and. &
+               can_b(perm(jk)).lt.can_b(perm(jk-1)))) then
                jj=perm(jk); perm(jk)=perm(jk-1); perm(jk-1)=jj
                s1=1
             endif
@@ -1671,10 +1694,11 @@
    mqmqa_data%lcat=mqmqa_data%ncat*(mqmqa_data%ncat+1)/2
 ! Claude 2026.10.21: max was 10, the limit is now maxquads=99 quads
 ! (13 cations with one anion) which is also checked in mqmqa_species
-   if(mqmqa_data%ncat.gt.13) then
-      write(*,6)mqmqa_data%ncat,13
-6     format('3B **** Warning, too many cations: ',i2,' code assume max ',i2)
-   endif
+! Claude 2026.11.06: no longer a limit of 99 quads, warning removed
+!   if(mqmqa_data%ncat.gt.13) then
+!      write(*,6)mqmqa_data%ncat,13
+!6     format('3B **** Warning, too many cations: ',i2,' code assume max ',i2)
+!   endif
 !
 !   write(*,5)'second',mqmqa_data%nconst,mqmqa_data%ncon1,mqmqa_data%ncon2,&
 !        mqmqa_data%lcat,mqmqa_data%nquad,mqmqa_data%ncat,&
@@ -1741,6 +1765,17 @@
 !   allocate(mqmqa_data%quad2con(nquad))
 ! maybe quad2con is also needed ??
 !   write(*,*)'3B Number of quads:',mqmqa_data%nquad
+! Claude 2026.11.06: the excess model (compvar, tersys, Toop/Kohler) assumes
+! a single anion.  With several anions only the reference energy and the
+! configurational entropy are calculated (stage 1 of multi-anion MQMQA).
+   if(mqmqa_data%nan.ge.2) then
+      write(kou,520)mqmqa_data%ncat,mqmqa_data%nan
+520   format('3B MQMQA with ',i2,' cations and ',i2,' anions, using',&
+           ' the excess model for several anions')
+! the single anion excess data (compvar, tersys) are not created, the
+! excess parameters are calculated by mqmqa_excess2 in gtp3XQ.F90
+      goto 1000
+   endif
    do nva=1,mqmqa_data%nquad
       iva=mqmqa_data%contyp(11,nva)
       ivb=mqmqa_data%contyp(12,nva)
@@ -4055,6 +4090,17 @@
       proprec=>proprec%nextpr
    endif
 !
+! Claude 2026.11.06: with several anions the quads of the parameter are
+! found by mqmqa_excess2 from the interaction tree, no tersys link
+   if(mqmqa_data%nan.ge.2) then
+      proprec%asymdata%quad=0
+      proprec%asymdata%alpha=0
+      proprec%asymdata%beta=0
+      proprec%asymdata%ternary=0
+      proprec%asymdata%tersyslink=0
+      proprec%asymdata%tcat=0
+      goto 1000
+   endif
 ! MQMQA data in the property record, parquad(1) is the AB/X quad index
    call convert_y2quadx(sem,nint,jord,parquad)
    if(gx%bmperr.ne.0) goto 1000
@@ -8166,12 +8212,15 @@
    character*(*) name1, inline
 !   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-! to enter a whole database, max set by seqnum='01' to '99'
+! Claude 2026.11.06: the max 99 quads (2 digits after -Q) removed, after
+! -Q99 the numbers continue -Q100, -Q101 ...  max is maxconst
 !   integer, parameter :: f1=maxconst
 !   integer, parameter :: f1=200
 ! const is array of all quadruplet names, 
 ! mqxquads is maxium number of quads, mqq is max number of species in quads
-   integer, parameter :: maxquads=99,mqq=30
+! Claude 2026.11.06: maxquads was 99, mqq was 30 but qstoi is indexed by
+! the element index which can be larger than 30
+   integer, parameter :: maxquads=maxconst,mqq=maxel
 ! it will be all quads
    character const(maxquads)*24
    integer ip,lenc,jp,kp,ncat,ntot,isp(4),loksp,loksparr(4),nspel,thiscon,s1
@@ -8180,7 +8229,8 @@
    logical already_warned
    character*24 cation1,species(4),quaderr
    character quadname*64,ch1*1,elnames(9)*2
-   character*2 :: seqnum='00'
+   integer :: nseq=0
+   character seqnum*8
 ! save anion species index
 !   integer anionspix
 ! beginning of text to save in species record
@@ -8196,7 +8246,7 @@
 ! Species representing different valencies of an element have names as UQ4 
 ! fnnquads store names of FNN quadruplets
    integer nfnnq,nsnnq,pair,qorder(maxconst),haha,zquad
-   integer, parameter :: mfnnq=40
+   integer, parameter :: mfnnq=500
    character (len=24) :: fnnquads(mfnnq),snnrefs(4,maxconst-mfnnq)
 ! warned-once list for no_multiple_species_of_same_element: one entry per
 ! non-base cation species symbol that has already triggered a warning
@@ -8205,7 +8255,7 @@
    character (len=24) :: warned(mwarned)
    logical, save :: multiple_element_warning=.TRUE.
 ! this save is probably redundant
-   save seqnum,nfnnq,nsnnq,fnnquads,snnrefs,nwarned,warned
+   save nseq,nfnnq,nsnnq,fnnquads,snnrefs,nwarned,warned
 !
    mqmqa_secondanion=.false.
    if(nend.lt.0) then
@@ -8217,7 +8267,7 @@
    endif
 !   write(*,2)trim(inline),trim(name1),nend
 2  format('3B in mqmqa_species: "',a,'" "',a,'" ',i3)
-! This toutine will be called for each mqmqa species entered
+! This routine will be called for each mqmqa species entered
 ! increased %contyp with 4 integers to indices of sublattice species
    if(.not.allocated(mqmqa_data%contyp)) then
 ! these should not be already allocated but ... who knows 
@@ -8235,7 +8285,7 @@
       mqmqa_data%constoi=zero
       mqmqa_data%pp=zero
 ! these values should maybe be saved between calls ....
-      seqnum='00'
+      nseq=0
       nfnnq=0
       nsnnq=0
    endif
@@ -8340,8 +8390,9 @@
 ! this is a second anion
 ! Claude 2026.10.21: no message, the TDB read skips the quad silently
 !      write(kou,*)'3B second anion found "',trim(species(ntot)),'" aborting.'
-      mqmqa_secondanion=.true.
-      gx%bmperr=4399; goto 1000
+! Claude 2026.11.06: two anions are now accepted (multi-anion MQMQA)
+!      mqmqa_secondanion=.true.
+!      gx%bmperr=4399; goto 1000
 !      write(kou,*)'3B two anions detected, only one normally allowed: ',&
 !           trim(species(ntot))
 !      write(kou,*)'3B Continue parsing (c) or terminate (default)? '
@@ -8489,6 +8540,11 @@
       write(*,*)'3B error in stoichiometry: "',inline(kp:ip),'"'
       goto 1000
    endif
+! *******************************************************************
+! BoS/ 2026.11.06: we may have additional MQMQA species data
+! HERE WE MAY HAVE TO EXTRACT DATA FOR THE Z_ij/kl VALUES
+!   write(*,444)ip,inline(1:len_trim(inline))
+444 format('3B line 8496 additional species data for Z_ij/kl data? ',i3/a)
 !********************************************************************
 ! IF ALL INPUT IS IN ALPHABETICAL ORDER  (incl elements!) IT WORKS
 ! For non-alphabetical input a very strong link between the
@@ -8720,9 +8776,19 @@
    endif
 ! add a suffix _Q !!
 !   write(*,*)'3B test seqnum 2: ',seqnum
-   call incnum(seqnum)
-!   write(*,*)'3B test seqnum 2: ',seqnum
-   quadname(kp+1:)='-Q'//seqnum
+!   call incnum(seqnum)
+! Claude 2026.11.06: Bo decided that no digits are needed after -Q, the
+! quad names are unique without them (checked above) and all code finding
+! quads compares only up to -Q.  Old names with digits like NA/CL-Q01 in
+! macros are still accepted.
+!   nseq=nseq+1
+!   if(nseq.lt.100) then
+!      write(seqnum,'(i2.2)')nseq
+!   else
+!      write(seqnum,'(i0)')nseq
+!   endif
+!   quadname(kp+1:)='-Q'//trim(seqnum)
+   quadname(kp+1:)='-Q'
 ! we must return this to enter it also in selsp!!! BUT WITH THE DIGITS!
 !   kp=len_trim(quadname)
    name1=quadname(1:kp+2)
@@ -9063,7 +9129,11 @@
    if(pair.le.0) then
       write(*,*)'3B No pairs among mqmqa constituents!',mqmqa_data%nconst
       gx%bmperr=4399; goto 1000
-   endif 
+   endif
+! Claude 2026.11.06: check that the reciprocal quads AB/XY are electroneutral
+! (swapped Z^A, Z^B in some converted TDB files)
+   call mqmqa_check_neutral
+   if(gx%bmperr.ne.0) goto 1000
 !
 !   write(*,*)'3B replace SNN species by pairs: ',mqmqa_data%nconst,pair
 !   do s1=1,mqmqa_data%nconst
@@ -9176,8 +9246,12 @@
    mqmqa_data%ncon1=ncon1
    mqmqa_data%ncon2=ncon2
 ! copy the value in constoi(3,s1) for all pairs to qfnnsnn
+! Claude 2026.11.06: size was always 50, now at least the number of pairs
+   if(allocated(mqmqa_data%qfnnsnn)) then
+      if(size(mqmqa_data%qfnnsnn).lt.pair) deallocate(mqmqa_data%qfnnsnn)
+   endif
    if(.not.allocated(mqmqa_data%qfnnsnn)) then
-      allocate(mqmqa_data%qfnnsnn(50))
+      allocate(mqmqa_data%qfnnsnn(max(50,pair)))
    endif
    mqmqa_data%qfnnsnn=zero
    do s1=1,mqmqa_data%nconst
@@ -9233,6 +9307,13 @@
 !   write(*,*)'3B attempt to associate the pair with pairpart'
    pp: do s1=1,mqmqa_data%nconst
       if(mqmqa_data%contyp(5,s1).gt.0) cycle pp
+! Claude 2026.11.06: quads with two anions (AA/XY and AB/XY)
+      if(mqmqa_data%contyp(2,s1).eq.-1 .or. &
+           mqmqa_data%contyp(3,s1).eq.-1) then
+         call mqmqa_pp_twoanions(s1)
+         if(gx%bmperr.ne.0) goto 1000
+         cycle pp
+      endif
 ! an SNN quadruplet
 !      write(*,'(a,i3,4i2,i3,1x,4i3,1x,i3,1x,4i3)')'3B %contyp: ',s1,&
 !           (mqmqa_data%contyp(s3,s1),s3=1,14)
@@ -9283,6 +9364,219 @@
 ! maybe also call create_asymmetry in gtp3XQ.F90 ?
    return
  end subroutine mqmqa_rearrange
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine mqmqa_pp_twoanions
+!\begin{verbatim}
+ subroutine mqmqa_pp_twoanions(iq)
+! Claude 2026.11.06: reference energy factors %pp(1..4,iq) for a quad iq
+! with two anions, AA/XY or AB/XY.  Pelton's eq. 17.38 (also used by
+! Thermochimica, CompThermoData.f90):
+!   g_AB/XY = sum over pairs i/k of w_ik * g'_i/k
+!   w_ik = q_k/(2 Z^i Z^k D),  D = q_X/Z^X + q_Y/Z^Y
+! where Z^i, Z^k are the coordination numbers of the quad.  In OC the
+! reference energy of a quad is sum pp(s,iq)*refg(pair) and the existing
+! factors for AB/XX and A/X quads are exactly pp=2*w, so the same is used
+! here.  Only the ratio q_X/q_Y is needed, it is taken from the two pairs
+! with the first cation: q_X/q_Y = (Z^X/Z^A)_{A/X} / (Z^Y/Z^A)_{A/Y}.
+! The pairs in %contyp(6..9,iq) are A/X, A/Y (AA/XY) or A/X, A/Y, B/X, B/Y
+! and %constoi(1..4,iq) are Z^A Z^X Z^Y or Z^A Z^B Z^X Z^Y
+   implicit none
+   integer iq
+!\end{verbatim}
+   double precision za,zb,zx,zy,qx,qy,dd
+   integer p1,p2
+!
+   p1=mqmqa_data%pinq(mqmqa_data%contyp(6,iq))
+   p2=mqmqa_data%pinq(mqmqa_data%contyp(7,iq))
+   qx=mqmqa_data%constoi(2,p1)/mqmqa_data%constoi(1,p1)
+   qy=mqmqa_data%constoi(2,p2)/mqmqa_data%constoi(1,p2)
+   mqmqa_data%pp(:,iq)=zero
+   if(mqmqa_data%contyp(1,iq).eq.2) then
+! AA/XY, pairs A/X and A/Y
+      za=mqmqa_data%constoi(1,iq)
+      zx=mqmqa_data%constoi(2,iq)
+      zy=mqmqa_data%constoi(3,iq)
+      dd=qx/zx+qy/zy
+      mqmqa_data%pp(1,iq)=2.0D0*qx/(za*zx*dd)
+      mqmqa_data%pp(2,iq)=2.0D0*qy/(za*zy*dd)
+   else
+! AB/XY, pairs A/X, A/Y, B/X, B/Y
+      za=mqmqa_data%constoi(1,iq)
+      zb=mqmqa_data%constoi(2,iq)
+      zx=mqmqa_data%constoi(3,iq)
+      zy=mqmqa_data%constoi(4,iq)
+      dd=qx/zx+qy/zy
+      mqmqa_data%pp(1,iq)=qx/(za*zx*dd)
+      mqmqa_data%pp(2,iq)=qy/(za*zy*dd)
+      mqmqa_data%pp(3,iq)=qx/(zb*zx*dd)
+      mqmqa_data%pp(4,iq)=qy/(zb*zy*dd)
+   endif
+   return
+ end subroutine mqmqa_pp_twoanions
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine mqmqa_check_neutral
+!\begin{verbatim}
+ subroutine mqmqa_check_neutral
+! Claude 2026.11.06: check the coordination numbers of the reciprocal quads
+! AB/XY.  The default values (Pelton et al. Part IV eqs. 23-24, used by
+! Thermochimica when a quad is not listed in the DAT file) are calculated
+! from the AB/XX, AB/YY, AA/XY and BB/XY quads.  Some converted TDB files
+! (MSTDB-TC_V4.0-261022.TDB) have Z^A and Z^B swapped.  If the TDB values are
+! the default values swapped they are swapped back with a warning, also the
+! element stoichiometry and mass of the quad species are corrected.  If the
+! default values cannot be calculated the quad is tested for electroneutrality
+!   q_A/Z^A + q_B/Z^B = q_X/Z^X + q_Y/Z^Y
+! with charges from the pairs, q_A/q_X = Z^A/Z^X in the pair A/X etc, and
+! swapped if that makes it neutral.
+! Called from mqmqa_rearrange when %contyp(11..14) are species locations
+! and %pinq is set.
+   implicit none
+!\end{verbatim}
+   integer iq,jj,pax,pay,pbx,sa,sb,sx,sy,lokq,ie,je,iabx,iaby,iaxy,ibxy
+   double precision qa,qb,qx,qy,za,zb,zx,zy,dz,err1,err2,dd,df
+   double precision da,db,dx,dy,tol
+   logical swap
+   integer, save :: nwarn=0
+   tol=1.0D-5
+   do iq=1,mqmqa_data%nconst
+! only AB/XY quads, two cations and two anions
+      if(mqmqa_data%contyp(5,iq).ne.0) cycle
+      if(mqmqa_data%contyp(1,iq).ne.1 .or. mqmqa_data%contyp(3,iq).ne.-1) cycle
+      sa=mqmqa_data%contyp(11,iq); sb=mqmqa_data%contyp(12,iq)
+      sx=mqmqa_data%contyp(13,iq); sy=mqmqa_data%contyp(14,iq)
+      pax=findpair(sa,sx); pay=findpair(sa,sy); pbx=findpair(sb,sx)
+      if(pax.eq.0 .or. pay.eq.0 .or. pbx.eq.0) cycle
+! charges relative to q_X=1
+      qx=one
+      qa=mqmqa_data%constoi(1,pax)/mqmqa_data%constoi(2,pax)
+      qb=mqmqa_data%constoi(1,pbx)/mqmqa_data%constoi(2,pbx)
+      qy=qa*mqmqa_data%constoi(2,pay)/mqmqa_data%constoi(1,pay)
+      za=mqmqa_data%constoi(1,iq); zb=mqmqa_data%constoi(2,iq)
+      zx=mqmqa_data%constoi(3,iq); zy=mqmqa_data%constoi(4,iq)
+      lokq=-mqmqa_data%contyp(10,iq)
+      swap=.FALSE.
+      iabx=findquad(sa,sb,sx,sx); iaby=findquad(sa,sb,sy,sy)
+      iaxy=findquad(sa,sa,sx,sy); ibxy=findquad(sb,sb,sx,sy)
+      if(iabx.gt.0 .and. iaby.gt.0 .and. iaxy.gt.0 .and. ibxy.gt.0) then
+! default values, zsp(q,s) is Z of species s in quad q
+         df=(qa/zsp(iaxy,sa)+qb/zsp(ibxy,sb)+qx/zsp(iabx,sx)+&
+              qy/zsp(iaby,sy))/8.0D0
+         da=one/((zsp(iabx,sx)/(qx*zsp(iabx,sa))+&
+              zsp(iaby,sy)/(qy*zsp(iaby,sa)))*df)
+         db=one/((zsp(iabx,sx)/(qx*zsp(iabx,sb))+&
+              zsp(iaby,sy)/(qy*zsp(iaby,sb)))*df)
+         dx=one/((zsp(iaxy,sa)/(qa*zsp(iaxy,sx))+&
+              zsp(ibxy,sb)/(qb*zsp(ibxy,sx)))*df)
+         dy=one/((zsp(iaxy,sa)/(qa*zsp(iaxy,sy))+&
+              zsp(ibxy,sb)/(qb*zsp(ibxy,sy)))*df)
+         if(abs(za-da).le.tol*da .and. abs(zb-db).le.tol*db) cycle
+         if(abs(za-db).le.tol*db .and. abs(zb-da).le.tol*da .and. &
+              abs(zx-dx).le.tol*dx .and. abs(zy-dy).le.tol*dy) swap=.TRUE.
+      endif
+      if(.not.swap) then
+! test electroneutrality
+         dd=qx/zx+qy/zy
+         err1=abs(qa/za+qb/zb-dd)
+         err2=abs(qa/zb+qb/za-dd)
+         if(err1.le.1.0D-6*dd) cycle
+         if(err2.le.1.0D-6*dd) then
+            swap=.TRUE.
+         else
+            write(kou,20)trim(splista(lokq)%symbol)
+20          format('3B Warning: quad ',a,' is not electroneutral')
+            cycle
+         endif
+      endif
+      nwarn=nwarn+1
+      if(nwarn.le.10) write(kou,10)trim(splista(lokq)%symbol),za,zb
+10    format('3B Warning: quad ',a,' has the cation coordination numbers',&
+           ' swapped ',2F10.5,', corrected')
+      if(nwarn.eq.10) write(kou,*)'3B ... more corrections not listed'
+      mqmqa_data%constoi(1,iq)=zb
+      mqmqa_data%constoi(2,iq)=za
+! correct the element stoichiometry and mass of the quad species
+      do jj=1,2
+         if(jj.eq.1) then
+            ie=sa; dz=one/zb-one/za
+         else
+            ie=sb; dz=one/za-one/zb
+         endif
+         do je=1,size(splista(ie)%ellinks)
+            call addstoi(lokq,splista(ie)%ellinks(je),&
+                 dz*splista(ie)%stoichiometry(je))
+            mqmqa_data%totstoi(iq)=mqmqa_data%totstoi(iq)+&
+                 dz*splista(ie)%stoichiometry(je)
+         enddo
+      enddo
+   enddo
+   return
+ contains
+   integer function findpair(sc,san)
+! the quad index of the pair sc/san (species locations)
+   integer sc,san,kk,qq
+   findpair=0
+   do kk=1,mqmqa_data%npair
+      qq=mqmqa_data%pinq(kk)
+      if(mqmqa_data%contyp(11,qq).eq.sc .and. &
+           mqmqa_data%contyp(12,qq).eq.san) then
+         findpair=qq; return
+      endif
+   enddo
+   end function findpair
+   integer function findquad(c1,c2,a1,a2)
+! the quad with cations c1,c2 and anions a1,a2 (species locations, c1=c2 or
+! a1=a2 for AA/XY and AB/XX), not a pair or reciprocal quad
+   integer c1,c2,a1,a2,qq,k1,k2,k3
+   findquad=0
+   do qq=1,mqmqa_data%nconst
+      if(mqmqa_data%contyp(5,qq).ne.0) cycle
+      k1=mqmqa_data%contyp(11,qq); k2=mqmqa_data%contyp(12,qq)
+      k3=mqmqa_data%contyp(13,qq)
+      if(c1.eq.c2) then
+! AA/XY
+         if(mqmqa_data%contyp(1,qq).ne.2) cycle
+         if(k1.eq.c1 .and. ((k2.eq.a1 .and. k3.eq.a2) .or. &
+              (k2.eq.a2 .and. k3.eq.a1))) then
+            findquad=qq; return
+         endif
+      else
+! AB/XX
+         if(mqmqa_data%contyp(1,qq).ne.1 .or. mqmqa_data%contyp(3,qq).ne.-2) &
+              cycle
+         if(k3.eq.a1 .and. ((k1.eq.c1 .and. k2.eq.c2) .or. &
+              (k1.eq.c2 .and. k2.eq.c1))) then
+            findquad=qq; return
+         endif
+      endif
+   enddo
+   end function findquad
+   double precision function zsp(qq,isp)
+! coordination number of species isp in quad qq (first match in 11..14)
+   integer qq,isp,kk
+   zsp=one
+   do kk=1,4
+      if(mqmqa_data%contyp(10+kk,qq).eq.isp) then
+         zsp=mqmqa_data%constoi(kk,qq); return
+      endif
+   enddo
+   end function zsp
+   subroutine addstoi(loksp,iel,ds)
+! add ds to the stoichiometry of element iel in species loksp, and its mass
+   integer loksp,iel,kk
+   double precision ds
+   do kk=1,size(splista(loksp)%ellinks)
+      if(splista(loksp)%ellinks(kk).eq.iel) then
+         splista(loksp)%stoichiometry(kk)=splista(loksp)%stoichiometry(kk)+ds
+         splista(loksp)%mass=splista(loksp)%mass+ds*ellista(iel)%mass
+         return
+      endif
+   enddo
+   end subroutine addstoi
+ end subroutine mqmqa_check_neutral
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

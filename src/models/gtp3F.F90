@@ -2895,6 +2895,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
  subroutine calc_qf_romain(lokcs,value,ceq)
 ! calculates eigenvalues of the second derivative matrix, stability function
 ! using Romain Le Tellier proposal eliminating one dependent fraction in
@@ -3041,6 +3042,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
  subroutine calc_qf_romain_old(lokcs,value,ceq)
 ! calculates eigenvalues of the second derivative matrix, stability function
 ! using Romain Le Tellier proposal eliminating one dependent fraction in

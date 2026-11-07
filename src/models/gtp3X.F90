@@ -248,7 +248,14 @@
 ! in gtp3_XQ
 ! attempt to extract configurational entropy, gval(2,1) id dG/dT
       sconfmqmqa=phres%gval(2,1)
-      call config_entropy_mqmqa1(phres,moded,lokph,gz%tpv(1))
+! Claude 2026.11.06: new routine for several anions (FactSage SUBQ)
+! and when there are more than 99 quads (fixed array size in the old routine)
+      if(mqmqa_data%nan.ge.2 .or. mqmqa_entropy2 .or. &
+           phlista(lokph)%tnooffr.gt.99) then
+         call config_entropy_mqmqa2(phres,moded,lokph,gz%tpv(1))
+      else
+         call config_entropy_mqmqa1(phres,moded,lokph,gz%tpv(1))
+      endif
 ! attempt to simplify the call .... 
 ! when we come back mqmqaf should have some arrays allocated ....
 ! DO NOT SET THIS POINTER BEFORE ARRAYS ARE ALLOCATED IN CONFIG_ENTROPY_MQMQA

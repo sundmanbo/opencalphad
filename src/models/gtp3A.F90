@@ -1423,6 +1423,8 @@
    symbol=name
    isp=0
    call capson(symbol)
+! Claude 2026.11.06: old MQMQA quad names had digits after -Q
+   call strip_quad_digits(symbol)
    do loksp=1,noofsp
 !      write(*,17)'3A find species: ',loksp,splista(loksp)%symbol,name
 17    format(a,i3,' "',a,'" "',a,'"')
@@ -1455,6 +1457,26 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine strip_quad_digits
+!\begin{verbatim} %-
+ subroutine strip_quad_digits(symbol)
+! Claude 2026.11.06: MQMQA quad names were NA/CL-Q01 etc, now NA/CL-Q.
+! Remove digits after -Q so names with digits in old macros are accepted.
+   implicit none
+   character symbol*(*)
+!\end{verbatim}
+   integer kq
+   kq=index(symbol,'-Q')
+   if(kq.gt.0) then
+      if(len_trim(symbol).gt.kq+1) then
+         if(verify(trim(symbol(kq+2:)),'0123456789').eq.0) symbol(kq+2:)=' '
+      endif
+   endif
+   return
+ end subroutine strip_quad_digits
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine find_species_record_noabbr
 !\begin{verbatim} %-
  subroutine find_species_record_noabbr(name,loksp)
@@ -1466,6 +1488,8 @@
    character symbol*24
    symbol=name
    call capson(symbol)
+! Claude 2026.11.06: old MQMQA quad names had digits after -Q
+   call strip_quad_digits(symbol)
 ! for MQMQA phases with final -Qij the "ij" is ignored
 ! and no check if the phase is MQMQA
    do loksp=1,noofsp
@@ -1890,6 +1914,8 @@ end function find_phasetuple_by_indices
       spname1=spname
    endif
    call capson(spname1)
+! Claude 2026.11.06: old MQMQA quad names had digits after -Q
+   call strip_quad_digits(spname1)
    icon=0
    jabbr=0
    first=0
@@ -2631,7 +2657,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
- !\begin{verbatim}
+!\begin{verbatim}
  subroutine get_sublattice_number(iph,nsl,ceq)
 ! return the number of sublattices for phase iph
 ! nsl: integer, number of sublattices
@@ -2655,7 +2681,7 @@ end function find_phasetuple_by_indices
 
  !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
- !\begin{verbatim}
+!\begin{verbatim}
  subroutine get_sublattice_structure(iph,ics,nsl,nkl,nsites,ceq)
 ! return the structure of the sublattices for phase iph (ics composition set)
 ! nsl: integer, number of sublattices
@@ -2669,6 +2695,7 @@ end function find_phasetuple_by_indices
    double precision, dimension(nsl), intent (out) :: nsites
 !CCI
    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
    integer :: i, lokph,lokcs, ncs
 !
    if(iph.lt.1 .or. iph.gt.noofph) then
@@ -3234,7 +3261,8 @@ end function find_phasetuple_by_indices
 ! we must copy yfra to quad fractions and calculate some internal variables
 ! this routine is in gtp3XQ
 !   write(*,*)'Testing PHMQMQX bit'
-   if(btest(phlista(lokph)%status1,PHMQMQX)) then
+! Claude 2026.11.06: the quad fraction arrays are only for a single anion
+   if(btest(phlista(lokph)%status1,PHMQMQX) .and. mqmqa_data%nan.le.1) then
       if(mqmqa_data%exlevel.lt.100) mqmqa_data%exlevel=100
       if(mqmqxcess) write(*,*)'3A This phase has PHMQMQX set,',&
            ' calling set_quadfractions',lokcs

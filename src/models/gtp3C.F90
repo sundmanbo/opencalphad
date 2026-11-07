@@ -3189,8 +3189,10 @@
    return
  contains
 ! the quad name without -Q from names_y_ik like U2/CL-Q
+!\begin{verbatim}
    character*24 function tdbquadname(ic)
    integer ic,kp
+!\end{verbatim}
    tdbquadname=mqmqa_data%names_y_ik(ic)
    kp=index(tdbquadname,'-Q')
    if(kp.gt.0) tdbquadname(kp:)=' '

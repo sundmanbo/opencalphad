@@ -125,8 +125,10 @@
 
 !\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!
 
+!\begin{verbatim}
   subroutine xtdbinitmpid(ns)
     integer ns
+!\end{verbatim}
 ! initiating xtdbmpid
 ! use the xtdbmodel records
     allocate(xtdbmodel(ns))
@@ -648,11 +650,13 @@
 !/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!
 
 ! \addtotable subroutine check_illegal_xml
+!\begin{verbatim}
  subroutine replace_illegal_xml(line,ip)
 ! replace < > & and " in references by
 !         [ ] | and #
    character*(*) line
    integer ip
+!\end{verbatim}
 !
    integer jp
    lt: do while(.true.)
@@ -682,12 +686,14 @@
 !/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!
 
 ! \addtotable subroutine exp2xml
+!\begin{verbatim}
  subroutine exp2xml(lut,expr,tag,nl)
 ! convert expr to TPfun/Parameter and Trange and write lines on unit lut
 ! tag is TPfun or Parameter and the first part of expr is the Id followd
 ! by the expression
    integer lut,nl
    character expr*(*),tag*(*)
+!\end{verbatim}
 !
    integer ip,jp,kp
    character tlim8*8,line*1000,bibref*16

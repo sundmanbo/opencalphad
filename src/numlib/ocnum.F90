@@ -59,6 +59,7 @@ CONTAINS
 ! Development based on the work of Joao Pedro Carvalho Teuber 12/2020
 ! Linear system solved by splitting approch for conditions giving square
 ! mass matrix. Otherwise lingld is used
+!\begin{verbatim}
   SUBROUTINE lingldSplit(ND1,ND2,RMAT,X,N,M,NCONST,NPH)
 !-----------------------------------------------------------------------
 !     Solving a system of n linear equations with n unknowns
@@ -68,6 +69,7 @@ CONTAINS
     implicit none
     integer M,N,ND1,ND2, NPH, NCONST
     double precision RMAT(ND1,ND2),X(ND1)
+!\end{verbatim}
 !-----------------------------------------------------------------------
     character trans*1
     integer i,j,k,nrhs,lda,ldb,info
@@ -139,6 +141,7 @@ CONTAINS
 !CCI
 
 !-----------------------------------------------------------------------
+!\begin{verbatim}
   SUBROUTINE LINGLDY (ND1,ND2,RMAT,X,N,M)
 !-----------------------------------------------------------------------
 !     System of n linear equations with n unknowns,
@@ -156,6 +159,7 @@ CONTAINS
 !---- VARIABLES OF THE ARGUMENT LIST
     INTEGER M,N,ND1,ND2
     DOUBLE PRECISION RMAT(ND1,ND2),X(ND1)
+!\end{verbatim}
 !-----------------------------------------------------------------------
 !---- LOCAL VARIABLES
     DOUBLE PRECISION A,B,C
@@ -288,12 +292,14 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
   SUBROUTINE WARNGB (NR,A1,A2,I1,I2)
 !---- Printing of warnings, counting and stop printing after 5 times
 !-----------------------------------------------------------------------
 !---- VARIABLES OF THE ARGUMENT LIST
     INTEGER I1,I2,NR
     REAL*8 A1,A2
+!\end{verbatim}
 !-----------------------------------------------------------------------
 !---- LOCAL VARIABLES
     INTEGER K(4)
@@ -331,12 +337,14 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
   SUBROUTINE PRECOND (ND1,ND2,RMAT,BADMAT)
 ! This is called from matsmin, code added by Clement/Joao from CEA
     implicit none
     INTEGER ND1,ND2, J
     DOUBLE PRECISION RMAT(ND1,ND2), INVERSIBLE
     LOGICAL BADMAT
+!\end{verbatim}
 
     BADMAT=.FALSE.
     INVERSIBLE = 1.D20
@@ -365,6 +373,7 @@ CONTAINS
     RETURN
   END SUBROUTINE PRECOND
 
+!\begin{verbatim}
   SUBROUTINE LINGLD (ND1,ND2,RMAT,X,N,M)
 !-----------------------------------------------------------------------
 !     Solving a system of n linear equations with n unknowns
@@ -378,6 +387,7 @@ CONTAINS
     implicit none
     INTEGER M,N,ND1,ND2
     DOUBLE PRECISION RMAT(ND1,ND2),X(ND1)
+!\end{verbatim}
 !-----------------------------------------------------------------------
     character trans*1
     integer j,k,nrhs,lda,ldb,info
@@ -439,6 +449,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
   SUBROUTINE MDINV (ND1,RMAT,RINV,N,IS)
 ! ND2 not used and removed to eliminate confusions
 !  SUBROUTINE MDINV (ND1,ND2,RMAT,RINV,N,IS)
@@ -456,6 +467,7 @@ CONTAINS
     implicit none
     integer nd1,nd2,n,is
     double precision rmat(nd1,nd1),rinv(nd1,nd1)
+!\end{verbatim}
 !
     integer, dimension(:), allocatable :: ipiv
     double precision, dimension(:), allocatable :: work
@@ -522,6 +534,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
   SUBROUTINE MDINVOLD(ND1,RMAT,RINV,N,IS)
 ! ND2 not used and removed to eliminate confusion
 !  SUBROUTINE MDINVOLD(ND1,ND2,RMAT,RINV,N,IS)
@@ -539,6 +552,7 @@ CONTAINS
     implicit none
     integer nd1,nd2,n,is
     double precision rmat(nd1,nd1),rinv(nd1,nd1)
+!\end{verbatim}
     integer, dimension(:), allocatable :: ipiv
     double precision, dimension(:), allocatable :: work
     integer i,j,info,lda,m,lwork
