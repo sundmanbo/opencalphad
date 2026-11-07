@@ -681,7 +681,8 @@
    double precision dblv(10)
    TYPE(gtp_equilibrium_data), pointer :: ceq
    type(gtp_phase_varres), pointer :: phdyn
-   type(gtp_mqmqa_var), pointer :: mqf
+! empty record used to clear all MQMQA data in mqmqa_data
+   type(gtp_mqmqa) :: empty_mqmqa
 !   type(gtp_phase_varres), pointer :: phres
 !   TYPE(gtp_fraction_set) :: fslink
 !   write(*,*)'3E Testing segmentation error in new_gtp'
@@ -785,12 +786,11 @@
 ! after several MAP or STEP commands with different composition sets
          phdyn%phstate=0
          phdyn%phlink=0
-      enddo
 ! new implementation of MQMQA
-      if(allocated(phdyn%mqmqaf%xquad)) then
-         deallocate(phdyn%mqmqaf%xquad)
-         deallocate(phdyn%mqmqaf%compvar)
-      endif
+! Claude 2026.11.07: moved inside the loop, was only done for the last phdyn
+         if(allocated(phdyn%mqmqaf%xquad)) deallocate(phdyn%mqmqaf%xquad)
+         if(allocated(phdyn%mqmqaf%compvar)) deallocate(phdyn%mqmqaf%compvar)
+      enddo
 !      write(*,*)'3E No segmentation error C8',j
 !      deallocate(ceq%phase_varres)
    enddo
@@ -832,51 +832,27 @@
 !   call delete_biblio
 !------ parameter property records
    deallocate(propid)
-!------ other things such as mqmqa_data arrays, I cannot deallocate here
-! probably many more mqmqa data must be deallocated
-   if(allocated(mqmqa_data%contyp)) then
-      deallocate(mqmqa_data%contyp)
-      if(allocated(mqmqa_data%constoi)) deallocate(mqmqa_data%constoi)
-      if(allocated(mqmqa_data%totstoi)) deallocate(mqmqa_data%totstoi)
-      if(allocated(mqmqa_data%el2ancat)) deallocate(mqmqa_data%el2ancat)
-! 2026-05-10 redesign: also free new species-indexed cation maps
-      if(allocated(mqmqa_data%cat2species)) deallocate(mqmqa_data%cat2species)
-      if(allocated(mqmqa_data%sp2cat)) deallocate(mqmqa_data%sp2cat)
-      if(allocated(mqmqa_data%cat2el)) deallocate(mqmqa_data%cat2el)
-      if(allocated(mqmqa_data%con2quad)) deallocate(mqmqa_data%con2quad)
-      if(allocated(mqmqa_data%quad2compvar)) deallocate(mqmqa_data%quad2compvar)
-      if(allocated(mqmqa_data%emquad)) deallocate(mqmqa_data%emquad)
-! added 2026.08.25
-      mqf=>phdyn%mqmqaf
-! Claude 2026.10.16: these are now in mqmqa_data
-      if(allocated(mqmqa_data%names_y_ik)) deallocate(mqmqa_data%names_y_ik)
-      if(allocated(mqmqa_data%dy_ik)) deallocate(mqmqa_data%dy_ik)
-      if(allocated(mqmqa_data%spix_y_ik)) deallocate(mqmqa_data%spix_y_ik)
-      if(allocated(mqmqa_data%spqx_y_ik)) deallocate(mqmqa_data%spqx_y_ik)
-      if(allocated(mqmqa_data%el2quad)) deallocate(mqmqa_data%el2quad)
-! end additions
-!      if(allocated(mqf%dy_ik)) deallocate(mqf%dy_ik)
-      mqmqa_data%nconst=0
-      mqmqa_data%ncon1=0
-      mqmqa_data%ncon2=0
-      mqmqa_data%npair=0
-! more to deallocate ......... see also at line 780 above
-      if(allocated(tersys)) deallocate(tersys)
-! Claude 2026.10.16: binary data common for all composition sets
-      if(allocated(mqbinary)) deallocate(mqbinary)
-!      mqf=>phres%mqmqaf
-!      write(*,*)'3A cleaning up some more mqmqa data'
-   endif
-   if(allocated(mqmqa_data%pinq)) then
-      deallocate(mqmqa_data%pinq)
-   endif
-! these are allocated here and there, if error reading database some may not be
-   if(allocated(mqmqa_data%qfnnsnn)) then
-      deallocate(mqmqa_data%qfnnsnn)
-      deallocate(mqmqa_data%pp)
-   endif
-   if(allocated(mqmqa_data%con2quad)) deallocate(mqmqa_data%con2quad)
-!   if(allocated(mqmqa_data%quad2con) deallocate(mqmqa_data%quad2con))
+!------ MQMQA data common for all composition sets
+! Claude 2026.11.07: clear ALL of mqmqa_data, also GROUPS, EXCEPTIONS,
+! cations, quadlist etc.  Assigning an empty record deallocates every
+! allocatable component (also any added later) and sets exlevel, nexc and
+! mqmqa_terasym1 to their default values.  The other integers set below.
+   mqmqa_data=empty_mqmqa
+   mqmqa_data%nconst=0
+   mqmqa_data%ncon1=0
+   mqmqa_data%ncon2=0
+   mqmqa_data%npair=0
+   mqmqa_data%lcat=0
+   mqmqa_data%nquad=0
+   mqmqa_data%ncat=0
+   mqmqa_data%nan=0
+   mqmqa_data%lan=0
+   mqmqa_data%xanione=0
+   mqmqa_data%xanionalpha=0
+   mqmqa_data%anionspix=0
+! ternary records and binary data common for all composition sets
+   if(allocated(tersys)) deallocate(tersys)
+   if(allocated(mqbinary)) deallocate(mqbinary)
 !
 !   write(*,*)'3E No segmentation error G'
 !------ map results are deleted separately

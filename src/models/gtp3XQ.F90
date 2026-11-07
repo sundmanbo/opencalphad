@@ -54,11 +54,12 @@
 ! list_ternary_cations listing of vk_ij, xi_ij and y_k expressions
 ! list_mqmqa_variables list MQMQA variables expressions and values
 ! list_tersys          lists ternary systems
-! list_mqmqa_asym2     lists quads, groups and ternaries for several anions
+! list_mqmqa_asym2     lists quads, groups and ternaries with letters
 ! mqmqa_asymsets2      asymmetric constituents of a binary, several anions
 ! list_mqmqa_var2      lists quad, pair and binary fractions, several anions
 ! mqmqa_quad_of_species  constituent index of a quad species
 ! list_quads_as_species  LIST QUADS AS_SPECIES or SHORT, x_ABxy and quad name
+! list_mqmqa_quad_details  quads with stoichiometry and bonds
 ! list_compvar         lists composition variables
 ! quad2cat             extract cation indices (one or two) from a quad
 ! -------------------- no more
@@ -2176,18 +2177,21 @@
 
 !\addtotable subroutine list_mqmqa_asym2
 !\begin{verbatim}
- subroutine list_mqmqa_asym2
-! Claude 2026.11.07: LIST PHASE ... TERNARY_ASYM for an MQMQA phase with 2
-! or more anions.  Cations are denoted by upper case letters A, B, C ...,
-! anions by lower case x, y, z ... and the quad AB/XY by x_ABxy.
-! Lists the quads, the chemical groups, the exceptions and the asymmetry of
-! each cation ternary (for each anion) and each anion ternary.  The
-! asymmetries are those used by mqmqa_excess2 (via mqmqa_asymsets2).
+ subroutine list_mqmqa_asym2(what)
+! Claude 2026.11.07: LIST PHASE ... QUADS and TERNARY_ASYM for an MQMQA phase.
+! The quads are listed with letters, cations A, B, C ..., anions x, y, z ...
+! and the quad AB/XY is x_ABxy.  The chemical groups, the exceptions and the
+! asymmetry of each cation ternary (for each anion) and each anion ternary
+! are listed with the cation and anion names.  The asymmetries are those
+! used by mqmqa_excess2 (via mqmqa_asymsets2), for one anion from tersys.
+! what=1: letters and quads, 2: groups and ternaries, 3: all
    implicit none
+   integer what
 !\end{verbatim}
-   integer nc,na,lokph,ncon,q,c1,c2,a1,a2,i,j,k,ix,e,ip,g,ng,nter,nasym,mm
+   integer nc,na,lokph,ncon,q,i,j,k,ix,e,ip,g,ng,nter,nasym,mm
    integer w(3)
    character text*256
+   character(len=24), allocatable :: cn(:),an(:)
    logical, allocatable :: s1(:),s2(:)
    character(len=26), parameter :: catlet='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
    character(len=26), parameter :: anlet='xyzuvwtsrqponmlkjihgfedcba'
@@ -2199,12 +2203,33 @@
       goto 1000
    endif
    do lokph=1,noofph
-      if(btest(phlista(lokph)%status1,PHMQMQA)) goto 100
+      if(btest(phlista(lokph)%status1,PHMQMQX)) goto 100
    enddo
    write(kou,*)'3XQ No MQMQA phase'
    goto 1000
 100 continue
    ncon=phlista(lokph)%tnooffr
+! the cation and anion names
+   allocate(cn(nc),an(na))
+   do i=1,nc
+      cn(i)=splista(mqmqa_data%cat2species(i))%symbol
+   enddo
+   if(allocated(mqmqa_data%an2species)) then
+      do i=1,na
+         an(i)=splista(mqmqa_data%an2species(i))%symbol
+      enddo
+   else
+! one anion, its species index is in contyp(14) of a pair quad A/X
+      do q=1,ncon
+         if(mqmqa_data%contyp(5,q).gt.0) exit
+      enddo
+      an(1)=splista(mqmqa_data%contyp(14,q))%symbol
+   endif
+   if(what.eq.2) then
+      write(kou,105)trim(phlista(lokph)%name),nc,na
+105   format(/'3XQ MQMQA phase ',a,' with',i3,' cations and',i3,' anions')
+      goto 150
+   endif
    write(kou,110)trim(phlista(lokph)%name),nc,na,ncon
 110 format(/'3XQ MQMQA phase ',a,' with',i3,' cations,',i3,' anions and',&
         i4,' quads'/'Cations are denoted A, B, C ..., anions x, y, z ...',&
@@ -2212,31 +2237,19 @@
 ! the cations and anions with their letters
    text='Cations:'; ip=11
    do i=1,nc
-      call addtext(catlet(i:i)//'='//&
-           trim(splista(mqmqa_data%cat2species(i))%symbol))
+      call addtext(catlet(i:i)//'='//trim(cn(i)))
    enddo
    write(kou,'(a)')trim(text)
    text='Anions:'; ip=11
    do i=1,na
-      call addtext(anlet(i:i)//'='//&
-           trim(splista(mqmqa_data%an2species(i))%symbol))
+      call addtext(anlet(i:i)//'='//trim(an(i)))
    enddo
    write(kou,'(a)')trim(text)
 ! the quads, 3 on each line
    write(kou,'(/a)')'Quads:'
-   text=' '; ip=1
-   do q=1,ncon
-      call mqmqa_quad_cat_an(q,c1,c2,a1,a2)
-      write(text(ip:),120)q,catlet(c1:c1)//catlet(c2:c2)//&
-           anlet(a1:a1)//anlet(a2:a2),&
-           splista(phlista(lokph)%constitlist(q))%symbol(1:14)
-120   format(i3,1x,'x_',a4,1x,a14)
-      ip=ip+26
-      if(ip.gt.70 .or. q.eq.ncon) then
-         write(kou,'(a)')trim(text)
-         text=' '; ip=1
-      endif
-   enddo
+   call list_quads_as_species(kou,.TRUE.)
+   if(what.eq.1) goto 1000
+150 continue
 ! chemical groups, the group numbers are common for cations and anions
    write(kou,'(/a)')'Chemical groups:'
    ng=0
@@ -2251,54 +2264,68 @@
       ip=9
       if(allocated(mqmqa_data%catgroup)) then
          do i=1,nc
-            if(mqmqa_data%catgroup(i).eq.g) then
-               text(ip:)=catlet(i:i); ip=ip+2
-            endif
+            if(mqmqa_data%catgroup(i).eq.g) call addname(cn(i))
          enddo
       endif
       if(allocated(mqmqa_data%angroup)) then
          do i=1,na
-            if(mqmqa_data%angroup(i).eq.g) then
-               text(ip:)=anlet(i:i); ip=ip+2
-            endif
+            if(mqmqa_data%angroup(i).eq.g) call addname(an(i))
          enddo
       endif
       if(ip.gt.9) then
          mm=mm+1
          write(text(1:6),'(i5,":")')mm
-         write(kou,'(a)')trim(text)
+         write(kou,'(a)')trim(text(1:ip-3))
       endif
    enddo
 ! exceptions
-   write(kou,'(/a,i3)')'Exceptions:',mqmqa_data%nexc
+   if(mqmqa_data%nexc.eq.0) then
+      write(kou,'(/a)')'Exceptions: none'
+   else
+      write(kou,'(/a)')'Exceptions:'
+   endif
    do e=1,mqmqa_data%nexc
-      text='  '//catlet(mqmqa_data%excat(1,e):mqmqa_data%excat(1,e))//&
-           catlet(mqmqa_data%excat(2,e):mqmqa_data%excat(2,e))//&
-           catlet(mqmqa_data%excat(3,e):mqmqa_data%excat(3,e))
+      text='  '//trim(cn(mqmqa_data%excat(1,e)))//'-'//&
+           trim(cn(mqmqa_data%excat(2,e)))//'-'//&
+           trim(cn(mqmqa_data%excat(3,e)))
       if(mqmqa_data%excat(5,e).gt.0) then
-         text(6:)='/'//anlet(mqmqa_data%excat(5,e):mqmqa_data%excat(5,e))
+         text=trim(text)//'/'//an(mqmqa_data%excat(5,e))
       else
-         text(6:)='/all anions'
+         text=trim(text)//' all anions'
       endif
       if(mqmqa_data%excat(4,e).gt.0) then
-         text(20:)='Toop '//&
-              catlet(mqmqa_data%excat(4,e):mqmqa_data%excat(4,e))
+         text(24:)='Toop, '//trim(cn(mqmqa_data%excat(4,e)))//&
+              ' is the asymmetric cation'
       else
-         text(20:)='Kohler'
+         text(24:)='Kohler'
       endif
       write(kou,'(a)')trim(text)
    enddo
 ! the ternaries
    allocate(s1(max(nc,na)),s2(max(nc,na)))
-   write(kou,200)
-200 format(/'Ternary systems.  For each binary in parenthesis the third',&
-        ' constituent'/'is asymmetric with the letter after ":"',&
-        ' or symmetric "-".')
+   write(kou,'(/a)')'Ternary systems:'
    nter=0; nasym=0
-   do ix=1,na
-      do i=1,nc-2
-         do j=i+1,nc-1
-            do k=j+1,nc
+   if(na.eq.1) then
+! one anion, the asymmetries are in tersys, isasym(1..3) is 1 for a Toop
+! cation.  In a binary a-b with the third c, c is with b if a is Toop and
+! with a if b is Toop.
+      if(.not.allocated(tersys)) goto 190
+      do e=1,size(tersys)
+         i=tersys(e)%el(1); j=tersys(e)%el(2); k=tersys(e)%el(3)
+         nter=nter+1
+         w(1)=toopwith(i,j,tersys(e)%isasym(1),tersys(e)%isasym(2))
+         w(2)=toopwith(i,k,tersys(e)%isasym(1),tersys(e)%isasym(3))
+         w(3)=toopwith(j,k,tersys(e)%isasym(2),tersys(e)%isasym(3))
+         call oneline(trim(cn(i))//'-'//trim(cn(j))//'-'//trim(cn(k))//'/'//&
+              trim(an(1)),cn,'cation',i,j,k)
+      enddo
+      goto 190
+   endif
+! Bo 2026.11.07: the same cation ternary with different anions together
+   do i=1,nc-2
+      do j=i+1,nc-1
+         do k=j+1,nc
+            do ix=1,na
                nter=nter+1
                call mqmqa_asymsets2(.TRUE.,i,j,ix,ix,s1,s2)
                w(1)=withwho(i,j,k)
@@ -2306,8 +2333,8 @@
                w(2)=withwho(i,k,j)
                call mqmqa_asymsets2(.TRUE.,j,k,ix,ix,s1,s2)
                w(3)=withwho(j,k,i)
-               call oneline(catlet(i:i)//catlet(j:j)//catlet(k:k)//'/'//&
-                    anlet(ix:ix),catlet,i,j,k)
+               call oneline(trim(cn(i))//'-'//trim(cn(j))//'-'//&
+                    trim(cn(k))//'/'//trim(an(ix)),cn,'cation',i,j,k)
             enddo
          enddo
       enddo
@@ -2323,11 +2350,12 @@
             w(2)=withwho(i,k,j)
             call mqmqa_asymsets2(.FALSE.,1,1,j,k,s1,s2)
             w(3)=withwho(j,k,i)
-            call oneline(anlet(i:i)//anlet(j:j)//anlet(k:k)//&
-                 ' all cations',anlet,i,j,k)
+            call oneline(trim(an(i))//'-'//trim(an(j))//'-'//trim(an(k))//&
+                 ' all cations',an,'anion',i,j,k)
          enddo
       enddo
    enddo
+190 continue
    if(nter.eq.0) then
       write(kou,'(a)')'  none'
    else
@@ -2349,6 +2377,17 @@
    ip=ip+len(str)+3
    end subroutine addtext
 !------------------------------------------------------------------
+   subroutine addname(str)
+! add a name followed by a comma to a group line, write the line when full
+   character(len=*) str
+   if(ip+len_trim(str).gt.76) then
+      write(kou,'(a)')trim(text)
+      text=' '; ip=9
+   endif
+   text(ip:)=trim(str)//','
+   ip=ip+len_trim(str)+2
+   end subroutine addname
+!------------------------------------------------------------------
    integer function withwho(a,b,c)
 ! c is asymmetric with a or b in the binary a-b, 0 if symmetric
    integer a,b,c
@@ -2360,46 +2399,43 @@
    endif
    end function withwho
 !------------------------------------------------------------------
-   subroutine oneline(tname,let,i,j,k)
-! one line for the ternary i-j-k using w(1..3), let are the letters
-   character(len=*) tname,let
+   integer function toopwith(a,b,ta,tb)
+! one anion: the third constituent is with b if a is Toop (ta=1), with a if
+! b is Toop (tb=1), 0 if symmetric
+   integer a,b,ta,tb
+   toopwith=0
+   if(ta.eq.1 .and. tb.ne.1) then
+      toopwith=b
+   elseif(tb.eq.1 .and. ta.ne.1) then
+      toopwith=a
+   endif
+   end function toopwith
+!------------------------------------------------------------------
+   subroutine oneline(tname,nm,kind,i,j,k)
+! one line for the ternary i-j-k using w(1..3), nm are the names, kind is
+! cation or anion
+   character(len=*) tname,nm(*),kind
    integer i,j,k
-   character res*24
+   character res*64
    if(all(w.eq.0)) then
       res='Kohler'
    else
       nasym=nasym+1
-      res='other'
+      res='asymmetric, not Toop'
 ! Toop t: in t-o1 the third o2 is with o1, in t-o2 o1 is with o2
 ! and in o1-o2 t is symmetric
       if(w(1).eq.0 .and. w(2).eq.i .and. w(3).eq.j) then
-         res='Toop '//let(k:k)
+         res='Toop, '//trim(nm(k))//' is the asymmetric '//kind
       elseif(w(2).eq.0 .and. w(1).eq.i .and. w(3).eq.k) then
-         res='Toop '//let(j:j)
+         res='Toop, '//trim(nm(j))//' is the asymmetric '//kind
       elseif(w(3).eq.0 .and. w(1).eq.j .and. w(2).eq.k) then
-         res='Toop '//let(i:i)
+         res='Toop, '//trim(nm(i))//' is the asymmetric '//kind
       endif
    endif
    text='  '//tname
-   ip=18
-   call onebin(let,i,j,k,w(1))
-   call onebin(let,i,k,j,w(2))
-   call onebin(let,j,k,i,w(3))
-   text(ip+1:)=res
+   text(max(len_trim(text)+3,24):)=res
    write(kou,'(a)')trim(text)
    end subroutine oneline
-!------------------------------------------------------------------
-   subroutine onebin(let,a,b,c,ww)
-! one binary a-b with the third c, ww is a, b or 0, let are the letters
-   character(len=*) let
-   integer a,b,c,ww
-   if(ww.eq.0) then
-      text(ip:)=let(a:a)//let(b:b)//'('//let(c:c)//'):-'
-   else
-      text(ip:)=let(a:a)//let(b:b)//'('//let(c:c)//'):'//let(ww:ww)
-   endif
-   ip=ip+10
-   end subroutine onebin
  end subroutine list_mqmqa_asym2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
@@ -2407,10 +2443,11 @@
 !\addtotable subroutine list_mqmqa_var2
 !\begin{verbatim}
  subroutine list_mqmqa_var2(phres)
-! Claude 2026.11.07: LIST PHASE ... ASYMMETRIES for an MQMQA phase with 2 or
+! Claude 2026.11.07: LIST PHASE ... VARIABLES for an MQMQA phase with 2 or
 ! more anions.  Lists the current quad fractions x_ABxy, the pair fractions
-! p_Ax, the coordination-equivalent fractions y_A and y_x and for each binary
-! the chi (G type) and xi (Q type) sums used by mqmqa_excess2.
+! X_A/x, the coordination-equivalent fractions y_A and y_x and for each binary
+! the varkappa (G type) and xi (Q type) sums used by mqmqa_excess2, first
+! as a table with values and then as expressions of the quad fractions.
 ! Letters as in list_mqmqa_asym2.
    implicit none
    type(gtp_phase_varres), pointer :: phres
@@ -2419,6 +2456,9 @@
    double precision chi1,chi2,chid,xi1,xi2,w
    double precision, allocatable :: pf(:,:)
    integer, allocatable :: qc(:,:),qa(:,:)
+   double precision, allocatable :: wq(:)
+   logical, allocatable :: in1(:),in2(:),ind(:)
+   character(len=6), allocatable :: qn(:)
    logical, allocatable :: s1(:),s2(:)
    character text*256
    character(len=26), parameter :: catlet='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -2438,12 +2478,15 @@
    ncon=phlista(lokph)%tnooffr
    allocate(qc(2,ncon),qa(2,ncon),pf(nc,na))
    allocate(s1(max(nc,na)),s2(max(nc,na)))
+   allocate(wq(ncon),in1(ncon),in2(ncon),ind(ncon),qn(ncon))
    do q=1,ncon
       call mqmqa_quad_cat_an(q,qc(1,q),qc(2,q),qa(1,q),qa(2,q))
+      qn(q)='x_'//catlet(qc(1,q):qc(1,q))//catlet(qc(2,q):qc(2,q))//&
+           anlet(qa(1,q):qa(1,q))//anlet(qa(2,q):qa(2,q))
    enddo
    write(kou,100)trim(phlista(lokph)%name),nc,na,ncon
 100 format(/'3XQ MQMQA phase ',a,' with',i3,' cations,',i3,' anions and',&
-        i4,' quads'/'Letters as in LIST PHASE ... TERNARY_ASYM')
+        i4,' quads'/'Letters as in LIST PHASE ... QUADS')
 ! quad fractions, 3 on each line
    write(kou,'(/a)')'Quad fractions:'
    text=' '; ip=1
@@ -2467,9 +2510,9 @@
       enddo
    enddo
    write(kou,120)
-120 format(/'Pair fractions p_Ax (each cation-anion corner of a quad',&
+120 format(/'FNN pair fractions X_A/x (each cation-anion corner of a quad',&
         ' counts 1/4)'/'and the coordination-equivalent fractions',&
-        ' y_A and y_x (sums of p_Ax)')
+        ' y_A and y_x (sums of X_A/x)')
    text=' '
    do ix=1,na
       text(12+13*(ix-1):)=anlet(ix:ix)
@@ -2482,71 +2525,114 @@
    enddo
    write(kou,140)(sum(pf(:,ix)),ix=1,na)
 140 format(' y_x ',26(1pe13.5))
-! cation binaries for each anion
+! cation binaries for each anion and anion binaries for each cation
    write(kou,200)
 200 format(/'Binary fractions used by the excess parameters.  S1 and S2',&
         ' are the first'/'constituent of the binary and those asymmetric',&
-        ' with it.  chi are the'/'G type and xi the Q type fractions.'/&
-        '  binary  S1      S2         chi_1        chi_2',&
+        ' with it.  vk (varkappa)'/'are the G type and xi the Q type',&
+        ' fractions.'/&
+        '  binary  S1      S2          vk_1         vk_2',&
         '         xi_1         xi_2')
    do ix=1,na
       do ia=1,nc-1
          do ib=ia+1,nc
-            call mqmqa_asymsets2(.TRUE.,ia,ib,ix,ix,s1,s2)
-            chi1=zero; chi2=zero; chid=zero; xi1=zero; xi2=zero
-            do q=1,ncon
-               i=qc(1,q); j=qc(2,q); k=qa(1,q); l=qa(2,q)
-               w=zero
-               if(k.eq.ix .and. l.eq.ix) then
-                  w=one
-               elseif(k.eq.ix .or. l.eq.ix) then
-                  w=0.5D0
-               endif
-               if(s1(i) .and. s1(j)) chi1=chi1+w*phres%yfr(q)
-               if(s2(i) .and. s2(j)) chi2=chi2+w*phres%yfr(q)
-               if((s1(i).or.s2(i)) .and. (s1(j).or.s2(j))) &
-                    chid=chid+w*phres%yfr(q)
-            enddo
-            do i=1,nc
-               if(s1(i)) xi1=xi1+pf(i,ix)
-               if(s2(i)) xi2=xi2+pf(i,ix)
-            enddo
+            call binsums(.TRUE.,ia,ib,ix,ix)
             call oneline(catlet(ia:ia)//catlet(ib:ib)//'/'//anlet(ix:ix),&
                  catlet,nc)
          enddo
       enddo
    enddo
-! anion binaries for each cation
    do ia=1,nc
       do ix=1,na-1
          do iy=ix+1,na
-            call mqmqa_asymsets2(.FALSE.,ia,ia,ix,iy,s1,s2)
-            chi1=zero; chi2=zero; chid=zero; xi1=zero; xi2=zero
-            do q=1,ncon
-               i=qc(1,q); j=qc(2,q); k=qa(1,q); l=qa(2,q)
-               w=zero
-               if(i.eq.ia .and. j.eq.ia) then
-                  w=one
-               elseif(i.eq.ia .or. j.eq.ia) then
-                  w=0.5D0
-               endif
-               if(s1(k) .and. s1(l)) chi1=chi1+w*phres%yfr(q)
-               if(s2(k) .and. s2(l)) chi2=chi2+w*phres%yfr(q)
-               if((s1(k).or.s2(k)) .and. (s1(l).or.s2(l))) &
-                    chid=chid+w*phres%yfr(q)
-            enddo
-            do k=1,na
-               if(s1(k)) xi1=xi1+pf(ia,k)
-               if(s2(k)) xi2=xi2+pf(ia,k)
-            enddo
+            call binsums(.FALSE.,ia,ia,ix,iy)
             call oneline(anlet(ix:ix)//anlet(iy:iy)//'/'//catlet(ia:ia),&
                  anlet,na)
+         enddo
+      enddo
+   enddo
+! the same as expressions of the quad fractions
+   write(kou,300)
+300 format(/'The binary fractions as expressions of the quad fractions.',&
+        '  In AB/x the'/'quads with anion x count 1 and those with x and',&
+        ' another anion 0.5.'/'vk_1 sums the quads with only S1 cations,',&
+        ' vk_2 only S2 and D only S1 or S2.'/&
+        'xi_1 and xi_2 are sums of the FNN pair fractions X_A/x.')
+   do ix=1,na
+      do ia=1,nc-1
+         do ib=ia+1,nc
+            call binsums(.TRUE.,ia,ib,ix,ix)
+            call expressions(catlet(ia:ia)//catlet(ib:ib)//'/'//&
+                 anlet(ix:ix),.TRUE.,ia,ix)
+         enddo
+      enddo
+   enddo
+   do ia=1,nc
+      do ix=1,na-1
+         do iy=ix+1,na
+            call binsums(.FALSE.,ia,ia,ix,iy)
+            call expressions(anlet(ix:ix)//anlet(iy:iy)//'/'//&
+                 catlet(ia:ia),.FALSE.,ia,ix)
          enddo
       enddo
    enddo
 1000 continue
    return
  contains
+!------------------------------------------------------------------
+   subroutine binsums(catbin,ja,jb,jx,jy)
+! the sums for the cation binary ja-jb with anion jx (catbin true) or the
+! anion binary jx-jy with cation ja.  Sets s1, s2, the weights wq, the
+! quads in vk_1 (in1), vk_2 (in2) and the denominator (ind) and the values
+   logical catbin
+   integer ja,jb,jx,jy
+   integer m,i,j,k,l
+   call mqmqa_asymsets2(catbin,ja,jb,jx,jy,s1,s2)
+   chi1=zero; chi2=zero; chid=zero; xi1=zero; xi2=zero
+   do m=1,ncon
+      i=qc(1,m); j=qc(2,m); k=qa(1,m); l=qa(2,m)
+      wq(m)=zero
+      if(catbin) then
+         if(k.eq.jx .and. l.eq.jx) then
+            wq(m)=one
+         elseif(k.eq.jx .or. l.eq.jx) then
+            wq(m)=0.5D0
+         endif
+         in1(m)=s1(i) .and. s1(j)
+         in2(m)=s2(i) .and. s2(j)
+         ind(m)=(s1(i).or.s2(i)) .and. (s1(j).or.s2(j))
+      else
+         if(i.eq.ja .and. j.eq.ja) then
+            wq(m)=one
+         elseif(i.eq.ja .or. j.eq.ja) then
+            wq(m)=0.5D0
+         endif
+         in1(m)=s1(k) .and. s1(l)
+         in2(m)=s2(k) .and. s2(l)
+         ind(m)=(s1(k).or.s2(k)) .and. (s1(l).or.s2(l))
+      endif
+      if(wq(m).eq.zero) then
+         in1(m)=.FALSE.; in2(m)=.FALSE.; ind(m)=.FALSE.
+      endif
+      if(in1(m)) chi1=chi1+wq(m)*phres%yfr(m)
+      if(in2(m)) chi2=chi2+wq(m)*phres%yfr(m)
+      if(ind(m)) chid=chid+wq(m)*phres%yfr(m)
+   enddo
+   if(catbin) then
+      do i=1,nc
+         if(s1(i)) xi1=xi1+pf(i,jx)
+         if(s2(i)) xi2=xi2+pf(i,jx)
+      enddo
+   else
+      do k=1,na
+         if(s1(k)) xi1=xi1+pf(ja,k)
+         if(s2(k)) xi2=xi2+pf(ja,k)
+      enddo
+   endif
+   if(chid.gt.zero) then
+      chi1=chi1/chid; chi2=chi2/chid
+   endif
+   end subroutine binsums
 !------------------------------------------------------------------
    subroutine oneline(bname,let,n)
 ! one line for a binary, let are the letters of the n constituents
@@ -2566,13 +2652,120 @@
          text(jp:jp)=let(m:m); jp=jp+1
       endif
    enddo
-   if(chid.gt.zero) then
-      chi1=chi1/chid; chi2=chi2/chid
-   endif
    jp=max(jp+1,25)
    write(text(jp:),'(4(1pe13.5))')chi1,chi2,xi1,xi2
    write(kou,'(a)')trim(text)
    end subroutine oneline
+!------------------------------------------------------------------
+   subroutine expressions(bname,catbin,ja,jx)
+! write vk_1, vk_2, D, xi_1 and xi_2 of the binary bname as expressions
+   character(len=*) bname
+   logical catbin
+   integer ja,jx
+   write(kou,'(/2x,a)')bname
+   text='    vk_1 ='
+   write(text(12:),'(1pe12.5)')chi1
+   call quadsum(in1,'('); call putstr(')/D')
+   write(kou,'(a)')trim(text)
+   text='    vk_2 ='
+   write(text(12:),'(1pe12.5)')chi2
+   call quadsum(in2,'('); call putstr(')/D')
+   write(kou,'(a)')trim(text)
+   text='    D    ='
+   write(text(12:),'(1pe12.5)')chid
+   call quadsum(ind,' ')
+   write(kou,'(a)')trim(text)
+   text='    xi_1 ='
+   write(text(12:),'(1pe12.5)')xi1
+   call pairsum(s1,catbin,ja,jx)
+   write(kou,'(a)')trim(text)
+   text='    xi_2 ='
+   write(text(12:),'(1pe12.5)')xi2
+   call pairsum(s2,catbin,ja,jx)
+   write(kou,'(a)')trim(text)
+   end subroutine expressions
+!------------------------------------------------------------------
+   subroutine quadsum(inq,open)
+! add " = " and the sum of the quads in inq, first weight 1 then 0.5
+   logical inq(*)
+   character(len=1) open
+   integer m,nh
+   logical first
+   ip=len_trim(text)+2
+   call putstr('= ')
+   if(open.ne.' ') call putstr(open)
+   first=.TRUE.
+   do m=1,ncon
+      if(inq(m) .and. wq(m).eq.one) then
+         if(.not.first) call putstr('+')
+         call putstr(trim(qn(m)))
+         first=.FALSE.
+      endif
+   enddo
+   nh=0
+   do m=1,ncon
+      if(inq(m) .and. wq(m).eq.0.5D0) nh=nh+1
+   enddo
+   if(nh.eq.1) then
+      if(.not.first) call putstr('+')
+      do m=1,ncon
+         if(inq(m) .and. wq(m).eq.0.5D0) call putstr('0.5*'//trim(qn(m)))
+      enddo
+   elseif(nh.gt.1) then
+      if(.not.first) call putstr('+')
+      call putstr('0.5*(')
+      first=.TRUE.
+      do m=1,ncon
+         if(inq(m) .and. wq(m).eq.0.5D0) then
+            if(.not.first) call putstr('+')
+            call putstr(trim(qn(m)))
+            first=.FALSE.
+         endif
+      enddo
+      call putstr(')')
+   elseif(first) then
+      call putstr('0')
+   endif
+   end subroutine quadsum
+!------------------------------------------------------------------
+   subroutine pairsum(sx,catbin,ja,jx)
+! add " = " and the sum of the pair fractions X_A/x of the constituents in sx
+   logical sx(*),catbin
+   integer ja,jx
+   integer m
+   logical first
+   ip=len_trim(text)+2
+   call putstr('= ')
+   first=.TRUE.
+   if(catbin) then
+      do m=1,nc
+         if(sx(m)) then
+            if(.not.first) call putstr('+')
+            call putstr('X_'//catlet(m:m)//'/'//anlet(jx:jx))
+            first=.FALSE.
+         endif
+      enddo
+   else
+      do m=1,na
+         if(sx(m)) then
+            if(.not.first) call putstr('+')
+            call putstr('X_'//catlet(ja:ja)//'/'//anlet(m:m))
+            first=.FALSE.
+         endif
+      enddo
+   endif
+   end subroutine pairsum
+!------------------------------------------------------------------
+   subroutine putstr(str)
+! add str to text at ip, write the line and continue indented when full
+   character(len=*) str
+   if(ip+len(str).gt.79) then
+      write(kou,'(a)')trim(text)
+      text=' '; ip=26
+   endif
+   text(ip:)=str
+   ip=ip+len(str)
+   end subroutine putstr
  end subroutine list_mqmqa_var2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
@@ -2671,6 +2864,57 @@
 1000 continue
    return
  end subroutine list_quads_as_species
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine list_mqmqa_quad_details
+!\begin{verbatim}
+ subroutine list_mqmqa_quad_details(lut,ceq)
+! Claude 2026.11.07: the quads with elements, stoichiometry and bonds (Z),
+! moved from the LIST MQMQA_SPECIAL ... QUADS command in pmon7.
+! Used in LIST PHASE ... MQMQA_SPECIAL.  The species are listed in
+! alphabetical order.
+   implicit none
+   integer lut
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer i1,i2,j4,loksp,jquad,iphl(maxel)
+   double precision stoik(maxel),xxx,xxy,mass,h298,s298,quadbonds(4)
+   character name1*24,name2*24,dummy*24,ellist(maxel)*2
+!
+   jquad=0
+   write(lut,1679)
+1679 format(/'Specie Loc Name',16x,'Elements, stoichiometry, bonds')
+   qlista: do i1=1,nosp()
+      call get_species_location(i1,loksp,name1)
+      if(gx%bmperr.ne.0) goto 1000
+      if(index(name1,'-Q').le.0) cycle qlista
+! this is a species that is a quad
+      jquad=jquad+1
+      call get_species_component_data(loksp,i2,iphl,stoik,xxx,xxy,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+      do j4=1,i2
+! pick up element symbols
+         call get_element_data(iphl(j4),ellist(j4),name2,&
+              dummy,mass,h298,s298)
+      enddo
+      write(lut,1680)i1,loksp,name1,(ellist(j4),stoik(j4),j4=1,i2)
+1680  format(3x,i3,i4,1x,a,1x,4(a2,F8.6,1x))
+! mqmqa_quadbonds needs the constituent index, not jquad
+      j4=mqmqa_quad_of_species(loksp)
+      if(j4.le.0) cycle qlista
+      call mqmqa_quadbonds(j4,quadbonds)
+      if(i2.eq.2) then
+         write(lut,1681)(quadbonds(j4),j4=1,3)
+      else
+         write(lut,1681)(quadbonds(j4),j4=1,i2)
+      endif
+1681  format(26x,'bonds: ',4(F10.6,1x))
+   enddo qlista
+   if(jquad.eq.0) write(lut,*)'No MQMQA quads found'
+1000 continue
+   return
+ end subroutine list_mqmqa_quad_details
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
@@ -7935,7 +8179,7 @@
 !
 ! Claude 2026.11.07: several anions have their own listing
    if(mqmqa_data%ncon2.ge.2) then
-      call list_mqmqa_asym2
+      call list_mqmqa_asym2(2)
       goto 1000
    endif
    ts: if(allocated(tersys)) then

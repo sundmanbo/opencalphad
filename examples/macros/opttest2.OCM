@@ -95,13 +95,7 @@ mac ./opttest2G
 @$ ---------------------------------
 @$ clean up files  @rm is remove file on linux/mac
 
-@rm  opttest2-cumg1.OCU
-@rm  opttest2-cumg2.OCU
-@rm  opttest2-cumg3.OCU
-@rm  opttest2-cumg4.OCU
-@rm  opttest2-cumg5.OCU
-@rm  opttest2-cumg6.OCU
-@rm  opttest2-cumg7.OCU
+@rm  opttest2-cumg*.OCU
 
 set inter
 
