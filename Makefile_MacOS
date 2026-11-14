@@ -24,14 +24,21 @@ C=cc
 #C=gcc
 #=============================================================================#
 CPP=g++
-FCOPT= -O2 -fopenmp -fPIC
+# original
+# FCOPT= -O2 -fopenmp -fPIC -finit-local-zero
+# added -finit-local-zero as STEP1 macro fails 2nd run ... it still fails
+# FCOPT= -O2 -fopenmp -fPIC -finit-local-zero
+#  -fPIC means position independent code.  Seems needed on some computers
+FCOPT= -O2 -fopenmp -fPIC -finit-local-zero
+
+# step1B fails run twice in a row persists even with only option -O0
+#FCOPT= -O0 -finit-local-zero
 # for debugging
 #FCOPT= -fbounds-check -finit-local-zero
 # no parallel
 #FCOPT= -O2
 #FC=ifort
-# Compiler options for debug, -O1 reduces memory/register operations
-#FCOPT= -O1 -fbounds-check -g -finit-local-zero
+#FCOPT= -check bounds -zero
 
 #=============================================================================#
 
@@ -48,12 +55,35 @@ FCOPT= -O2 -fopenmp -fPIC
 # To have the command line editing and history feature on your OS 
 # you must uncomment the appropriate line after the header getkey.o:
 
-all: $(OBJS) $(EXE)
+# "all" (the default) compiles OC and installs the online help in OCHOME.
+# To only compile, without copying the help files to OCHOME, give the command:
+#     make -f Makefile_MacOS compile
+.PHONY: all compile
+all: compile help
+compile: $(OBJS) $(EXE)
+
+# Install the online help (the command ?? in OC): copy the help files to the
+# directory OCHOME.  That is the OCHOME environment variable if you have one,
+# otherwise a directory OCHOME in your home directory, which OC finds by itself.
+# You can also do only this step with the command:  make -f Makefile_MacOS help
+OCHOMEDIR = $(if $(OCHOME),$(OCHOME),$(HOME)/OCHOME)
+.PHONY: help
+# A file is copied only if it is missing in OCHOME or newer in Docs/Userguide
+HELPFILES = Docs/Userguide/ochelp7.html Docs/Userguide/ochelp7.css \
+	$(wildcard Docs/Userguide/ochelp7?x.png) Docs/Userguide/ochelp7.pdf Docs/changes.txt
+help:
+	@mkdir -p "$(OCHOMEDIR)"
+	@for f in $(HELPFILES); do \
+	  g="$(OCHOMEDIR)/`basename $$f`"; \
+	  if [ -f "$$f" ] && { [ ! -f "$$g" ] || [ "$$f" -nt "$$g" ]; }; then \
+	    cp -p "$$f" "$(OCHOMEDIR)" && echo "Online help: copied $$f to $(OCHOMEDIR)"; \
+	  fi; \
+	done
 
 
 clean:
-	rm -r *.mod *.a $(LIBS) $(OBJS) linkoc $(EXE)_OCASI.so $(EXE) 
-
+	rm -r *.mod libs/*.a $(LIBS) $(OBJS) linkoc $(EXE)_OCASI.so $(EXE) 
+	
 #==============================================================================#
 
 # To have the command line editing and history feature on your OS
@@ -116,7 +146,8 @@ pmon7.o:	src/userif/pmon7.F90
 	# use -Daqplt for aqua plot drivers (also smaller window)
 	# use -Dlixhlp for online help in Linux
 	# use -Dmachlp for online help in MacOS (browser)
-	$(FC) -c $(FCOPT) -Dqtplt -Dmachlp src/userif/pmon7.F90
+	# -DOCHOMEDIR tells OC where the help files were installed (OCHOME)
+	$(FC) -c $(FCOPT) -Dqtplt -Dmachlp -ffree-line-length-none -DOCHOMEDIR="'$(OCHOMEDIR)'" src/userif/pmon7.F90
 
 liboctq.o:	./examples/TQ4lib/Cpp/liboctq.F90
 	$(FC) -c -g $(FCOPT) ./examples/TQ4lib/Cpp/liboctq.F90
@@ -140,8 +171,4 @@ $(EXE):
 	# If getkey.o is undefined below
 	# you have forgotten to uncomment a line above at getkey.o !!
 	$(FC) -o $(EXE) $(FCOPT) src/pmain1.F90 $(OBJS) libs/liboceq.a
-
-	# replace the version on Desktop
-	# rm ../../Desktop/$(EXE)
-	# cp $(EXE) ../../Desktop/
 	

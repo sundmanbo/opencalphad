@@ -928,7 +928,7 @@
      integer, dimension(:), allocatable :: ellinks
      double precision, dimension(:), allocatable :: stoichiometry
 ! Can be used for extra species properties as in UNIQUAC models (area, volume)
-! or for MQMQA values of Z_ij/xy
+! In MQMQA 2 reals are saved in spextra for A/X species (FNN pairs?)
      double precision, dimension(:), allocatable :: spextra
 ! new property, not included in unformatted save NOT YET USED
      character(len=:), allocatable :: mqmqa1

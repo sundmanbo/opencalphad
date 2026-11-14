@@ -29,7 +29,7 @@ del ocparam.F90
 REM some utilites and the command line interface
 REM Changed to utiliy package metlib4
 copy src\utilities\metlib4.F90 .
-gfortran -c -O2 -Dtinyfd metlib4.F90
+gfortran -c -O2 -Dtinyfd -Dwinhlp metlib4.F90
 del metlib4.F90
 
 REM some routines from LAPACK and BLAS
@@ -63,11 +63,18 @@ copy src\stepmapplot\smp2*.F90 .
 gfortran -c -fopenmp -O2 smp2.F90
 del smp2*.F90
 
+REM The OCHOME directory for the online help: the OCHOME environment variable
+REM if you have one, otherwise OCHOME in your home directory.  It is compiled
+REM into OC with -DOCHOMEDIR so OC finds it without any environment variable.
+if "%OCHOME%"=="" set OCHOME=%USERPROFILE%\OCHOME
+if not exist "%OCHOME%" mkdir "%OCHOME%"
+
 REM the user interface
 REM set -Dqtplt to use the Qt terminal driver for screen
 REM -Dwinhlp needed for online help on Windows
 copy src\userif\pmon7.F90 .
-gfortran -c -fopenmp -Dwinhlp pmon7.F90
+copy src\userif\pmon7A.F90 .
+gfortran -c -fopenmp -Dwinhlp -ffree-line-length-none -DOCHOMEDIR="'%OCHOME%'" pmon7.F90
 del pmon7.F90
 
 REM First installation create the libs directory
@@ -87,12 +94,20 @@ linkocdate
 del src\pmain1-save.F90
 
 REM Finally linking all together
-gfortran -o oc6P -fopenmp -O2 src\pmain1.F90 pmon7.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o libs\liboceq.a -lcomdlg32 -lole32
+gfortran -o oc7P -fopenmp -O2 src\pmain1.F90 pmon7.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o libs\liboceq.a -lcomdlg32 -lole32
 
 REM Copy to AppData (Create first and insert in PaTH in ENVIRONMENT)
-REM copy oc6P.exe C:\Users\bosun\AppData\Local\OC\bin\
+REM copy oc7P.exe C:\Users\bosun\AppData\Local\OC\bin\
 REM copy changes.txt C:\Users\bosun\Documents\ochome\
 
+
+REM Install the online help (the command ?? in OC): copy the help files to the
+REM directory OCHOME (decided above, before compiling pmon7)
+copy Docs\Userguide\ochelp7.html "%OCHOME%"
+copy Docs\Userguide\ochelp7.css "%OCHOME%"
+copy Docs\Userguide\ochelp7.pdf "%OCHOME%"
+copy Docs\Userguide\ochelp7*.png "%OCHOME%"
+copy Docs\changes.txt "%OCHOME%"
 
 REM *******************************************
 REM ** OC graphics require GNUPLOT 5.2 or later

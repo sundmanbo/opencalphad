@@ -1,13 +1,14 @@
 #
-# Modified 2020.04.25 for the new direcory structure.  Bo Sundman
+# Makefile for OC7 on Linux (made from Makefile_MacOS 2026-11-14)
+# Give the command:  make
+# This compiles OC and installs the online help in OCHOME (see below)
 #
-OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o minpack1.o  gtp3.o matsmin.o smp2.o pmon7.o
+OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o minpack1.o  gtp3.o matsmin.o smp2.o ocparam.o pmon7.o
 LIBS=liboctq.o liboctqisoc.o liboctqcpp.o
 EXE=oc7P
 
 #
-# IMPORTANT 1. select getkey version 
-#           2. select GNUPLOT terminal
+# IMPORTANT check at the getkey.o: label
 #
 #	echo "Do not forget to uncomment a line for your OS"
 #
@@ -17,9 +18,23 @@ EXE=oc7P
 #=============================================================================#
 
 FC=gfortran
+#=============================================================================#
+# For MacOS
+#C=cc
+#=============================================================================#
+# For Linux and other Unix dialects
 C=gcc
+#=============================================================================#
 CPP=g++
-FCOPT= -O2 -fopenmp -fPIC
+# original
+# FCOPT= -O2 -fopenmp -fPIC -finit-local-zero
+# added -finit-local-zero as STEP1 macro fails 2nd run ... it still fails
+# FCOPT= -O2 -fopenmp -fPIC -finit-local-zero
+#  -fPIC means position independent code.  Seems needed on some computers
+FCOPT= -O2 -fopenmp -fPIC -finit-local-zero
+
+# step1B fails run twice in a row persists even with only option -O0
+#FCOPT= -O0 -finit-local-zero
 # for debugging
 #FCOPT= -fbounds-check -finit-local-zero
 # no parallel
@@ -27,17 +42,11 @@ FCOPT= -O2 -fopenmp -fPIC
 #FC=ifort
 #FCOPT= -check bounds -zero
 
-EX1PATH = ./examples/TQ4lib/F90/crfe
-EX2PATH = ./examples/TQ4lib/F90/feni
-EX3PATH = ./examples/TQ4lib/Cpp/Matthias/crfe
-EX4PATH = ./examples/TQ4lib/Cpp/Matthias/feni
-EX5PATH = ./examples/TQ4lib/Cpp/Matthias
-
 #=============================================================================#
 
-#Available compilation flags: all, OCASI, OCASIEXAMPLES, clean
+#Available compilation flags: all, compile, help, OCASI, clean
 
-.PHONY : all OCASI OCASIEXAMPLES clean
+.PHONY : all OCASI clean
 
 #Compiles OpenCalphad to use as standalone Thermodynamic Equilibrium Calculation
 #software.
@@ -48,12 +57,34 @@ EX5PATH = ./examples/TQ4lib/Cpp/Matthias
 # To have the command line editing and history feature on your OS 
 # you must uncomment the appropriate line after the header getkey.o:
 
-all: $(OBJS) $(EXE)
+# "all" (the default) compiles OC and installs the online help in OCHOME.
+# To only compile, without copying the help files to OCHOME, give the command:
+#     make compile
+.PHONY: compile
+all: compile help
+compile: $(OBJS) $(EXE)
+
+# Install the online help (the command ?? in OC): copy the help files to the
+# directory OCHOME.  That is the OCHOME environment variable if you have one,
+# otherwise a directory OCHOME in your home directory, which OC finds by itself.
+# You can also do only this step with the command:  make help
+OCHOMEDIR = $(if $(OCHOME),$(OCHOME),$(HOME)/OCHOME)
+.PHONY: help
+# A file is copied only if it is missing in OCHOME or newer in Docs/Userguide
+HELPFILES = Docs/Userguide/ochelp7.html Docs/Userguide/ochelp7.css \
+	$(wildcard Docs/Userguide/ochelp7?x.png) Docs/Userguide/ochelp7.pdf Docs/changes.txt
+help:
+	@mkdir -p "$(OCHOMEDIR)"
+	@for f in $(HELPFILES); do \
+	  g="$(OCHOMEDIR)/`basename $$f`"; \
+	  if [ -f "$$f" ] && { [ ! -f "$$g" ] || [ "$$f" -nt "$$g" ]; }; then \
+	    cp -p "$$f" "$(OCHOMEDIR)" && echo "Online help: copied $$f to $(OCHOMEDIR)"; \
+	  fi; \
+	done
+
 
 #Compiles the OCASI interfaces of OpenCalphad, so third party software can
-#interact with OpenCalphad. Interfaces are provided in C++ and Fortran, and
-#additional interfaces are available in C and Python.
-
+#interact with OpenCalphad. Interfaces are provided in C++ and Fortran.
 OCASI:
 	make $(OBJS) $(LIBS)
 	ar sq liboctq-f90.a liboctq.o $(OBJS)
@@ -61,31 +92,19 @@ OCASI:
 	ar sq liboctqcpp.a liboctqcpp.o liboctqisoc.o liboctq.o $(OBJS)
 	$(CPP) -shared liboctqcpp.o liboctqisoc.o liboctq.o $(OBJS) -o $(EXE)_OCASI.so -lgfortran
 
-#Compiles the OCASI interface and various examples.
-
-OCASIEXAMPLES:
-	make OCASI
-	$(FC)  -o $(EX1PATH)/tqex1 $(EX1PATH)/TQ1-crfe.F90 liboctq-f90.a -fopenmp
-	$(FC)  -o $(EX2PATH)/tqex2 $(EX2PATH)/TQ2-feni.F90 liboctq-f90.a -fopenmp
-	$(CPP) -o $(EX3PATH)/tqex1 $(EX3PATH)/tqex1.cpp liboctqcpp.a -lgfortran -fopenmp
-	$(CPP) -o $(EX4PATH)/tqex2 $(EX4PATH)/tqex2.cpp liboctqcpp.a -lgfortran -fopenmp
-	$(CPP) -o $(EX5PATH)/tqex3 $(EX5PATH)/tqex3.cpp liboctqcpp.a -lgfortran -fopenmp
-
 clean:
-	rm -r *.mod *.a $(LIBS) $(OBJS) linkoc $(EXE)_OCASI.so $(EXE) $(EX1PATH)/tqex1 $(EX2PATH)/tqex2 $(EX3PATH)/tqex1 $(EX4PATH)/tqex2 $(EX5PATH)/tqex3
-
+	rm -r *.mod *.a libs/*.a $(LIBS) $(OBJS) linkoc $(EXE)_OCASI.so $(EXE) 
+	
 #==============================================================================#
 
-# IMPORTRANT 1:
 # To have the command line editing and history feature on your OS
 # you must uncomment the appropriate line after the header getkey.o:
-# Default is Linux
+
 getkey.o:
-	echo "Do not forget to uncomment the correct line below for your OS"
+	echo "The line below for Linux is used"
 	# compile utilities/GETKEY for command line editing
-	# uncomment the line for the kind of Linux system you have
 	# Mac >>
-	#$(C) -c $(FCOPT) -DBSD src/utilities/GETKEY/getkey.c
+	#$(C) -c  -DBSD src/utilities/GETKEY/getkey.c
 	# Linux >>
 	# echo "In some cases termios.h should be user rather than termio.h"
 	$(C) -c  -DLinux src/utilities/GETKEY/getkey.c
@@ -94,8 +113,6 @@ getkey.o:
 	# CYGWIN >> 
 	#$(C) -c  -DCYGWIN src/utilities/GETKEY/getkey.c
 
-# If you have not uncommented any getkey.c line above COMMENT next line
-# and also remove the -Dlixed option for the metlib4.F90
 M_getkey.o:
 	$(FC) -c $(FCOPT) src/utilities/GETKEY/M_getkey.F90
 
@@ -110,8 +127,7 @@ ftinyopen.o:
 
 metlib4.o:	src/utilities/metlib4.F90
 	$(FC) -c $(FCOPT) src/models/ocparam.F90
-	# lixed for command line editing,
-	# tinyfd for open files
+	# lixed for command line editing, tinyfd for open files
 	# lixhlp for browser help on Linux and MacOS
 	$(FC) -c $(FCOPT) -Dlixed -Dtinyfd -Dlixhlp src/utilities/metlib4.F90
 
@@ -134,17 +150,17 @@ smp2.o:		src/stepmapplot/smp2.F90
 	# Remove -Dnotwin if compiled on Windows (for spawning)
 	$(FC) -c $(FCOPT) -Dnotwin src/stepmapplot/smp2.F90
 
-# IMPORTANT 2: select GNUPLOT terminal
 pmon7.o:	src/userif/pmon7.F90
 	# default wxt graphical driver
 	# use -Dqtplt for Qt or (also smaller window)
 	# use -Daqplt for aqua plot drivers (also smaller window)
-	# use -Dx11 for X11 plot drivers DEFAULT
 	# use -Dlixhlp for online help in Linux
 	# use -Dmachlp for online help in MacOS (browser)
-	$(FC) -c $(FCOPT) -Dx11 -Dlixhlp src/userif/pmon7.F90
+	# use -Dx11 for X11 plot drivers, default on Linux
+	# -DOCHOMEDIR tells OC where the help files were installed (OCHOME)
+	$(FC) -c $(FCOPT) -Dx11 -Dlixhlp -ffree-line-length-none -DOCHOMEDIR="'$(OCHOMEDIR)'" src/userif/pmon7.F90
 
-liboctq.o:	./examples//TQ4lib/Cpp/liboctq.F90
+liboctq.o:	./examples/TQ4lib/Cpp/liboctq.F90
 	$(FC) -c -g $(FCOPT) ./examples/TQ4lib/Cpp/liboctq.F90
 
 liboctqisoc.o:	./examples/TQ4lib/Cpp/Matthias/liboctqisoc.F90
@@ -165,7 +181,5 @@ $(EXE):
 
 	# If getkey.o is undefined below
 	# you have forgotten to uncomment a line above at getkey.o !!
-	# static: $(FC) -o $(EXE) $(FCOPT) -static-libgfortran pmain1.F90 $(OBJS) liboceq.a
-	#$(FC) -o $(EXE) $(FCOPT) src/pmain1.F90 $(OBJS) libs/liboceq.a
-	$(FC) -o $(EXE) $(FCOPT) src/pmain1.F90 pmon7.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o getkey.o libs/liboceq.a
-
+	$(FC) -o $(EXE) $(FCOPT) src/pmain1.F90 $(OBJS) libs/liboceq.a
+	

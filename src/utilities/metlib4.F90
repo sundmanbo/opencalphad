@@ -209,6 +209,12 @@ MODULE METLIB
      character*256 htmlfile
      character*256 latexfile
      character*128 target
+! sysbrowser TRUE means the browser above was not found and the default
+! browser of the system is used (open, xdg-open or start).  As these commands
+! may lose the #target, a small file gotofile is written that redirects
+! the browser to htmlfile#target
+     logical :: sysbrowser=.FALSE.
+     character*256 gotofile
   end type onlinehelp
   type(onlinehelp) :: ochelp
   save ochelp
@@ -297,8 +303,9 @@ MODULE METLIB
   PRIVATE
   PUBLIC :: BIGLET, buperr, capson, compare_abbrev, EOLCH, evalf, &
        GETEXT, GETINT, getname, GETREL, GPARCDx, GPARCX, GPARFILEx, &
-       GPARIDx, GPARIx, GPARRDx, GPARRx, gx, helplevel1, helprec, &
-       helptrace, HPCALC, INCNUM, init_help, iox, ISABBR, IUMACLEVL, &
+       GPARIDx, GPARIx, GPARRDx, GPARRx, gx, help_report, &
+       help_target_in_html, helplevel1, helprec, helptrace, HPCALC, &
+       INCNUM, init_help, iox, ISABBR, IUMACLEVL, &
        ixsym, kiu, kiud, kou, kxsym, LOADC, LOADR, LOADRN, lun, lut, &
        MACBEG, MACEND, macropath, maxhelplevel, MQSORT, myhistory, &
        nbpw, NCOMP, NONE, NOPENPOPUP, NWCH, nwpr, ochelp, openlogfile, &
@@ -1759,7 +1766,7 @@ CONTAINS
 !    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     implicit none
     CHARACTER PROMT*(*),SVAR*(*),CH1*1,CDEF*(*),STRING*(*),SSD*30
-    CHARACTER PPROMT*132,CH2*1
+    CHARACTER PPROMT*512,CH2*1
 !    LOGICAL EOLCH,SG2ERR,WDEF,MATP
     LOGICAL WDEF,MATP
     EXTERNAL HELP
@@ -2405,7 +2412,7 @@ CONTAINS
     double precision val
 !    EXTERNAL HELP
 !\end{verbatim}
-    CHARACTER PPROMT*132,CH2*1,ssd*30
+    CHARACTER PPROMT*512,CH2*1,ssd*30
     LOGICAL WDEF,MATP
     integer last,unused
 ! local variables
@@ -2570,8 +2577,8 @@ CONTAINS
                 hypertarget='?All commands'
              else
 ! when prompting for commands the default must be a character
-                write(*,*)'gparallx extract: "',trim(promt),'" and "',&
-                     trim(cdef),'"'
+                if(helptrace) write(*,*)'gparallx extract: "',trim(promt),&
+                     '" and "',trim(cdef),'"'
 ! extract part of the promt as hypertarget, 
 ! for a promt "Amend for phase LIQUID what?" extract "Amend for phase"
 ! to use as hypertarget.  Use only the 3 first words
@@ -2619,7 +2626,8 @@ CONTAINS
 ! using q4help the arguments should be hyper and an (so far) unused integer
 !       CALL HELP(PROMT(1:M),SVAR(I:))
 !       CALL HELP(hypertarget,unused)
-       write(*,*)'Calling Q4HELP: "',trim(hypertarget),'"',unused
+       if(helptrace) write(*,*)'Calling Q4HELP: "',trim(hypertarget),&
+            '"',unused
        CALL q4help(hypertarget,unused)
        if(unused.ne.0) then
 ! return a ? to calling routine ... why?
@@ -2930,8 +2938,20 @@ CONTAINS
        inquire(file=noquotes,exist=logok)
 !       write(*,*)'m4C: ',trim(noquotes),logok
     endif
+    ochelp%sysbrowser=.FALSE.
+    if(.not.logok) then
+! The browser was not found, use the default browser of the system
+       call sysbrowser_help(noquotes,logok)
+       ochelp%sysbrowser=logok
+    else
+       noquotes=browser
+    endif
     allok: if(logok) then
-       ochelp%browser=browser
+       if(ochelp%sysbrowser) then
+          ochelp%browser=noquotes
+       else
+          ochelp%browser=browser
+       endif
        inquire(file=htmlfile,exist=logok)
 !       write(*,*)'m4B: ',trim(htmlfile),logok
        if(logok) then
@@ -2947,9 +2967,53 @@ CONTAINS
     ochelp%htmlhelp=.FALSE.
     ochelp%htmlfile=' '
     ochelp%browser=' '
+    ochelp%sysbrowser=.FALSE.
 1000 continue
     return
   end subroutine init_help
+
+!\addtotable subroutine sysbrowser_help & Use the system default browser
+!\begin{verbatim}
+  subroutine sysbrowser_help(opener,found)
+! Called from init_help when the browser given is not found.
+! Returns in opener the command opening a file with the default browser and
+! sets ochelp%gotofile to the name of a redirect file in a temporary directory
+! (not OCHOME, which may be shared and write protected)
+    implicit none
+    character*(*) opener
+    logical found
+!\end{verbatim} %+
+    character tmpdir*200,user*64
+    found=.FALSE.
+    opener=' '
+    tmpdir=' '
+#ifdef winhlp
+! Windows: the start command uses the default browser, TEMP is per user
+    opener='start ""'
+    call get_environment_variable('TEMP ',tmpdir)
+    if(tmpdir(1:1).eq.' ') tmpdir='C:\Temp'
+    ochelp%gotofile=trim(tmpdir)//'\ochelp-goto.html'
+    found=.TRUE.
+#else
+! MacOS has /usr/bin/open, Linux usually /usr/bin/xdg-open
+    inquire(file='/usr/bin/open ',exist=found)
+    if(found) then
+       opener='/usr/bin/open'
+    else
+       inquire(file='/usr/bin/xdg-open ',exist=found)
+       if(found) opener='/usr/bin/xdg-open'
+    endif
+    if(found) then
+! TMPDIR is per user on MacOS, /tmp is shared so add the user name
+       call get_environment_variable('TMPDIR ',tmpdir)
+       if(tmpdir(1:1).eq.' ') tmpdir='/tmp'
+       user=' '
+       call get_environment_variable('USER ',user)
+       ochelp%gotofile=trim(tmpdir)//'/ochelp-goto-'//trim(user)//'.html'
+    endif
+#endif
+    return
+  end subroutine sysbrowser_help
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
@@ -3064,7 +3128,8 @@ CONTAINS
 ! if extra=0 help has been provided, otherwise the calling routine try to do it
 ! raised 256 -> 1024: browser and htmlfile are now 256 each, so the assembled
 ! command could otherwise be silently truncated - losing the closing quote
-    character htmlhelp*1024
+    character htmlhelp*1024,gofile*256
+    logical logok
     if(helprec%okinit.eq.0) then
        if(helptrace) write(kou,*)'Sorry no help file'
        goto 1000
@@ -3107,6 +3172,19 @@ CONTAINS
 ! in the call this subroutine and a hypertarget text is provided.
 ! When inside this routine the user has typed ? or ?? to get help.
 ! The browser used depend on compiler options ...
+    if(ochelp%sysbrowser) then
+! default browser of the system, write a redirect file and open that
+       call write_help_goto(gofile,logok)
+       if(.not.logok) goto 1000
+#ifdef winhlp
+       htmlhelp=trim(ochelp%browser)//' "'//trim(gofile)//'"'
+#else
+       htmlhelp=trim(ochelp%browser)//' "'//trim(gofile)//'" &'
+#endif
+       if(helptrace) write(*,*)'QZ: ',trim(htmlhelp)
+       call execute_command_line(htmlhelp)
+       goto 1000
+    endif
 #ifdef winhlp
 ! on Windows we need the / after file
 ! the initial start spawns a new window with the browser, each ? a new browser
@@ -3125,6 +3203,261 @@ CONTAINS
 1000 continue
     return
   end subroutine q4help
+
+!\addtotable subroutine write_help_goto & Write redirect file for help
+!\begin{verbatim}
+  subroutine write_help_goto(gofile,ok)
+! writes gofile, a small HTML file which makes the browser
+! open ochelp%htmlfile at ochelp%target.  It is written in the same
+! directory as the help file (Safari only follows links within the same
+! directory) or, if that is write protected, as ochelp%gotofile in the
+! temporary directory
+    implicit none
+    character*(*) gofile
+    logical ok
+!\end{verbatim} %+
+    character url*512,user*64
+    integer lun,ios,kk,jj
+! file URL, on Windows C:\... becomes file:///C:/...
+#ifdef winhlp
+    url='file:///'//trim(ochelp%htmlfile)
+#else
+    url='file://'//trim(ochelp%htmlfile)
+#endif
+    jj=len_trim(url)
+    do kk=1,jj
+       if(url(kk:kk).eq.'\') url(kk:kk)='/'
+    enddo
+    url=url(1:jj)//'#'//trim(ochelp%target)
+    jj=len_trim(url)
+! spaces in file names and target must be %20 in a URL
+    kk=index(url(1:jj),' ')
+    do while(kk.gt.0)
+       url=url(1:kk-1)//'%20'//url(kk+1:)
+       jj=jj+2
+       kk=index(url(1:jj),' ')
+    enddo
+! user name in the file name as several users may share OCHOME
+    user=' '
+#ifdef winhlp
+    call get_environment_variable('USERNAME ',user)
+#else
+    call get_environment_variable('USER ',user)
+#endif
+    kk=max(index(ochelp%htmlfile,'/',back=.TRUE.),&
+         index(ochelp%htmlfile,'\',back=.TRUE.))
+    gofile=ochelp%htmlfile(1:kk)//'ochelp-goto-'//trim(user)//'.html'
+    open(newunit=lun,file=gofile,status='replace',&
+         access='sequential',form='formatted',iostat=ios)
+    if(ios.ne.0) then
+       gofile=ochelp%gotofile
+       open(newunit=lun,file=gofile,status='replace',&
+            access='sequential',form='formatted',iostat=ios)
+       if(ios.ne.0) then
+          write(*,*)'Cannot write help file: ',trim(gofile)
+          ok=.FALSE.
+          goto 1000
+       endif
+    endif
+    write(lun,'(a)')'<!DOCTYPE html><html><head><meta charset="utf-8">'
+    write(lun,'(a)')'<meta http-equiv="refresh" content="0; url='//&
+         trim(url)//'">'
+    write(lun,'(a)')'<script>location.replace("'//trim(url)//'");</script>'
+    write(lun,'(a)')'</head><body><a href="'//trim(url)//&
+         '">OC help</a></body></html>'
+    close(lun)
+    ok=.TRUE.
+1000 continue
+    return
+  end subroutine write_help_goto
+
+!\addtotable subroutine help_report & List how the online help is installed
+!\begin{verbatim}
+  subroutine help_report(ochome,from,instdir,browser)
+! Used by DEBUG BROWSER to list how the online help is installed.
+! ochome is the OC home directory, from tells how it was found
+! (0 OCHOME environment variable, 1 set at installation, 2 default in the
+! user's home directory, 3 set by DEBUG BROWSER), instdir is the directory
+! set at installation (or blank) and browser the browser asked for.
+    implicit none
+    character*(*) ochome,instdir,browser
+    integer from
+!\end{verbatim} %+
+    character path*512,sep*1,what*48,user*64,found*128,missing*128
+    character(len=12), dimension(4) :: hfiles=&
+         ['ochelp7.html','ochelp7.css ','ochelp7.pdf ','changes.txt ']
+    integer kk
+    logical exist
+#ifdef winhlp
+    sep='\'
+#else
+    sep='/'
+#endif
+20  format(3x,a,t23,a)
+    if(ochelp%htmlhelp) then
+       write(kou,'(/a)')' Online help is ON'
+    else
+       write(kou,'(/a)')' Online help is OFF'
+    endif
+    select case(from)
+    case(0)
+       what='(from the environment variable OCHOME)'
+    case(1)
+       what='(set when OC was installed)'
+    case(2)
+       what='(default, OCHOME in your home directory)'
+    case(3)
+       what='(set by DEBUG BROWSER)'
+    case default
+       what=' '
+    end select
+    if(ochome(1:1).eq.' ') then
+       write(kou,20)'OC home directory:','(none)'
+    else
+       write(kou,20)'OC home directory:',trim(ochome)//'  '//trim(what)
+    endif
+    if(instdir(1:1).ne.' ' .and. instdir.ne.ochome) then
+       write(kou,20)'At installation:',trim(instdir)
+    endif
+! the help files in the OC home directory
+    if(ochome(1:1).ne.' ') then
+       found=' '
+       missing=' '
+       do kk=1,4
+          path=trim(ochome)//sep//trim(hfiles(kk))
+          inquire(file=path,exist=exist)
+          if(exist) then
+             found=trim(found)//' '//trim(hfiles(kk))
+          else
+             missing=trim(missing)//' '//trim(hfiles(kk))
+          endif
+       enddo
+       write(kou,20)'Files found:',trim(adjustl(found))
+       if(len_trim(missing).gt.0) &
+            write(kou,20)'Files MISSING:',trim(adjustl(missing))
+    endif
+! the help file used may differ if changed by SET ADVANCED HELP
+    if(ochelp%htmlfile(1:1).ne.' ') then
+       path=trim(ochome)//sep//'ochelp7.html'
+       if(ochelp%htmlfile.ne.path) &
+            write(kou,20)'Help file used:',trim(ochelp%htmlfile)
+    endif
+! the browser, on Windows it may include quotes
+    path=browser
+    kk=index(path,'"')
+    do while(kk.gt.0)
+       path(kk:)=path(kk+1:)
+       kk=index(path,'"')
+    enddo
+    if(path(1:1).ne.' ') then
+       inquire(file=path,exist=exist)
+       if(.not.exist) write(kou,20)'Browser NOT found:',trim(browser)
+    endif
+    if(ochelp%htmlhelp) then
+       if(ochelp%sysbrowser) then
+          write(kou,20)'Browser:','your default browser, opened by '//&
+               trim(ochelp%browser)
+! the redirect file, see write_help_goto
+          user=' '
+#ifdef winhlp
+          call get_environment_variable('USERNAME ',user)
+#else
+          call get_environment_variable('USER ',user)
+#endif
+          kk=max(index(ochelp%htmlfile,'/',back=.TRUE.),&
+               index(ochelp%htmlfile,'\',back=.TRUE.))
+          write(kou,20)'Redirect file:',ochelp%htmlfile(1:kk)//&
+               'ochelp-goto-'//trim(user)//'.html'
+       else
+          write(kou,20)'Browser:',trim(ochelp%browser)
+       endif
+    endif
+    return
+  end subroutine help_report
+
+!\addtotable subroutine help_target_in_html & Check a target is in help file
+!\begin{verbatim}
+  subroutine help_target_in_html(target,found)
+! Used by DEBUG BROWSER to check that the help file has an anchor for
+! a target, i.e. id="target" made by \hypertarget{target} in the LaTeX file.
+! A ? first in target is ignored.  Browsers are case sensitive, so if the
+! target is found only with other upper/lower case letters target is
+! changed to the spelling in the help file.  If not found at all the
+! targets starting with the same text (any case) are listed.
+    implicit none
+    character*(*) target
+    logical found
+!\end{verbatim} %+
+    integer, parameter :: maxlist=60
+    character line*2048,tgt*128,id*128,upid*128,uptgt*128,caseid*128
+    character(len=40) :: list(maxlist)
+    integer lun,ios,kk,jj,nlist,ltgt
+    found=.FALSE.
+    if(target(1:1).eq.'?') then
+       tgt=target(2:)
+    else
+       tgt=target
+    endif
+    ltgt=len_trim(tgt)
+    if(ltgt.eq.0) goto 1000
+    uptgt=tgt
+    call capson(uptgt)
+    caseid=' '
+    nlist=0
+    open(newunit=lun,file=ochelp%htmlfile,status='old',action='read',&
+         access='sequential',form='formatted',iostat=ios)
+    if(ios.ne.0) then
+       write(kou,*)'Cannot open the help file ',trim(ochelp%htmlfile)
+       goto 1000
+    endif
+    lines: do
+       read(lun,'(a)',iostat=ios)line
+       if(ios.ne.0) exit lines
+! there can be several id="..." on a line
+       kk=index(line,'id="')
+       do while(kk.gt.0)
+          line=line(kk+4:)
+          jj=index(line,'"')
+          if(jj.le.1) exit
+          id=line(1:jj-1)
+          line=line(jj+1:)
+          if(id.eq.tgt) then
+             found=.TRUE.
+             exit lines
+          endif
+          upid=id
+          call capson(upid)
+          if(upid.eq.uptgt) then
+             if(caseid(1:1).eq.' ') caseid=id
+          elseif(upid(1:ltgt).eq.uptgt(1:ltgt)) then
+             nlist=nlist+1
+             if(nlist.le.maxlist) list(nlist)=id
+          endif
+          kk=index(line,'id="')
+       enddo
+    enddo lines
+    close(lun)
+    if(found) goto 1000
+    if(caseid(1:1).ne.' ') then
+       write(kou,10)trim(caseid)
+10     format(' Using the target "',a,'" as spelled in the help file')
+       target=caseid
+       found=.TRUE.
+    elseif(nlist.gt.0) then
+       write(kou,20)trim(tgt)
+20     format(' "',a,'" is not in the help file. Targets starting',&
+            ' with it are:')
+       write(kou,'(3x,a,1x,a)')(list(kk),kk=1,min(nlist,maxlist))
+       if(nlist.gt.maxlist) write(kou,'(a,i0,a)')' ... and ',&
+            nlist-maxlist,' more'
+    else
+       write(kou,30)trim(tgt)
+30     format(' "',a,'" is not in the help file and no target',&
+            ' starts with it')
+    endif
+1000 continue
+    return
+  end subroutine help_target_in_html
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

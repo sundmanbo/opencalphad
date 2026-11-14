@@ -66,40 +66,35 @@ title map 15 fig 1a
 
 @&
 @$ Sometimes some parts are missing, try adding another startpoint
+@$ but not this time
 
-@$ does not work on LINUX set c x(ni)=.2
-set c x(re)=.36 x(ni)=.1
+@$ Select a triangular diagram with tie-lines
 
-c e
 
-l,,,,,
-
-@&
-
-map
-N
+@$ set inter
 
 
 plot
 
 
-
-@$ It looks OK, plot as a Gibbs triangle and add tie-lines
-@&
-
-
-plot
-
-
-extra ?
-@$ This gives the browser window and we must select from the extra menu
-extra ??
+?
+??  @$ This gives a browser window so we must see more of the extra menu
+extra
 gibbs
 y
-extra tie 3
+?
+extra
+?
+tie
+3
 extra lower Mo
-title Map 15 fig 1b: BEF model Mo-Ni-Re isotherm 500 K
+?
+title
+Map 15 fig 1b: BEF model Mo-Ni-Re isotherm 500 K
 
+
+@$ The ? and ?? interrogatations above not trivial ....
+@$ set inter
 
 
 @$ Usually some parts are missing or have spurious tei-line
@@ -156,10 +151,12 @@ extra gibbs y
 extra tie 10
 extra color
 f0f0f0
-ffff00
+ff00ff
 title Map 15 fig 2b: BEF model Mo-Ni-Re isotherm 1500 K
 
 @&
+
+
 
 
 @$-------------------------------------------------------

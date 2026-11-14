@@ -2456,7 +2456,7 @@
    double precision chi1,chi2,chid,xi1,xi2,w
    double precision, allocatable :: pf(:,:)
    integer, allocatable :: qc(:,:),qa(:,:)
-   double precision, allocatable :: wq(:)
+   double precision, allocatable :: wq(:),wx(:)
    logical, allocatable :: in1(:),in2(:),ind(:)
    character(len=6), allocatable :: qn(:)
    logical, allocatable :: s1(:),s2(:)
@@ -2478,7 +2478,7 @@
    ncon=phlista(lokph)%tnooffr
    allocate(qc(2,ncon),qa(2,ncon),pf(nc,na))
    allocate(s1(max(nc,na)),s2(max(nc,na)))
-   allocate(wq(ncon),in1(ncon),in2(ncon),ind(ncon),qn(ncon))
+   allocate(wq(ncon),wx(ncon),in1(ncon),in2(ncon),ind(ncon),qn(ncon))
    do q=1,ncon
       call mqmqa_quad_cat_an(q,qc(1,q),qc(2,q),qa(1,q),qa(2,q))
       qn(q)='x_'//catlet(qc(1,q):qc(1,q))//catlet(qc(2,q):qc(2,q))//&
@@ -2530,9 +2530,9 @@
 200 format(/'Binary fractions used by the excess parameters.  S1 and S2',&
         ' are the first'/'constituent of the binary and those asymmetric',&
         ' with it.  vk (varkappa)'/'are the G type and xi the Q type',&
-        ' fractions.'/&
-        '  binary  S1      S2          vk_1         vk_2',&
-        '         xi_1         xi_2')
+        ' fractions.'/'For the binary AB/x, ij/k is AB/x and ji/k is BA/x.'/&
+        '  binary  S1      S2       vk_ij/k      vk_ji/k',&
+        '      xi_ij/k      xi_ji/k')
    do ix=1,na
       do ia=1,nc-1
          do ib=ia+1,nc
@@ -2555,9 +2555,12 @@
    write(kou,300)
 300 format(/'The binary fractions as expressions of the quad fractions.',&
         '  In AB/x the'/'quads with anion x count 1 and those with x and',&
-        ' another anion 0.5.'/'vk_1 sums the quads with only S1 cations,',&
-        ' vk_2 only S2 and D only S1 or S2.'/&
-        'xi_1 and xi_2 are sums of the FNN pair fractions X_A/x.')
+        ' another anion 0.5.'/'vk_AB/x sums the quads with only S1',&
+        ' cations, vk_BA/x only S2'/'and D only S1 or S2.'/&
+        'xi_AB/x and xi_BA/x are sums of the FNN pair fractions X_A/x,',&
+        ' as quads'/&
+        'X_A/x = x_AAxx + 0.5*(x_ABxx + x_AAxy) + 0.25*x_ABxy, with one',&
+        ' anion'/'X_A/x = x_AA + 0.5*sum_B x_AB.')
    do ix=1,na
       do ia=1,nc-1
          do ib=ia+1,nc
@@ -2658,29 +2661,32 @@
    end subroutine oneline
 !------------------------------------------------------------------
    subroutine expressions(bname,catbin,ja,jx)
-! write vk_1, vk_2, D, xi_1 and xi_2 of the binary bname as expressions
+! write vk_AB/x, vk_BA/x, D, xi_AB/x and xi_BA/x of the binary bname=AB/x
+! as expressions, rname is BA/x
    character(len=*) bname
    logical catbin
    integer ja,jx
+   character rname*4
+   rname=bname(2:2)//bname(1:1)//bname(3:4)
    write(kou,'(/2x,a)')bname
-   text='    vk_1 ='
-   write(text(12:),'(1pe12.5)')chi1
+   text='    vk_'//bname//' ='
+   write(text(15:),'(1pe12.5)')chi1
    call quadsum(in1,'('); call putstr(')/D')
    write(kou,'(a)')trim(text)
-   text='    vk_2 ='
-   write(text(12:),'(1pe12.5)')chi2
+   text='    vk_'//rname//' ='
+   write(text(15:),'(1pe12.5)')chi2
    call quadsum(in2,'('); call putstr(')/D')
    write(kou,'(a)')trim(text)
-   text='    D    ='
-   write(text(12:),'(1pe12.5)')chid
+   text='    D       ='
+   write(text(15:),'(1pe12.5)')chid
    call quadsum(ind,' ')
    write(kou,'(a)')trim(text)
-   text='    xi_1 ='
-   write(text(12:),'(1pe12.5)')xi1
+   text='    xi_'//bname//' ='
+   write(text(15:),'(1pe12.5)')xi1
    call pairsum(s1,catbin,ja,jx)
    write(kou,'(a)')trim(text)
-   text='    xi_2 ='
-   write(text(12:),'(1pe12.5)')xi2
+   text='    xi_'//rname//' ='
+   write(text(15:),'(1pe12.5)')xi2
    call pairsum(s2,catbin,ja,jx)
    write(kou,'(a)')trim(text)
    end subroutine expressions
@@ -2730,38 +2736,65 @@
 !------------------------------------------------------------------
    subroutine pairsum(sx,catbin,ja,jx)
 ! add " = " and the sum of the pair fractions X_A/x of the constituents in sx
+! as a sum of quad fractions, each corner i/k of a quad with i and k
+! in the binary counts 1/4, i.e. weights 1, 0.5 or 0.25
    logical sx(*),catbin
    integer ja,jx
-   integer m
+   integer m,r,s
    logical first
+   do m=1,ncon
+      wx(m)=zero
+      do s=1,2
+         do r=1,2
+            if(catbin) then
+               if(qa(r,m).eq.jx .and. sx(qc(s,m))) wx(m)=wx(m)+0.25D0
+            else
+               if(qc(s,m).eq.ja .and. sx(qa(r,m))) wx(m)=wx(m)+0.25D0
+            endif
+         enddo
+      enddo
+   enddo
    ip=len_trim(text)+2
    call putstr('= ')
    first=.TRUE.
-   if(catbin) then
-      do m=1,nc
-         if(sx(m)) then
-            if(.not.first) call putstr('+')
-            call putstr('X_'//catlet(m:m)//'/'//anlet(jx:jx))
-            first=.FALSE.
-         endif
-      enddo
-   else
-      do m=1,na
-         if(sx(m)) then
-            if(.not.first) call putstr('+')
-            call putstr('X_'//catlet(ja:ja)//'/'//anlet(m:m))
-            first=.FALSE.
-         endif
-      enddo
-   endif
+   call weightsum(one,'',first)
+   call weightsum(0.5D0,'0.5*',first)
+   call weightsum(0.25D0,'0.25*',first)
    end subroutine pairsum
+!------------------------------------------------------------------
+   subroutine weightsum(wt,fact,first)
+! add the quads with weight wt in wx, fact*(..) if more than one
+   double precision wt
+   character(len=*) fact
+   logical first
+   integer m,nw
+   logical one1
+   nw=0
+   do m=1,ncon
+      if(wx(m).eq.wt) nw=nw+1
+   enddo
+   if(nw.eq.0) return
+   if(.not.first) call putstr(' + ')
+   if(fact.ne.'') call putstr(fact)
+   if(fact.ne.'' .and. nw.gt.1) call putstr('(')
+   one1=.TRUE.
+   do m=1,ncon
+      if(wx(m).eq.wt) then
+         if(.not.one1) call putstr('+')
+         call putstr(trim(qn(m)))
+         one1=.FALSE.
+      endif
+   enddo
+   if(fact.ne.'' .and. nw.gt.1) call putstr(')')
+   first=.FALSE.
+   end subroutine weightsum
 !------------------------------------------------------------------
    subroutine putstr(str)
 ! add str to text at ip, write the line and continue indented when full
    character(len=*) str
    if(ip+len(str).gt.79) then
       write(kou,'(a)')trim(text)
-      text=' '; ip=26
+      text=' '; ip=30
    endif
    text(ip:)=str
    ip=ip+len(str)
@@ -6965,6 +6998,14 @@
 110      format('3XQ Warning, ',a,' not in any chemical group')
       endif
    enddo
+! Claude 2026.11.09: keep the groups and exceptions for SAVE TDB and listing
+   if(allocated(mqmqa_data%catgroup)) deallocate(mqmqa_data%catgroup)
+   if(allocated(mqmqa_data%excat)) deallocate(mqmqa_data%excat)
+   allocate(mqmqa_data%catgroup(ncat),mqmqa_data%excat(5,100))
+   mqmqa_data%catgroup=0; mqmqa_data%excat=0; mqmqa_data%nexc=0
+   do ic=1,ncat
+      if(listindex(ic).gt.0) mqmqa_data%catgroup(listindex(ic))=grp(ic)
+   enddo
 !---------------------------------- the group rule for all ternaries
    allocate(ttoop(size(tersys)))
    allocate(listed(size(tersys)))
@@ -7050,6 +7091,15 @@
          else
             listed(asymter)=1
             ttoop(asymter)=toop
+! Claude 2026.11.09: for the listing, cations in the order of cat2species
+            if(mqmqa_data%nexc.lt.size(mqmqa_data%excat,2)) then
+               mqmqa_data%nexc=mqmqa_data%nexc+1
+               do nc=1,3
+                  mqmqa_data%excat(nc,mqmqa_data%nexc)=listindex(spord(nc))
+               enddo
+               if(toop.gt.0) mqmqa_data%excat(4,mqmqa_data%nexc)=&
+                    listindex(spord(toop))
+            endif
          endif
       enddo except
    endif
@@ -7121,7 +7171,186 @@
    enddo
    end function tdbcation
 !
+!\begin{verbatim}
+   integer function listindex(ic)
+! index in cat2species (used in the listing) of cation ic in names_y_ik
+   integer ic
+!\end{verbatim}
+   integer jc,js
+   listindex=0
+   js=index(mqmqa_data%names_y_ik(ic),'/')
+   do jc=1,size(mqmqa_data%cat2species)
+      if(splista(mqmqa_data%cat2species(jc))%symbol.eq.&
+           mqmqa_data%names_y_ik(ic)(1:js-1)) then
+         listindex=jc
+         return
+      endif
+   enddo
+   end function listindex
+!
  end subroutine set_tdbgroups
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
+
+!\addtotable subroutine mqmqa_write_groups
+!\begin{verbatim}
+ subroutine mqmqa_write_groups(lut)
+! Claude 2026.11.09: used by SAVE TDB to write the ternary asymmetries as
+!     GROUPS NA K ; U2 U3Q ; U ; / CL ;
+!     EXCEPTIONS U2:NA,K NA:U2,U3Q ...
+! which is the syntax read by set_tdbgroups and mqmqa_groups2.
+! With one anion the EXCEPTIONS are the ternaries where the group rule differs
+! from the current asymmetry, so a change by AMEND PHASE ... ASYMMETRIES is
+! also saved.  A phase read without groups has each cation in its own group
+! and all its asymmetric ternaries are exceptions.  With several anions
+! the groups and exceptions from the database are written.
+   implicit none
+   integer lut
+!\end{verbatim}
+   integer nc,na,ic,ia,g,e,jj,kk,toop,rule,k1,k2,k3,ip,jc
+   integer, allocatable :: grp(:)
+   character(len=24), allocatable :: cn(:),an(:)
+   character line*78
+   logical first,several
+!
+   several=mqmqa_data%nan.ge.2
+   if(several) then
+      nc=mqmqa_data%ncon1
+      na=mqmqa_data%ncon2
+      allocate(cn(nc),an(na),grp(nc))
+      do ic=1,nc
+         cn(ic)=splista(mqmqa_data%cat2species(ic))%symbol
+      enddo
+      do ia=1,na
+         an(ia)=splista(mqmqa_data%an2species(ia))%symbol
+      enddo
+      grp=mqmqa_data%catgroup
+   else
+! the cations in tersys are the indices in names_y_ik which are like MG/CL-Q
+      nc=size(mqmqa_data%names_y_ik)
+      na=1
+      allocate(cn(nc),an(na),grp(nc))
+      do ic=1,nc
+         kk=index(mqmqa_data%names_y_ik(ic),'/')
+         cn(ic)=mqmqa_data%names_y_ik(ic)(1:kk-1)
+         an(1)=mqmqa_data%names_y_ik(ic)(kk+1:)
+         grp(ic)=ic
+      enddo
+      kk=index(an(1),'-')
+      if(kk.gt.0) an(1)(kk:)=' '
+      if(allocated(mqmqa_data%catgroup)) then
+! a cation not found keeps a group number of its own
+         grp=grp+maxval(mqmqa_data%catgroup)
+         do ic=1,nc
+            do jc=1,size(mqmqa_data%cat2species)
+               if(splista(mqmqa_data%cat2species(jc))%symbol.eq.cn(ic)) &
+                    grp(ic)=mqmqa_data%catgroup(jc)
+            enddo
+         enddo
+      endif
+   endif
+!------------------------------- the groups
+   line=' '
+   ip=6
+   call put('GROUPS')
+   first=.TRUE.
+   do g=1,maxval(grp)
+      if(.not.any(grp.eq.g)) cycle
+      if(.not.first) call put(';')
+      first=.FALSE.
+      do ic=1,nc
+         if(grp(ic).eq.g) call put(cn(ic))
+      enddo
+   enddo
+   call put(';')
+   call put('/')
+   if(several) then
+      first=.TRUE.
+      do g=1,maxval(mqmqa_data%angroup)
+         if(.not.any(mqmqa_data%angroup.eq.g)) cycle
+         if(.not.first) call put(';')
+         first=.FALSE.
+         do ia=1,na
+            if(mqmqa_data%angroup(ia).eq.g) call put(an(ia))
+         enddo
+      enddo
+   else
+      call put(an(1))
+   endif
+   call put(';')
+!------------------------------- the exceptions
+   first=.TRUE.
+   if(several) then
+      do e=1,mqmqa_data%nexc
+         call one_exception(mqmqa_data%excat(1,e),mqmqa_data%excat(2,e),&
+              mqmqa_data%excat(3,e),mqmqa_data%excat(4,e),&
+              mqmqa_data%excat(5,e))
+      enddo
+   else
+      do jj=1,size(tersys)
+         k1=grp(tersys(jj)%el(1))
+         k2=grp(tersys(jj)%el(2))
+         k3=grp(tersys(jj)%el(3))
+         rule=0
+         if(k1.eq.k2 .and. k3.ne.k1) then
+            rule=3
+         elseif(k1.eq.k3 .and. k2.ne.k1) then
+            rule=2
+         elseif(k2.eq.k3 .and. k1.ne.k2) then
+            rule=1
+         endif
+         toop=0
+         do kk=3,1,-1
+            if(tersys(jj)%isasym(kk).gt.0) toop=kk
+         enddo
+         if(toop.eq.rule) cycle
+         if(toop.eq.0) then
+            call one_exception(tersys(jj)%el(1),tersys(jj)%el(2),&
+                 tersys(jj)%el(3),0,0)
+         else
+! the Toop cation first, then the other two
+            k1=tersys(jj)%el(toop)
+            k2=tersys(jj)%el(mod(toop,3)+1)
+            k3=tersys(jj)%el(mod(toop+1,3)+1)
+            call one_exception(k1,k2,k3,k1,0)
+         endif
+      enddo
+   endif
+   if(ip.gt.6) write(lut,'(a)')trim(line)
+   deallocate(cn,an,grp)
+   return
+ contains
+!
+   subroutine one_exception(i1,i2,i3,itoop,ian)
+! X:A,B when X is the Toop cation, A,B,C when symmetric, /anion if only for one
+   integer i1,i2,i3,itoop,ian
+   character token*80
+   if(first) call put('EXCEPTIONS')
+   first=.FALSE.
+   if(itoop.gt.0) then
+      token=trim(cn(i1))//':'//trim(cn(i2))//','//trim(cn(i3))
+   else
+      token=trim(cn(i1))//','//trim(cn(i2))//','//trim(cn(i3))
+   endif
+   if(ian.gt.0) token=trim(token)//'/'//trim(an(ian))
+   call put(token)
+   end subroutine one_exception
+!
+   subroutine put(token)
+! add a token to the output line, start a new line if it does not fit
+   character token*(*)
+   integer nt
+   nt=len_trim(token)
+   if(ip+nt.gt.len(line)) then
+      write(lut,'(a)')trim(line)
+      line=' '
+      ip=6
+   endif
+   line(ip:)=token(1:nt)
+   ip=ip+nt+1
+   end subroutine put
+!
+ end subroutine mqmqa_write_groups
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 

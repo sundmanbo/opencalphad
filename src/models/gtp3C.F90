@@ -2676,15 +2676,17 @@
       addrec=>addrec%nextadd
    enddo lastadd
 60 continue
-! Claude 2026.10.27: MQMQA ternary asymmetries written as TYPE_DEF TERNARY
-! in the original syntax, one line for each ternary with a Toop cation:
-!    K/CL NA/CL U/CL KKT     (T at the position of the Toop cation)
-! ternaries not listed are symmetric, see set_tdbasymmetries
-   if(btest(phlista(lokph)%status1,PHMQMQX) .and. allocated(tersys)) then
+! Claude 2026.11.09: MQMQA ternary asymmetries written as TYPE_DEF TERNARY
+! always as GROUPS and EXCEPTIONS, see mqmqa_write_groups in gtp3XQ
+   if(btest(phlista(lokph)%status1,PHMQMQX)) then
       nk=0
-      do ll=1,size(tersys)
-         if(maxval(tersys(ll)%isasym).gt.0) nk=nk+1
-      enddo
+      if(mqmqa_data%nan.ge.2) then
+         if(allocated(mqmqa_data%catgroup)) nk=1
+      elseif(allocated(tersys)) then
+         do ll=1,size(tersys)
+            if(maxval(tersys(ll)%isasym).gt.0) nk=nk+1
+         enddo
+      endif
       if(nk.gt.0) then
          CHTD=char(ichar(CHTD)+1)
          isp=isp+1
@@ -2693,23 +2695,9 @@
          if(kk.le.0) kk=len_trim(phname)
          write(lut,61)CHTD,phname(1:kk)
 61       format(' TYPE_DEFINITION ',a,' GES A_P_D ',a,' TERNARY')
-         nk=0
-         do ll=1,size(tersys)
-            do kk=1,3
-               if(tersys(ll)%isasym(kk).gt.0) exit
-            enddo
-            if(kk.gt.3) cycle
-            prop='KKK'
-            prop(kk:kk)='T'
-            nk=nk+1
-            write(lut,62)(trim(tdbquadname(tersys(ll)%el(ij))),ij=1,3),&
-                 prop(1:3)
-62          format(5x,4(a,1x))
-         enddo
+         call mqmqa_write_groups(lut)
          write(lut,'(5x,a)')'!'
       endif
-   else
-      write(*,*)'3C Not saving any asymmetric data for ',trim(phname)
    endif
 ! This subroutine is independent of current equilibrium, use firsteq
 !   write(lut,10)phname,phlista(lokph)%status1,special,&
@@ -3187,16 +3175,6 @@
 1000 continue
 !   write(*,*)'3C listing by list_phase_data2'
    return
- contains
-! the quad name without -Q from names_y_ik like U2/CL-Q
-!\begin{verbatim}
-   character*24 function tdbquadname(ic)
-   integer ic,kp
-!\end{verbatim}
-   tdbquadname=mqmqa_data%names_y_ik(ic)
-   kp=index(tdbquadname,'-Q')
-   if(kp.gt.0) tdbquadname(kp:)=' '
-   end function tdbquadname
  END subroutine list_phase_data2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

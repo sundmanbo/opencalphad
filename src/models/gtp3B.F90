@@ -505,7 +505,7 @@
           loop=0
           mqmqloop: do while(.true.)
              call gparcx('MQMQA quadrupoles: ',cline,last,5,text,' ',&
-                  'Enter phase constit')
+                  '?Enter phase constit')
              if(text(1:1).eq.' ') exit mqmqloop
              write(*,*)' *** reading mqmqa_constituents',trim(text)
 !             write(*,*)'3B mqmqa quads: ',trim(text)
@@ -540,7 +540,7 @@
 4045   continue
        if(nsl.eq.1) then
           call gparcx('Constituents: ',cline,last,4,text,';',&
-               'Enter phase constit')
+               '?Enter phase constit')
        elseif(model(1:5).eq.'I2SL ') then
           if(ll.eq.1) then
              call gparcx('Cation constituents: ',&
@@ -8237,6 +8237,9 @@
    integer sinsp
    double precision val,qstoi(mqq),smass,qsp,extra(5),stoi(20),double(4)
    double precision vazero,totstoi
+! Claude 2026.11.10: 2 optional extra reals for FNN pairs, saved in spextra
+   integer nfnnextra
+   double precision fnnstoi(2)
 ! Example of input line with "constituents":
 ! LI/CL 6 6 2.4 LI/O 6 3 2.4 U/CL 6 2 2.4 U/O 6 3 2.4 LI,U/CL 2 6 6
 !  LI,U/O 2 6 3 LI/CL,O 6 6 3 U/CL,O 2 6 3 LI,U/CL,O 6 2 6 2 
@@ -8529,9 +8532,27 @@
       goto 1000
    endif
 !
+   nfnnextra=0
    if(ntot.eq.2) then
 ! this is the \zeta value needed to calculate the entropy of pairs
       call getrel(inline,ip,mqmqa_data%constoi(3,thiscon))
+! Claude 2026.11.10: TDB files after 2026.11.09 have 2 extra reals for pairs
+! SPECIES NA/CL NA/CL 6 6 6 1.00000 1.00000 !
+! They must be read here, otherwise "goto 100" below takes 1.00000 as the
+! name of a new quad.  In old TDB files the next item is ":" (or the name of
+! the next quad when entered interactively), then getrel fails and ip is
+! left unchanged.  NOTE getrel does not set buperr=0 when it succeeds.
+      if(buperr.eq.0) then
+         call getrel(inline,ip,fnnstoi(1))
+         if(buperr.ne.0) then
+! old format, no extra reals
+            buperr=0
+         else
+! if only one extra real buperr is nonzero and the error is reported below
+            call getrel(inline,ip,fnnstoi(2))
+            if(buperr.eq.0) nfnnextra=2
+         endif
+      endif
    elseif(ntot.gt.2) then
       call getrel(inline,ip,mqmqa_data%constoi(3,thiscon))
    endif
@@ -8821,6 +8842,12 @@
    splista(loksp)%quadindex=haha
 ! finally store the input information
    splista(loksp)%mqmqa1=trim(inline)
+! Claude 2026.11.10: save the 2 extra reals of an FNN pair (new TDB format)
+   if(nfnnextra.eq.2) then
+      if(allocated(splista(loksp)%spextra)) deallocate(splista(loksp)%spextra)
+      allocate(splista(loksp)%spextra(2))
+      splista(loksp)%spextra=fnnstoi
+   endif
 !   write(*,*)'3B saved quad info: "',splista(loksp)%mqmqa1,'"'
 !
 !   write(*,612)trim(quadname),kp,loksp,thiscon,haha,splista(loksp)%quadindex
@@ -8879,7 +8906,7 @@
          buperr=0; goto 100
       endif
    endif
-! this is the last real or a new quadrupole
+! this is the 4th real or a new quadrupole
    call getrel(inline,ip,val)
    if(buperr.ne.0) then
       ch1=inline(ip:ip)
@@ -8887,6 +8914,16 @@
       if((ch1.ge.'A' .and. ch1.le.'Z') .or. ch1.eq.':') then
 ! this is the name of another quadrupole
 !         write(*,*)'3B Error reset, continuing'
+         buperr=0; goto 100
+      endif
+   endif
+! Claude 2026.11.10: an FNN pair in new TDB files has 5 reals, skip the 5th
+   call getrel(inline,ip,val)
+   if(buperr.ne.0) then
+      ch1=inline(ip:ip)
+      call capson(ch1)
+      if((ch1.ge.'A' .and. ch1.le.'Z') .or. ch1.eq.':') then
+! this is the name of another quadrupole
          buperr=0; goto 100
       endif
    endif

@@ -1599,7 +1599,7 @@
     inquire(file=ocufile,exist=logok)
     if(logok) then
        call gparcdx('File exists, overwrite?',cline,last,1,ch1,'N',&
-            '?Save overwite')
+            '?Save overwrite')
        if(ch1.ne.'Y') then
           write(*,133)
 133       format('Please use another file name')

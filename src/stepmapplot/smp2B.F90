@@ -4161,7 +4161,7 @@
 ! each plotlink has its own results link to saveceq
 99  continue
     last=len(cline)
-    call gparcdx('Only excluded? ',cline,last,1,ch1,'Y','?PLOT options')
+    call gparcdx('Only excluded? ',cline,last,1,ch1,'Y','?Plot options')
     if(ch1.eq.'Y' .or. ch1.eq.'y') then
        all=.FALSE.
     else
@@ -4224,10 +4224,10 @@
        last=len(cline)
        if(btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
           call gparcdx(' *** Include this line? ',cline,last,1,ch1,'N',&
-               '?PLOT options')
+               '?Plot options')
        elseif(all) then
           call gparcdx('Exclude this line? ',cline,last,1,ch1,'N',&
-               '?PLOT options')
+               '?Plot options')
        else
           cycle lineloop
        endif

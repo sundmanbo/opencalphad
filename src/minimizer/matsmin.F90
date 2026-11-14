@@ -13026,7 +13026,7 @@ if(meqrec%noofits.eq.1) then
     call list_conditions(kou,ceq)
     write(kou,2097)
 2097 format('You must release one condition, give its number')
-    call gparidx('Condition number',cline,last,j1,1,'?CALCULATE transform')
+    call gparidx('Condition number',cline,last,j1,1,'?Calculate transform')
     if(j1.le.0 .or. j1.gt.noel()+2) then
        write(kou,*)'No such condition'
        goto 1000

@@ -1,0 +1,209 @@
+@$
+new Y
+
+
+set echo Y
+
+
+@$===============================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ MAP15 BEF isotherms at 3 T
+@$===============================================================
+set echo
+
+r t ./BEF
+
+
+@$ First at 500 K,
+@$ We have to start inside the small sigma miscibility gap
+
+set c t=500 p=1e5 n=1 x(re)=.37 x(ni)=.29
+
+
+c e
+
+l,,,,,
+
+
+@$ We have two sigma phases stable
+@&
+@$ Set axis
+
+set ax 1 x(re) 0 1 ,,
+set ax 2 x(ni) 0 1 ,,
+
+@&
+
+
+map
+
+
+@&
+
+plot
+
+
+title map 15 fig 1a
+
+@&
+@$ Sometimes some parts are missing, try adding another startpoint
+@$ but not this time
+
+@$ Select a triangular diagram with tie-lines
+
+
+@$ set inter
+
+
+plot
+
+
+?
+??  @$ This gives a browser window so we must see more of the extra menu
+extra
+gibbs
+y
+?
+extra
+?
+tie
+3
+extra lower Mo
+?
+title
+Map 15 fig 1b: BEF model Mo-Ni-Re isotherm 500 K
+
+
+@$ The ? and ?? interrogatations above not trivial ....
+@$ set inter
+
+
+@$ Usually some parts are missing or have spurious tei-line
+@$ Mapping is still to be improved with experience
+
+@&
+
+
+
+@$-------------------------------------------------
+@$ Then at 1500 K
+
+set c t=1500 x(re)=.2 x(ni)=.2
+
+c e
+
+l,,,,,
+
+@&
+
+map
+
+
+plot
+
+
+title Map 15 fig 2a: BEF model Mo-Ni-Re isotherm 1500 K
+extra gib y
+extra tie 10
+@$ set a light gray monovariant
+extra color
+f0f0f0
+ffff00
+
+
+
+@&
+
+@$ Sometimes a part on the Re rich side missing, add a new start point
+
+set c x(ni)=.1 x(re)=.8
+
+c e
+
+map
+n
+
+
+plot
+
+
+@$ some extra options
+extra gibbs y
+extra tie 10
+extra color
+f0f0f0
+ff00ff
+title Map 15 fig 2b: BEF model Mo-Ni-Re isotherm 1500 K
+
+@&
+
+
+
+
+@$-------------------------------------------------------
+@$ Finally at 2500 K
+
+set c t=2500 p=1e5 n=1 x(re)=.7 x(ni)=.27
+
+c e
+
+l,,,,,
+
+
+@&
+
+set ax 1 x(re) 0 1 ,
+
+set ax 2 x(ni) 0 1 ,
+
+@$ Just to be sure ...
+
+c e
+
+
+map
+
+
+plot
+
+
+extra gib y
+extra tie 3
+title Map 15 fig 3: BEF model Mo-Ni-Re isotherm 2500 K
+@$ restore default colors if we run several macros ...
+extra color
+7CFF40
+7CFF40
+@$ Set a text in the lower left corner
+extra lower Mo
+
+
+
+
+@$==========================================================================
+@$ end of map15 macro
+@$==========================================================================
+
+set inter
+
+
+

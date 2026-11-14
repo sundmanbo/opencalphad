@@ -115,7 +115,8 @@ contains
     character ocdfile*128,filename*128
     character zext*8,mqmqass*60
 ! home for OC and default directory for databases
-    character ochome*128,ocbase*128
+    character ochome*128,ocbase*128,homedir*128
+    integer ochomefrom
 ! prefix and suffix for composition sets
     character prefix*4,suffix*4
 ! element mass
@@ -243,8 +244,8 @@ contains
 ! here are all commands and subcommands
     integer, parameter :: ncbas=30,nclist=27,ncalc=18,ncent=21,ncread=9
     integer, parameter :: ncam1=18,ncset=27,ncadv=18,ncstat=6,ncdebug=12
-    integer, parameter :: nselect=6,nlform=6,noptopt=9,mqmqacc=6,nsetbit=6
-    integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
+    integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
+    integer, parameter :: ncamph=18,naddph=12,nclph=9,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=9
     integer, parameter :: nplt2=18
     integer, parameter :: ninf=15
@@ -308,7 +309,7 @@ contains
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
          'ACTIVE_EQUILIBR ','ELEMENTS        ','EXCELL_CSV_FILE ',&
-         'MQMQA_SPECIAL   ','ESTIMAT_ACCURACY','WORKING_DIRECTOR',&
+         '                ','ESTIMAT_ACCURACY','WORKING_DIRECTOR',&
          'QUADS           ','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
@@ -318,20 +319,18 @@ contains
 !-------------------
 ! subsubcommands to LIST PHASE
 ! removed VARKAPPA and changed MQMQA_VARIABLES to ASYMMETRIES
+! Claude 2026.11.07: LIST MQMQA_SPECIAL removed, its listings are here
+! ASYMMETRIES replaced by VARIABLES
     character (len=16), dimension(nclph) :: clph=&
         ['DATA            ','CONSTITUTION    ','MODEL           ',&
-         'ASYMMETRIES     ','TERNARY_ASYM    ','                ']
+         'MQMQA_SPECIAL   ','QUADS           ','TERNARY_ASYM    ',&
+         'EXCESS          ','VARIABLES       ','                ']
 !-------------------
 ! subsubcommands to LIST OPTIMIZE results
     character (len=16), dimension(noptopt) :: optopt=&
         ['SHORT           ','LONG            ','COEFFICIENTS    ',&
          'GRAPHICS        ','DEBUG           ','MACRO           ',&
          'EXPERIMENTS     ','CORRELATION_MTRX','TC_RSD          ']
-!-------------------
-! subsubcommands to LIST MQMQA_SPECIALS
-    character (len=16), dimension(mqmqacc) :: mqmqalist=&
-        ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
-         'EXCESS          ','INTERNALS       ','                ']
 !------------------- 
 ! subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
@@ -448,7 +447,7 @@ contains
           'QUIT_INFO       ','COMPOSITION_SET ','EQUILIBRIUM     ',&
           'HELP_SYSTEM     ','CONDITIONS      ','DATABASES       ',&
           'CHANGES         ','PHASE_DIAGRAM   ','PROPERTY_DIAGRAM',&
-          'STATE_VARIABLES ','                ','                ']
+          'STATE_VARIABLES ','MQMQA           ','                ']
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
 ! Now there are two levels (using EXTRA) but still a mess
@@ -648,6 +647,36 @@ contains
 ! local environment: please create OCHOME as an environment variable
     ochome=' '
     call get_environment_variable('OCHOME ',ochome)
+! If there is no OCHOME environment variable use the directory set when
+! OC was installed (the Makefile gives -DOCHOMEDIR) if it has the help file.
+! Otherwise use the directory OCHOME in the user's home directory,
+! i.e. $HOME/OCHOME or %USERPROFILE%\OCHOME
+    ochomefrom=0
+#ifdef OCHOMEDIR
+    if(ochome(1:1).eq.' ') then
+       homedir=OCHOMEDIR
+#ifdef winhlp
+       inquire(file=trim(homedir)//'\ochelp7.html ',exist=logok)
+#else
+       inquire(file=trim(homedir)//'/ochelp7.html ',exist=logok)
+#endif
+       if(logok) then
+          ochome=homedir
+          ochomefrom=1
+       endif
+    endif
+#endif
+    if(ochome(1:1).eq.' ') then
+       homedir=' '
+#ifdef winhlp
+       call get_environment_variable('USERPROFILE ',homedir)
+       if(homedir(1:1).ne.' ') ochome=trim(homedir)//'\OCHOME'
+#else
+       call get_environment_variable('HOME ',homedir)
+       if(homedir(1:1).ne.' ') ochome=trim(homedir)//'/OCHOME'
+#endif
+       ochomefrom=2
+    endif
     startupmacro=.FALSE.
 ! if help is not set then set these filenames as blanks
     browser=' '
@@ -664,42 +693,54 @@ contains
     browser='/Applications/Firefox.app/Contents/MacOS/firefox '
 #endif
     noochome: if(ochome(1:1).eq.' ') then
-! there is no OCHOME environment variable, maybe a local ochelp.html?
-       inquire(file='ochelp.html ',exist=logok)
+! there is no OCHOME environment variable, maybe a local ochelp7.html?
+       inquire(file='ochelp7.html ',exist=logok)
        if(.not.logok) then
           write(*,*)'Warning, no environment variable OCHOME and no help file'
           htmlfile=' '
           htmlhelp=.FALSE.
        else
         write(*,*)'Warning, no environment variable OCHOME but local help file'
-          htmlfile='ochelp.html'
+          htmlfile='ochelp7.html'
           htmlhelp=.TRUE.
        endif
+       write(*,177)trim(browser),trim(htmlfile)
+177    format('OC init help browser: ',a,', helpfile: ',a)
        call init_help(browser,htmlfile)
     else
 ! there is a OCHOME environment variable
 ! both LINUX and WINDOWS accept / as separator between directory and file names
-       write(*,*)'Found OC home directory (OCHOME): ',trim(ochome)
+       if(ochomefrom.eq.1) then
+          write(*,*)'Using OC home directory set at installation: ',&
+               trim(ochome)
+       elseif(ochomefrom.eq.2) then
+          write(*,*)'Using default OC home directory: ',trim(ochome)
+       else
+          write(*,*)'Found OC home directory (OCHOME): ',trim(ochome)
+       endif
 #ifdef winhlp
 ! HTML FILE FOR WINDOWS
 ! normal tex/html help files
-       htmlfile=trim(OCHOME)//'\'//'ochelp.html'
+       htmlfile=trim(OCHOME)//'\'//'ochelp7.html'
 #elif lixhlp
 ! HTML FILE FOR LINUX
-       htmlfile=trim(OCHOME)//'/'//'ochelp.html'
+       htmlfile=trim(OCHOME)//'/'//'ochelp7.html'
 #elif machlp
 ! HTML FILE FOR MAC
-       htmlfile=trim(OCHOME)//'/'//'ochelp.html'
+       htmlfile=trim(OCHOME)//'/'//'ochelp7.html'
 #endif
        call init_help(browser,htmlfile)
        if(.not.ochelp%htmlhelp) then
-          write(kou,*)'Warning, no file "ochelp.html" at OCHOME or no browser'
-          write(kou,*)trim(browser)
-          write(kou,*)trim(htmlfile)
+! a big warning is written below
           htmlhelp=.FALSE.
        else
-          write(kou,*)'Online help by '//trim(browser)//&
-               ' and ochelp.html'
+          if(ochelp%sysbrowser) then
+             write(kou,*)'Online help by your default browser',&
+                  ' and ochelp7.html'
+          else
+             write(kou,*)'Online help by '//trim(browser)//&
+                  ' and ochelp7.html'
+          endif
        endif
 ! default directory for databases
        ocbase=trim(ochome)//'/databases'
@@ -713,6 +754,37 @@ contains
           startupmacro=.TRUE.
        endif
     endif noochome
+! Big warning if the online help is not working
+    if(.not.ochelp%htmlhelp) then
+       write(kou,178)
+178    format(/1x,70('*')/' *',68x,'*'/&
+            ' *',15x,'THE ONLINE HELP SYSTEM IS NOT INSTALLED',14x,'*'/&
+            ' *',68x,'*'/1x,70('*'))
+       logok=.FALSE.
+       if(htmlfile(1:1).ne.' ') inquire(file=htmlfile,exist=logok)
+       if(.not.logok) then
+          write(kou,179)'Help file not found: ',trim(htmlfile)
+#ifdef winhlp
+          write(kou,182)
+182       format(' * To install it run linkmake.cmd again in the',&
+               ' directory where'/' * you compiled OC, or copy all files',&
+               ' ochelp7* in Docs\Userguide and'/&
+               ' * changes.txt to the directory above.')
+#else
+          write(kou,181)
+#endif
+181       format(' * To install it give the command "make ochome" in the',&
+               ' directory where'/' * you compiled OC, or copy all files',&
+               ' ochelp7* in Docs/Userguide and'/&
+               ' * changes.txt to the directory above.')
+       else
+          write(kou,179)'Browser not found: ',trim(browser)
+       endif
+179    format(' * ',a,a)
+       write(kou,180)
+180    format(' * Typing ?? at a question will not open the User Guide.'/&
+            1x,70('*')/)
+    endif
 ! initiate XML defaults
     lowTdef='298.15  '; hightdef='6000    '; bibrefdef='U.N. Known';
     eldef='VA /-'; unary1991=.TRUE.; includemodels=.FALSE.
@@ -2693,7 +2765,8 @@ contains
 !-----------------------------------------------------------
        case(3) ! list phase subcommands SOME CHANGES HERE
 !        ['DATA            ','CONSTITUTION    ','MODEL           ',&
-!         'ASYMMETRIES     ','TERNARY_ASYM    ','                ']
+!         'MQMQA_SPECIAL   ','QUADS           ','TERNARY_ASYM    ',&
+!         'EXCESS          ','VARIABLES       ','                ']
 !
           call gparcx('Phase name: ',cline,last,1,name1,' ','?List phase')
           if(buperr.ne.0) goto 990
@@ -2727,24 +2800,41 @@ contains
 6070      format(a,'equilibrium: ',i3,', ',a)
              call list_phase_model(iph,ics,lut,' ',ceq)
 !...............................................................
-          case(4) ! LIST PHASE ... ASYMMETRIES
-! clumsy way check this is the MQMQA phase
-             lokcs=phasetuple(iph)%lokvares
-             parres=>ceq%phase_varres(lokcs)
-! Claude 2026.11.07: separate listing for several anions
-             if(mqmqa_data%ncon2.ge.2) then
-                call list_mqmqa_var2(parres)
+          case(4:8) ! MQMQA listings, Claude 2026.11.07
+! 4 MQMQA_SPECIAL, 5 QUADS, 6 TERNARY_ASYM, 7 EXCESS, 8 VARIABLES
+! For several anions the cations are letters A, B, ... and anions x, y, ...
+! For one anion VARIABLES (and MQMQA_SPECIAL) use the x_ij listing
+! the PHMQMQA bit alone is the obsolete MQMQA model
+             if(.not.test_phase_status_bit(iph,PHMQMQX)) then
+                write(kou,*)'This is not the MQMQA phase'
                 goto 100
              endif
-             if(.not.allocated(parres%mqmqaf%y_ik)) then
-                write(*,*)'MM This is not the MQMQA liquid phase'
-                goto 990
+             lokcs=phasetuple(iph)%lokvares
+             parres=>ceq%phase_varres(lokcs)
+             if(kom3.eq.4) then
+! all except EXCESS
+                call list_mqmqa_quad_details(lut,ceq)
+                call list_mqmqa_asym2(3)
+             elseif(kom3.eq.5) then
+                call list_mqmqa_asym2(1)
+             elseif(kom3.eq.6) then
+                call list_mqmqa_asym2(2)
+             elseif(kom3.eq.7) then
+! the constituent numbers in the parameter tree with quad names
+                write(lut,'(/a)')'Constituent numbers used below:'
+                call list_quads_as_species(lut,.TRUE.)
+                call get_phase_record(iph,lokph)
+                call listpartree(lokph)
              endif
-! parres is pointer to gtp_phase_varres for the MQMQA phase
-             call list_mqmqa_variables(parres)
-!...............................................................
-          case(5) ! LIST PHASE TERNARY_ASYM
-             call list_tersys
+             if(kom3.eq.4 .or. kom3.eq.8) then
+                if(mqmqa_data%ncon2.ge.2) then
+                   call list_mqmqa_var2(parres)
+                elseif(.not.allocated(parres%mqmqaf%y_ik)) then
+                   write(kou,*)'No MQMQA variables, calculate first'
+                else
+                   call list_mqmqa_variables(parres)
+                endif
+             endif
              goto 100
           END SELECT listphase
 !------------------------------
@@ -2992,155 +3082,10 @@ contains
           case(21)
              call ui_list_excel_csv(cline,last,version,ceq)
 !-------------------------------------------------------------------
-! list MQMQA_SPECIALS phase ..
-!    character (len=16), dimension(mqmqacc) :: mqmqalist=&
-!        ['QUADS           ','ASYMMETRIES     ','DEBUG           ',&
-!         'EXCESS          ','INTERNAL        ','                ']
+! LIST MQMQA_SPECIAL removed, Claude 2026.11.07: now LIST PHASE <mqmqa> ...
+! MQMQA_SPECIAL, QUADS, TERNARY_ASYM, EXCESS or VARIABLES
           case(22)
-! depreciated command ??
-! trying to avoid segmentation fault when errs destryed by PLOT with APPEND
-             call gparcx('Phase name: ',cline,last,1,name1,' ','?List phase')
-             if(buperr.ne.0) goto 990
-! special to debug read database
-             if(name1.eq.'DEBUG') then
-                mqmqtdb=.true.
-                goto 100
-             endif
-             call find_phase_by_name(name1,iph,ics)
-             if(gx%bmperr.ne.0) goto 990
-! A stupid way to find lokvares ... (or lokcs, I have forgooten which)
-             if(.not.allocated(mqmqa_data%contyp)) then
-! if this not allocated there is no MQMQA data
-                write(*,*)'No data for MQMQA phases'
-                exit main
-             endif
-             lokcs=1
-             do while(ceq%phase_varres(lokcs)%phlink.ne.iph)
-                lokcs=lokcs+1
-             enddo
-!
-             kom2=submenu('MQMQA special?',&
-                  cline,last,mqmqalist,mqmqacc,2,'?TOPHLP')
-!                                           ^ this 2 is the default answer
-!..........................................................
-             listphasemqmqa: select case(kom2)
-             case DEFAULT
-                write(kou,*)'No such option'
-!...........................................................
-! list mqmqa_speciai  <phase> ...
-             case(1) ! Quads
-                jquad=0
-                write(*,1679)
-1679            format('Specie Loc Name',16x,'Elements, stoichiometry, bonds')
-                qlista: do i1=1,nosp()
-                   call get_species_location(i1,loksp,name1)
-                   if(gx%bmperr.ne.0) goto 990
-                   if(index(name1,'-Q').le.0) cycle qlista
-! this is a species that is a quad
-                   jquad=jquad+1
-                   call get_species_component_data(loksp,i2,iphl,stoik,&
-                        xxx,xxy,ceq)
-                   if(gx%bmperr.ne.0) goto 990
-                   do j4=1,i2
-! pick up element symbols
-                      call get_element_data(iphl(j4),ellist(j4),name2,&
-                           dummy,mass,h298,s298)
-                   enddo
-                   write(kou,1680)i1,loksp,name1,&
-                        (ellist(j4),stoik(j4),j4=1,i2)
-1680               format(3x,i3,i4,1x,a,1x,4(a2,F8.6,1x))
-! this is in quad alphabetical order, not in alphabetical order of quad elements
-! Claude 2026.11.07: mqmqa_quadbonds needs the constituent index, not jquad
-!                   call mqmqa_quadbonds(jquad,quadbonds)
-                   j4=mqmqa_quad_of_species(loksp)
-                   if(j4.le.0) cycle qlista
-                   call mqmqa_quadbonds(j4,quadbonds)
-                   if(i2.eq.2) then
-                      write(kou,1681)(quadbonds(j4),j4=1,3)
-                   else
-                      write(kou,1681)(quadbonds(j4),j4=1,i2)
-                   endif
-1681               format(26x,'bonds: ',4(F10.6,1x))
-!    max length         8+25+4*11=33+44=77
-                enddo qlista
-!
-                call quadprops
-!
-                write(kou,3001)size(mqmqa_data%cations)
-3001            format(/'List of ',i3,' cations: *** to be fixed')
-3002            format(15(a,', '))
-                if(jquad.eq.0) write(kou,*)'No MQMQA quads found'
-! maybe include listing of mqmqa_data%constoi(1..4,index)
-!...........................................................
-! list mqmqa_special <phase> ASYMMETRIES
-! note: tersys, xquad, compvar are not linked from the phase!!!
-             case(2)
-! Claude 2026.11.07: several anions have their own listings
-                if(mqmqa_data%ncon2.ge.2) then
-                   call list_tersys
-                   mqmqavar=>ceq%phase_varres(lokcs)
-                   call list_mqmqa_var2(mqmqavar)
-                   goto 4445
-                endif
-! list element names, numbers and quad indices, i1 set to number of quads
-                call list_quads(i1)
-! tersys is global data
-                call list_tersys
-! listing of fraction in alphbetical order
-                write(kou,4123)mqmqa_data%nquad,&
-                     (ceq%phase_varres(lokcs)%yfr(i1),i1=1,mqmqa_data%nquad)
-! mqmqaf defined globally
-                anoq: if(.not.&
-                     allocated(ceq%phase_varres(lokcs)%mqmqaf%xquad)) then
-                   write(*,*)'Quads not allocated'
-! nothing more to list
-                   goto 4445
-                else
-                   write(kou,4122)mqmqa_data%nquad,&
-                        (ceq%phase_varres(lokcs)%mqmqaf%xquad(i1),&
-                        i1=1,mqmqa_data%nquad)
-4122               format('Fractions of ',i2,' in Quad order, x_ij:',/(12F6.3/))
-4123               format('Fractions of ',i2,' in species OC alpha order:',/&
-                        (12F6.3/))
-! lokcs is MQMQA phase
-                   mqmqavar=>ceq%phase_varres(lokcs)
-! Now this incluse also y_i/k and x_ij equations and values
-                   call list_mqmqa_variables(mqmqavar)
-                   goto 4445
-                endif anoq
-4445            continue
-!
-!...........................................................
-! list mqmqa_special <phase> DEBUG 
-             case(3)
-                write(*,*)'Use SET ADVANCED DEBUG to set debug level'
-!...........................................................
-! list mqmqa_special <phase> excess tree   I have no idea what this 
-! list the constituents of the phase in the order they have in constitlink
-! THIS IS AN EMERGY SUBROUTINE IN gtp3XQ NOT CONFORMING WITH THE STRUCTURE
-             case(4)
-                call get_phase_record(iph,lokph)
-                call listpartree(lokph)
-
-!...........................................................
-! list mqmqa_special <phase> INTERNALS  AMEND_VARKAPPA
-             case(5)
-! CODE BELOW REPLACED by new code around line 1374 AMEND PHASE ... ASYMMETRY
-! list quad and quad indices, i2 loops for all quads
-                if(allocated(mqmqa_data%contyp)) then
-                   write(*,'(/a)')'Listing mqmqa_data%contyp by quadprops'
-                   write(*,*)'Missing call to quadprops'
-1388               format('quad2compvar: ',20i3)
-                   write(*,1388)mqmqa_data%quad2compvar
-                else
-                   write(*,*)'No phase with this property'
-                endif
-!...........................................................
-! LIST mqmqa_special <phase> unused
-             case(6)
-                continue
-             end SELECT listphasemqmqa
-!------------------------------ end list mqmqa_specials
+             continue
 ! LIST ESTIMATE_ACCURACY.  Additional calculations are made
 ! Eventually included in case(12) ???
           case(23) 
@@ -3373,7 +3318,7 @@ contains
 !         'QUIT-INFO        ','COMPOSITION_SET ','EQUILIBRIUM     ',&
 !         'HELP_SYSTEM      ','CONDITIONS      ','DATABASES       ',&
 !         'CHANGES          ','PHASE_DIAGRAM   ','PROPERTY_DIAGRAM',&
-!         'STATE_VARIABLES  ','                ','                ']
+!         'STATE_VARIABLES  ','MQMQA           ','                ']
     case(11)
 ! initial default is CHANGES
        iz=10
@@ -3462,8 +3407,44 @@ contains
        case(13) 
           call q4help('Info statevariables',jp)
 !--------------------------------------------------------
+! INFO MQMQA
+       case(14) 
+          write(kou,214)
+214       format('The modified quasichemical model in the quadruplet',&
+               ' approximation (MQMQA)'/'is used for molten salts.',&
+               '  Its constituents are quadruplets of two cations'/&
+               'and two anions.'/'Select any of the topics below.')
+! loop until quit
+215       continue
+          write(kou,216)
+216       format('Select topic:'/,&
+               '  CONSTITUENTS  PARAMETERS    EXCESS_MODEL  ASYMMETRY    QUIT')
+!
+!          call gparcdx('Name: ',cline,last,5,name1,'*','?List TPfun')
+!
+!       question, input line, position , term , answer , default, ?hypertaget
+! term is terminator of input, 1 is space or , which is OK here
+          call gparcdx('Topic: ',cline,last,1 ,name1   ,'QUIT'  ,'?Info MQMQA')
+          call capson(name1)
+          ch1=name1(1:1)
+          if(ch1.eq.'Q') goto 100
+          if(ch1.eq.'C') then
+! first argument og g4help should be a \hypertarget, last argument NOT USED
+             call q4help('?Info MQMQA const',jp)
+          elseif(ch1.eq.'P') then
+             call q4help('?Info MQMQA param',jp)
+          elseif(ch1.eq.'E') then
+             call q4help('?Info MQMQA excess',jp)
+          elseif(ch1.eq.'A') then
+             call q4help('?Info MQMQA asymmetry',jp)
+          else
+             write(kou,*)'No such topic'
+             goto 100
+          endif
+          goto 215
+!--------------------------------------------------------
 ! INFO missing
-       case(14,15) ! none
+       case(15) ! none
 !--------------------------------------------------------
        end select information
 ! loop unitil quit
@@ -3509,7 +3490,7 @@ contains
             'The full license text is provided with the software'/&
             'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2011-2022, Bo Sundman, Gif sur Yvette, France.'/&
+            'Copyright 2011-2026, Bo Sundman, Gif sur Yvette, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version ',a,' was compiled ',a/)
 !=================================================================
@@ -3596,42 +3577,71 @@ contains
 !---------------------------------
 ! debug browser
        case(6)
-! testing using HTML helpfile with "anchors" like <a name="label" />
-!   related to a question or command
-! and the the help utility will search for a specific label as below
-! NOTE in the LaTeX file \usepackage{hyperref}
-! and in the text \hypertarget{selectname}
-! using "path/browser" "file://path/helpfile#label" should position
-! the html window at label!!
-! the label "selectname" is in the html file ...
-          call gparcdx('File name: ',cline,last,5,model,&
-               './manual\html\ochelp.html#selectelement ','?Debug browser')
-! this browser can be opened without ""
-          browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
-! it works to open the ochelp.html on the first page
-! gnu fortran ...
-! now the complicated one ...
-          string=trim(browser)//&
-               '     "file://C:\Users\bosse\documents\oc\oc\src\'//&
-               trim(model(3:))//'"'
-          write(*,'(a)')trim(string)
-          call execute_command_line(string)
-! This command works in a Windows terminal window:
-! "C:\program files\Mozilla firefox\firefox.exe" 
-!  "file://c:\users\bosse\documents\oc\oc\src\manual\html\ochelp.html#selectelement"
-! but problems using as command ...
-! This works also:
-!c:\Program Files\internet explorer\iexplore.exe" "file://c:\users\bosse\documents\oc\oc\src\manual\html\ochelp.html#selectelement"
-! maybe possible to access by directory names with only 8 bytes ...
-!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux
-!
-! This command works in a Linux terminal window:
-! /usr/bin/firefox -file /home/bosse/OC/OC5-20/manual/ochelp.html
-! it does not work to add #selectelement at the end (no such file name)
-! This work in Linux terminal window:
-! /usr/bin/firefox "file:/home/bosse/.../manual/ochelp.html#selectelement"
-!
-!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux
+! DEBUG BROWSER: list how the online help is installed, allow changing
+! the OC home directory for this run and test the help at a target.
+! The help uses \hypertarget{target} in the LaTeX user guide which htlatex
+! makes to id="target" in ochelp7.html, see q4help in metlib4.F90
+#ifdef OCHOMEDIR
+          string=OCHOMEDIR
+#else
+          string=' '
+#endif
+          call help_report(ochome,ochomefrom,string,browser)
+! the OC home directory can be changed for this run
+          write(kou,1671)
+1671      format(/' You can change the OC home directory for this run',&
+               ' (RETURN keeps it)')
+          call gparcdx('OC home directory: ',cline,last,5,string,ochome,&
+               '?Debug browser')
+          if(string.ne.ochome .and. string(1:1).ne.' ') then
+#ifdef winhlp
+             filename=trim(string)//'\ochelp7.html'
+#else
+             filename=trim(string)//'/ochelp7.html'
+#endif
+             logok=.FALSE.
+             if(len_trim(string)+13.le.len(filename)) &
+                  inquire(file=filename,exist=logok)
+             if(.not.logok) then
+                write(kou,*)'No ochelp7.html in that directory,',&
+                     ' OC home directory not changed'
+             else
+                ochome=string
+                ochomefrom=3
+                htmlfile=filename
+                ocbase=trim(ochome)//'/databases'
+                call init_help(browser,htmlfile)
+                htmlhelp=ochelp%htmlhelp
+                write(kou,1672)trim(ochome)
+1672            format(' OC home directory changed to: ',a/&
+                     ' This is for this run only.  To change it',&
+                     ' permanently set the'/' environment variable',&
+                     ' OCHOME, see the user guide.')
+#ifdef OCHOMEDIR
+                string=OCHOMEDIR
+#else
+                string=' '
+#endif
+                call help_report(ochome,ochomefrom,string,browser)
+             endif
+          endif
+! test the help with a target
+          if(.not.ochelp%htmlhelp) then
+             write(kou,*)'The online help is not working, cannot test it'
+          else
+             write(kou,1673)
+1673         format(/' To test the help give a command, for example',&
+                  ' "List" or "List data".'/' RETURN skips the test.')
+             call gparcdx('Help target: ',cline,last,5,text,' ',&
+                  '?Debug browser')
+             if(text(1:1).ne.' ') then
+                call help_target_in_html(text,logok)
+                if(logok) then
+                   write(kou,*)'Opening the browser at ',trim(text)
+                   call q4help(text,0)
+                endif
+             endif
+          endif
 !---------------------------------
 ! debug trace
        case(7)
@@ -4270,7 +4280,10 @@ contains
 !         '                ','                ','                ']
 !-------------------------------------------------------------------
 ! default set to GIBBS-TRIANGLE
+! problem to get proper help from browser ochelp7 here
+! a ?? give the first page of the help, not the one related to Extra Options
           kom3=submenu('Extra options?',cline,last,cplot2,nplt2,9,'?TOPHLP')
+!
           plotextra: SELECT CASE(kom3)
           case default
 ! this is typically when using a ? or ??
@@ -4311,7 +4324,7 @@ contains
              enddo
              monovariant=name1(1:6)
              call gparcdx('Tie-line color ',cline,last,1,&
-                  name1,tielinecolor,'?Plot font')
+                  name1,tielinecolor,'?Plot color')
              call capson(name1)
              do kl=1,6
                 if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
@@ -4324,12 +4337,13 @@ contains
              tielinecolor=name1(1:6)
              goto 21100
 !...............................................
-! PLOT EXTRA Gibbs triangle
+! PLOT EXTRA Gibbs triangle, this is the default option
           case(9)
              chz='Y'
              if(graphopt%gibbstriangle) chz='N'
              call gparcdx('A Gibbs triangle diagram?',cline,last,5,ch1,chz,&
-                  'PLOT Gibbs triangle')
+                  'Plot Extra')
+!                  'Plot Extra Gibbs_triangle')
              if(ch1.eq.'y' .or. ch1.eq.'Y') then
                 graphopt%gibbstriangle=.TRUE.
                 write(*,22500)
@@ -4379,7 +4393,7 @@ contains
 ! PLOT EXTRA LOGSCALE
           case(2)
              call gparcdx('For x or y axis (or NONE)? ',cline,last,1,ch1,'y',&
-                  '?Plot logax')
+                  '?Plot extra logax')
              if(ch1.eq.'x') then
                 if(graphopt%axistype(1).eq.1) then
                    write(kou,*)'The x axis set to linear'
@@ -4408,7 +4422,7 @@ contains
 ! PLOT EXTRA text in lower left corner
           case(7)
              call gparcx('Text in lower left corner?',cline,last,1,text,' ',&
-                  '?Extra lower-left-corner')
+                  '?Plot Extra lower-left-corner')
              graphopt%lowerleftcorner=text
              goto 21100
 !...............................................
@@ -4449,7 +4463,7 @@ contains
           case(6)
              write(kou,*)'Specify option after pause !'
              call gparcx('GNUPLOT pause option?',cline,last,5,text,' ',&
-                  '?Plot pause')
+                  '?Plot extra pause')
              if(len_trim(text).eq.0) then
                 write(kou,*)'Warning, plot will exit directly!'
              endif
@@ -4463,7 +4477,7 @@ contains
 ! PLOT EXTRA RATIOS
           case(3)
              call gparrdx('X-axis plot ratio',cline,last,xxx,graphopt%xsize,&
-                  '?Plot ratios')
+                  '?Plot extra ratios')
              if(xxx.le.0.1) then
                 write(*,*)'Ratio set to 0.1'
                 xxx=0.1D0
