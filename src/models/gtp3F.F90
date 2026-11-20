@@ -1372,8 +1372,8 @@
          if(.not.btest(ceq%phase_varres(lokcs)%constat(ic),CONSUS)) then
             yz=ceq%phase_varres(lokcs)%yfr(ic)
             loksp=phlista(lokph)%constitlist(ic)
-            if(.not.btest(globaldata%status,GSNOTELCOMP)) then
-! the elements are the components
+            if(.not.btest(globaldata%status,GSNOTELCOMP) .or. gridinelements) then
+! the elements are the components, or gridmin works in elements
                do iel=1,splista(loksp)%noofel
                   lokel=splista(loksp)%ellinks(iel)
                   ie=ellista(lokel)%alphaindex
@@ -2821,6 +2821,9 @@
             write(*,*)'3F Error calculating refstate for chemical pot'
             goto 1000
          endif
+! gref is per mole of atoms, multiply with the atoms in the component
+! (2026-11-18, it is 1 for elements, 2 for NACL)
+         gref=gref*component_atoms(indices(1),ceq)
 ! RT for current T
          rtn=globaldata%rgas*ceq%tpval(1)
          ceq%tpval(1)=tsave

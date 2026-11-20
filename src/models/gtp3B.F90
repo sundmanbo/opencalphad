@@ -9745,7 +9745,7 @@
          bline(j2:)=ellista(j1)%symbol
          xxy=xalloy(j1)
 60       continue
-         call gparrdx(bline,cline,last,xxx,xxy,'?Enter Material')
+         call gparrdx(bline,cline,last,xxx,xxy,'?Enter material')
          if(buperr.ne.0 .or. xxx.le.zero) then
             write(*,*)'3B Illegal value for composition'
             goto 60

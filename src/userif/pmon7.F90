@@ -426,7 +426,7 @@ contains
 ! subcommands to DEBUG
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','PARAMETER_STRUCT',&
-          'SPECIES         ','TPFUN           ','BROWSER         ',&
+          'SPECIES         ','TPFUN           ','HELP            ',&
           'TRACE           ','SYMBOL_VALUE    ','MAP_STARTPOINTS ',&
           'GRID            ','ASYMMETRIES     ','BOMBMATTA       ']
 !-------------------
@@ -711,12 +711,14 @@ contains
 ! there is a OCHOME environment variable
 ! both LINUX and WINDOWS accept / as separator between directory and file names
        if(ochomefrom.eq.1) then
-          write(*,*)'Using OC home directory set at installation: ',&
-               trim(ochome)
+          write(*,157)trim(ochome)
+157       format('Using OC home directory set at installation: ',a)
        elseif(ochomefrom.eq.2) then
-          write(*,*)'Using default OC home directory: ',trim(ochome)
+          write(*,158)trim(ochome)
+158       format('Using default OC home directory: ',a)
        else
-          write(*,*)'Found OC home directory (OCHOME): ',trim(ochome)
+          write(*,159)trim(ochome)
+159       format('Found OC home directory (OCHOME): ',a)
        endif
 #ifdef winhlp
 ! HTML FILE FOR WINDOWS
@@ -735,11 +737,13 @@ contains
           htmlhelp=.FALSE.
        else
           if(ochelp%sysbrowser) then
-             write(kou,*)'Online help by your default browser',&
+             write(kou,160)'Online help by your default browser',&
                   ' and ochelp7.html'
+160          format(a)
           else
-             write(kou,*)'Online help by '//trim(browser)//&
+             write(kou,161)'Online help by '//trim(browser)//&
                   ' and ochelp7.html'
+161          format(a,a,a)
           endif
        endif
 ! default directory for databases
@@ -789,7 +793,8 @@ contains
     lowTdef='298.15  '; hightdef='6000    '; bibrefdef='U.N. Known';
     eldef='VA /-'; unary1991=.TRUE.; includemodels=.FALSE.
 ! running a initial macro file
-    write(*,*)'Working directory is: ',trim(workingdir)
+    write(*,183)trim(workingdir)
+183 format('Working directory is: ',a)
 !
 ! finished initiallization
 !
@@ -1270,7 +1275,9 @@ contains
           continue
 !-------------------------
        case(10) ! amend components
-          write(*,*)'WARNING: not fully implemented yet'
+! 2026-11-18: conditions, gridmin, global test, reference states and
+! SAVE/READ unformatted now work with other components than the elements
+!          write(*,*)'WARNING: not fully implemented yet'
           if(associated(ceq%lastcondition)) then
              write(kou,*)'Warning: All your conditions will be removed'
           endif
@@ -3412,19 +3419,20 @@ contains
           write(kou,214)
 214       format('The modified quasichemical model in the quadruplet',&
                ' approximation (MQMQA)'/'is used for molten salts.',&
-               '  Its constituents are quadruplets of two cations'/&
-               'and two anions.'/'Select any of the topics below.')
+               '  Its constituents are quadruplets of one or two'/&
+               ' cations and one or two anions.'/&
+               'Select any of the topics below.')
 ! loop until quit
 215       continue
           write(kou,216)
-216       format('Select topic:'/,&
+216       format('MQMQA topics:'/,&
                '  CONSTITUENTS  PARAMETERS    EXCESS_MODEL  ASYMMETRY    QUIT')
 !
 !          call gparcdx('Name: ',cline,last,5,name1,'*','?List TPfun')
 !
 !       question, input line, position , term , answer , default, ?hypertaget
 ! term is terminator of input, 1 is space or , which is OK here
-          call gparcdx('Topic: ',cline,last,1 ,name1   ,'QUIT'  ,'?Info MQMQA')
+          call gparcdx('Select: ',cline,last,1 ,name1   ,'QUIT'  ,'?Info MQMQA')
           call capson(name1)
           ch1=name1(1:1)
           if(ch1.eq.'Q') goto 100
@@ -3438,7 +3446,7 @@ contains
           elseif(ch1.eq.'A') then
              call q4help('?Info MQMQA asymmetry',jp)
           else
-             write(kou,*)'No such topic'
+!             write(kou,*)'No such topic'
              goto 100
           endif
           goto 215
@@ -3575,9 +3583,9 @@ contains
           call gparidx('Function index:',cline,last,ll,-1,'?Debug TPfun')
           call list_tpfun_details(ll)
 !---------------------------------
-! debug browser
+! debug help
        case(6)
-! DEBUG BROWSER: list how the online help is installed, allow changing
+! DEBUG HELP: list how the online help is installed, allow changing
 ! the OC home directory for this run and test the help at a target.
 ! The help uses \hypertarget{target} in the LaTeX user guide which htlatex
 ! makes to id="target" in ochelp7.html, see q4help in metlib4.F90
@@ -3592,7 +3600,7 @@ contains
 1671      format(/' You can change the OC home directory for this run',&
                ' (RETURN keeps it)')
           call gparcdx('OC home directory: ',cline,last,5,string,ochome,&
-               '?Debug browser')
+               '?Debug help')
           if(string.ne.ochome .and. string(1:1).ne.' ') then
 #ifdef winhlp
              filename=trim(string)//'\ochelp7.html'
@@ -3633,7 +3641,7 @@ contains
 1673         format(/' To test the help give a command, for example',&
                   ' "List" or "List data".'/' RETURN skips the test.')
              call gparcdx('Help target: ',cline,last,5,text,' ',&
-                  '?Debug browser')
+                  '?Debug help')
              if(text(1:1).ne.' ') then
                 call help_target_in_html(text,logok)
                 if(logok) then

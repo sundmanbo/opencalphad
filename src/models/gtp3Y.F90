@@ -59,6 +59,8 @@
    real, dimension (maxel,maxel) :: xsol
    double precision, dimension(maxel) :: phfrac,phsave,xdum
    double precision qq(5),savetp(2),xbase,totam
+! used when the components are not the elements
+   double precision xelm(maxel),atomfact,cmuc
    integer, dimension(maxph) :: iphx
    character name1*24
 !   integer idum(*)
@@ -93,24 +95,45 @@
       gx%bmperr=4344; goto 1000
    endif
    nrel=noel()
+! 2026-11-18: with other components than the elements (AMEND COMPONENTS)
+! gridmin works in elements.  The overall composition xknown is converted
+! to element fractions xelm, ceq%compstoi(element,component).
+! atomfact is moles of atoms per mole of components, used for phase amounts.
+! gridinelements makes calc_phase_mol return element fractions.
+! Component fractions can be zero or negative but element fractions cannot.
+   if(btest(globaldata%status,GSNOTELCOMP)) then
+      atomfact=zero
+      do ie=1,nrel
+         xelm(ie)=zero
+         do jp=1,nrel
+            xelm(ie)=xelm(ie)+ceq%compstoi(ie,jp)*xknown(jp)
+         enddo
+         atomfact=atomfact+xelm(ie)
+      enddo
+      if(atomfact.le.zero) then
+         write(*,*)'3Y Gridmin cannot handle these composition conditions'
+         gx%bmperr=4174; goto 1000
+      endif
+      do ie=1,nrel
+         xelm(ie)=xelm(ie)/atomfact
+      enddo
+      gridinelements=.TRUE.
+   else
+      atomfact=one
+      do ie=1,nrel
+         xelm(ie)=xknown(ie)
+      enddo
+   endif
    sum=zero
 ! problem that extract_massbalcond did not object to condition x(fcc,a)=
    do ie=1,nrel
-      if(xknown(ie).le.zero .or. xknown(ie).ge.one) then
-         if(.not.btest(globaldata%status,GSNOTELCOMP)) then
-            write(*,*)'3Y Gridmin cannot handle these composition conditions'
-            gx%bmperr=4174; goto 1000
-         else
-! we have other components than elements, fractions can be negative and >1
-            write(kou,10)
-10          format('3Y Trying to use gridmininmizer whith other components',&
-                 ' than the elements'/'   Can give warnings and error messages')
-            gx%bmperr=4174; goto 1000
-         endif
+      if(xelm(ie).le.zero .or. xelm(ie).ge.one) then
+         write(*,*)'3Y Gridmin cannot handle these composition conditions'
+         gx%bmperr=4174; goto 1000
       endif
-      sum=sum+xknown(ie)
+      sum=sum+xelm(ie)
    enddo
-   if(ocv()) write(*,12)'3Y gridmin: ',sum,(xknown(ie),ie=1,nrel)
+   if(ocv()) write(*,12)'3Y gridmin: ',sum,(xelm(ie),ie=1,nrel)
 12 format(a,1pe12.4,10(f8.4))
    if(abs(sum-one).gt.1.0D-8) then
       write(*,*)'3Y Sum of fractions not unity when calling global_gridmin'
@@ -288,14 +311,14 @@
 109 format('3Y Gridmin Calculated ',i6,' gridpoints in ',1pe12.4,' seconds, ',&
          i7,' clockcycles')
 ! find the minimum of nrel gridpoints among the kp-1 gridpoint
-! for current overall composition, xknown
+! for current overall composition, xelm (xknown as element fractions)
 !    write(*,*)'3Y globm 4: ',kp,garr(kp),xarr(1,kp)
 !   phfrac=zero
 ! start with all elements having chemical potential equal to gmax
    cmu(1)=gmax
    if(ocv()) write(*,*)'3Y Finding the gridpoints for the minimum: ',kp
 !   write(*,*)'3Y Finding the gridpoints for the minimum: ',kp
-   call find_gridmin(kp,nrel,xarr,garr,xknown,jgrid,phfrac,cmu,trace)
+   call find_gridmin(kp,nrel,xarr,garr,xelm,jgrid,phfrac,cmu,trace)
    if(gx%bmperr.ne.0) goto 1000
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !   write(*,*)'3Y total gridpoints: ',kp
@@ -446,8 +469,18 @@
    do ie=1,nrel
 !      write(*,*)'3Y grid chemical potential: ',ie,cmu(ie)*ceq%rtn
 ! do not care about reference state for chempot(2)
-      ceq%complist(ie)%chempot(1)=cmu(ie)*ceq%rtn
-      ceq%complist(ie)%chempot(2)=cmu(ie)*ceq%rtn
+      if(gridinelements) then
+! cmu are element potentials, convert to user components
+! (cmu itself must stay as element potentials, used below with xarr)
+         cmuc=zero
+         do jp=1,nrel
+            cmuc=cmuc+ceq%compstoi(jp,ie)*cmu(jp)
+         enddo
+      else
+         cmuc=cmu(ie)
+      endif
+      ceq%complist(ie)%chempot(1)=cmuc*ceq%rtn
+      ceq%complist(ie)%chempot(2)=cmuc*ceq%rtn
    enddo
 ! set driving force 0 for stable phases
    do ie=1,nvsph
@@ -591,7 +624,13 @@
          if(gx%bmperr.ne.0) goto 1000
 !         write(*,*)'3Y no segmentation fault 7'
 ! This is a bit quiestionable but seems to work
-         amount=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
+         if(gridinelements) then
+! aphl is moles of atoms for 1 mole of atoms, abnorm(3) is atoms per formula
+! unit, atomfact converts to 1 mole of components (calceq multiplies by antot)
+            amount=atomfact*aphl(iph)/ceq%phase_varres(lokcs)%abnorm(3)
+         else
+            amount=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
+         endif
          gmax=gmax+amount
          aphl(iph)=amount
 1789     format(a,2i4,5(1pe12.4))
@@ -668,6 +707,8 @@
       deallocate(phord)
    endif
 1100 continue
+! gridmin no longer works in elements
+   gridinelements=.FALSE.
    if(ocv()) write(*,*)'3Y leaving global_gridmin'
    write(*,*)'3Y leaving global_gridmin'
    return
@@ -5696,6 +5737,8 @@
    real sumx
    double precision, dimension(maxconst) :: yarr
    double precision totmol,totmass,amount,gmax,dgmax,dgtest
+! chemical potentials of the elements
+   double precision cmuel(maxel)
    integer, allocatable :: kphl(:),iphx(:)
    integer gmode,iph,ngg,nrel,ny,ifri,firstpoint,sumng,nrph,ii,jj,nz,lokcs
    integer ics,pph,nyfas,gpz,iphz,nggz,errall,haha
@@ -5741,11 +5784,13 @@
    wrongfrac=.true.
    ggloop: do iph=1,nrph
 ! include all phases with any composition set entered (but only once!)
-      if(test_phase_status_bit(iph,PHMQMQA)) then
-         write(*,7)
-7        format('3Y MQMQA phase excluded from global test')
-         cycle ggloop
-      endif
+! 2026-11-18: MQMQA phases are included, generate_mqmqa_grid is used and
+! composition sets of MQMQA phases are allowed since 2026-10-16
+!      if(test_phase_status_bit(iph,PHMQMQA)) then
+!         write(*,7)
+!7        format('3Y MQMQA phase excluded from global test')
+!         cycle ggloop
+!      endif
       do ics=1,noofcs(iph)
 ! new: -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
 ! ignore phases whith no composition set entered
@@ -5759,6 +5804,23 @@
    enddo ggloop
 !
    nrel=noofel
+! 2026-11-18: with other components than the elements (AMEND COMPONENTS)
+! the grid is calculated in elements, as in global_gridmin, and the chemical
+! potentials of the components are converted to those of the elements
+! using invcompstoi(component,element)
+   if(btest(globaldata%status,GSNOTELCOMP)) then
+      do ngg=1,nrel
+         cmuel(ngg)=zero
+         do jj=1,nrel
+            cmuel(ngg)=cmuel(ngg)+pceq%invcompstoi(jj,ngg)*pceq%cmuval(jj)
+         enddo
+      enddo
+      gridinelements=.TRUE.
+   else
+      do ngg=1,nrel
+         cmuel(ngg)=pceq%cmuval(ngg)
+      enddo
+   endif
 !   write(*,11)'3Y gpa:',pph,(iphx(iph),iph=1,pph)
 ! allocate arrays, added 1 to avoid a segmenentation fault ....
    allocate(xarr(nrel,maxgrid),stat=errall)
@@ -5808,7 +5870,7 @@
       gmax=zero
       sumx=0.0E0
       do ngg=1,nrel
-         gmax=gmax+dble(xarr(ngg,ifri))*pceq%cmuval(ngg)
+         gmax=gmax+dble(xarr(ngg,ifri))*cmuel(ngg)
          sumx=sumx+xarr(ngg,ifri)
       enddo
 !      if(ifri.eq.sumng) write(*,*)'3Y OK ',ifri,iph
@@ -5921,6 +5983,8 @@
       deallocate(iphx)
    endif
 2000 continue
+! grid no longer calculated in elements
+   gridinelements=.FALSE.
 !   if(inveq(haha,ceq)) then
 !      write(*,*)'3Y equilibrium is invariant when at exit',haha
 !   else
@@ -7002,10 +7066,11 @@
 ! Problems with this calculation so global_equil_check is disabled inside ...
       write(*,3)
 3     format('3Y Testing if any gridpoint is below the calculated equilibrium')
-      if(btest(globaldata%status,GSNOTELCOMP)) then
-         write(*,*)'3Y Cannot test global equilibrium when these components'
-         goto 1000
-      endif
+! 2026-11-18: the test works also when the components are not the elements
+!      if(btest(globaldata%status,GSNOTELCOMP)) then
+!         write(*,*)'3Y Cannot test global equilibrium when these components'
+!         goto 1000
+!      endif
       qq=1
 ! this generates a grid for test
       globalok=global_equil_check1(qq,addph,yfr,ceq)

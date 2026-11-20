@@ -1,6 +1,6 @@
 @$ Attempt to verify some OC calculations
 
-@$ ../../../../OC/OC7/oc6D
+@$ ../../../../OC/OC7/oc7D
 
 new Y
 
@@ -113,11 +113,12 @@ Y
 @$ The verbose option lists the varkappa variables
 @&
 
-list ph ms varkappa
+@$ list ph ms varkappa old command
+list ph ms ternary
 
 
 @$
-@$ There is a separate command to list the asymmetric varkappa
+@$ This is the command to list the asymmetries
 @&
 
 
@@ -144,6 +145,11 @@ append ./Y_KLi-Na_K1Li0-50000_Toop-Na.csv
 
 @&
 
+@$
+@$  The last diagram skipped as it has a miscibility gap, detected now!!
+
+set inter
+
 am ph ms asym
 1
 Y
@@ -154,7 +160,8 @@ am ph ms asym
 1
 
 
-@$ Change to have K as Toop, only one Toop per ternary!
+@$ these commands change to have K as Toop, only one Toop per ternary!
+@&
 
 c e
 

@@ -3347,6 +3347,9 @@ end function find_phasetuple_by_indices
    do ie=1,6
       saveg(ie)=ceq%phase_varres(lokres)%gval(ie,1)
    enddo
+! 2026-11-18: xcomp is in element fractions, with other components than the
+! elements (AMEND COMPONENTS) calc_phase_mol must also return element fractions
+   if(btest(globaldata%status,GSNOTELCOMP)) gridinelements=.TRUE.
 !   write(*,912)'3G Saved G: ',lokres,ceq%phase_varres(lokres)%gval(1,1),&
 !        saveg(1)
 !----------------------------------------------
@@ -3459,6 +3462,7 @@ end function find_phasetuple_by_indices
 ! restore original constitution of compset 1
 !   write(*,*)'3A gval: ',gval
 900 continue
+   gridinelements=.FALSE.
    ceq%tpval=tpsave
    jerr=gx%bmperr; gx%bmperr=0
    call set_constitution(iph,1,yarrsave,qq,ceq)
@@ -3475,6 +3479,32 @@ end function find_phasetuple_by_indices
 1000 continue
    return
  end subroutine set_reference_state
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable double precision function component_atoms
+!\begin{verbatim}
+ double precision function component_atoms(icomp,ceq)
+! returns the moles of atoms in one mole of component icomp, it is 1 when
+! the components are the elements.  2026-11-18 added for reference states
+! of components like NACL, calcg_endmember returns G per mole of atoms
+   implicit none
+   integer icomp
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer splink,j1
+   double precision sum
+   sum=zero
+   splink=ceq%complist(icomp)%splink
+   do j1=1,splista(splink)%noofel
+! ignore vacancies
+      if(ellista(splista(splink)%ellinks(j1))%alphaindex.gt.0) then
+         sum=sum+splista(splink)%stoichiometry(j1)
+      endif
+   enddo
+   component_atoms=sum
+   return
+ end function component_atoms
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -3599,6 +3629,54 @@ end function find_phasetuple_by_indices
    deallocate(matrix)
    return
  end subroutine amend_components
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine set_component_matrix
+!\begin{verbatim}
+ subroutine set_component_matrix(ceq)
+! calculates ceq%compstoi and ceq%invcompstoi from the species of the
+! components in ceq%complist.  Added 2026-11-18 for reading an unformatted
+! file with other components than the elements (AMEND COMPONENTS)
+   implicit none
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer c1,c2,i1,nspel,nspx,ierr
+   integer ielno(maxspel)
+   double precision stoi(maxspel),smass,qsp,spextra(10)
+   double precision, allocatable :: matrix(:,:),imat(:,:)
+   allocate(matrix(noofel,noofel))
+   allocate(imat(noofel,noofel))
+   matrix=zero
+   do c1=1,noofel
+      call get_species_data(ceq%complist(c1)%splink,nspel,ielno,stoi,&
+           smass,qsp,nspx,spextra)
+      if(gx%bmperr.ne.0) goto 1000
+      do i1=1,nspel
+         matrix(ielno(i1),c1)=stoi(i1)
+      enddo
+   enddo
+! save the matrix before inverting it
+   do c1=1,noofel
+      do c2=1,noofel
+         ceq%compstoi(c2,c1)=matrix(c2,c1)
+      enddo
+   enddo
+   call mdinvold(noofel,matrix,imat,noofel,ierr)
+   if(ierr.eq.0) then
+! the components are not independent
+      gx%bmperr=4362; goto 1000
+   endif
+   do c1=1,noofel
+      do c2=1,noofel
+         ceq%invcompstoi(c2,c1)=imat(c2,c1)
+      enddo
+   enddo
+1000 continue
+   deallocate(matrix)
+   deallocate(imat)
+   return
+ end subroutine set_component_matrix
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

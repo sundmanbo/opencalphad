@@ -2384,6 +2384,10 @@
   logical, private :: ttrace
 ! Output for debugging gridmin
   integer, private :: lutbug=0
+! 2026-11-18 TRUE while gridmin works in elements when the user has other
+! components (AMEND COMPONENTS), used in calc_phase_mol.  Set and reset in
+! global_gridmin.  NOT GOOD FOR PARALLELIZATION
+  logical, private :: gridinelements=.FALSE.
 ! used for notallowlisting
   double precision :: proda=zero,privilege=zero
 ! minimum constituent fraction

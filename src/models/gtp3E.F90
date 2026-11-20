@@ -1152,9 +1152,11 @@
    endif
 !   write(*,*)'3E buperr 1: ',buperr
 !---- if components different from elements
-   if(btest(globaldata%status,GSNOTELCOMP)) then
-      write(*,*)'3E Not implemented saving other components than elements'
-      gx%bmperr=4399; goto 1000
+! 2026-11-18: the component records are saved in the same way as for elements,
+! the matrices compstoi and invcompstoi are calculated when reading the file
+!   if(btest(globaldata%status,GSNOTELCOMP)) then
+!      write(*,*)'3E Not implemented saving other components than elements'
+!      gx%bmperr=4399; goto 1000
 !      do i=1,noofel
 !         isp=ceq%complist(i)%splink
 !         write(lut)isp
@@ -1169,7 +1171,7 @@
 !      do i=1,noofel
 !         write(lut)(ceq%compstoi(j,i),j=1,noofel)
 !      enddo
-   else
+!   else
 ! save component records in a linked list NEEDED FOR MANY THINGS
 ! like reference state etc
       lokcc=lokeq+displace+2
@@ -1214,7 +1216,7 @@
          call storr(lok+disz+nwpr,iws,ceq%complist(j)%molat)
 !         write(*,*)'3e comprec size: ',lok,lok+disz+nwpr,iws(1)
       enddo
-   endif
+!   endif
 117 continue
 ! LINKED LIST of phase_varres records stored from lokeq+lokvares
    lokhighcs=lokeq+displace+3
@@ -2760,6 +2762,12 @@
       call loadr(lokcc+disz+nwpr,iws,ceq%complist(llen)%molat)
       lokcc=iws(lokcc)
    enddo
+! 2026-11-18: with other components than the elements (AMEND COMPONENTS)
+! calculate the stoichiometry matrix and its inverse from the species
+   if(btest(globaldata%status,GSNOTELCOMP)) then
+      call set_component_matrix(ceq)
+      if(gx%bmperr.ne.0) goto 1000
+   endif
 !----- conditions (note that inactive conditions not set)
 ! conditions cannot be entered before the phase_varres for all phases
    conditionplace=displace
@@ -4910,7 +4918,7 @@
                if(tdbname.ne.' ') then
                   if(.not.silent) write(kou,298)trim(tdbname),&
                        trim(name2),trim(name4),nl
-298               format(' *** Error, unknown constituent "',a,&
+298               format('3E *** Error, unknown constituent "',a,&
                        '" in parameter ignored: ',a,',',a,')'/&
                        '     around line ',i6,' in the TDB file')
 ! tdbwarning not set as the pause would break macros reading such files
@@ -5840,14 +5848,20 @@
          call find_species_record_exact(const,loksp)
          if(gx%bmperr.ne.0) then
             gx%bmperr=0
-! an MQMQA quad K/CL-Q in a parameter is K/CL on the SPECIES line
-            if(index(const,'/').gt.0) then
-               quad=index(const,'-Q')
-               if(quad.gt.0) const(quad:)=' '
-            endif
             do jj=1,nn
                if(names(jj).eq.const) goto 100
             enddo
+! an MQMQA quad K/CL-Q in a parameter can be K/CL on the SPECIES line
+! (TDB files written by SAVE TDB have K/CL-Q on the SPECIES line)
+            if(index(const,'/').gt.0) then
+               quad=index(const,'-Q')
+               if(quad.gt.0) then
+                  const(quad:)=' '
+                  do jj=1,nn
+                     if(names(jj).eq.const) goto 100
+                  enddo
+               endif
+            endif
             badname=constarr(ip:jp-1)
             exit loop
          endif

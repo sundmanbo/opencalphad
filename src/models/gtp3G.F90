@@ -847,12 +847,13 @@
 !   do ic=1,noofel
 !      cmpstoi(ic)=zero
 !   enddo
-! not sure about the indices here .... ????
+! invcompstoi(component,element), stoi is indexed by element. 2026-11-18:
+! index of stoi corrected from ic to jc (it gave wrong MU(phase,species))
 !   write(*,*)'e2c: ',noofel,nspel,stoi(1),ceq%invcompstoi(1,1)
    do ic=1,noofel
 ! convert elements to components, if the elements are components no problem
       do jc=1,noofel
-         cmpstoi(ic)=cmpstoi(ic)+ceq%invcompstoi(ic,jc)*stoi(ic)
+         cmpstoi(ic)=cmpstoi(ic)+ceq%invcompstoi(ic,jc)*stoi(jc)
       enddo
    enddo
 !   write(*,7)'3G 1: ',(stoi(ic),ic=1,noofel)

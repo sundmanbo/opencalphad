@@ -1841,6 +1841,8 @@ CONTAINS
 !                stop
                 goto 998
              endif
+! xxx is per mole of atoms, multiply with atoms in component (2026-11-18)
+             xxx=xxx*component_atoms(jj,ceq)
           endif
 ! MU same as TC MUR
           ceq%complist(jj)%chempot(2)=ceq%complist(jj)%chempot(1)+xxx*ceq%rtn
@@ -2712,7 +2714,10 @@ if(meqrec%noofits.eq.1) then
              gsurf=gsurf+phr(jj)%xmol(ie)*ceq%cmuval(ie)
              summ=summ+phr(jj)%xmol(ie)
           enddo
-          gsurf=gsurf/summ
+! 2026-11-18: with other components than the elements (AMEND COMPONENTS)
+! summ can be zero or negative (metal K with components KCL CL), then
+! the driving force is scaled with moles of atoms below, abnorm(3)
+          if(.not.btest(globaldata%status,GSNOTELCOMP)) gsurf=gsurf/summ
 ! calculate G_m plus any deltat and deltap terms
           dgm=phr(jj)%curd%gval(1,1)
           if(meqrec%tpindep(1)) then
@@ -2723,6 +2728,9 @@ if(meqrec%noofits.eq.1) then
           endif
 ! scale dgm per mole atoms
           molesofatoms=phr(jj)%curd%abnorm(1)
+! abnorm(1) is moles of components, abnorm(3) moles of atoms
+          if(btest(globaldata%status,GSNOTELCOMP)) &
+               molesofatoms=phr(jj)%curd%abnorm(3)
           if(molesofatoms.lt.0.3D0) then
 ! problem when a phase is stable with just vacancies !!!!!!!!!!!!
              if(phr(jj)%phasestatus.gt.0) then
@@ -2731,7 +2739,12 @@ if(meqrec%noofits.eq.1) then
              endif
           endif
 !          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
-          dgm=gsurf-dgm/molesofatoms
+          if(btest(globaldata%status,GSNOTELCOMP)) then
+! gsurf and dgm are per formula unit, this is independent of components
+             dgm=(gsurf-dgm)/molesofatoms
+          else
+             dgm=gsurf-dgm/molesofatoms
+          endif
           if(phr(jj)%phasestatus.gt.0) then
 ! we should be here only for UNSTABLE phases, phr(jj)%phasestatus<=0
 ! For some reason a phase has entered/fixed status (>0) THAT IS AN ERROR
@@ -4234,7 +4247,10 @@ if(meqrec%noofits.eq.1) then
              gsurf=gsurf+phr(jj)%xmol(ie)*ceq%cmuval(ie)
              summ=summ+phr(jj)%xmol(ie)
           enddo
-          gsurf=gsurf/summ
+! 2026-11-18: with other components than the elements (AMEND COMPONENTS)
+! summ can be zero or negative (metal K with components KCL CL), then
+! the driving force is scaled with moles of atoms below, abnorm(3)
+          if(.not.btest(globaldata%status,GSNOTELCOMP)) gsurf=gsurf/summ
 ! calculate G_m plus any deltat and deltap terms
           dgm=phr(jj)%curd%gval(1,1)
           if(meqrec%tpindep(1)) then
@@ -4245,6 +4261,9 @@ if(meqrec%noofits.eq.1) then
           endif
 ! scale dgm per mole atoms
           molesofatoms=phr(jj)%curd%abnorm(1)
+! abnorm(1) is moles of components, abnorm(3) moles of atoms
+          if(btest(globaldata%status,GSNOTELCOMP)) &
+               molesofatoms=phr(jj)%curd%abnorm(3)
           if(molesofatoms.lt.0.3D0) then
 ! problem when a phase is stable with just vacancies !!!!!!!!!!!!
              if(phr(jj)%phasestatus.gt.0) then
@@ -4253,7 +4272,12 @@ if(meqrec%noofits.eq.1) then
              endif
           endif
 !          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
-          dgm=gsurf-dgm/molesofatoms
+          if(btest(globaldata%status,GSNOTELCOMP)) then
+! gsurf and dgm are per formula unit, this is independent of components
+             dgm=(gsurf-dgm)/molesofatoms
+          else
+             dgm=gsurf-dgm/molesofatoms
+          endif
           if(phr(jj)%phasestatus.gt.0) then
 ! we should be here only for UNSTABLE phases, phr(jj)%phasestatus<=0
 ! For some reason a phase has entered/fixed status (>0) THAT IS AN ERROR
@@ -5241,6 +5265,8 @@ if(meqrec%noofits.eq.1) then
                       ceq%tpval=tpvalsave
                       goto 1000
                    endif
+! gref is per mole of atoms, multiply with atoms in component (2026-11-18)
+                   gref=gref*component_atoms(je,ceq)
 ! this is only place where we need to use %mufixvalref
 ! mufixval should be referred to SER, mufixvalref prescribed value for user ref
                    meqrec%mufixval(ke)=meqrec%mufixvalref(ke)+gref

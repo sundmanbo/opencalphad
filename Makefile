@@ -72,7 +72,7 @@ OCHOMEDIR = $(if $(OCHOME),$(OCHOME),$(HOME)/OCHOME)
 .PHONY: help
 # A file is copied only if it is missing in OCHOME or newer in Docs/Userguide
 HELPFILES = Docs/Userguide/ochelp7.html Docs/Userguide/ochelp7.css \
-	$(wildcard Docs/Userguide/ochelp7?x.png) Docs/Userguide/ochelp7.pdf Docs/changes.txt
+	$(wildcard Docs/Userguide/ochelp7*x.png) Docs/Userguide/ochelp7.pdf Docs/changes.txt
 help:
 	@mkdir -p "$(OCHOMEDIR)"
 	@for f in $(HELPFILES); do \

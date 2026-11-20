@@ -3159,6 +3159,9 @@ CONTAINS
     else
        ochelp%target=hypertarget
     endif
+! browsers are case sensitive, use the spelling of the target in the help
+! file (if not found the browser shows the first page as before)
+    call help_target_in_html(ochelp%target,logok,.TRUE.)
 ! The help system depends on 3 files:
 ! 1: a plain LaTeX file is the base.  The \hypertarget{target}{text} feature
 !    is are used to find a specific help text in the user guide.
@@ -3274,10 +3277,10 @@ CONTAINS
 !\addtotable subroutine help_report & List how the online help is installed
 !\begin{verbatim}
   subroutine help_report(ochome,from,instdir,browser)
-! Used by DEBUG BROWSER to list how the online help is installed.
+! Used by DEBUG HELP to list how the online help is installed.
 ! ochome is the OC home directory, from tells how it was found
 ! (0 OCHOME environment variable, 1 set at installation, 2 default in the
-! user's home directory, 3 set by DEBUG BROWSER), instdir is the directory
+! user's home directory, 3 set by DEBUG HELP), instdir is the directory
 ! set at installation (or blank) and browser the browser asked for.
     implicit none
     character*(*) ochome,instdir,browser
@@ -3307,7 +3310,7 @@ CONTAINS
     case(2)
        what='(default, OCHOME in your home directory)'
     case(3)
-       what='(set by DEBUG BROWSER)'
+       what='(set by DEBUG HELP)'
     case default
        what=' '
     end select
@@ -3377,22 +3380,28 @@ CONTAINS
 
 !\addtotable subroutine help_target_in_html & Check a target is in help file
 !\begin{verbatim}
-  subroutine help_target_in_html(target,found)
+  subroutine help_target_in_html(target,found,quiet)
 ! Used by DEBUG BROWSER to check that the help file has an anchor for
 ! a target, i.e. id="target" made by \hypertarget{target} in the LaTeX file.
 ! A ? first in target is ignored.  Browsers are case sensitive, so if the
 ! target is found only with other upper/lower case letters target is
 ! changed to the spelling in the help file.  If not found at all the
 ! targets starting with the same text (any case) are listed.
+! Also used by q4help with quiet=.TRUE. (no messages) so ?? finds the
+! help text independent of upper/lower case.
     implicit none
     character*(*) target
     logical found
+    logical, optional :: quiet
 !\end{verbatim} %+
     integer, parameter :: maxlist=60
     character line*2048,tgt*128,id*128,upid*128,uptgt*128,caseid*128
     character(len=40) :: list(maxlist)
     integer lun,ios,kk,jj,nlist,ltgt
+    logical talk
     found=.FALSE.
+    talk=.TRUE.
+    if(present(quiet)) talk=.not.quiet
     if(target(1:1).eq.'?') then
        tgt=target(2:)
     else
@@ -3407,7 +3416,8 @@ CONTAINS
     open(newunit=lun,file=ochelp%htmlfile,status='old',action='read',&
          access='sequential',form='formatted',iostat=ios)
     if(ios.ne.0) then
-       write(kou,*)'Cannot open the help file ',trim(ochelp%htmlfile)
+       if(talk) write(kou,*)'Cannot open the help file ',&
+            trim(ochelp%htmlfile)
        goto 1000
     endif
     lines: do
@@ -3439,10 +3449,12 @@ CONTAINS
     close(lun)
     if(found) goto 1000
     if(caseid(1:1).ne.' ') then
-       write(kou,10)trim(caseid)
+       if(talk) write(kou,10)trim(caseid)
 10     format(' Using the target "',a,'" as spelled in the help file')
        target=caseid
        found=.TRUE.
+    elseif(.not.talk) then
+       continue
     elseif(nlist.gt.0) then
        write(kou,20)trim(tgt)
 20     format(' "',a,'" is not in the help file. Targets starting',&
